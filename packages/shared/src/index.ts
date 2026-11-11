@@ -12,3 +12,4 @@ export function todayISO(d = new Date()): string {
   const off = d.getTimezoneOffset();
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
 }
+export * from './tafqeet';

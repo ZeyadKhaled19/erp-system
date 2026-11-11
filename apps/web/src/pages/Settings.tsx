@@ -36,6 +36,11 @@ export function SettingsPage() {
           allow_negative_stock: !!f.allow_negative_stock,
           enforce_credit_limit: !!f.enforce_credit_limit,
           default_due_days: Math.max(0, Number(f.default_due_days) || 0),
+          print_logo: f.print_logo || null,
+          print_template_invoice: f.print_template_invoice || 'a4',
+          print_template_voucher: f.print_template_voucher || 'voucher',
+          print_show_balance: !!f.print_show_balance,
+          print_contract_terms: f.print_contract_terms || '',
           ...(can('period.lock') ? { locked_until: f.locked_until || null } : {}),
         },
       });
@@ -91,6 +96,8 @@ export function SettingsPage() {
         </>
       )}
 
+      {can('settings.manage') && f && <PrintSettings f={f} setF={setF} />}
+
       <div className="group-header">تغيير كلمة المرور</div>
       <div className="card pad stack">
         <Field label="كلمة المرور الحالية"><input className="input" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></Field>
@@ -138,5 +145,69 @@ export function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** إعدادات الطباعة: الشعار والقوالب الافتراضية وشروط عقد التقسيط */
+function PrintSettings({ f, setF }: { f: any; setF: (v: any) => void }) {
+  const onLogo = (file: File | undefined) => {
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // تصغير الشعار ليبقى خفيفًا ويُخزن ضمن الإعدادات ويعمل دون اتصال
+      const scale = Math.min(1, 320 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+      setF({ ...f, print_logo: c.toDataURL('image/png') });
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+  return (
+    <>
+      <div className="group-header">الطباعة</div>
+      <div className="card pad stack">
+        <div className="row">
+          <div style={{ flex: 1 }}>
+            <div className="bold">شعار الشركة</div>
+            <div className="footnote">يظهر أعلى الفواتير والسندات والإيصالات الحرارية</div>
+          </div>
+          {f.print_logo && <img src={f.print_logo} alt="" style={{ maxHeight: 50, maxWidth: 120, objectFit: 'contain' }} />}
+          <label className="btn sm">
+            اختيار صورة
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onLogo(e.target.files?.[0])} />
+          </label>
+          {f.print_logo && <button className="btn sm danger" onClick={() => setF({ ...f, print_logo: null })}>إزالة</button>}
+        </div>
+        <div className="grid grid-2">
+          <Field label="القالب الافتراضي للفواتير">
+            <select className="select" value={f.print_template_invoice || 'a4'} onChange={(e) => setF({ ...f, print_template_invoice: e.target.value })}>
+              <option value="a4">A4 كامل</option>
+              <option value="a5">A5 نصف صفحة</option>
+              <option value="thermal80">إيصال حراري 80mm</option>
+              <option value="thermal58">إيصال حراري 58mm</option>
+            </select>
+          </Field>
+          <Field label="القالب الافتراضي للسندات">
+            <select className="select" value={f.print_template_voucher || 'voucher'} onChange={(e) => setF({ ...f, print_template_voucher: e.target.value })}>
+              <option value="voucher">سند مع المبلغ بالحروف</option>
+              <option value="a5">A5</option>
+              <option value="thermal80">إيصال حراري 80mm</option>
+            </select>
+          </Field>
+        </div>
+        <div className="row">
+          <div className="title" style={{ flex: 1 }}>إظهار رصيد العميل/المورد الحالي على الفاتورة</div>
+          <Switch checked={!!f.print_show_balance} onChange={(v) => setF({ ...f, print_show_balance: v })} />
+        </div>
+        <Field label="شروط عقد التقسيط" hint="تُطبع في عقد التقسيط؛ اتركها فارغة لاستخدام الشروط الافتراضية">
+          <textarea className="textarea" style={{ minHeight: 120 }} value={f.print_contract_terms ?? ''} onChange={(e) => setF({ ...f, print_contract_terms: e.target.value })} />
+        </Field>
+        <div className="footnote">اضغط «حفظ الإعدادات» أعلى الصفحة بعد التعديل.</div>
+      </div>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { PrintPage } from './pages/Print';
 import { Layout } from './components/Layout';
 import { useUi } from './components/ui';
 import { api, setToken, setUnauthorizedHandler } from './lib/api';
@@ -41,6 +42,7 @@ export function App() {
     return s;
   });
   const ui = useUi();
+  const loc = useLocation();
 
   useEffect(() => {
     if (!session) return;
@@ -112,6 +114,15 @@ export function App() {
           setSession(s);
         }}
       />
+    );
+
+  if (loc.pathname.startsWith('/print/'))
+    return (
+      <SessionContext.Provider value={ctx}>
+        <Routes>
+          <Route path="/print/:id" element={<PrintPage />} />
+        </Routes>
+      </SessionContext.Provider>
     );
 
   return (

@@ -279,11 +279,15 @@ export async function buildApp(opts: AppOptions) {
 
   app.post('/api/admin/settings', { preHandler: perm('settings.manage') }, async (req) => {
     const b = z.record(z.any()).parse(req.body);
-    const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until'];
+    const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until',
+      'print_logo', 'print_template_invoice', 'print_template_voucher', 'print_show_balance', 'print_contract_terms'];
     return db.tx(async (t) => {
       await t.query(`select pg_advisory_xact_lock(7331)`);
       for (const [k, v] of Object.entries(b)) {
         if (!allowed.includes(k)) throw new AppError(`إعداد غير معروف: ${k}`);
+        if (k === 'print_logo' && v !== null && (typeof v !== 'string' || !v.startsWith('data:image/') || v.length > 300_000)) {
+          throw new AppError('الشعار يجب أن يكون صورة أصغر من 200 كيلوبايت');
+        }
         if (k === 'locked_until') {
           if (!hasPermission(req.user!.permissions, 'period.lock')) throw new AppError('قفل الفترات يحتاج صلاحية خاصة', 'forbidden');
           if (v !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw new AppError('تاريخ القفل غير صالح');

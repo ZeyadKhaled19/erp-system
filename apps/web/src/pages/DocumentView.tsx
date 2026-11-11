@@ -102,7 +102,7 @@ export function DocumentView() {
               <button className="btn primary" onClick={() => setDeliverOpen(true)}><Truck /> تسليم</button>
             )}
             {canCancel && <button className="btn danger" onClick={() => setCancelOpen(true)}><Ban /> إلغاء</button>}
-            <button className="btn" onClick={() => window.print()}><Printer /> طباعة</button>
+            <button className="btn" onClick={() => nav(`/print/${doc.id}`)}><Printer /> طباعة</button>
           </>
         }
       />
