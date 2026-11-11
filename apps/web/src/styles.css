@@ -769,3 +769,147 @@ body { background: var(--app-bg); background-attachment: fixed; transition: back
 .hbar .hb-track { flex: 1; height: 10px; border-radius: 999px; background: var(--fill-3); overflow: hidden; }
 .hbar .hb-fill { height: 100%; border-radius: 999px; background: var(--grad-accent); }
 .hbar .hb-val { min-width: 80px; text-align: left; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+
+/* ============================================================
+   الإصدار 3: خطوط أوضح، وخانات إدخال واضحة، وتسلسل بصري أقوى
+   ============================================================ */
+
+/* ---------- الخطوط (تختار من المظهر) ---------- */
+:root { --font: 'Readex Pro', -apple-system, 'SF Arabic', 'IBM Plex Sans Arabic', system-ui, sans-serif; }
+[data-font="plex"] { --font: 'IBM Plex Sans Arabic', -apple-system, 'SF Arabic', system-ui, sans-serif; }
+[data-font="cairo"] { --font: 'Cairo', -apple-system, 'SF Arabic', system-ui, sans-serif; }
+[data-font="tajawal"] { --font: 'Tajawal', -apple-system, 'SF Arabic', system-ui, sans-serif; }
+[data-font="almarai"] { --font: 'Almarai', -apple-system, 'SF Arabic', system-ui, sans-serif; }
+[data-font="system"] { --font: -apple-system, BlinkMacSystemFont, 'SF Arabic', 'SF Pro Text', 'Segoe UI', 'Readex Pro', system-ui, sans-serif; }
+body, button, input, select, textarea { font-family: var(--font); }
+body { font-size: 16px; letter-spacing: 0; line-height: 1.5; }
+.large-title { font-weight: 700; letter-spacing: -0.4px; }
+
+/* ---------- ألوان خانات الإدخال لكل ثيم ---------- */
+:root {
+  --input-bg: #ffffff;
+  --input-border: #d1d1d6;
+  --input-border-hover: #aeaeb2;
+  --input-disabled: #f2f2f5;
+  --label-field: #3a3a3c;
+  --label-icon: var(--tint);
+  --heading: #1c1c1e;
+  --zebra: rgba(0, 0, 0, 0.018);
+}
+[data-theme="dark"] {
+  --input-bg: #111113;
+  --input-border: #3a3a3c;
+  --input-border-hover: #545458;
+  --input-disabled: #1f1f22;
+  --label-field: #d1d1d6;
+  --heading: #ffffff;
+  --zebra: rgba(255, 255, 255, 0.025);
+}
+[data-theme="glass"] {
+  --input-bg: rgba(255, 255, 255, 0.92);
+  --input-border: rgba(80, 80, 120, 0.28);
+  --input-border-hover: rgba(80, 80, 120, 0.45);
+  --input-disabled: rgba(255, 255, 255, 0.5);
+}
+[data-theme="warm"] {
+  --input-bg: #ffffff;
+  --input-border: #ddd0bf;
+  --input-border-hover: #c4b29b;
+  --input-disabled: #f5efe6;
+  --label-field: #4a3a2a;
+  --heading: #2b2118;
+}
+
+/* ---------- خانات الإدخال: إطار واضح وخلفية مختلفة عن البطاقة ---------- */
+.input, .select, .textarea,
+.card .input, .card .select, .card .textarea,
+.sheet .input, .sheet .select, .sheet .textarea {
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) inset;
+  border-radius: 12px;
+  color: var(--label);
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.input:hover:not(:disabled), .select:hover:not(:disabled), .textarea:hover:not(:disabled) { border-color: var(--input-border-hover); }
+.input:focus, .select:focus, .textarea:focus,
+.card .input:focus, .sheet .input:focus, .card .select:focus, .sheet .select:focus {
+  background-color: var(--input-bg);
+  border-color: var(--tint);
+  box-shadow: 0 0 0 4px var(--tint-soft);
+}
+.input:disabled, .select:disabled, .textarea:disabled { background-color: var(--input-disabled); color: var(--label-2); border-style: dashed; cursor: not-allowed; }
+.input::placeholder, .textarea::placeholder { color: var(--label-3); font-weight: 400; }
+.input.num { font-weight: 600; letter-spacing: .2px; }
+
+/* حقول العنوان + القيمة */
+.field { gap: 7px; }
+.field > label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--label-field);
+  padding-inline-start: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.field > label::before {
+  content: '';
+  width: 4px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--tint);
+  opacity: .55;
+}
+.field .hint { font-size: 12px; color: var(--label-2); }
+.field.required > label::after { content: '*'; color: var(--red); font-weight: 700; }
+
+/* البحث يبقى رماديًا (ليس خانة نموذج) */
+.search { border: 1px solid transparent; }
+.search:focus-within { border-color: var(--tint); box-shadow: 0 0 0 4px var(--tint-soft); background: var(--input-bg); }
+
+/* المنتقي (Picker) والمفاتيح المقسمة */
+.picker .input { padding-inline-end: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 12px center; }
+.segmented { border: 1px solid var(--separator); }
+
+/* ---------- العناوين والأقسام ---------- */
+.section-title { color: var(--heading); display: flex; align-items: center; gap: 10px; }
+.section-title::before { content: ''; width: 5px; height: 20px; border-radius: 4px; background: var(--grad-accent); }
+.group-header { font-size: 13px; font-weight: 700; color: var(--label-2); letter-spacing: .3px; }
+.hub-group-title { font-weight: 700; }
+.card .bold, .chart-card .bold { color: var(--heading); }
+
+/* بيانات العرض (ليست خانات): العنوان صغير رمادي والقيمة واضحة */
+.footnote { color: var(--label-2); }
+.info-k { font-size: 12.5px; color: var(--label-2); font-weight: 500; }
+.info-v { font-size: 16px; font-weight: 600; color: var(--heading); margin-top: 2px; }
+
+/* ---------- الجداول ---------- */
+.table th { background: var(--card-2); color: var(--label-2); font-weight: 700; font-size: 12.5px; letter-spacing: .2px; border-bottom: 1px solid var(--separator); }
+.table tbody tr:nth-child(even) td { background: var(--zebra); }
+.table tbody tr.click:hover td { background: var(--tint-soft); }
+.table td.bold, .table td .bold { color: var(--heading); }
+.table tfoot td { background: var(--card-2); color: var(--heading); }
+
+/* ---------- الأرقام والمبالغ ---------- */
+.num { font-feature-settings: 'tnum' 1, 'lnum' 1; }
+.stat .stat-value, .kpi .k-value, .sa-total, .pos-total, .big-amount, .totals-box .tr.grand { color: var(--heading); }
+.totals-box .tr { padding: 3px 0; }
+.totals-box .tr.grand { color: var(--tint); }
+
+/* ---------- الشارات أوضح ---------- */
+.badge { font-weight: 700; letter-spacing: .1px; }
+.badge.blue { background: var(--tint-soft); color: var(--tint); }
+
+/* ---------- البطاقات: حد خفيف يفصلها عن الخلفية ---------- */
+.card, .list, .table-wrap, .kpi, .chart-card, .tile:not(.hero), .stat { border: 1px solid var(--separator); }
+[data-theme="glass"] .card, [data-theme="glass"] .list, [data-theme="glass"] .table-wrap { border-color: rgba(255,255,255,.6); }
+
+/* سطور محرر المستندات: كل سطر كبطاقة صغيرة */
+.doc-lines .line { border-bottom: 1px solid var(--separator); }
+.doc-lines .line.head { background: var(--card-2); color: var(--label-2); font-weight: 700; }
+.doc-lines .line .total { color: var(--heading); font-size: 16px; }
+
+/* شاشة الدخول */
+.login-card .list { border: 1px solid var(--input-border); background: var(--input-bg) !important; }
+.login-card .list .input { border: 0; box-shadow: none; background: transparent; }

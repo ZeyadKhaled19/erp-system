@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACCENTS, loadAppearance, saveAppearance, THEMES, type Appearance } from '../lib/theme';
+import { ACCENTS, FONTS, loadAppearance, saveAppearance, THEMES, type Appearance } from '../lib/theme';
 import { Segmented, Sheet } from './ui';
 
 export function useAppearance(): [Appearance, (a: Appearance) => void] {
@@ -34,6 +34,18 @@ export function AppearancePanel() {
       <div className="accent-dots">
         {ACCENTS.map((c) => (
           <button key={c.id} title={c.label} aria-label={c.label} className={a.accent === c.id ? 'on' : ''} style={{ background: c.color }} onClick={() => set({ ...a, accent: c.id })} />
+        ))}
+      </div>
+      <div className="bold" style={{ marginTop: 8 }}>الخط</div>
+      <div className="list">
+        {FONTS.map((f) => (
+          <div key={f.id} className="list-row tappable" onClick={() => set({ ...a, font: f.id })} style={{ fontFamily: f.family }}>
+            <div className="title">
+              <div style={{ fontSize: 17, fontWeight: 600 }}>فاتورة بيع رقم ١٢٣ — الإجمالي 1,250.00</div>
+              <div className="sub">{f.label}</div>
+            </div>
+            {a.font === f.id && <span className="badge blue">مختار</span>}
+          </div>
         ))}
       </div>
       <div className="bold" style={{ marginTop: 8 }}>كثافة العرض</div>

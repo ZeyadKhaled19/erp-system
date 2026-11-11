@@ -3,14 +3,25 @@
 export type ThemeName = 'light' | 'dark' | 'glass' | 'warm' | 'auto';
 export type Accent = 'blue' | 'indigo' | 'purple' | 'pink' | 'orange' | 'green' | 'teal' | 'graphite';
 export type Density = 'comfortable' | 'compact';
+export type FontName = 'readex' | 'plex' | 'cairo' | 'tajawal' | 'almarai' | 'system';
 export interface Appearance {
   theme: ThemeName;
   accent: Accent;
   density: Density;
+  font: FontName;
 }
 
 const KEY = 'erp.appearance';
-const DEFAULT: Appearance = { theme: 'light', accent: 'blue', density: 'comfortable' };
+const DEFAULT: Appearance = { theme: 'light', accent: 'blue', density: 'comfortable', font: 'readex' };
+
+export const FONTS: { id: FontName; label: string; family: string }[] = [
+  { id: 'readex', label: 'Readex Pro — عصري وواضح', family: "'Readex Pro'" },
+  { id: 'plex', label: 'IBM Plex — رسمي', family: "'IBM Plex Sans Arabic'" },
+  { id: 'cairo', label: 'Cairo — ودود', family: "'Cairo'" },
+  { id: 'tajawal', label: 'Tajawal — خفيف', family: "'Tajawal'" },
+  { id: 'almarai', label: 'Almarai — هادئ', family: "'Almarai'" },
+  { id: 'system', label: 'خط الجهاز (SF على أجهزة أبل)', family: "-apple-system, 'Segoe UI'" },
+];
 
 export const THEMES: { id: ThemeName; label: string; preview: string; bars: string[] }[] = [
   { id: 'light', label: 'فاتح (آيباد)', preview: 'linear-gradient(135deg,#f2f2f7,#ffffff)', bars: ['#ffffff', '#ffffff'] },
@@ -47,6 +58,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.theme = theme;
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
+  el.dataset.font = a.font;
   const meta = document.querySelector('meta[name="theme-color"]');
   meta?.setAttribute('content', theme === 'dark' ? '#000000' : theme === 'warm' ? '#f5efe6' : '#f2f2f7');
 }

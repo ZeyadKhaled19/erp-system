@@ -2,6 +2,18 @@ import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-sans-arabic/500.css';
 import '@fontsource/ibm-plex-sans-arabic/600.css';
 import '@fontsource/ibm-plex-sans-arabic/700.css';
+import '@fontsource/readex-pro/400.css';
+import '@fontsource/readex-pro/500.css';
+import '@fontsource/readex-pro/600.css';
+import '@fontsource/readex-pro/700.css';
+import '@fontsource/cairo/400.css';
+import '@fontsource/cairo/600.css';
+import '@fontsource/cairo/700.css';
+import '@fontsource/tajawal/400.css';
+import '@fontsource/tajawal/500.css';
+import '@fontsource/tajawal/700.css';
+import '@fontsource/almarai/400.css';
+import '@fontsource/almarai/700.css';
 import './styles.css';
 import { applyAppearance } from './lib/theme';
 

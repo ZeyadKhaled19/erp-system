@@ -5,9 +5,9 @@ import { createPortal } from 'react-dom';
 
 // ---------------------------------------------------------------- حقول
 
-export function Field({ label, hint, error, children, className }: { label?: ReactNode; hint?: ReactNode; error?: string | null; children: ReactNode; className?: string }) {
+export function Field({ label, hint, error, children, className, required }: { label?: ReactNode; hint?: ReactNode; error?: string | null; children: ReactNode; className?: string; required?: boolean }) {
   return (
-    <div className={`field ${className ?? ''}`}>
+    <div className={`field ${required ? 'required' : ''} ${className ?? ''}`}>
       {label && <label>{label}</label>}
       {children}
       {error ? <div className="err">{error}</div> : hint ? <div className="hint">{hint}</div> : null}

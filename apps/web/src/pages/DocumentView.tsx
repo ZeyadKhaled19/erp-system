@@ -422,8 +422,8 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
 function Info({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <div>
-      <div className="footnote">{k}</div>
-      <div style={{ marginTop: 2, fontWeight: 500 }}>{v}</div>
+      <div className="info-k">{k}</div>
+      <div className="info-v">{v}</div>
     </div>
   );
 }
