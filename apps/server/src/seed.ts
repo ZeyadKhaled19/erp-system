@@ -15,7 +15,7 @@ export const DEFAULT_ACCOUNTS: Acc[] = [
   ['1103', 'العملاء', 'asset', false, 'ar'],
   ['1104', 'المخزون', 'asset', false, 'inventory'],
   ['1105', 'ضريبة القيمة المضافة - مدخلات', 'asset', false, 'vat_input'],
-  ['1106', 'أوراق القبض', 'asset', false],
+  ['1106', 'أوراق القبض (شيكات تحت التحصيل)', 'asset', false, 'notes_receivable'],
   ['1107', 'سلف وعهد', 'asset', false],
   ['12', 'الأصول الثابتة', 'asset', true],
   ['1201', 'أثاث وتجهيزات', 'asset', false],
@@ -26,13 +26,16 @@ export const DEFAULT_ACCOUNTS: Acc[] = [
   ['21', 'الخصوم المتداولة', 'liability', true],
   ['2101', 'الموردون', 'liability', false, 'ap'],
   ['2102', 'ضريبة القيمة المضافة - مخرجات', 'liability', false, 'vat_output'],
-  ['2103', 'أوراق الدفع', 'liability', false],
+  ['2103', 'أوراق الدفع (شيكات صادرة)', 'liability', false, 'notes_payable'],
   ['2104', 'مصروفات مستحقة', 'liability', false],
   ['2105', 'جاري الشركاء', 'liability', false, 'partners_current'],
+  ['2106', 'حسابات الشركاء الجارية', 'liability', true, 'partners_current_group'],
   ['3', 'حقوق الملكية', 'equity', true],
   ['31', 'رأس المال', 'equity', false, 'capital'],
   ['32', 'الأرباح المحتجزة', 'equity', false, 'retained'],
   ['33', 'أرصدة افتتاحية', 'equity', false, 'opening_equity'],
+  ['34', 'رؤوس أموال الشركاء', 'equity', true, 'partners_capital_group'],
+  ['35', 'توزيعات أرباح معلنة', 'equity', false, 'profit_distribution'],
   ['4', 'الإيرادات', 'revenue', true],
   ['41', 'المبيعات', 'revenue', false, 'sales'],
   ['42', 'مردودات المبيعات', 'revenue', false, 'sales_returns'],
@@ -47,9 +50,11 @@ export const DEFAULT_ACCOUNTS: Acc[] = [
   ['5204', 'اتصالات وإنترنت', 'expense', false],
   ['5205', 'نقل ومواصلات', 'expense', false],
   ['5206', 'صيانة', 'expense', false],
+  ['5207', 'عمولات بنكية وعمولات الدفع', 'expense', false, 'payment_fees'],
   ['5299', 'مصروفات متنوعة', 'expense', false],
   ['53', 'فروقات جرد المخزون', 'expense', false, 'inventory_diff'],
   ['54', 'فروق تكلفة المرتجعات', 'expense', false, 'cost_variance'],
+  ['55', 'عجز وزيادة الخزينة', 'expense', false, 'cash_over_short'],
 ];
 
 export const DEFAULT_SETTINGS: Record<string, unknown> = {
@@ -62,6 +67,10 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   allow_negative_stock: false,
   /** هل يُسمح بالبيع الآجل بأكثر من الحد الائتماني؟ */
   enforce_credit_limit: true,
+  /** أيام الاستحقاق الافتراضية للفواتير الآجلة (0 = بدون) */
+  default_due_days: 0,
+  /** لا يُسمح بترحيل أو إلغاء مستند بتاريخ حتى هذا اليوم (قفل الفترة) */
+  locked_until: null,
 };
 
 export async function seed(db: Db, opts: { adminPassword?: string } = {}) {
@@ -93,7 +102,7 @@ export async function seed(db: Db, opts: { adminPassword?: string } = {}) {
     }
 
     for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
-      await t.query(`insert into settings (key, value) values ($1, $2)`, [k, JSON.stringify(v)]);
+      await t.query(`insert into settings (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value`, [k, JSON.stringify(v)]);
     }
     await t.query(`insert into settings (key, value) values ('db_epoch', $1)`, [JSON.stringify(crypto.randomUUID())]);
 

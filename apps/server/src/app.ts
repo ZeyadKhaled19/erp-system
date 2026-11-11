@@ -9,7 +9,7 @@ import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser }
 import { backupToFile, listBackups, restoreFromFile } from './backup';
 import type { Db } from './db';
 import { AppError } from './errors';
-import { applyOp } from './ops';
+import { applyOp, shiftExpected } from './ops';
 import * as R from './reports';
 import { pull } from './sync';
 
@@ -176,6 +176,21 @@ export async function buildApp(opts: AppOptions) {
     return r;
   });
 
+  app.get('/api/reports/partners', { preHandler: perm('partners.view') }, async (req) => R.partnersReport(db, range(req)));
+  app.get('/api/reports/serial', { preHandler: perm('inventory.view') }, async (req) => R.serialSearch(db, q(req).q ?? ''));
+  app.get('/api/reports/expiry', { preHandler: perm('inventory.view') }, async (req) =>
+    R.expiryReport(db, { warehouse_id: q(req).warehouse_id, until: q(req).until }),
+  );
+  app.get('/api/reports/sales-analysis', { preHandler: perm('reports.view') }, async (req) => {
+    const r = await R.salesAnalysis(db, { ...range(req), group: q(req).group ?? 'item', kind: q(req).kind === 'purchases' ? 'purchases' : 'sales' });
+    if (!hasPermission(req.user!.permissions, 'reports.profit')) r.rows.forEach((x: any) => ((x.cost = null), (x.profit = null)));
+    return r;
+  });
+  app.get('/api/shifts/:id/expected', { preHandler: perm('treasury.shift') }, async (req) => {
+    const r = await shiftExpected(db, (req.params as any).id);
+    return { expected: r.expected, movement: r.movement, opening_float: r.shift.opening_float };
+  });
+
   // ---------------- الإدارة ----------------
   app.get('/api/admin/audit', { preHandler: perm('audit.view') }, async (req) => {
     const params: unknown[] = [];
@@ -209,6 +224,8 @@ export async function buildApp(opts: AppOptions) {
         role_id: z.string(),
         active: z.boolean().default(true),
         password: z.string().min(6, 'كلمة المرور 6 أحرف على الأقل').optional(),
+        warehouse_ids: z.array(z.string()).nullable().optional(),
+        cashbox_ids: z.array(z.string()).nullable().optional(),
       })
       .parse(req.body);
     if (b.id === req.user!.id && !b.active) throw new AppError('لا يمكنك إيقاف حسابك الحالي');
@@ -217,13 +234,16 @@ export async function buildApp(opts: AppOptions) {
       if (!(await t.one(`select 1 from roles where id = $1`, [b.role_id]))) throw new AppError('الدور غير موجود');
       let id = b.id;
       if (id) {
-        await t.query(`update users set username = $2, full_name = $3, role_id = $4, active = $5 where id = $1`, [id, b.username, b.full_name, b.role_id, b.active]);
+        await t.query(`update users set username = $2, full_name = $3, role_id = $4, active = $5, warehouse_ids = $6, cashbox_ids = $7 where id = $1`, [
+          id, b.username, b.full_name, b.role_id, b.active, b.warehouse_ids ? JSON.stringify(b.warehouse_ids) : null, b.cashbox_ids ? JSON.stringify(b.cashbox_ids) : null,
+        ]);
         if (b.password) await t.query(`update users set password_hash = $2 where id = $1`, [id, await hashPassword(b.password)]);
       } else {
         if (!b.password) throw new AppError('كلمة المرور مطلوب للمستخدم الجديد');
         id = crypto.randomUUID();
-        await t.query(`insert into users (id, username, full_name, password_hash, role_id, active) values ($1,$2,$3,$4,$5,$6)`, [
+        await t.query(`insert into users (id, username, full_name, password_hash, role_id, active, warehouse_ids, cashbox_ids) values ($1,$2,$3,$4,$5,$6,$7,$8)`, [
           id, b.username, b.full_name, await hashPassword(b.password), b.role_id, b.active,
+          b.warehouse_ids ? JSON.stringify(b.warehouse_ids) : null, b.cashbox_ids ? JSON.stringify(b.cashbox_ids) : null,
         ]);
       }
       await t.query(`insert into audit_log (user_id, device_id, action, entity, entity_id, details) values ($1,$2,'user.save','user',$3,$4)`, [
@@ -234,14 +254,21 @@ export async function buildApp(opts: AppOptions) {
   });
 
   app.post('/api/admin/roles', { preHandler: perm('users.manage') }, async (req) => {
-    const b = z.object({ id: z.string().optional(), name: z.string().trim().min(2).max(50), permissions: z.array(z.string()) }).parse(req.body);
+    const b = z
+      .object({
+        id: z.string().optional(),
+        name: z.string().trim().min(2).max(50),
+        permissions: z.array(z.string()),
+        limits: z.object({ max_discount_bp: z.number().int().min(0).max(10000).optional(), max_discount_amount: z.number().int().min(0).optional() }).default({}),
+      })
+      .parse(req.body);
     return db.tx(async (t) => {
       await t.query(`select pg_advisory_xact_lock(7331)`);
       if (b.id === 'role-admin') throw new AppError('لا يمكن تعديل دور مدير النظام');
       const id = b.id ?? crypto.randomUUID();
       await t.query(
-        `insert into roles (id, name, permissions) values ($1,$2,$3) on conflict (id) do update set name = excluded.name, permissions = excluded.permissions`,
-        [id, b.name, JSON.stringify(b.permissions)],
+        `insert into roles (id, name, permissions, limits) values ($1,$2,$3,$4) on conflict (id) do update set name = excluded.name, permissions = excluded.permissions, limits = excluded.limits`,
+        [id, b.name, JSON.stringify(b.permissions), JSON.stringify(b.limits)],
       );
       await t.query(`insert into audit_log (user_id, device_id, action, entity, entity_id, details) values ($1,$2,'role.save','role',$3,$4)`, [
         req.user!.id, req.deviceId, id, JSON.stringify(b),
@@ -252,11 +279,15 @@ export async function buildApp(opts: AppOptions) {
 
   app.post('/api/admin/settings', { preHandler: perm('settings.manage') }, async (req) => {
     const b = z.record(z.any()).parse(req.body);
-    const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer'];
+    const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until'];
     return db.tx(async (t) => {
       await t.query(`select pg_advisory_xact_lock(7331)`);
       for (const [k, v] of Object.entries(b)) {
         if (!allowed.includes(k)) throw new AppError(`إعداد غير معروف: ${k}`);
+        if (k === 'locked_until') {
+          if (!hasPermission(req.user!.permissions, 'period.lock')) throw new AppError('قفل الفترات يحتاج صلاحية خاصة', 'forbidden');
+          if (v !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw new AppError('تاريخ القفل غير صالح');
+        }
         await t.query(`insert into settings (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value`, [k, JSON.stringify(v)]);
       }
       await t.query(`insert into audit_log (user_id, device_id, action, entity, details) values ($1,$2,'settings.save','settings',$3)`, [req.user!.id, req.deviceId, JSON.stringify(b)]);

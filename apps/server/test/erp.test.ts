@@ -145,8 +145,9 @@ describe('sales', () => {
   it('receipt linked to invoice reduces customer balance and updates invoice paid', async () => {
     const r = await A.op(doc({ doc_type: 'receipt', party_id: CUST, cashbox_id: 'cb-main', amount: 3000, ref_doc_id: invoiceId }));
     expect(r.status).toBe('accepted');
+    // المدفوع 50 + مرتجع آجل 45 خُصم من الفاتورة + قبض 30
     const inv = await env.db.one(`select paid from documents where id = $1`, [invoiceId]);
-    expect(inv.paid).toBe(8000);
+    expect(inv.paid).toBe(12500);
     const c = await env.db.one(`select balance from parties where id = $1`, [CUST]);
     expect(c.balance).toBe(8500 - 3000);
   });

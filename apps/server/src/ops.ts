@@ -2,7 +2,7 @@ import { DOC_TYPES, hasPermission, MASTER_SCHEMAS, opEnvelopeSchema, type Master
 import type { AuthUser } from './auth';
 import type { Db } from './db';
 import { AppError, pgErrorToApp, ReviewError } from './errors';
-import { cancelDocument, postDocument, saveDocument, type Ctx } from './posting/documents';
+import { cancelDocument, createAndPost, postDocument, saveDocument, type Ctx } from './posting/documents';
 
 const WRITE_LOCK = 7331;
 
@@ -13,6 +13,9 @@ const MASTER_TABLE: Record<MasterEntity, string> = {
   category: 'categories',
   cashbox: 'cashboxes',
   account: 'accounts',
+  sales_rep: 'sales_reps',
+  price_list: 'price_lists',
+  partner: 'partners',
 };
 
 const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
@@ -22,6 +25,9 @@ const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
   category: ['items.create', 'items.edit'],
   cashbox: ['treasury.manage', 'treasury.manage'],
   account: ['accounts.manage', 'accounts.manage'],
+  sales_rep: ['parties.create', 'parties.edit'],
+  price_list: ['settings.manage', 'settings.manage'],
+  partner: ['partners.manage', 'partners.manage'],
 };
 
 const ENTITY_LABEL: Record<MasterEntity, string> = {
@@ -31,6 +37,9 @@ const ENTITY_LABEL: Record<MasterEntity, string> = {
   category: 'التصنيف',
   cashbox: 'الخزينة',
   account: 'الحساب',
+  sales_rep: 'المندوب',
+  price_list: 'قائمة الأسعار',
+  partner: 'الشريك',
 };
 
 function need(user: AuthUser, perm: string) {
@@ -60,6 +69,27 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
   const parsed = MASTER_SCHEMAS[entity].parse(data) as any;
   const fields: Record<string, unknown> = { ...parsed };
   delete fields.units;
+  delete fields.prices;
+
+  if (entity === 'partner') {
+    if (existing) {
+      await t.query(`update accounts set name = $2 where id = $1`, [existing.capital_account_id, `رأس مال ${fields.name}`]);
+      await t.query(`update accounts set name = $2 where id = $1`, [existing.current_account_id, `جاري ${fields.name}`]);
+    } else {
+      // لكل شريك حساب رأس مال وحساب جاري فرعيان في الدليل
+      const mk = async (groupKey: string, type: string, name: string) => {
+        const g = await t.one(`select * from accounts where system_key = $1`, [groupKey]);
+        if (!g) throw new AppError('حسابات الشركاء الرئيسية غير موجودة في الدليل', 'state');
+        const last = await t.one(`select max(code) as c from accounts where parent_id = $1`, [g.id]);
+        const code = last?.c ? String(BigInt(last.c) + 1n) : `${g.code}01`;
+        const accId = crypto.randomUUID();
+        await t.query(`insert into accounts (id, code, name, parent_id, type) values ($1,$2,$3,$4,$5)`, [accId, code, name, g.id, type]);
+        return accId;
+      };
+      fields.capital_account_id = await mk('partners_capital_group', 'equity', `رأس مال ${fields.name}`);
+      fields.current_account_id = await mk('partners_current_group', 'liability', `جاري ${fields.name}`);
+    }
+  }
 
   if (entity === 'account') {
     if (fields.parent_id) {
@@ -128,6 +158,18 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
       const dup = await t.one(`select 1 from item_units where barcode = $1`, [parsed.barcode]);
       if (dup) throw new AppError('الباركود مستخدم لوحدة صنف آخر');
     }
+    // أسعار قوائم الأسعار: القيمة 0 تحذف السعر الخاص (يرجع للسعر الافتراضي)
+    for (const p of parsed.prices ?? []) {
+      if (p.price > 0) {
+        await t.query(
+          `insert into item_prices (id, item_id, unit_name, price_list_id, price) values ($1,$2,$3,$4,$5)
+           on conflict (item_id, unit_name, price_list_id) do update set price = excluded.price`,
+          [crypto.randomUUID(), id, p.unit_name, p.price_list_id, p.price],
+        );
+      } else {
+        await t.query(`delete from item_prices where item_id = $1 and unit_name = $2 and price_list_id = $3`, [id, p.unit_name, p.price_list_id]);
+      }
+    }
   }
   return t.one(`select * from ${table} where id = $1`, [id]);
 }
@@ -158,6 +200,8 @@ async function handleMaster(t: Db, ctx: Ctx, op: Extract<Op, { type: 'master.ups
 function docPerm(docType: string, action: 'create' | 'post' | 'cancel' | 'edit') {
   const info = DOC_TYPES[docType as keyof typeof DOC_TYPES];
   if (!info) throw new AppError('نوع مستند غير معروف');
+  if (docType === 'quotation') return action === 'cancel' ? 'sales.cancel' : 'sales.quotation';
+  if (docType === 'profit_distribution') return action === 'post' ? 'partners.distribute' : action === 'cancel' ? 'partners.distribute' : 'partners.create';
   if (info.module === 'accounts') return action === 'create' || action === 'edit' ? 'accounts.journal' : action === 'post' ? 'accounts.post' : 'accounts.cancel';
   if (action === 'edit' && (info.module === 'sales' || info.module === 'purchases')) return `${info.module}.edit`;
   if (action === 'edit') return `${info.module}.create`;
@@ -294,7 +338,135 @@ function entityOf(op: Op): [string | null, string | null] {
       return ['document', op.id];
     case 'conflict.resolve':
       return ['conflict', op.id];
+    case 'doc.close':
+      return ['document', op.id];
+    case 'instrument.settle':
+      return ['instrument', op.id];
+    case 'shift.open':
+    case 'shift.close':
+      return ['shift', op.id];
   }
+}
+
+// ---------------- إغلاق متابعة فاتورة آجلة ----------------
+async function handleDocClose(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.close' }>): Promise<OpResult> {
+  const doc = await t.one(`select * from documents where id = $1 for update`, [op.id]);
+  if (!doc) throw new AppError('المستند غير موجود', 'not_found');
+  if (doc.doc_type !== 'sale_invoice' && doc.doc_type !== 'purchase_invoice') throw new AppError('الإغلاق للفواتير الآجلة فقط');
+  need(ctx.user, doc.doc_type === 'sale_invoice' ? 'sales.close_credit' : 'purchases.close_credit');
+  await t.query(`update documents set closed = $2 where id = $1`, [op.id, op.closed]);
+  return { op_id: '', status: 'accepted', result: { id: op.id, closed: op.closed } };
+}
+
+// ---------------- الشيكات والأقساط ----------------
+async function handleInstrument(t: Db, ctx: Ctx, op: Extract<Op, { type: 'instrument.settle' }>): Promise<OpResult> {
+  need(ctx.user, 'treasury.instruments');
+  const x = await t.one(`select * from instruments where id = $1 for update`, [op.id]);
+  if (!x) throw new AppError('الشيك/القسط غير موجود', 'not_found');
+  if (x.status !== 'open') throw new AppError('هذا الشيك/القسط ليس مفتوحًا', 'state');
+  const party = await t.one(`select * from parties where id = $1`, [x.party_id]);
+  const label = x.kind === 'cheque' ? `شيك ${x.cheque_no ?? ''}`.trim() : 'قسط';
+  let settled: any = null;
+  let status = 'collected';
+  if (op.action === 'collect') {
+    if (!op.cashbox_id) throw new AppError('اختر الخزينة');
+    if (x.kind === 'cheque') {
+      // الشيك خُصم من حساب الطرف عند استلامه؛ التحصيل ينقله من أوراق القبض/الدفع للخزينة
+      const accKey = x.direction === 'in' ? 'notes_receivable' : 'notes_payable';
+      const accId = (await t.one(`select id from accounts where system_key = $1`, [accKey])).id;
+      settled = await createAndPost(t, ctx, {
+        doc_type: x.direction === 'in' ? 'receipt' : 'payment',
+        date: op.date,
+        cashbox_id: op.cashbox_id,
+        account_id: accId,
+        amount: x.amount,
+        notes: `تحصيل ${label} — ${party.name}${op.note ? ' — ' + op.note : ''}`,
+      });
+    } else {
+      settled = await createAndPost(t, ctx, {
+        doc_type: x.direction === 'in' ? 'receipt' : 'payment',
+        date: op.date,
+        cashbox_id: op.cashbox_id,
+        party_id: x.party_id,
+        amount: x.amount,
+        ref_doc_id: x.document_id,
+        notes: `سداد ${label} مستحق ${x.due_date} — ${party.name}${op.note ? ' — ' + op.note : ''}`,
+      });
+    }
+  } else if (op.action === 'bounce') {
+    if (x.kind !== 'cheque') throw new AppError('الارتداد للشيكات فقط');
+    const ar = (await t.one(`select id from accounts where system_key = $1`, [x.direction === 'in' ? 'ar' : 'ap'])).id;
+    const notes = (await t.one(`select id from accounts where system_key = $1`, [x.direction === 'in' ? 'notes_receivable' : 'notes_payable'])).id;
+    settled = await createAndPost(t, ctx, {
+      doc_type: 'journal_voucher',
+      date: op.date,
+      notes: `ارتداد ${label} — ${party.name}${op.note ? ' — ' + op.note : ''}`,
+      journal_lines:
+        x.direction === 'in'
+          ? [{ account_id: ar, party_id: x.party_id, debit: x.amount, credit: 0 }, { account_id: notes, debit: 0, credit: x.amount }]
+          : [{ account_id: notes, debit: x.amount, credit: 0 }, { account_id: ar, party_id: x.party_id, debit: 0, credit: x.amount }],
+    } as any);
+    if (x.document_id) await t.query(`update documents set paid = paid - $2 where id = $1`, [x.document_id, x.amount]);
+    status = 'bounced';
+  } else {
+    status = 'closed';
+  }
+  await t.query(`update instruments set status = $2, settled_doc_id = $3, settled_at = now(), settled_by = $4, notes = coalesce($5, notes) where id = $1`, [
+    op.id, status, settled?.id ?? null, ctx.user.id, op.note ?? null,
+  ]);
+  return { op_id: '', status: 'accepted', result: { id: op.id, status, document_id: settled?.id ?? null, number: settled?.number ?? null } };
+}
+
+// ---------------- ورديات الكاشير ----------------
+async function handleShiftOpen(t: Db, ctx: Ctx, op: Extract<Op, { type: 'shift.open' }>): Promise<OpResult> {
+  need(ctx.user, 'treasury.shift');
+  const open = await t.one(`select id from cashier_shifts where user_id = $1 and status = 'open'`, [ctx.user.id]);
+  if (open) throw new AppError('لديك وردية مفتوحة بالفعل؛ أقفلها أولًا', 'state');
+  const cb = await t.one(`select * from cashboxes where id = $1`, [op.cashbox_id]);
+  if (!cb || !cb.active) throw new AppError('الخزينة غير موجودة');
+  if (ctx.user.cashbox_ids && !ctx.user.cashbox_ids.includes(op.cashbox_id)) throw new AppError('غير مسموح لك بهذه الخزينة', 'forbidden');
+  await t.query(`insert into cashier_shifts (id, user_id, cashbox_id, device_id, opening_float) values ($1,$2,$3,$4,$5)`, [
+    op.id, ctx.user.id, op.cashbox_id, ctx.deviceId, op.opening_float,
+  ]);
+  return { op_id: '', status: 'accepted', result: { id: op.id } };
+}
+
+/** المتوقع في الدرج = عهدة البداية + صافي حركة الخزينة من مستندات الوردية */
+export async function shiftExpected(t: Db, shiftId: string) {
+  const sh = await t.one(`select s.*, c.account_id from cashier_shifts s join cashboxes c on c.id = s.cashbox_id where s.id = $1`, [shiftId]);
+  if (!sh) throw new AppError('الوردية غير موجودة', 'not_found');
+  const mv = await t.one(
+    `select coalesce(sum(l.debit - l.credit), 0)::bigint as v from journal_lines l join journal_entries e on e.id = l.entry_id
+       join documents d on d.id = e.document_id where d.shift_id = $1 and l.account_id = $2`,
+    [shiftId, sh.account_id],
+  );
+  return { shift: sh, movement: mv?.v ?? 0, expected: sh.opening_float + (mv?.v ?? 0) };
+}
+
+async function handleShiftClose(t: Db, ctx: Ctx, op: Extract<Op, { type: 'shift.close' }>): Promise<OpResult> {
+  need(ctx.user, 'treasury.shift');
+  const { shift, expected } = await shiftExpected(t, op.id);
+  if (shift.status !== 'open') throw new AppError('الوردية مقفلة بالفعل', 'state');
+  if (shift.user_id !== ctx.user.id && !ctx.user.permissions.includes('*')) throw new AppError('لا يمكنك إقفال وردية مستخدم آخر', 'forbidden');
+  const diff = op.counted_cash - expected;
+  let closeDoc: any = null;
+  if (diff !== 0) {
+    const overShort = (await t.one(`select id from accounts where system_key = 'cash_over_short'`)).id;
+    closeDoc = await createAndPost(t, ctx, {
+      doc_type: 'journal_voucher',
+      date: op.date,
+      notes: `${diff < 0 ? 'عجز' : 'زيادة'} وردية ${shift.id.slice(0, 8)}${op.notes ? ' — ' + op.notes : ''}`,
+      journal_lines:
+        diff < 0
+          ? [{ account_id: overShort, debit: -diff, credit: 0 }, { account_id: shift.account_id, debit: 0, credit: -diff }]
+          : [{ account_id: shift.account_id, debit: diff, credit: 0 }, { account_id: overShort, debit: 0, credit: diff }],
+    } as any);
+  }
+  await t.query(
+    `update cashier_shifts set status = 'closed', closed_at = now(), expected_cash = $2, counted_cash = $3, difference = $4, close_doc_id = $5, notes = $6 where id = $1`,
+    [op.id, expected, op.counted_cash, diff, closeDoc?.id ?? null, op.notes ?? null],
+  );
+  return { op_id: '', status: 'accepted', result: { id: op.id, expected, counted: op.counted_cash, difference: diff } };
 }
 
 /**
@@ -336,6 +508,18 @@ export async function applyOp(db: Db, user: AuthUser, deviceId: string, rawEnv: 
           break;
         case 'conflict.resolve':
           r = await handleResolve(t, ctx, env.op);
+          break;
+        case 'doc.close':
+          r = await handleDocClose(t, ctx, env.op);
+          break;
+        case 'instrument.settle':
+          r = await handleInstrument(t, ctx, env.op);
+          break;
+        case 'shift.open':
+          r = await handleShiftOpen(t, ctx, env.op);
+          break;
+        case 'shift.close':
+          r = await handleShiftClose(t, ctx, env.op);
           break;
       }
       r.op_id = env.op_id;

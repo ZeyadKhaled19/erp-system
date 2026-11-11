@@ -30,6 +30,12 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
       { key: 'sales.cancel', label: 'إلغاء' },
       { key: 'sales.price_change', label: 'تغيير الأسعار' },
       { key: 'sales.discount', label: 'منح خصم' },
+      { key: 'sales.below_min_price', label: 'البيع بأقل من أقل سعر' },
+      { key: 'sales.below_cost', label: 'البيع بأقل من التكلفة' },
+      { key: 'sales.credit', label: 'البيع الآجل' },
+      { key: 'sales.free_return', label: 'مرتجع بدون فاتورة' },
+      { key: 'sales.close_credit', label: 'إغلاق متابعة الفواتير الآجلة' },
+      { key: 'sales.quotation', label: 'عروض الأسعار والحجز' },
       { key: 'sales.print', label: 'طباعة' },
     ],
   },
@@ -42,6 +48,8 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
       { key: 'purchases.edit', label: 'تعديل المسودات' },
       { key: 'purchases.post', label: 'ترحيل' },
       { key: 'purchases.cancel', label: 'إلغاء' },
+      { key: 'purchases.free_return', label: 'مرتجع بدون فاتورة' },
+      { key: 'purchases.close_credit', label: 'إغلاق متابعة الفواتير الآجلة' },
       { key: 'purchases.print', label: 'طباعة' },
     ],
   },
@@ -63,6 +71,8 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
       { key: 'treasury.post', label: 'ترحيل' },
       { key: 'treasury.cancel', label: 'إلغاء' },
       { key: 'treasury.manage', label: 'إدارة الخزائن' },
+      { key: 'treasury.instruments', label: 'تحصيل وسداد الشيكات والأقساط' },
+      { key: 'treasury.shift', label: 'فتح وإقفال الوردية' },
     ],
   },
   {
@@ -74,6 +84,18 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
       { key: 'accounts.journal', label: 'قيود يدوية' },
       { key: 'accounts.post', label: 'ترحيل القيود' },
       { key: 'accounts.cancel', label: 'عكس القيود' },
+    ],
+  },
+  {
+    module: 'partners',
+    label: 'الشركاء',
+    actions: [
+      { key: 'partners.view', label: 'مشاهدة' },
+      { key: 'partners.manage', label: 'إدارة الشركاء والنسب' },
+      { key: 'partners.create', label: 'إيداعات ومسحوبات' },
+      { key: 'partners.post', label: 'ترحيل' },
+      { key: 'partners.cancel', label: 'إلغاء' },
+      { key: 'partners.distribute', label: 'اعتماد توزيع الأرباح' },
     ],
   },
   {
@@ -94,6 +116,7 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
       { key: 'users.manage', label: 'المستخدمون والصلاحيات' },
       { key: 'conflicts.resolve', label: 'حل تعارضات المزامنة' },
       { key: 'backup.manage', label: 'النسخ الاحتياطي' },
+      { key: 'period.lock', label: 'قفل الفترات' },
       { key: 'audit.view', label: 'سجل التدقيق' },
     ],
   },
@@ -106,14 +129,14 @@ export const DEFAULT_ROLES: { id: string; name: string; permissions: string[] }[
   {
     id: 'role-accountant',
     name: 'محاسب',
-    permissions: ALL_PERMISSIONS.filter((p) => !['users.manage', 'backup.manage', 'settings.manage'].includes(p)),
+    permissions: ALL_PERMISSIONS.filter((p) => !['users.manage', 'backup.manage', 'settings.manage', 'partners.distribute', 'partners.manage', 'period.lock'].includes(p)),
   },
   {
     id: 'role-cashier',
     name: 'كاشير',
     permissions: [
       'items.view', 'parties.view', 'parties.create', 'sales.view', 'sales.create', 'sales.post', 'sales.print',
-      'treasury.view', 'treasury.create', 'treasury.post', 'inventory.view',
+      'treasury.view', 'treasury.create', 'treasury.post', 'treasury.shift', 'inventory.view', 'sales.quotation',
     ],
   },
   {
@@ -129,4 +152,12 @@ export const DEFAULT_ROLES: { id: string; name: string; permissions: string[] }[
 export function hasPermission(perms: string[] | undefined, key: string): boolean {
   if (!perms) return false;
   return perms.includes('*') || perms.includes(key);
+}
+
+/** حدود رقمية لكل دور (0 أو غير موجود = بدون حد) */
+export interface RoleLimits {
+  /** أقصى نسبة خصم على الفاتورة بنقاط الأساس */
+  max_discount_bp?: number;
+  /** أقصى قيمة خصم على الفاتورة بالقرش */
+  max_discount_amount?: number;
 }

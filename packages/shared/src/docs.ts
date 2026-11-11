@@ -12,11 +12,18 @@ export type DocType =
   | 'stock_adjustment'
   | 'opening_stock'
   | 'party_opening'
-  | 'journal_voucher';
+  | 'journal_voucher'
+  | 'cash_transfer'
+  | 'quotation'
+  | 'partner_capital'
+  | 'partner_withdrawal'
+  | 'profit_distribution';
 
 export interface DocTypeInfo {
   label: string;
-  module: 'sales' | 'purchases' | 'treasury' | 'inventory' | 'accounts';
+  module: 'sales' | 'purchases' | 'treasury' | 'inventory' | 'accounts' | 'partners';
+  /** مستند لا يُرحّل محاسبيًا (عرض الأسعار) */
+  noPosting?: boolean;
   prefix: string;
   hasLines: boolean;
   /** يحتاج طرف (عميل/مورد) */
@@ -42,6 +49,11 @@ export const DOC_TYPES: Record<DocType, DocTypeInfo> = {
   opening_stock: { label: 'بضاعة أول المدة', module: 'inventory', prefix: 'OS', hasLines: true, stock: 'in' },
   party_opening: { label: 'رصيد افتتاحي لطرف', module: 'accounts', prefix: 'OB', hasLines: false, partyKind: 'any' },
   journal_voucher: { label: 'قيد يومية', module: 'accounts', prefix: 'JV', hasLines: false },
+  cash_transfer: { label: 'تحويل بين الخزائن', module: 'treasury', prefix: 'CT', hasLines: false },
+  quotation: { label: 'عرض أسعار', module: 'sales', prefix: 'Q', hasLines: true, partyKind: 'customer', priced: true, noPosting: true },
+  partner_capital: { label: 'إيداع رأس مال شريك', module: 'partners', prefix: 'PC', hasLines: false },
+  partner_withdrawal: { label: 'مسحوبات شريك', module: 'partners', prefix: 'PW', hasLines: false },
+  profit_distribution: { label: 'توزيع أرباح', module: 'partners', prefix: 'PD', hasLines: false },
 };
 
 export const DOC_STATUS_LABEL: Record<string, string> = {
@@ -79,4 +91,11 @@ export type SystemAccount =
   | 'cogs'
   | 'inventory_diff'
   | 'cost_variance'
-  | 'expenses_group';
+  | 'expenses_group'
+  | 'notes_receivable'
+  | 'notes_payable'
+  | 'payment_fees'
+  | 'cash_over_short'
+  | 'partners_capital_group'
+  | 'partners_current_group'
+  | 'profit_distribution';

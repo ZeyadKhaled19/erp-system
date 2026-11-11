@@ -17,14 +17,26 @@ export const BACKUP_TABLES: { name: string; order: string }[] = [
   { name: 'accounts', order: 'length(code), code' },
   { name: 'warehouses', order: 'code' },
   { name: 'categories', order: 'name' },
+  { name: 'price_lists', order: 'sort, id' },
+  { name: 'sales_reps', order: 'id' },
   { name: 'items', order: 'code' },
   { name: 'item_units', order: 'id' },
+  { name: 'item_prices', order: 'id' },
   { name: 'stock_balances', order: 'item_id, warehouse_id' },
   { name: 'parties', order: 'kind, code' },
   { name: 'cashboxes', order: 'name' },
+  { name: 'partners', order: 'id' },
   { name: 'doc_sequences', order: 'key' },
   { name: 'documents', order: 'created_at, id' },
   { name: 'document_lines', order: 'document_id, line_no' },
+  { name: 'document_payments', order: 'id' },
+  { name: 'instruments', order: 'id' },
+  { name: 'allocations', order: 'id' },
+  { name: 'serials', order: 'id' },
+  { name: 'serial_moves', order: 'id' },
+  { name: 'stock_lots', order: 'id' },
+  { name: 'lot_moves', order: 'id' },
+  { name: 'cashier_shifts', order: 'opened_at, id' },
   { name: 'stock_moves', order: 'id' },
   { name: 'journal_entries', order: 'number' },
   { name: 'journal_lines', order: 'id' },
@@ -38,6 +50,9 @@ const SERIAL_SEQS: { seq: string; table: string; col: string }[] = [
   { seq: 'journal_lines_id_seq', table: 'journal_lines', col: 'id' },
   { seq: 'audit_log_id_seq', table: 'audit_log', col: 'id' },
   { seq: 'journal_no_seq', table: 'journal_entries', col: 'number' },
+  { seq: 'allocations_id_seq', table: 'allocations', col: 'id' },
+  { seq: 'serial_moves_id_seq', table: 'serial_moves', col: 'id' },
+  { seq: 'lot_moves_id_seq', table: 'lot_moves', col: 'id' },
 ];
 
 export interface BackupFile {
@@ -85,11 +100,16 @@ export async function importData(db: Db, data: BackupFile): Promise<{ rows: numb
           deferred.reversed_by_id = r.reversed_by_id;
           r.reversed_by_id = null;
         }
+        if (tb.name === 'documents' && r.converted_to_id) {
+          (data as any)._deferredDocs ??= [];
+          (data as any)._deferredDocs.push([r.id, r.converted_to_id]);
+          r.converted_to_id = null;
+        }
         const cols = Object.keys(r);
         const sql = `insert into ${tb.name} (${cols.join(', ')}) values (${cols.map((_, i) => `$${i + 1}`).join(', ')})`;
         await t.query(
           sql,
-          cols.map((c) => (jsonCols.has(c) ? (r[c] === null || r[c] === undefined ? null : JSON.stringify(r[c])) : toParam(r[c]))),
+          cols.map((c) => (jsonCols.has(c) ? (r[c] === undefined ? null : JSON.stringify(r[c])) : toParam(r[c]))),
         );
         if (deferred.reversed_by_id) {
           (data as any)._deferred ??= [];
@@ -100,6 +120,9 @@ export async function importData(db: Db, data: BackupFile): Promise<{ rows: numb
     }
     for (const [id, rev] of ((data as any)._deferred ?? []) as [string, string][]) {
       await t.query(`update journal_entries set reversed_by_id = $2 where id = $1`, [id, rev]);
+    }
+    for (const [id, conv] of ((data as any)._deferredDocs ?? []) as [string, string][]) {
+      await t.query(`update documents set converted_to_id = $2 where id = $1`, [id, conv]);
     }
     for (const s of SERIAL_SEQS) {
       await t.query(`select setval('${s.seq}', greatest((select coalesce(max(${s.col}), 0) from ${s.table}), 1))`);

@@ -28,6 +28,10 @@ export interface AuthUser {
   role_id: string;
   role_name: string;
   permissions: string[];
+  limits: { max_discount_bp?: number; max_discount_amount?: number };
+  /** null = كل المخازن/الخزائن */
+  warehouse_ids: string[] | null;
+  cashbox_ids: string[] | null;
 }
 
 export function makeTokens(secret: string) {
@@ -51,7 +55,7 @@ export function makeTokens(secret: string) {
 
 export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | undefined> {
   const u = await db.one(
-    `select u.id, u.username, u.full_name, u.role_id, u.active, r.name as role_name, r.permissions
+    `select u.id, u.username, u.full_name, u.role_id, u.active, u.warehouse_ids, u.cashbox_ids, r.name as role_name, r.permissions, r.limits
        from users u join roles r on r.id = u.role_id where u.id = $1`,
     [userId],
   );
@@ -63,5 +67,8 @@ export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | u
     role_id: u.role_id,
     role_name: u.role_name,
     permissions: u.permissions ?? [],
+    limits: u.limits ?? {},
+    warehouse_ids: u.warehouse_ids ?? null,
+    cashbox_ids: u.cashbox_ids ?? null,
   };
 }

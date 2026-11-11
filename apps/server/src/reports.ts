@@ -393,3 +393,101 @@ export async function dashboard(db: Db, today: string) {
     pending_review: review?.n ?? 0,
   };
 }
+
+/** الشركاء: رأس المال والرصيد الجاري والمسحوبات والتوزيعات */
+export async function partnersReport(db: Db, r: Range) {
+  const partners = await db.query(`select * from partners order by name`);
+  const bal = async (accId: string) =>
+    (await db.one(`select coalesce(sum(l.credit - l.debit), 0)::bigint as v from journal_lines l join journal_entries e on e.id = l.entry_id where l.account_id = $1 and e.date <= $2`, [accId, r.to ?? '9999-12-31']))?.v ?? 0;
+  const rows = [];
+  for (const p of partners) {
+    const params: unknown[] = [p.id];
+    const cond = dateCond('d.date', r, params);
+    const sums = await db.one(
+      `select coalesce(sum(case when d.doc_type = 'partner_withdrawal' then d.total else 0 end), 0)::bigint as withdrawals,
+              coalesce(sum(case when d.doc_type = 'partner_capital' then d.total else 0 end), 0)::bigint as capital_in
+         from documents d where d.partner_id = $1 and d.status = 'posted' and ${cond}`,
+      params,
+    );
+    rows.push({ ...p, capital: await bal(p.capital_account_id), current: await bal(p.current_account_id), withdrawals: sums?.withdrawals ?? 0, capital_in: sums?.capital_in ?? 0 });
+  }
+  const distributions = await db.query(
+    `select id, number, date, status, total, data from documents where doc_type = 'profit_distribution' and status <> 'cancelled' order by date desc`,
+  );
+  return {
+    partners: rows,
+    totals: { ownership_bp: rows.filter((p) => p.active).reduce((s, p) => s + p.ownership_bp, 0), profit_bp: rows.filter((p) => p.active).reduce((s, p) => s + p.profit_bp, 0) },
+    distributions,
+  };
+}
+
+export async function serialSearch(db: Db, q: string) {
+  if (!q.trim()) return { rows: [] };
+  const rows = await db.query(
+    `select s.serial, s.status, i.name as item_name, i.code, w.name as warehouse_name, m.direction, m.reversal, m.created_at, d.id as document_id, d.number, d.doc_type, d.date, p.name as party_name
+       from serials s join items i on i.id = s.item_id left join warehouses w on w.id = s.warehouse_id
+       left join serial_moves m on m.serial_id = s.id left join documents d on d.id = m.document_id left join parties p on p.id = d.party_id
+      where s.serial ilike $1 order by s.serial, m.id`,
+    [`%${q.trim()}%`],
+  );
+  return { rows };
+}
+
+export async function expiryReport(db: Db, f: { warehouse_id?: string; until?: string }) {
+  const params: unknown[] = [];
+  const conds = ['l.qty > 0'];
+  if (f.warehouse_id) {
+    params.push(f.warehouse_id);
+    conds.push(`l.warehouse_id = $${params.length}`);
+  }
+  if (f.until) {
+    params.push(f.until);
+    conds.push(`l.expiry <= $${params.length}`);
+  }
+  const rows = await db.query(
+    `select l.id, l.expiry, l.qty, i.id as item_id, i.code, i.name, i.base_unit, i.avg_cost, i.expiry_alert_days, w.name as warehouse_name,
+            (l.expiry - current_date) as days_left
+       from stock_lots l join items i on i.id = l.item_id join warehouses w on w.id = l.warehouse_id
+      where ${conds.join(' and ')} order by l.expiry, i.code`,
+    params,
+  );
+  return { rows };
+}
+
+/** تحليل المبيعات/المشتريات بالتجميع (صنف، عميل، مندوب، مستخدم، مخزن، تصنيف، يوم، شهر، ساعة، يوم الأسبوع) */
+export async function salesAnalysis(db: Db, r: Range & { group: string; kind: 'sales' | 'purchases' }) {
+  const groups: Record<string, { key: string; label: string; join?: string; line?: boolean }> = {
+    item: { key: `i.id`, label: `i.code || ' — ' || i.name`, line: true },
+    category: { key: `coalesce(c.id, '-')`, label: `coalesce(c.name, 'بدون تصنيف')`, line: true },
+    party: { key: `d.party_id`, label: `p.name` },
+    rep: { key: `coalesce(d.sales_rep_id, '-')`, label: `coalesce(sr.name, 'بدون مندوب')` },
+    user: { key: `d.created_by`, label: `u.full_name` },
+    warehouse: { key: `d.warehouse_id`, label: `w.name` },
+    day: { key: `d.date::text`, label: `d.date::text` },
+    month: { key: `to_char(d.date, 'YYYY-MM')`, label: `to_char(d.date, 'YYYY-MM')` },
+    hour: { key: `extract(hour from d.created_at)::int::text`, label: `lpad(extract(hour from d.created_at)::int::text, 2, '0') || ':00'` },
+    weekday: { key: `extract(dow from d.date)::int::text`, label: `(array['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'])[extract(dow from d.date)::int + 1]` },
+  };
+  const g = groups[r.group] ?? groups.item;
+  const types = r.kind === 'sales' ? ['sale_invoice', 'sale_return'] : ['purchase_invoice', 'purchase_return'];
+  const params: unknown[] = [types];
+  const cond = dateCond('d.date', r, params);
+  const sign = `case when d.doc_type like '%_return' then -1 else 1 end`;
+  const rows = await db.query(
+    `select ${g.key} as key, ${g.label} as label,
+            count(distinct d.id)::int as docs,
+            coalesce(sum(${sign} * l.base_qty), 0)::bigint as qty,
+            coalesce(sum(${sign} * (l.total - l.tax)), 0)::bigint as net,
+            coalesce(sum(${sign} * (l.discount + l.doc_discount)), 0)::bigint as discount,
+            coalesce(sum(${sign} * l.cost), 0)::bigint as cost
+       from documents d join document_lines l on l.document_id = d.id join items i on i.id = l.item_id
+       left join categories c on c.id = i.category_id left join parties p on p.id = d.party_id
+       left join sales_reps sr on sr.id = d.sales_rep_id left join users u on u.id = d.created_by left join warehouses w on w.id = d.warehouse_id
+      where d.doc_type = any($1) and d.status = 'posted' and ${cond}
+      group by 1, 2 order by net desc`,
+    params,
+  );
+  const totalNet = rows.reduce((s, x) => s + x.net, 0);
+  const out = rows.map((x) => ({ ...x, profit: x.net - x.cost, share_bp: totalNet ? Math.round((x.net * 10000) / totalNet) : 0 }));
+  return { rows: out, totals: { net: totalNet, cost: rows.reduce((s, x) => s + x.cost, 0), qty: rows.reduce((s, x) => s + x.qty, 0) } };
+}
