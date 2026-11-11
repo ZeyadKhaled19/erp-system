@@ -12,6 +12,7 @@ import { db } from '../lib/db';
 import { useSession, useSettings } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
+import { CustomerFields } from '../components/CustomerFields';
 
 interface Line {
   id: string;
@@ -349,6 +350,16 @@ export function DocumentEditor() {
   const jlTotals = useMemo(() => ({ dr: jl.reduce((s, l) => s + (l.debit || 0), 0), cr: jl.reduce((s, l) => s + (l.credit || 0), 0) }), [jl]);
 
   // ---------------- خيارات
+  const onPartyChange = (v: string | null) => {
+    if (v === h.party_id) return;
+    const p = parties.find((x) => x.id === v);
+    setH((o: any) => ({ ...o, party_id: v, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
+    if (isSale && p?.price_list_id && p.price_list_id !== h.price_list_id) void repriceAll(p.price_list_id);
+    if (info?.refType) {
+      set('ref_doc_id', null);
+      setLines([]);
+    }
+  };
   const partyOptions: PickOption[] = useMemo(
     () =>
       parties
@@ -539,22 +550,19 @@ export function DocumentEditor() {
             <input type="date" className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
 
-          {(info.partyKind || type === 'party_opening') && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
-            <Field label={info.partyKind === 'supplier' ? 'المورد' : info.partyKind === 'customer' ? 'العميل' : 'الطرف'}>
+          {info.partyKind === 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
+            <div style={{ gridColumn: 'span 2' }}>
+              <CustomerFields partyId={h.party_id} onChange={onPartyChange} layout="row" />
+            </div>
+          )}
+          {(info.partyKind || type === 'party_opening') && info.partyKind !== 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
+            <Field label={info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
               <div className="row" style={{ gap: 6 }}>
                 <div style={{ flex: 1 }}>
                   <Picker
                     value={h.party_id}
                     options={partyOptions}
-                    onChange={(v) => {
-                      const p = parties.find((x) => x.id === v);
-                      setH((o: any) => ({ ...o, party_id: v, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
-                      if (isSale && p?.price_list_id && p.price_list_id !== h.price_list_id) void repriceAll(p.price_list_id);
-                      if (info.refType) {
-                        set('ref_doc_id', null);
-                        setLines([]);
-                      }
-                    }}
+                    onChange={onPartyChange}
                     placeholder="ابحث بالاسم أو الكود"
                   />
                 </div>
