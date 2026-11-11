@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { PrintPage } from './pages/Print';
 import { Layout } from './components/Layout';
 import { useUi } from './components/ui';
@@ -35,6 +35,7 @@ import { DeliveriesPage } from './pages/Deliveries';
 import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
 import { InvoicesPage } from './pages/Invoices';
+import { SimpleSalePage } from './pages/SimpleSale';
 import { CommissionsPage, YearEndPage } from './pages/YearEnd';
 import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
 
@@ -146,7 +147,7 @@ export function App() {
           <Route path="/parties/:kind/:id" element={<PartyDetail />} />
           <Route path="/cashboxes" element={<CashboxesPage />} />
           <Route path="/accounts" element={<AccountsPage />} />
-          <Route path="/docs/new/:type" element={<DocumentEditor />} />
+          <Route path="/docs/new/:type" element={<NewDocRoute />} />
           <Route path="/docs/edit/:id" element={<DocumentEditor />} />
           <Route path="/docs/view/:id" element={<DocumentView />} />
           <Route path="/docs/list/:module" element={<DocumentsList />} />
@@ -178,4 +179,12 @@ export function App() {
       </Layout>
     </SessionContext.Provider>
   );
+}
+
+/** فاتورة البيع الجديدة تفتح الشاشة البسيطة، و?advanced=1 يفتح المحرر الكامل */
+function NewDocRoute() {
+  const { type } = useParams();
+  const [sp] = useSearchParams();
+  if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage />;
+  return <DocumentEditor key={type} />;
 }

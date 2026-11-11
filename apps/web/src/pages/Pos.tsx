@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, CreditCard, Printer, ScanLine, ShoppingCart, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, Check, CreditCard, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, Picker, Sheet, useUi } from '../components/ui';
@@ -28,6 +28,23 @@ export function PosPage() {
   const can = (k: string) => hasPermission(session.user.permissions, k);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
+  const [favs, setFavs] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pos-favorites') ?? '[]');
+    } catch {
+      return [];
+    }
+  });
+  const toggleFav = (id: string) =>
+    setFavs((f) => {
+      const n = f.includes(id) ? f.filter((x) => x !== id) : [...f, id];
+      try {
+        localStorage.setItem('pos-favorites', JSON.stringify(n));
+      } catch {
+        /* ignore */
+      }
+      return n;
+    });
   const [cart, setCart] = useState<CartLine[]>([]);
   const [partyId, setPartyId] = useState('party-cash-customer');
   const [pickParty, setPickParty] = useState(false);
@@ -49,8 +66,12 @@ export function PosPage() {
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return items.filter((i) => (!cat || i.category_id === cat) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s)))).slice(0, 120);
-  }, [items, q, cat]);
+    const fav = new Set(favs);
+    return items
+      .filter((i) => (cat === '__fav' ? fav.has(i.id) : !cat || i.category_id === cat) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
+      .sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id)))
+      .slice(0, 120);
+  }, [items, q, cat, favs]);
 
   useEffect(() => {
     document.title = 'بيع سريع — الحسابات';
@@ -139,20 +160,34 @@ export function PosPage() {
             </select>
           )}
         </div>
-        {cats.length > 1 && (
+        {(cats.length > 1 || favs.length > 0) && (
           <div className="pos-cats">
             <button className={!cat ? 'on' : ''} onClick={() => setCat('')}>الكل</button>
-            {cats.map((c) => <button key={c.id} className={cat === c.id ? 'on' : ''} onClick={() => setCat(c.id)}>{c.name}</button>)}
+            {favs.length > 0 && <button className={`fav ${cat === '__fav' ? 'on' : ''}`} onClick={() => setCat('__fav')}><Star /> المفضلة</button>}
+            {cats.length > 1 && cats.map((c) => <button key={c.id} className={cat === c.id ? 'on' : ''} onClick={() => setCat(c.id)}>{c.name}</button>)}
           </div>
         )}
         <div className="pos-grid">
           {shown.length === 0 && <div className="muted" style={{ padding: 20 }}>لا توجد أصناف{q ? ' مطابقة' : ''}. أضف الأصناف من قسم المخزون.</div>}
+          {shown.length > 0 && favs.length === 0 && !q && <div className="footnote" style={{ gridColumn: '1 / -1' }}>اضغط ☆ على أي صنف تستخدمه كثيرًا ليظهر أولًا وفي تبويب «المفضلة».</div>}
           {shown.map((i) => {
             const inCart = cart.find((l) => l.item_id === i.id);
             const have = stock.get(i.id) ?? 0;
             const out = !i.is_service && have <= 0;
+            const isFav = favs.includes(i.id);
             return (
               <button key={i.id} className={`pos-item ${out ? 'out' : ''}`} onClick={() => void add(i.id)}>
+                <span
+                  role="button"
+                  className={`pi-star ${isFav ? 'on' : ''}`}
+                  title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFav(i.id);
+                  }}
+                >
+                  <Star />
+                </span>
                 {inCart && <span className="pi-badge">{formatQty(inCart.qty)}</span>}
                 <span className="pi-avatar" style={{ background: colorFor(i.name) }}>{i.name.trim()[0]}</span>
                 <span className="pi-name">{i.name}</span>
@@ -379,13 +414,22 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
           ))}
           {canCredit && <button className={method === 'credit' ? 'on' : ''} onClick={() => setMethod('credit')}><Wallet />آجل</button>}
         </div>
-        {method === 'credit' && isCashCustomer && (
-          <div className="stack" style={{ gap: 8 }}>
-            <Banner kind="warn">اختر العميل الذي سيُسجل عليه المبلغ</Banner>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <b>العميل {method === 'credit' ? '' : <span className="muted small">(اختياري)</span>}</b>
+            {!isCashCustomer && <button className="btn sm plain" onClick={() => onPickParty('party-cash-customer')}>عميل نقدي</button>}
+          </div>
+          {method === 'credit' && isCashCustomer && <Banner kind="warn">البيع الآجل يحتاج عميلًا: اختره أو أضف عميلًا جديدًا</Banner>}
+          {!isCashCustomer ? (
+            <div className="row" style={{ gap: 8, justifyContent: 'space-between', background: 'var(--card-2)', borderRadius: 12, padding: '8px 12px' }}>
+              <span><b>{party.name}</b> <span className="muted small num">رصيده {formatMoney(party.balance ?? 0)}</span></span>
+              <button className="btn sm plain" onClick={onNewCustomer}><UserRound /> عميل آخر جديد</button>
+            </div>
+          ) : (
             <div className="row" style={{ gap: 8 }}>
               <div style={{ flex: 1 }}>
                 <Picker
-                  autoFocus
+                  autoFocus={method === 'credit'}
                   value={null}
                   options={customers.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
                   onChange={(v) => v && onPickParty(v)}
@@ -394,14 +438,9 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
               </div>
               <button className="btn" onClick={onNewCustomer}><UserRound /> عميل جديد</button>
             </div>
-          </div>
-        )}
-        {method === 'credit' && !isCashCustomer && (
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="footnote">سيُسجل على: <b>{party.name}</b></span>
-            <button className="btn sm plain" onClick={onNewCustomer}>عميل آخر جديد</button>
-          </div>
-        )}
+          )}
+          {!isCashCustomer && method !== 'credit' && <div className="footnote">الفاتورة تُحفظ في سجل العميل بدون دين.</div>}
+        </div>
         {method === 'cash' && (
           <>
             <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -420,7 +459,7 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
             </div>
           </>
         )}
-        {method === 'credit' && <div className="footnote">{isCashCustomer ? 'اختر عميلًا مسجلًا من السلة أولًا.' : `سيُسجل المبلغ دينًا على ${party.name} (الرصيد الحالي ${formatMoney(party.balance ?? 0)}).`}</div>}
+        {method === 'credit' && <div className="footnote">{isCashCustomer ? 'اختر العميل أعلاه.' : `سيُسجل المبلغ دينًا على ${party.name} (الرصيد الحالي ${formatMoney(party.balance ?? 0)}).`}</div>}
         <button className="btn success primary xl block" disabled={busy} onClick={confirm}><Check /> تأكيد البيع</button>
       </div>
     </Sheet>

@@ -922,3 +922,60 @@ body { font-size: 16px; letter-spacing: 0; line-height: 1.5; }
 .pay-boxes button small { font-size: 11px; color: var(--label-2); }
 .pay-boxes button.on { border-color: var(--tint); background: var(--tint-soft); color: var(--tint); box-shadow: 0 0 0 3px var(--tint-soft); }
 .pay-boxes button.on svg { color: var(--tint); }
+
+/* ============================================================
+   فاتورة البيع البسيطة (شاشة واحدة)
+   ============================================================ */
+.ss { padding: 6px 24px 30px; display: flex; flex-direction: column; gap: 16px; animation: pageIn .3s var(--ease); }
+.ss-top { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: stretch; }
+.ss-entry { display: flex; gap: 10px; align-items: flex-end; background: var(--card); border: 1px solid var(--separator); border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow-card); }
+.ss-step { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ss-step > label { font-size: 13px; font-weight: 700; color: var(--label-field); display: flex; align-items: center; gap: 6px; }
+.ss-step > label b { width: 20px; height: 20px; border-radius: 6px; background: var(--tint); color: #fff; display: inline-grid; place-items: center; font-size: 12px; }
+.ss-step .input { height: 50px; font-size: 17px; }
+.ss-avail { flex: 0 0 96px; }
+.ss-avail-v { height: 50px; border-radius: 12px; background: var(--green-soft); color: #1d8a3c; display: grid; place-items: center; font-size: 20px; font-weight: 800; }
+.ss-avail-v.red { background: var(--red-soft); color: #c4001a; }
+.ss-add { width: 64px; height: 50px; border-radius: 14px; padding: 0; }
+.ss-add svg { width: 28px; height: 28px; }
+.ss-total { background: var(--grad-green); color: #fff; border-radius: 18px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 10px 24px rgba(52, 199, 89, .3); }
+.ss-total-label { font-size: 14px; opacity: .9; font-weight: 600; }
+.ss-total-v { font-size: 40px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.15; text-align: start; }
+.ss-total-sub { font-size: 13px; opacity: .85; }
+.ss-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.ss-grid { overflow: auto; min-height: 320px; }
+.ss-grid .table td { vertical-align: middle; }
+.ss-grid .table .input { height: 38px; font-size: 15px; }
+.ss-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 70px; }
+.ss-pay { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ss-pay button { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border-radius: 14px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--label); font-weight: 600; cursor: pointer; }
+.ss-pay button svg { width: 20px; height: 20px; color: var(--label-2); flex-shrink: 0; }
+.ss-pay button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-pay button.on { border-color: var(--tint); background: var(--tint-soft); color: var(--tint); box-shadow: 0 0 0 3px var(--tint-soft); }
+.ss-pay button.on svg { color: var(--tint); }
+.ss-pay button.credit.on { border-color: var(--orange); background: var(--orange-soft); color: #b35c00; box-shadow: 0 0 0 3px var(--orange-soft); }
+.ss-pay button.credit.on svg { color: #b35c00; }
+.ss-sum { display: flex; flex-direction: column; gap: 6px; background: var(--card-2); border-radius: 14px; padding: 12px 14px; }
+.ss-sum .row { justify-content: space-between; font-size: 15px; }
+.ss-sum .row.big { font-size: 22px; font-weight: 800; border-top: 1px solid var(--separator); padding-top: 8px; margin-top: 2px; }
+@media (max-width: 1150px) {
+  .ss-body { grid-template-columns: 1fr; }
+  .ss-side { position: static; }
+}
+@media (max-width: 860px) {
+  .ss { padding: 6px 12px 100px; }
+  .ss-top { grid-template-columns: 1fr; }
+  .ss-entry { flex-wrap: wrap; }
+  .ss-step { flex: 1 1 40%; }
+  .ss-step:first-child { flex-basis: 100%; }
+}
+
+/* المفضلة في البيع السريع */
+.pos-item .pi-star { position: absolute; bottom: 6px; inset-inline-end: 6px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent; color: var(--label-3); display: grid; place-items: center; cursor: pointer; }
+.pos-item .pi-star svg { width: 18px; height: 18px; }
+.pos-item .pi-star.on { color: #ffb300; }
+.pos-item .pi-star.on svg { fill: #ffcc00; }
+.pos-item .pi-star:hover { background: var(--fill-3); }
+.pos-cats button.fav { display: inline-flex; align-items: center; gap: 6px; }
+.pos-cats button.fav svg { width: 16px; height: 16px; fill: #ffcc00; color: #ffb300; }
+.pos-cats button.fav.on svg { fill: #fff; color: #fff; }
