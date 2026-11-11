@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
-import { Banner, GroupChips, MoneyInput, Picker, QtyInput, useUi } from '../components/ui';
+import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
@@ -417,7 +417,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                 }}
               />
               {listOpen && (!entryItem || !q) && (
-                <div className="picker-pop">
+                <FloatingPop anchor={searchRef} maxHeight={460}>
                   <GroupChips groups={groups} value={catFilter} onChange={(g) => { setCatFilter(g); setHl(0); }} />
                   {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
                   {matches.map((m, i) => (
@@ -426,7 +426,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                       <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
                     </div>
                   ))}
-                </div>
+                </FloatingPop>
               )}
             </div>
           </div>

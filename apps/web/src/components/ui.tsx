@@ -236,6 +236,52 @@ export function useUi() {
   return c;
 }
 
+// ---------------------------------------------------------------- قائمة منسدلة عائمة
+/**
+ * تُرسم القائمة في body بموضع ثابت تحت الخانة (أو فوقها لو المساحة لا تكفي)،
+ * فلا يقصها أي صندوق أو كارت أو نافذة مهما كان فيها overflow.
+ */
+export function FloatingPop({ anchor, children, className = 'picker-pop', maxHeight = 340, popRef }: { anchor: React.RefObject<HTMLElement | null>; children: ReactNode; className?: string; maxHeight?: number; popRef?: React.RefObject<HTMLDivElement | null> }) {
+  const [pos, setPos] = useState<React.CSSProperties | null>(null);
+  useEffect(() => {
+    const place = () => {
+      const el = anchor.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const below = vh - r.bottom - 12;
+      const above = r.top - 12;
+      const up = below < Math.min(maxHeight, 220) && above > below;
+      const width = Math.min(Math.max(r.width, 280), vw - 16);
+      // محاذاة على يمين الخانة (واجهة عربية) مع البقاء داخل الشاشة
+      let left = r.right - width;
+      left = Math.max(8, Math.min(left, vw - width - 8));
+      setPos({
+        position: 'fixed',
+        left,
+        width,
+        maxHeight: Math.max(140, Math.min(maxHeight, up ? above : below)),
+        ...(up ? { bottom: vh - r.top + 4 } : { top: r.bottom + 4 }),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchor, maxHeight]);
+  if (!pos) return null;
+  return createPortal(
+    <div ref={popRef} className={`${className} floating`} style={pos} onMouseDown={(e) => e.preventDefault()}>
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 // ---------------------------------------------------------------- منتقي بحث (عميل/صنف/حساب)
 
 export interface PickOption {
@@ -266,6 +312,7 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
   const [hl, setHl] = useState(0);
   const [group, setGroup] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.id === value);
   const groups = useMemo(() => [...new Set(options.map((o) => o.group).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'ar')), [options]);
   const filtered = useMemo(() => {
@@ -274,7 +321,7 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
     return list.slice(0, 300);
   }, [q, options, group]);
   useEffect(() => {
-    const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && !popRef.current?.contains(e.target as Node) && setOpen(false);
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
@@ -315,7 +362,7 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
         }}
       />
       {open && !disabled && (
-        <div className="picker-pop">
+        <FloatingPop anchor={ref} popRef={popRef}>
           <GroupChips groups={groups} value={group} onChange={(g) => { setGroup(g); setHl(0); }} />
           {allowClear && value && (
             <div className="picker-opt" onMouseDown={() => { onChange(null); setOpen(false); }}>
@@ -329,7 +376,7 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
               {o.sub && <span className="muted small">{o.sub}</span>}
             </div>
           ))}
-        </div>
+        </FloatingPop>
       )}
     </div>
   );

@@ -1008,3 +1008,7 @@ body { font-size: 16px; letter-spacing: 0; line-height: 1.5; }
 .seg-chips button svg { width: 16px; height: 16px; }
 .seg-chips button.on { border-color: var(--tint); background: var(--tint); color: #fff; }
 .seg-chips button.on .muted { color: rgba(255,255,255,.85); }
+
+/* القائمة المنسدلة العائمة: فوق كل شيء ولا تُقص */
+.picker-pop.floating { position: fixed; z-index: 1000; inset-inline: auto; top: auto; min-width: 0; animation: popIn .14s var(--ease); }
+@keyframes popIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
