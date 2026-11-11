@@ -1,6 +1,7 @@
 import { bpToPercent, parsePercentBp } from '@erp/shared';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/Layout';
+import { AppearancePanel } from '../components/Appearance';
 import { Banner, Field, Switch, useUi } from '../components/ui';
 import { api } from '../lib/api';
 import { db } from '../lib/db';
@@ -97,6 +98,9 @@ export function SettingsPage() {
       )}
 
       {can('settings.manage') && f && <PrintSettings f={f} setF={setF} />}
+
+      <div className="group-header">المظهر (لهذا الجهاز)</div>
+      <div className="card pad"><AppearancePanel /></div>
 
       <div className="group-header">تغيير كلمة المرور</div>
       <div className="card pad stack">

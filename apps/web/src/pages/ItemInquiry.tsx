@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Empty, SearchBox, SyncBadge } from '../components/ui';
 import { db } from '../lib/db';
+import { ItemInsights } from '../components/Insights';
 import { useDebounced, usePerm } from '../lib/hooks';
 
 /** استعلام عن صنف: بحث بالكود أو الاسم أو الباركود ويعرض الأسعار والأرصدة في كل مخزن (يعمل دون اتصال) */
@@ -39,7 +40,7 @@ export function ItemInquiry() {
   const total = useMemo(() => (detail?.bal ?? []).reduce((s, b) => s + b.qty, 0), [detail]);
 
   return (
-    <div className="page narrow">
+    <div className="page" style={{ maxWidth: 1100 }}>
       <PageHeader title="استعلام عن صنف" sub="ابحث بالاسم أو الكود أو امسح الباركود" />
       <SearchBox
         value={q}
@@ -111,6 +112,7 @@ export function ItemInquiry() {
           </div>
           <div className="group-footer">الأرصدة حسب آخر مزامنة مع الخادم.</div>
 
+          <ItemInsights item={detail.item} />
           {can('inventory.view') && (
             <button className="btn block" style={{ marginTop: 16 }} onClick={() => nav(`/reports/item?id=${detail.item.id}`)}>
               عرض حركة الصنف

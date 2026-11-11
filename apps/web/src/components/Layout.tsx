@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronDown, CloudOff, Home, LayoutGrid, LogOut, Menu, Package, RefreshCw, Search, Users, Zap } from 'lucide-react';
+import { ChevronDown, CloudOff, Home, LayoutGrid, LogOut, Menu, Package, Palette, RefreshCw, Search, Users, Zap } from 'lucide-react';
+import { AppearanceSheet } from './Appearance';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DOC_TYPES } from '@erp/shared';
@@ -111,6 +112,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [appearance, setAppearance] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -168,6 +170,9 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="bold" style={{ fontSize: 15 }}>{session.user.full_name}</div>
             <div className="caption">{session.user.role_name}</div>
           </div>
+          <button className="icon-btn" title="المظهر" onClick={() => setAppearance(true)}>
+            <Palette />
+          </button>
           <button className="icon-btn" title="تسجيل الخروج" onClick={logout}>
             <LogOut />
           </button>
@@ -211,6 +216,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </button>
       </nav>
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
+      {appearance && <AppearanceSheet onClose={() => setAppearance(false)} />}
     </div>
   );
 }

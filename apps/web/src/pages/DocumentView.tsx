@@ -10,8 +10,9 @@ import { cancelDocument, postDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useRemote, useSession, useSettings } from '../lib/hooks';
 
-export function DocumentView() {
-  const { id = '' } = useParams();
+export function DocumentView({ id: propId, embedded }: { id?: string; embedded?: boolean } = {}) {
+  const { id: paramId = '' } = useParams();
+  const id = propId ?? paramId;
   const nav = useNavigate();
   const ui = useUi();
   const { session } = useSession();
@@ -63,7 +64,7 @@ export function DocumentView() {
   const undelivered = doc.deliver_later ? lines.reduce((s, l) => s + (l.base_qty - (l.delivered_qty ?? 0)), 0) : 0;
 
   return (
-    <div className="page">
+    <div className={embedded ? '' : 'page'}>
       <PageHeader
         title={info.label}
         sub={

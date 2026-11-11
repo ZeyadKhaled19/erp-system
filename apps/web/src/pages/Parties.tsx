@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, Empty, exportCsv, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
+import { PartyInsights } from '../components/Insights';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useRemote } from '../lib/hooks';
 
@@ -248,6 +249,8 @@ export function PartyDetail() {
           </button>
         )}
       </div>
+
+      <PartyInsights party={party} />
 
       <div className="row wrap" style={{ marginTop: 22, marginBottom: 10 }}>
         <div className="section-title" style={{ margin: 0, flex: 1 }}>كشف الحساب</div>

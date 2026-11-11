@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, Empty, exportCsv, Field, MoneyInput, QtyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
+import { ImportItemsSheet, QuickItemSheet } from '../components/QuickItem';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useSettings } from '../lib/hooks';
 
@@ -16,6 +17,8 @@ export function ItemsPage() {
   const [cat, setCat] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [quick, setQuick] = useState(false);
+  const [importing, setImporting] = useState(false);
   const dq = useDebounced(q);
 
   const data = useLiveQuery(async () => {
@@ -55,8 +58,9 @@ export function ItemsPage() {
             >
               تصدير
             </button>
+            {can('items.create') && <button className="btn" onClick={() => setImporting(true)}>استيراد من Excel</button>}
             {can('items.create') && (
-              <button className="btn primary" onClick={() => setEditing({})}>
+              <button className="btn primary" onClick={() => setQuick(true)}>
                 <Plus /> صنف جديد
               </button>
             )}
@@ -122,6 +126,8 @@ export function ItemsPage() {
         </div>
       )}
       {editing && <ItemEditor item={editing.id ? editing : null} onClose={() => setEditing(null)} />}
+      {quick && <QuickItemSheet onClose={() => setQuick(false)} onAdvanced={() => { setQuick(false); setEditing({}); }} />}
+      {importing && <ImportItemsSheet onClose={() => setImporting(false)} />}
     </div>
   );
 }

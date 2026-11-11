@@ -31,6 +31,7 @@ export interface Hub {
 export const HUBS: Hub[] = [
   { key: 'home', label: 'الرئيسية', sub: 'ملخص اليوم', icon: <Home />, grad: 'var(--grad-blue)', to: '/', groups: [] },
   { key: 'pos', label: 'بيع سريع', sub: 'كاشير بلمسة واحدة', icon: <Zap />, grad: 'var(--grad-green)', to: '/pos', perm: 'sales.create', groups: [] },
+  { key: 'invoices', label: 'الفواتير', sub: 'كل الفواتير والسندات في مكان واحد', icon: <FileText />, grad: 'var(--grad-teal)', to: '/invoices', perm: 'sales.view', groups: [] },
   {
     key: 'sales',
     label: 'المبيعات',
@@ -212,6 +213,7 @@ export function activeHubKey(pathname: string): string {
   if (pathname === '/') return 'home';
   if (pathname.startsWith('/hub/')) return pathname.slice(5);
   if (pathname.startsWith('/pos')) return 'pos';
+  if (pathname.startsWith('/invoices')) return 'invoices';
   if (pathname.startsWith('/parties/customer')) return 'customers';
   if (pathname.startsWith('/parties/supplier')) return 'suppliers';
   if (pathname.startsWith('/partners') || pathname.includes('partner_')) return 'partners';

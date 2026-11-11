@@ -152,10 +152,10 @@ try {
     const inputs = [...document.querySelectorAll('.sheet input.input')];
     const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
     const set = (el, v) => { s.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); };
-    set(inputs[0], 'OFF-777'); set(inputs[1], 'صنف أُضيف دون اتصال');
+    set(inputs[0], 'صنف أُضيف دون اتصال');
     return true;`);
   await sleep(300);
-  await evaluate(`[...document.querySelectorAll('.sheet-foot button')].find((b) => b.innerText.trim() === 'حفظ').click(); return true;`);
+  await evaluate(`[...document.querySelectorAll('.sheet-foot button')].find((b) => b.innerText.includes('حفظ وإغلاق')).click(); return true;`);
   check('الصنف ظاهر محليًا «بانتظار المزامنة»', await waitFor(`return document.body.innerText.includes('صنف أُضيف دون اتصال') && document.body.innerText.includes('بانتظار المزامنة')`));
 
   // إغلاق وفتح دون اتصال
@@ -170,7 +170,7 @@ try {
   check('رفع العملية تلقائيًا بعد عودة الخادم', await waitFor(`${idb('outbox')} return out.length && out.every((e) => e.status === 'accepted');`, 40000));
   const login = await (await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'admin', password: 'admin123', device_id: 'e2e-checker-01' }) })).json();
   const pulled = await (await fetch(`${BASE}/api/sync/pull?cursor=0`, { headers: { authorization: `Bearer ${login.token}` } })).json();
-  check('الصنف موجود على الخادم المركزي', (pulled.changes.items ?? []).some((i) => i.code === 'OFF-777'));
+  check('الصنف موجود على الخادم المركزي', (pulled.changes.items ?? []).some((i) => i.name === 'صنف أُضيف دون اتصال'));
   check('اختفى «بانتظار المزامنة» من الواجهة', await waitFor(`return !document.body.innerText.includes('بانتظار المزامنة')`, 20000));
 } catch (e) {
   console.error(e);

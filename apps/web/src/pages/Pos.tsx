@@ -118,7 +118,7 @@ export function PosPage() {
     <div className="pos">
       <div className="pos-left">
         <div className="row" style={{ gap: 10 }}>
-          <div className="search" style={{ flex: 1, height: 52, background: '#fff', boxShadow: 'var(--shadow-card)' }}>
+          <div className="search" style={{ flex: 1, height: 52, background: 'var(--card)', boxShadow: 'var(--shadow-card)' }}>
             <ScanLine />
             <input
               ref={searchRef}
@@ -132,7 +132,7 @@ export function PosPage() {
             {q && <button className="icon-btn" style={{ width: 28, height: 28 }} onClick={() => setQ('')}><X style={{ width: 16, height: 16 }} /></button>}
           </div>
           {warehouses.length > 1 && (
-            <select className="select" style={{ width: 170, background: '#fff' }} value={wh} onChange={(e) => setWhId(e.target.value)}>
+            <select className="select" style={{ width: 170, background: 'var(--card)' }} value={wh} onChange={(e) => setWhId(e.target.value)}>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           )}

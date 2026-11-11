@@ -34,6 +34,7 @@ import { ShiftPage } from './pages/Shift';
 import { DeliveriesPage } from './pages/Deliveries';
 import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
+import { InvoicesPage } from './pages/Invoices';
 import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
 
 export function App() {
@@ -134,6 +135,7 @@ export function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/hub/:key" element={<HubPage />} />
           <Route path="/pos" element={<PosPage />} />
+          <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/items" element={<ItemsPage />} />
           <Route path="/items/inquiry" element={<ItemInquiry />} />
           <Route path="/warehouses" element={<WarehousesPage />} />

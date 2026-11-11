@@ -10,7 +10,7 @@ import { Banner, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, 
 import { localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings } from '../lib/hooks';
-import { ItemEditor } from './Items';
+import { QuickItemSheet } from '../components/QuickItem';
 import { PartyEditor } from './Parties';
 
 interface Line {
@@ -348,9 +348,22 @@ export function DocumentEditor() {
         .map((p) => ({ id: p.id, label: p.name, sub: `${p.kind === 'customer' ? 'عميل' : 'مورد'} · ${p.code}`, search: `${p.name} ${p.code} ${p.phone ?? ''}` })),
     [parties, info, type],
   );
+  // رصيد كل صنف في المخزن المختار (للعرض في قائمة الاختيار وتحت السطور — لا يُطبع)
+  const whStock = useLiveQuery(
+    async () => (h.warehouse_id ? new Map((await db.stock_balances.where('warehouse_id').equals(h.warehouse_id).toArray()).map((b) => [b.item_id, b.qty])) : new Map()),
+    [h.warehouse_id],
+  ) ?? new Map();
   const itemOptions: PickOption[] = useMemo(
-    () => items.filter((i) => i.active !== false).map((i) => ({ id: i.id, label: i.name, sub: i.code, search: `${i.name} ${i.code} ${i.barcode ?? ''}` })),
-    [items],
+    () =>
+      items
+        .filter((i) => i.active !== false)
+        .map((i) => ({
+          id: i.id,
+          label: i.name,
+          sub: i.is_service ? `${i.code} · خدمة` : info?.stock ? `متاح ${formatQty(whStock.get(i.id) ?? 0)} · ${formatMoney(i.sale_price)}` : i.code,
+          search: `${i.name} ${i.code} ${i.barcode ?? ''}`,
+        })),
+    [items, whStock, info?.stock],
   );
   const leafAccounts = (filter?: (a: any) => boolean): PickOption[] =>
     accounts.filter((a) => !a.is_group && a.active !== false && (!filter || filter(a))).map((a) => ({ id: a.id, label: a.name, sub: a.code, search: `${a.code} ${a.name}` }));
@@ -721,6 +734,11 @@ export function DocumentEditor() {
                           }}
                         />
                       )}
+                      {info.stock && it && !it.is_service && haveInUnit !== undefined && type !== 'stock_adjustment' && (
+                        <span className={`stock-chip ${haveInUnit <= 0 ? 'out' : (info.stock === 'out' || info.stock === 'transfer') && l.qty > haveInUnit ? 'low' : ''}`}>
+                          {IN_DOCS.includes(type) ? 'الرصيد الحالي' : 'المتاح'} {formatQty(haveInUnit)} {l.unit_name}
+                        </span>
+                      )}
                       {l.max_qty !== undefined && <div className="caption">المتاح للإرجاع: {formatQty(l.max_qty)}</div>}
                       {it?.is_service && <div className="caption">خدمة (بدون مخزون)</div>}
                       {info.priced && l.tax_rate_bp > 0 && <div className="caption">ضريبة {l.tax_rate_bp / 100}%</div>}
@@ -987,7 +1005,7 @@ export function DocumentEditor() {
         </button>
       </div>
 
-      {newItem && <ItemEditor item={null} onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void addItem(id), 50)} />}
+      {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void addItem(id), 80)} />}
       {newParty && <PartyEditor kind={info.partyKind === 'supplier' ? 'supplier' : 'customer'} party={null} onClose={() => setNewParty(false)} onSaved={(id) => set('party_id', id)} />}
       {planOpen && (
         <InstallmentPlan

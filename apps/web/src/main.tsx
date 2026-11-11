@@ -3,6 +3,10 @@ import '@fontsource/ibm-plex-sans-arabic/500.css';
 import '@fontsource/ibm-plex-sans-arabic/600.css';
 import '@fontsource/ibm-plex-sans-arabic/700.css';
 import './styles.css';
+import { applyAppearance } from './lib/theme';
+
+// تطبيق المظهر المحفوظ قبل أول رسم لتجنب وميض الثيم
+applyAppearance();
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
