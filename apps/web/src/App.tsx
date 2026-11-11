@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { useUi } from './components/ui';
-import { setToken, setUnauthorizedHandler } from './lib/api';
+import { api, setToken, setUnauthorizedHandler } from './lib/api';
 import { setMeta } from './lib/db';
 import { SessionContext } from './lib/hooks';
 import { getDeviceId, loadSession, saveSession, type Session } from './lib/session';
@@ -26,9 +26,19 @@ import { SettingsPage } from './pages/Settings';
 import { SyncCenter } from './pages/SyncCenter';
 import { UsersPage } from './pages/Users';
 import { WarehousesPage } from './pages/Warehouses';
+import { CreditInvoicesPage, InstrumentsPage } from './pages/Followup';
+import { ListsPage } from './pages/Lists';
+import { PartnersPage } from './pages/Partners';
+import { ShiftPage } from './pages/Shift';
+import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
 
 export function App() {
-  const [session, setSession] = useState<Session | null>(() => loadSession());
+  const [session, setSession] = useState<Session | null>(() => {
+    // الرمز يُجهز قبل أول رسم حتى لا تُرسل الشاشات طلبات بدون رمز
+    const s = loadSession();
+    setToken(s?.token ?? null);
+    return s;
+  });
   const ui = useUi();
 
   useEffect(() => {
@@ -38,6 +48,23 @@ export function App() {
     startSync();
     return () => stopSync();
   }, [session]);
+
+  // تحديث صلاحيات المستخدم من الخادم عند توفر الاتصال (قد تكون تغيرت منذ آخر دخول)
+  useEffect(() => {
+    if (!session) return;
+    api<{ user: Session['user'] }>('/api/auth/me')
+      .then((r) => {
+        if (JSON.stringify(r.user) !== JSON.stringify(session.user)) {
+          const next = { ...session, user: r.user };
+          saveSession(next);
+          setSession(next);
+        }
+      })
+      .catch(() => {
+        /* دون اتصال: نستخدم الصلاحيات المحفوظة */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.token]);
 
   const logout = useCallback(async () => {
     const ok = await ui.confirm({
@@ -80,6 +107,7 @@ export function App() {
       <Login
         onLogin={(s) => {
           saveSession(s);
+          setToken(s.token);
           setSession(s);
         }}
       />
@@ -111,6 +139,14 @@ export function App() {
           <Route path="/reports/balance-sheet" element={<BalanceSheetReport />} />
           <Route path="/reports/documents" element={<DocumentsReport />} />
           <Route path="/sync" element={<SyncCenter />} />
+          <Route path="/instruments" element={<InstrumentsPage />} />
+          <Route path="/receivables" element={<CreditInvoicesPage />} />
+          <Route path="/partners" element={<PartnersPage />} />
+          <Route path="/shift" element={<ShiftPage />} />
+          <Route path="/lists" element={<ListsPage />} />
+          <Route path="/reports/analysis" element={<SalesAnalysisReport />} />
+          <Route path="/reports/serial" element={<SerialSearchReport />} />
+          <Route path="/reports/expiry" element={<ExpiryReport />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/backups" element={<BackupsPage />} />

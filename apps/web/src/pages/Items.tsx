@@ -143,7 +143,17 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
     tax_rate_bp: item?.tax_rate_bp ?? settings.default_tax_rate_bp ?? 0,
     active: item?.active ?? true,
     notes: item?.notes ?? '',
+    min_price: item?.min_price ?? 0,
+    is_service: item?.is_service ?? false,
+    track_serial: item?.track_serial ?? false,
+    track_expiry: item?.track_expiry ?? false,
+    expiry_default_days: item?.expiry_default_days ?? 0,
+    expiry_alert_days: item?.expiry_alert_days ?? 30,
   }));
+  const priceLists = useLiveQuery(async () => (await db.price_lists.orderBy('sort').toArray()).filter((p) => p.active !== false), []) ?? [];
+  const existingPrices = useLiveQuery(async () => (item ? db.item_prices.where('item_id').equals(item.id).toArray() : []), [item?.id]);
+  const [prices, setPrices] = useState<Record<string, number> | null>(null);
+  const priceMap: Record<string, number> = prices ?? Object.fromEntries((existingPrices ?? []).map((p) => [`${p.unit_name}|${p.price_list_id}`, p.price]));
   const [units, setUnits] = useState<any[] | null>(null);
   // الإعدادات تُقرأ من IndexedDB بشكل غير متزامن: نطبق نسبة الضريبة الافتراضية عند وصولها للصنف الجديد
   useEffect(() => {
@@ -183,6 +193,12 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
         name: f.name.trim(),
         barcode: f.barcode?.trim() || null,
         units: allUnits.map((u) => ({ id: u.id, name: u.name.trim(), factor: u.factor, barcode: u.barcode?.trim() || null, sale_price: u.sale_price ?? 0, wholesale_price: u.wholesale_price ?? 0, active: true })),
+        prices: prices
+          ? Object.entries(prices).map(([k, price]) => {
+              const [unit_name, price_list_id] = k.split('|');
+              return { unit_name, price_list_id, price };
+            })
+          : [],
       },
       item,
     );
@@ -242,12 +258,58 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
           <Field label="حد إعادة الطلب" hint="يظهر الصنف في تقرير النواقص عند الوصول لهذه الكمية أو أقل">
             <QtyInput value={f.reorder_level} onChange={(v) => set('reorder_level', v)} />
           </Field>
+          <Field label="أقل سعر بيع" hint="البيع بأقل منه يحتاج صلاحية خاصة">
+            <MoneyInput value={f.min_price} onChange={(v) => set('min_price', v)} />
+          </Field>
           <Field label="الحالة">
             <div className="row" style={{ height: 42 }}>
               <Switch checked={f.active} onChange={(v) => set('active', v)} /> {f.active ? 'نشط' : 'موقوف'}
             </div>
           </Field>
         </div>
+        <div className="list" style={{ background: 'var(--bg)' }}>
+          <div className="list-row" style={{ background: 'transparent' }}>
+            <div className="title">خدمة بدون مخزون<div className="sub">مثل التركيب والصيانة: لا رصيد ولا تكلفة</div></div>
+            <Switch checked={f.is_service} onChange={(v) => setF((p: any) => ({ ...p, is_service: v, track_serial: v ? false : p.track_serial, track_expiry: v ? false : p.track_expiry }))} />
+          </div>
+          <div className="list-row" style={{ background: 'transparent' }}>
+            <div className="title">تتبع الأرقام التسلسلية (سيريال)<div className="sub">يدخل السيريال بالشراء ولا يُصرف إلا إذا كان بالمخزن، ولا يُباع مرتين</div></div>
+            <Switch checked={f.track_serial} onChange={(v) => set('track_serial', v)} disabled={f.is_service} />
+          </div>
+          <div className="list-row" style={{ background: 'transparent' }}>
+            <div className="title">تتبع تاريخ الصلاحية<div className="sub">كل وارد دفعة بتاريخ انتهاء، والصرف من الأقرب انتهاءً</div></div>
+            <Switch checked={f.track_expiry} onChange={(v) => set('track_expiry', v)} disabled={f.is_service} />
+          </div>
+          {f.track_expiry && (
+            <div className="list-row" style={{ background: 'transparent' }}>
+              <Field label="صلاحية افتراضية بعد (يوم) من تاريخ الوارد"><input className="input num" type="number" min={0} value={f.expiry_default_days} onChange={(e) => set('expiry_default_days', Math.max(0, Number(e.target.value) || 0))} /></Field>
+              <Field label="تنبيه قبل الانتهاء بـ (يوم)"><input className="input num" type="number" min={0} value={f.expiry_alert_days} onChange={(e) => set('expiry_alert_days', Math.max(0, Number(e.target.value) || 0))} /></Field>
+            </div>
+          )}
+        </div>
+        {priceLists.length > 0 && (
+          <>
+            <div className="bold" style={{ marginTop: 6 }}>أسعار قوائم الأسعار</div>
+            <div className="footnote">اترك الخانة 0 لاستخدام سعر البيع الافتراضي للوحدة.</div>
+            <div className="table-wrap" style={{ background: 'var(--bg)' }}>
+              <table className="table">
+                <thead><tr><th>الوحدة</th>{priceLists.map((pl) => <th key={pl.id}>{pl.name}</th>)}</tr></thead>
+                <tbody>
+                  {[f.base_unit, ...allUnits.map((u) => u.name).filter(Boolean)].map((un) => (
+                    <tr key={un}>
+                      <td className="bold">{un}</td>
+                      {priceLists.map((pl) => (
+                        <td key={pl.id} style={{ minWidth: 110 }}>
+                          <MoneyInput value={priceMap[`${un}|${pl.id}`] ?? 0} onChange={(v) => setPrices({ ...priceMap, [`${un}|${pl.id}`]: v })} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
         <Field label="ملاحظات">
           <textarea className="textarea" value={f.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
         </Field>
@@ -287,9 +349,6 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
             </div>
           );
         })}
-        <div className="footnote">
-          تتبع الأرقام التسلسلية وتواريخ الصلاحية سيُضاف بعد تحديد طريقة الإدخال والتتبع المطلوبة.
-        </div>
       </div>
     </Sheet>
   );

@@ -4,7 +4,7 @@ import { Landmark, Plus, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, Field, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, Field, MoneyInput, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { usePerm, useRemote } from '../lib/hooks';
@@ -90,9 +90,9 @@ export function CashboxesPage() {
 }
 
 function CashboxEditor({ box, onClose, onSave }: { box: any | null; onClose: () => void; onSave: (d: any) => void }) {
-  const [f, setF] = useState({ name: box?.name ?? '', kind: box?.kind ?? 'cash', active: box?.active ?? true });
+  const [f, setF] = useState({ name: box?.name ?? '', kind: box?.kind ?? 'cash', active: box?.active ?? true, fee_pct: box?.fee_bp ? String(box.fee_bp / 100) : '0', fee_min: box?.fee_min ?? 0, fee_fixed: box?.fee_fixed ?? 0 });
   return (
-    <Sheet title={box ? 'تعديل خزينة' : 'خزينة / حساب بنكي جديد'} onClose={onClose} footer={<><button className="btn" onClick={onClose}>إلغاء</button><button className="btn primary" disabled={!f.name.trim()} onClick={() => onSave(f)}>حفظ</button></>}>
+    <Sheet title={box ? 'تعديل خزينة' : 'خزينة / حساب بنكي جديد'} onClose={onClose} footer={<><button className="btn" onClick={onClose}>إلغاء</button><button className="btn primary" disabled={!f.name.trim()} onClick={() => { const fee_bp = Math.round(Number(f.fee_pct || 0) * 100); onSave({ name: f.name, kind: f.kind, active: f.active, fee_bp: Number.isFinite(fee_bp) ? fee_bp : 0, fee_min: f.fee_min, fee_fixed: f.fee_fixed }); }}>حفظ</button></>}>
       <div className="stack">
         <Field label="الاسم"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         {!box && (
@@ -100,6 +100,13 @@ function CashboxEditor({ box, onClose, onSave }: { box: any | null; onClose: () 
             <Segmented block value={f.kind} onChange={(v) => setF({ ...f, kind: v })} options={[{ value: 'cash', label: 'خزينة نقدية' }, { value: 'bank', label: 'حساب بنكي' }]} />
           </Field>
         )}
+        <div className="bold">عمولة طريقة السداد (بطاقات / محافظ)</div>
+        <div className="grid grid-3">
+          <Field label="النسبة %"><input className="input num" inputMode="decimal" value={f.fee_pct} onChange={(e) => setF({ ...f, fee_pct: e.target.value })} /></Field>
+          <Field label="حد أدنى"><MoneyInput value={f.fee_min} onChange={(v) => setF({ ...f, fee_min: v })} /></Field>
+          <Field label="مبلغ ثابت"><MoneyInput value={f.fee_fixed} onChange={(v) => setF({ ...f, fee_fixed: v })} /></Field>
+        </div>
+        <div className="footnote">تُخصم العمولة تلقائيًا من الخزينة على حساب «عمولات بنكية وعمولات الدفع» مع كل تحصيل عليها.</div>
         <div className="row"><Switch checked={f.active} onChange={(v) => setF({ ...f, active: v })} /> {f.active ? 'نشطة' : 'موقوفة'}</div>
         <div className="footnote">لتسجيل رصيد افتتاحي للخزينة استخدم «قيد يومية»: مدين الخزينة، دائن «أرصدة افتتاحية».</div>
       </div>

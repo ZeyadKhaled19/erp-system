@@ -1,0 +1,238 @@
+import { bpToPercent, formatMoney, parsePercentBp, todayISO, uuid } from '@erp/shared';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { ArrowDownLeft, ArrowUpRight, PieChart, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader } from '../components/Layout';
+import { Banner, DocStatusBadge, Empty, Field, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { saveDocument, saveMaster } from '../lib/actions';
+import { db } from '../lib/db';
+import { usePerm, useRemote } from '../lib/hooks';
+
+export function PartnersPage() {
+  const can = usePerm();
+  const nav = useNavigate();
+  const ui = useUi();
+  const partners = useLiveQuery(() => db.partners.orderBy('name').toArray(), []) ?? [];
+  const dists = useLiveQuery(async () => (await db.documents.where('doc_type').equals('profit_distribution').toArray()).sort((a, b) => String(b.date).localeCompare(String(a.date))), []) ?? [];
+  const rep = useRemote<any>(can('partners.view') ? '/api/reports/partners' : null, [partners.length, dists.length]);
+  const [edit, setEdit] = useState<any | null>(null);
+  const [dist, setDist] = useState(false);
+  const active = partners.filter((p) => p.active !== false);
+  const sumOwn = active.reduce((s, p) => s + p.ownership_bp, 0);
+  const sumProfit = active.reduce((s, p) => s + p.profit_bp, 0);
+  const balances = new Map<string, any>((rep.data?.partners ?? []).map((p: any) => [p.id, p]));
+
+  return (
+    <div className="page">
+      <PageHeader
+        title="الشركاء"
+        sub="نسبة الملكية ونسبة توزيع الأرباح منفصلتان"
+        actions={
+          <>
+            {can('partners.create') && <button className="btn" onClick={() => nav('/docs/new/partner_capital')}><ArrowDownLeft /> إيداع رأس مال</button>}
+            {can('partners.create') && <button className="btn" onClick={() => nav('/docs/new/partner_withdrawal')}><ArrowUpRight /> مسحوبات</button>}
+            {can('partners.create') && <button className="btn" onClick={() => setDist(true)}><PieChart /> توزيع أرباح</button>}
+            {can('partners.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> شريك</button>}
+          </>
+        }
+      />
+      {active.length > 0 && (sumOwn !== 10000 || sumProfit !== 10000) && (
+        <div style={{ marginBottom: 12 }}>
+          <Banner kind="warn">
+            {sumOwn !== 10000 && <>مجموع نسب الملكية {bpToPercent(sumOwn)}% (الفرق {bpToPercent(10000 - sumOwn)}%). </>}
+            {sumProfit !== 10000 && <>مجموع نسب توزيع الأرباح {bpToPercent(sumProfit)}% (الفرق {bpToPercent(10000 - sumProfit)}%) — لا يمكن توزيع الأرباح حتى يساوي 100%.</>}
+          </Banner>
+        </div>
+      )}
+      {rep.error && <div style={{ marginBottom: 12 }}><Banner kind="info">الأرصدة تظهر عند الاتصال بالخادم.</Banner></div>}
+      {partners.length === 0 ? (
+        <div className="card"><Empty title="لا يوجد شركاء بعد" /></div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table responsive">
+            <thead><tr><th>الشريك</th><th className="n">نسبة الملكية</th><th className="n">نسبة الأرباح</th><th className="n">رأس المال</th><th className="n">الحساب الجاري (له)</th><th className="n">مسحوبات الفترة</th><th /></tr></thead>
+            <tbody>
+              {partners.map((p) => {
+                const b = balances.get(p.id);
+                return (
+                  <tr key={p.id} className={can('partners.manage') ? 'click' : ''} onClick={() => can('partners.manage') && setEdit(p)}>
+                    <td data-label="الشريك" className="bold">{p.name} {p.active === false && <span className="badge">موقوف</span>} <SyncBadge sync={p._sync} error={p._error} /></td>
+                    <td data-label="الملكية" className="n">{bpToPercent(p.ownership_bp)}%</td>
+                    <td data-label="الأرباح" className="n">{bpToPercent(p.profit_bp)}%</td>
+                    <td data-label="رأس المال" className="n">{b ? formatMoney(b.capital) : '—'}</td>
+                    <td data-label="الجاري" className={`n bold ${b && b.current < 0 ? 'red' : ''}`}>{b ? formatMoney(b.current) : '—'}</td>
+                    <td data-label="المسحوبات" className="n">{b ? formatMoney(b.withdrawals) : '—'}</td>
+                    <td data-label="">{can('reports.financial') && <button className="btn sm plain" onClick={(e) => { e.stopPropagation(); nav(`/reports/ledger?account=${p.current_account_id}`); }}>كشف الجاري</button>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot><tr><td>الإجمالي (النشطون)</td><td className="n">{bpToPercent(sumOwn)}%</td><td className="n">{bpToPercent(sumProfit)}%</td><td colSpan={4} /></tr></tfoot>
+          </table>
+        </div>
+      )}
+      <div className="footnote" style={{ marginTop: 8 }}>الحساب الجاري الموجب = مستحق للشريك من أرباح موزعة لم تُسحب. المسحوبات تُخصم من الحساب الجاري. رأس المال لا يُعتبر ربحًا.</div>
+
+      <div className="section-title">توزيعات الأرباح</div>
+      {dists.length === 0 ? (
+        <div className="card pad muted">لا توجد توزيعات</div>
+      ) : (
+        <div className="list">
+          {dists.map((d) => (
+            <div key={d.id} className="list-row tappable" onClick={() => nav(`/docs/view/${d.id}`)}>
+              <div className="title">
+                {d.number ?? d.local_number} — الفترة <span className="num">{d.data?.period_from ?? d.period_from}</span> إلى <span className="num">{d.data?.period_to ?? d.period_to}</span>
+                <div className="sub">صافي الربح {d.data?.net_profit != null ? formatMoney(d.data.net_profit) : '—'} · محتجز {d.data?.retained != null ? formatMoney(d.data.retained) : '—'}</div>
+              </div>
+              <DocStatusBadge status={d.status} sync={d._sync} />
+              <span className="num bold">{formatMoney(d.total)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {edit && (
+        <PartnerEditor
+          p={edit.id ? edit : null}
+          onClose={() => setEdit(null)}
+          onSave={async (data) => {
+            await saveMaster('partner', edit.id ?? uuid(), data, edit.id ? edit : null);
+            ui.toast('تم الحفظ');
+            setEdit(null);
+          }}
+        />
+      )}
+      {dist && <DistributionSheet onClose={() => setDist(false)} />}
+    </div>
+  );
+}
+
+function PartnerEditor({ p, onClose, onSave }: { p: any | null; onClose: () => void; onSave: (d: any) => void }) {
+  const [f, setF] = useState({ name: p?.name ?? '', phone: p?.phone ?? '', own: bpToPercent(p?.ownership_bp ?? 0), profit: bpToPercent(p?.profit_bp ?? 0), notes: p?.notes ?? '', active: p?.active ?? true });
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <Sheet
+      title={p ? 'تعديل شريك' : 'شريك جديد'}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>إلغاء</button>
+          <button
+            className="btn primary"
+            onClick={() => {
+              try {
+                const ownership_bp = parsePercentBp(f.own || '0');
+                const profit_bp = parsePercentBp(f.profit || '0');
+                if (!f.name.trim()) return setErr('الاسم مطلوب');
+                if (ownership_bp < 0 || ownership_bp > 10000 || profit_bp < 0 || profit_bp > 10000) return setErr('النسب بين 0 و 100');
+                onSave({ name: f.name.trim(), phone: f.phone || null, ownership_bp, profit_bp, notes: f.notes || null, active: f.active });
+              } catch {
+                setErr('نسبة غير صالحة');
+              }
+            }}
+          >
+            حفظ
+          </button>
+        </>
+      }
+    >
+      <div className="stack">
+        {err && <Banner kind="err">{err}</Banner>}
+        <Field label="اسم الشريك"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
+        <Field label="الهاتف"><input className="input num" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
+        <div className="grid grid-2">
+          <Field label="نسبة الملكية %"><input className="input num" inputMode="decimal" value={f.own} onChange={(e) => setF({ ...f, own: e.target.value })} /></Field>
+          <Field label="نسبة توزيع الأرباح %" hint="قد تختلف عن نسبة الملكية"><input className="input num" inputMode="decimal" value={f.profit} onChange={(e) => setF({ ...f, profit: e.target.value })} /></Field>
+        </div>
+        {!p && <div className="footnote">يُنشأ للشريك تلقائيًا حساب رأس مال وحساب جارٍ في دليل الحسابات.</div>}
+        <Field label="ملاحظات"><textarea className="textarea" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+        <div className="row"><Switch checked={f.active} onChange={(v) => setF({ ...f, active: v })} /> {f.active ? 'نشط' : 'موقوف'}</div>
+      </div>
+    </Sheet>
+  );
+}
+
+function DistributionSheet({ onClose }: { onClose: () => void }) {
+  const ui = useUi();
+  const nav = useNavigate();
+  const y = todayISO().slice(0, 4);
+  const [from, setFrom] = useState(`${y}-01-01`);
+  const [to, setTo] = useState(todayISO());
+  const [ret, setRet] = useState('0');
+  const is = useRemote<any>(`/api/reports/income-statement?from=${from}&to=${to}`, []);
+  const partners = useLiveQuery(async () => (await db.partners.toArray()).filter((p) => p.active !== false), []) ?? [];
+  let retBp = 0;
+  try {
+    retBp = parsePercentBp(ret || '0');
+  } catch {
+    retBp = -1;
+  }
+  const net = is.data?.net_profit ?? 0;
+  const retained = Math.round((net * Math.max(retBp, 0)) / 10000);
+  const distributable = net - retained;
+  const sumBp = partners.reduce((s, p) => s + p.profit_bp, 0);
+  return (
+    <Sheet
+      title="توزيع الأرباح"
+      wide
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>إلغاء</button>
+          <button
+            className="btn primary"
+            disabled={!is.data || net <= 0 || sumBp !== 10000 || retBp < 0 || retBp > 10000}
+            onClick={async () => {
+              const id = uuid();
+              await saveDocument(
+                { id, doc_type: 'profit_distribution', date: to, period_from: from, period_to: to, retained_bp: retBp, lines: [], journal_lines: [], payments: [], instruments: [], paid: 0, amount: 0, discount: 0, reserve: false, notes: `توزيع أرباح ${from} إلى ${to}` } as any,
+                'draft',
+              );
+              ui.toast('أُعدت مسودة التوزيع؛ راجعها ثم اعتمدها');
+              onClose();
+              nav(`/docs/view/${id}`);
+            }}
+          >
+            إعداد مسودة التوزيع
+          </button>
+        </>
+      }
+    >
+      <div className="stack">
+        <div className="grid grid-3">
+          <Field label="من تاريخ"><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label="إلى تاريخ"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Field label="نسبة الأرباح المحتجزة %"><input className="input num" inputMode="decimal" value={ret} onChange={(e) => setRet(e.target.value)} /></Field>
+        </div>
+        {is.error && <Banner kind="warn">{is.error}</Banner>}
+        {sumBp !== 10000 && <Banner kind="err">مجموع نسب توزيع الأرباح للشركاء {bpToPercent(sumBp)}% ولا يساوي 100%.</Banner>}
+        {is.data && (
+          <div className="list">
+            <div className="list-row"><div className="title">إجمالي الإيرادات</div><span className="num">{formatMoney(is.data.total_revenue)}</span></div>
+            <div className="list-row"><div className="title">إجمالي المصروفات والتكاليف</div><span className="num">{formatMoney(is.data.total_expenses)}</span></div>
+            <div className="list-row"><div className="title bold">صافي الربح المرحّل للفترة</div><span className={`num bold ${net < 0 ? 'red' : ''}`}>{formatMoney(net)}</span></div>
+            <div className="list-row"><div className="title">أرباح محتجزة</div><span className="num">{formatMoney(retained)}</span></div>
+            <div className="list-row"><div className="title bold">القابل للتوزيع</div><span className="num bold">{formatMoney(Math.max(distributable, 0))}</span></div>
+          </div>
+        )}
+        {is.data && distributable > 0 && (
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>الشريك</th><th className="n">نسبة الأرباح</th><th className="n">النصيب التقديري</th></tr></thead>
+              <tbody>
+                {partners.map((p) => (
+                  <tr key={p.id}><td>{p.name}</td><td className="n">{bpToPercent(p.profit_bp)}%</td><td className="n bold">{formatMoney(Math.round((distributable * p.profit_bp) / 10000))}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="footnote">
+          الحساب من القيود المرحّلة فقط (بعد المصروفات والتكاليف والمرتجعات المسجلة)، وصافي الربح ليس رصيد الخزينة. المسودة تُعرض للمراجعة، والاعتماد يحتاج صلاحية «اعتماد توزيع الأرباح»
+          ويُنشئ قيدًا: من حـ/ توزيعات أرباح معلنة إلى حـ/ جاري كل شريك. السحب الفعلي يتم بمستند «مسحوبات شريك».
+        </div>
+      </div>
+    </Sheet>
+  );
+}

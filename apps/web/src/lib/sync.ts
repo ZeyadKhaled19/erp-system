@@ -91,6 +91,11 @@ const TABLE_OF: Record<string, keyof typeof db | undefined> = {
   cashbox: 'cashboxes',
   account: 'accounts',
   document: 'documents',
+  sales_rep: 'sales_reps',
+  price_list: 'price_lists',
+  partner: 'partners',
+  instrument: 'instruments',
+  shift: 'cashier_shifts',
 };
 
 async function markEntity(entry: OutboxEntry, r: OpResult) {

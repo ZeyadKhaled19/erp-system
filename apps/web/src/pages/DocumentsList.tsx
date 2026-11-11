@@ -8,7 +8,7 @@ import { DocStatusBadge, Empty, exportCsv, SearchBox, Segmented } from '../compo
 import { db } from '../lib/db';
 import { useDebounced, useMap, usePerm } from '../lib/hooks';
 
-const MODULE_LABEL: Record<string, string> = { sales: 'سجل المبيعات', purchases: 'سجل المشتريات', treasury: 'سجل السندات', inventory: 'سجل حركات المخازن', accounts: 'سجل القيود' };
+const MODULE_LABEL: Record<string, string> = { sales: 'سجل المبيعات', purchases: 'سجل المشتريات', treasury: 'سجل السندات', inventory: 'سجل حركات المخازن', accounts: 'سجل القيود', partners: 'سجل الشركاء' };
 
 /** قائمة المستندات من النسخة المحلية (تعمل دون اتصال) مع ما سُجل على الجهاز ولم يُزامن */
 export function DocumentsList() {

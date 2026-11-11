@@ -51,6 +51,12 @@ class LocalDb extends Dexie {
   documents!: Table<Row, string>;
   document_lines!: Table<Row, string>;
   sync_conflicts!: Table<Row, string>;
+  instruments!: Table<Row, string>;
+  price_lists!: Table<Row, string>;
+  item_prices!: Table<Row, string>;
+  sales_reps!: Table<Row, string>;
+  partners!: Table<Row, string>;
+  cashier_shifts!: Table<Row, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<{ key: string; value: any }, string>;
 
@@ -74,6 +80,17 @@ class LocalDb extends Dexie {
       outbox: '++seq, &op_id, status, entity_id',
       meta: 'key',
     });
+    this.version(2).stores({
+      instruments: 'id, party_id, document_id, status, due_date',
+      price_lists: 'id, sort',
+      item_prices: 'id, item_id, [item_id+unit_name+price_list_id]',
+      sales_reps: 'id, name',
+      partners: 'id, name',
+      cashier_shifts: 'id, user_id, status',
+    }).upgrade(async (tx) => {
+      // جداول جديدة على الخادم: سحب كامل لضمان وصول كل بياناتها
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
   }
 }
 
@@ -90,4 +107,5 @@ export async function setMeta(key: string, value: unknown) {
 export const SYNCED_TABLE_NAMES = [
   'settings', 'roles', 'users', 'accounts', 'warehouses', 'categories', 'items', 'item_units',
   'stock_balances', 'parties', 'cashboxes', 'documents', 'document_lines', 'sync_conflicts',
+  'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts',
 ] as const;

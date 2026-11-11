@@ -17,6 +17,7 @@ export function setUnauthorizedHandler(fn: () => void) {
 }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
+  const sentToken = token;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 20000);
   let res: Response;
@@ -25,7 +26,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
       method: opts.method ?? (opts.body ? 'POST' : 'GET'),
       headers: {
         ...(opts.body ? { 'content-type': 'application/json' } : {}),
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(sentToken ? { authorization: `Bearer ${sentToken}` } : {}),
         'x-device-id': getDeviceId(),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -43,7 +44,8 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     /* empty */
   }
   if (!res.ok) {
-    if (res.status === 401 && token) onUnauthorized?.();
+    // تُعتبر الجلسة منتهية فقط إذا رُفض نفس الرمز الحالي (وليس طلبًا أُرسل قبل تجهيز الرمز)
+    if (res.status === 401 && sentToken && sentToken === token) onUnauthorized?.();
     // 502/503/504 من وسيط = الخادم غير متاح
     if (res.status >= 502 && res.status <= 504) throw new ApiError('الخادم غير متاح حاليًا', res.status, true);
     throw new ApiError(data?.error ?? `خطأ ${res.status}`, res.status);

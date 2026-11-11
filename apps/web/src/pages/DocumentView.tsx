@@ -23,6 +23,13 @@ export function DocumentView() {
   const lines = useLiveQuery(() => db.document_lines.where('document_id').equals(id).sortBy('line_no'), [id]) ?? [];
   const lookups = useLiveQuery(async () => {
     if (!doc) return null;
+    const [toCb, partner, rep, insts] = await Promise.all([
+      doc.to_cashbox_id ? db.cashboxes.get(doc.to_cashbox_id) : undefined,
+      doc.partner_id ? db.partners.get(doc.partner_id) : undefined,
+      doc.sales_rep_id ? db.sales_reps.get(doc.sales_rep_id) : undefined,
+      db.instruments.where('document_id').equals(doc.id).toArray(),
+    ]);
+    const cbs = new Map((await db.cashboxes.toArray()).map((c) => [c.id, c]));
     const [party, wh, wh2, cb, acc, creator, ref] = await Promise.all([
       doc.party_id ? db.parties.get(doc.party_id) : undefined,
       doc.warehouse_id ? db.warehouses.get(doc.warehouse_id) : undefined,
@@ -35,7 +42,7 @@ export function DocumentView() {
     const items = new Map((await db.items.bulkGet(lines.map((l) => l.item_id))).filter(Boolean).map((i) => [i!.id, i!]));
     const accounts = new Map((await db.accounts.toArray()).map((a) => [a.id, a]));
     const parties = new Map((await db.parties.toArray()).map((p) => [p.id, p]));
-    return { party, wh, wh2, cb, acc, creator, ref, items, accounts, parties };
+    return { party, wh, wh2, cb, acc, creator, ref, items, accounts, parties, toCb, partner, rep, insts, cbs };
   }, [doc, lines]);
   const remote = useRemote<any>(doc && !doc._sync ? `/api/documents/${id}` : null, [doc?.row_version]);
 
@@ -48,6 +55,8 @@ export function DocumentView() {
   const canPost = doc.status === 'draft' && !doc._sync && can(module === 'accounts' ? 'accounts.post' : `${module}.post`);
   const canCancel = doc.status !== 'cancelled' && !(doc._sync === 'pending' && !doc.number) && can(module === 'accounts' ? 'accounts.cancel' : `${module}.cancel`);
   const returnType = doc.doc_type === 'sale_invoice' ? 'sale_return' : doc.doc_type === 'purchase_invoice' ? 'purchase_return' : null;
+  const payments: any[] = doc.data?.payments ?? [];
+  const shares: any[] = doc.data?.shares ?? [];
 
   return (
     <div className="page">
@@ -75,6 +84,12 @@ export function DocumentView() {
               >
                 <Send /> ترحيل
               </button>
+            )}
+            {doc.doc_type === 'quotation' && doc.status === 'posted' && !doc.converted_to_id && !doc._sync && can('sales.create') && (
+              <button className="btn primary" onClick={() => nav(`/docs/new/sale_invoice?quotation=${doc.id}`)}><Send /> تحويل لفاتورة بيع</button>
+            )}
+            {doc.doc_type === 'quotation' && doc.converted_to_id && (
+              <button className="btn" onClick={() => nav(`/docs/view/${doc.converted_to_id}`)}>الفاتورة الناتجة</button>
             )}
             {returnType && doc.status === 'posted' && !doc._sync && can(`${module}.create`) && (
               <button className="btn" onClick={() => nav(`/docs/new/${returnType}?party=${doc.party_id}&ref=${doc.id}`)}><Undo2 /> مرتجع</button>
@@ -118,6 +133,12 @@ export function DocumentView() {
           {L?.acc && <Info k="الحساب" v={L.acc.name} />}
           {info.priced && <Info k="طريقة الدفع" v={doc.payment_type === 'cash' ? 'نقدي' : 'آجل'} />}
           {L?.ref && <Info k="المستند المرجعي" v={<a style={{ cursor: 'pointer' }} onClick={() => nav(`/docs/view/${L.ref!.id}`)}>{L.ref.number}</a>} />}
+          {L?.toCb && <Info k="إلى خزينة" v={L.toCb.name} />}
+          {L?.partner && <Info k="الشريك" v={L.partner.name} />}
+          {L?.rep && <Info k="المندوب" v={L.rep.name} />}
+          {doc.due_date && <Info k="تاريخ الاستحقاق" v={<span className="num">{doc.due_date}</span>} />}
+          {doc.doc_type === 'quotation' && <Info k="حجز البضاعة" v={doc.reserve ? (doc.converted_to_id ? 'انتهى (حُوّل لفاتورة)' : 'محجوزة') : 'بدون حجز'} />}
+          {doc.closed && <Info k="المتابعة" v="مغلقة" />}
           {L?.creator && <Info k="أنشأه" v={L.creator.full_name} />}
         </div>
       </div>
@@ -176,6 +197,54 @@ export function DocumentView() {
         </div>
       )}
 
+      {doc.doc_type === 'profit_distribution' && (
+        <div className="card pad" style={{ marginTop: 14 }}>
+          <div className="grid grid-4">
+            <Info k="الفترة" v={<span className="num">{doc.data?.period_from} ← {doc.data?.period_to}</span>} />
+            <Info k="صافي الربح المرحّل" v={doc.data?.net_profit != null ? formatMoney(doc.data.net_profit) : 'يُحسب عند المزامنة'} />
+            <Info k="المحتجز" v={doc.data?.retained != null ? `${formatMoney(doc.data.retained)} (${(doc.data.retained_bp ?? 0) / 100}%)` : '—'} />
+            <Info k="القابل للتوزيع" v={formatMoney(doc.total)} />
+          </div>
+          {shares.length > 0 && (
+            <div className="table-wrap" style={{ marginTop: 12 }}>
+              <table className="table">
+                <thead><tr><th>الشريك</th><th className="n">نسبة الملكية</th><th className="n">نسبة الأرباح</th><th className="n">النصيب</th></tr></thead>
+                <tbody>
+                  {shares.map((s) => (
+                    <tr key={s.partner_id}><td>{s.name}</td><td className="n">{(s.ownership_bp ?? 0) / 100}%</td><td className="n">{s.profit_bp / 100}%</td><td className="n bold">{formatMoney(s.amount)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {doc.status === 'draft' && <div className="footnote" style={{ marginTop: 8 }}>مسودة للمراجعة. الاعتماد بزر «ترحيل» ويحتاج صلاحية اعتماد توزيع الأرباح؛ يُعاد التحقق من صافي الربح عند الاعتماد.</div>}
+        </div>
+      )}
+
+      {(payments.length > 0 || (L?.insts?.length ?? 0) > 0) && (
+        <div className="grid grid-2" style={{ marginTop: 14, alignItems: 'start' }}>
+          {payments.length > 0 && (
+            <div className="card pad">
+              <div className="footnote" style={{ marginBottom: 6 }}>{doc.doc_type.endsWith('return') ? 'رد النقدية' : 'السداد'}</div>
+              {payments.map((p) => (
+                <div key={p.id} className="row" style={{ justifyContent: 'space-between' }}><span>{L?.cbs.get(p.cashbox_id)?.name}</span><span className="num">{formatMoney(p.amount)}</span></div>
+              ))}
+            </div>
+          )}
+          {(L?.insts?.length ?? 0) > 0 && (
+            <div className="card pad">
+              <div className="footnote" style={{ marginBottom: 6 }}>الشيكات والأقساط</div>
+              {L!.insts.map((x: any) => (
+                <div key={x.id} className="row" style={{ justifyContent: 'space-between' }}>
+                  <span>{x.kind === 'cheque' ? `شيك ${x.cheque_no ?? ''}` : 'قسط'} <span className="num muted">{x.due_date}</span></span>
+                  <span className="row" style={{ gap: 6 }}><span className={`badge ${x.status === 'collected' ? 'green' : x.status === 'bounced' ? 'red' : x.status === 'open' ? 'orange' : ''}`}>{{ open: 'مفتوح', collected: 'محصل', bounced: 'مرتد', closed: 'مغلق', cancelled: 'ملغي' }[x.status as string]}</span><span className="num">{formatMoney(x.amount)}</span></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-2" style={{ marginTop: 14, alignItems: 'start' }}>
         <div className="card pad">
           <div className="footnote">ملاحظات</div>
@@ -192,8 +261,8 @@ export function DocumentView() {
           <div className="tr grand"><span>الإجمالي</span><span className="num">{formatMoney(doc.total)}</span></div>
           {info.priced && (
             <>
-              <div className="tr"><span className="muted">{doc.doc_type.endsWith('return') ? 'المردود نقدًا' : 'المدفوع'}</span><span className="num">{formatMoney(doc.paid)}</span></div>
-              <div className="tr bold"><span>المتبقي</span><span className="num">{formatMoney(doc.total - doc.paid)}</span></div>
+              {doc.doc_type !== 'quotation' && <div className="tr"><span className="muted">{doc.doc_type.endsWith('return') ? 'المردود نقدًا' : 'المسدد (نقدًا وشيكات ومقبوضات مخصصة)'}</span><span className="num">{formatMoney(doc.paid)}</span></div>}
+              {doc.doc_type !== 'quotation' && <div className="tr bold"><span>المتبقي</span><span className="num">{formatMoney(doc.total - doc.paid)}</span></div>}
               {can('reports.profit') && doc.status === 'posted' && !doc._sync && doc.cost != null && doc.doc_type === 'sale_invoice' && (
                 <div className="tr no-print"><span className="muted">مجمل الربح (الصافي − التكلفة)</span><span className="num green">{formatMoney(doc.total - doc.tax - doc.cost)}</span></div>
               )}

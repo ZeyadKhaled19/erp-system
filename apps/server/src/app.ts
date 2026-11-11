@@ -324,7 +324,8 @@ export async function buildApp(opts: AppOptions) {
   if (opts.webDist && existsSync(opts.webDist)) {
     await app.register(fastifyStatic, {
       root: path.resolve(opts.webDist),
-      wildcard: false,
+      // wildcard: يخدم الملفات من القرص مباشرة، فلا يحتاج الخادم إعادة تشغيل بعد إعادة بناء الواجهة
+      wildcard: true,
       // ملفات assets تحمل بصمة في اسمها فتُخزّن طويلًا؛ index.html و sw.js يجب أن يُتحقق منهما دائمًا
       setHeaders(res, filePath) {
         if (/[\\/]assets[\\/]/.test(filePath)) res.setHeader('cache-control', 'public, max-age=31536000, immutable');

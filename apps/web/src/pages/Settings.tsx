@@ -35,6 +35,8 @@ export function SettingsPage() {
           default_tax_rate_bp: parsePercentBp(f.tax_pct || '0'),
           allow_negative_stock: !!f.allow_negative_stock,
           enforce_credit_limit: !!f.enforce_credit_limit,
+          default_due_days: Math.max(0, Number(f.default_due_days) || 0),
+          ...(can('period.lock') ? { locked_until: f.locked_until || null } : {}),
         },
       });
       ui.toast('تم حفظ الإعدادات');
@@ -74,6 +76,16 @@ export function SettingsPage() {
               <div className="title">تطبيق الحد الائتماني للعملاء<div className="sub">البيع الآجل فوق الحد يذهب للمراجعة</div></div>
               <Switch checked={!!f.enforce_credit_limit} onChange={(v) => setF({ ...f, enforce_credit_limit: v })} />
             </div>
+            <div className="list-row">
+              <div className="title">أيام الاستحقاق الافتراضية للفواتير الآجلة<div className="sub">0 = بدون تاريخ استحقاق تلقائي</div></div>
+              <input className="input num" style={{ width: 90 }} type="number" min={0} value={f.default_due_days ?? 0} onChange={(e) => setF({ ...f, default_due_days: e.target.value })} />
+            </div>
+            {can('period.lock') && (
+              <div className="list-row">
+                <div className="title">قفل الفترات حتى تاريخ<div className="sub">لا يُسمح بترحيل أو إلغاء أي مستند بتاريخ حتى هذا اليوم</div></div>
+                <input type="date" className="input" style={{ width: 170 }} value={f.locked_until ?? ''} onChange={(e) => setF({ ...f, locked_until: e.target.value || null })} />
+              </div>
+            )}
           </div>
           <button className="btn primary lg block" style={{ marginTop: 16 }} onClick={save}>حفظ الإعدادات</button>
         </>

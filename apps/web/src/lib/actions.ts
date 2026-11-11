@@ -2,15 +2,20 @@ import { computeDocument, DOC_TYPES, toBaseQty, type DocInput, type MasterEntity
 import { db } from './db';
 import { enqueue, nextLocalNumber } from './sync';
 
-const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts'> = {
+const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners'> = {
   item: 'items',
   party: 'parties',
   warehouse: 'warehouses',
   category: 'categories',
   cashbox: 'cashboxes',
   account: 'accounts',
+  sales_rep: 'sales_reps',
+  price_list: 'price_lists',
+  partner: 'partners',
 };
-const LABEL: Record<MasterEntity, string> = { item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب' };
+const LABEL: Record<MasterEntity, string> = {
+  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك',
+};
 
 /** حفظ بيانات أساسية: يظهر فورًا على الجهاز ويُرفع عند الاتصال */
 export async function saveMaster(entity: MasterEntity, id: string, data: Record<string, any>, existing?: Record<string, any> | null) {
@@ -22,7 +27,7 @@ export async function saveMaster(entity: MasterEntity, id: string, data: Record<
       entity,
       entity_id: id,
       apply: async () => {
-        const { units, ...rest } = data;
+        const { units, prices, ...rest } = data;
         await (db as any)[TABLE[entity]].put({
           ...(existing ?? {}),
           ...rest,
@@ -37,6 +42,13 @@ export async function saveMaster(entity: MasterEntity, id: string, data: Record<
           const old = await db.item_units.where('item_id').equals(id).toArray();
           for (const o of old) if (!keep.has(o.id)) await db.item_units.update(o.id, { active: false });
           for (const u of units) await db.item_units.put({ ...u, item_id: id, active: u.active ?? true });
+        }
+        if (entity === 'item' && Array.isArray(prices)) {
+          for (const p of prices) {
+            const ex = await db.item_prices.where('[item_id+unit_name+price_list_id]').equals([id, p.unit_name, p.price_list_id]).first();
+            if (p.price > 0) await db.item_prices.put({ id: ex?.id ?? crypto.randomUUID(), item_id: id, ...p });
+            else if (ex) await db.item_prices.delete(ex.id);
+          }
         }
       },
     },
@@ -57,7 +69,9 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
   } else if (doc.doc_type === 'journal_voucher') {
     totals.total = doc.journal_lines.reduce((s, l) => s + l.debit, 0);
   } else if (!info.hasLines) totals.total = doc.amount;
-  const paid = info.priced ? (doc.payment_type === 'cash' ? totals.total : doc.paid) : totals.total;
+  const cashPaid = (doc.payments ?? []).reduce((s, p) => s + p.amount, 0);
+  const chequePaid = (doc.instruments ?? []).filter((x) => x.kind === 'cheque').reduce((s, x) => s + x.amount, 0);
+  const paid = info.priced ? (info.noPosting ? 0 : cashPaid + chequePaid) : totals.total;
 
   return enqueue(
     { type: 'doc.save', action, base_version: baseVersion, doc },
@@ -66,7 +80,7 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
       entity: 'document',
       entity_id: doc.id,
       apply: async () => {
-        const { lines, journal_lines, ...header } = doc;
+        const { lines, journal_lines, payments, instruments, from_quotation_id, ...header } = doc;
         await db.documents.put({
           ...(existing ?? {}),
           ...header,
@@ -75,7 +89,7 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
           tax: totals.tax,
           total: totals.total,
           paid,
-          data: { journal_lines },
+          data: { journal_lines, payments, instruments, from_quotation_id },
           status: action === 'post' ? 'posted' : 'draft',
           number: existing?.number ?? null,
           version: (baseVersion ?? 0) + 1,
@@ -165,4 +179,74 @@ export async function localAvailable(itemId: string, warehouseId: string, exclud
     }
   }
   return qty;
+}
+
+export async function closeCreditInvoice(doc: Record<string, any>, closed: boolean) {
+  return enqueue(
+    { type: 'doc.close', id: doc.id, closed },
+    {
+      label: `${closed ? 'إغلاق' : 'إعادة فتح'} متابعة ${doc.number}`,
+      entity: 'document',
+      entity_id: doc.id,
+      apply: async () => {
+        await db.documents.update(doc.id, { closed, _sync: 'pending' });
+      },
+    },
+  );
+}
+
+export async function settleInstrument(x: Record<string, any>, action: 'collect' | 'bounce' | 'close', o: { cashbox_id?: string | null; date: string; note?: string }) {
+  const label = x.kind === 'cheque' ? `شيك ${x.cheque_no ?? ''}` : 'قسط';
+  const verb = action === 'collect' ? (x.direction === 'in' ? 'تحصيل' : 'سداد') : action === 'bounce' ? 'ارتداد' : 'إغلاق';
+  return enqueue(
+    { type: 'instrument.settle', id: x.id, action, cashbox_id: o.cashbox_id ?? null, date: o.date, note: o.note ?? null },
+    {
+      label: `${verb} ${label}`,
+      entity: 'instrument',
+      entity_id: x.id,
+      apply: async () => {
+        await db.instruments.update(x.id, { status: action === 'collect' ? 'collected' : action === 'bounce' ? 'bounced' : 'closed', _sync: 'pending' });
+      },
+    },
+  );
+}
+
+export async function openShift(id: string, cashbox_id: string, opening_float: number, userId: string) {
+  return enqueue(
+    { type: 'shift.open', id, cashbox_id, opening_float },
+    {
+      label: 'فتح وردية',
+      entity: 'shift',
+      entity_id: id,
+      apply: async () => {
+        await db.cashier_shifts.put({ id, user_id: userId, cashbox_id, opening_float, status: 'open', opened_at: new Date().toISOString(), _sync: 'pending' });
+      },
+    },
+  );
+}
+
+export async function closeShift(id: string, counted_cash: number, date: string, notes?: string) {
+  return enqueue(
+    { type: 'shift.close', id, counted_cash, date, notes: notes ?? null },
+    {
+      label: 'إقفال وردية',
+      entity: 'shift',
+      entity_id: id,
+      apply: async () => {
+        await db.cashier_shifts.update(id, { status: 'closed', counted_cash, closed_at: new Date().toISOString(), _sync: 'pending' });
+      },
+    },
+  );
+}
+
+/** السعر حسب قائمة الأسعار (محليًا) */
+export async function priceFor(item: Record<string, any>, unit: { name: string; factor: number; sale_price?: number; wholesale_price?: number }, priceListId: string | null) {
+  if (priceListId) {
+    const p = await db.item_prices.where('[item_id+unit_name+price_list_id]').equals([item.id, unit.name, priceListId]).first();
+    if (p) return p.price as number;
+  }
+  if (priceListId === 'pl-wholesale' && unit.wholesale_price) return unit.wholesale_price;
+  if (unit.name !== item.base_unit && unit.sale_price) return unit.sale_price;
+  if (unit.name === item.base_unit) return item.sale_price;
+  return Math.round((item.sale_price * unit.factor) / 1000);
 }

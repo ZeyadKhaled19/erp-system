@@ -19,11 +19,15 @@ export function UsersPage() {
   const [r, setR] = useState<any | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const roleName = new Map(roles.map((x) => [x.id, x.name]));
+  const warehouses = useLiveQuery(() => db.warehouses.toArray(), []) ?? [];
+  const cashboxes = useLiveQuery(() => db.cashboxes.toArray(), []) ?? [];
 
   const saveUser = async () => {
     setErr(null);
     try {
-      await api('/api/admin/users', { body: { id: u.id, username: u.username, full_name: u.full_name, role_id: u.role_id, active: u.active, password: u.password || undefined } });
+      await api('/api/admin/users', {
+        body: { id: u.id, username: u.username, full_name: u.full_name, role_id: u.role_id, active: u.active, password: u.password || undefined, warehouse_ids: u.warehouse_ids ?? null, cashbox_ids: u.cashbox_ids ?? null },
+      });
       ui.toast('تم الحفظ');
       setU(null);
       void syncNow();
@@ -34,7 +38,10 @@ export function UsersPage() {
   const saveRole = async () => {
     setErr(null);
     try {
-      await api('/api/admin/roles', { body: { id: r.id, name: r.name, permissions: r.permissions } });
+      const limits: any = {};
+      if (Number(r.max_pct) > 0) limits.max_discount_bp = Math.round(Number(r.max_pct) * 100);
+      if (Number(r.max_amount) > 0) limits.max_discount_amount = Math.round(Number(r.max_amount) * 100);
+      await api('/api/admin/roles', { body: { id: r.id, name: r.name, permissions: r.permissions, limits } });
       ui.toast('تم الحفظ');
       setR(null);
       void syncNow();
@@ -80,6 +87,8 @@ export function UsersPage() {
               </select>
             </Field>
             <div className="row"><Switch checked={u.active} onChange={(v) => setU({ ...u, active: v })} /> {u.active ? 'نشط' : 'موقوف'}</div>
+            <ScopePicker label="المخازن المسموحة" all={warehouses} value={u.warehouse_ids ?? null} onChange={(v) => setU({ ...u, warehouse_ids: v })} />
+            <ScopePicker label="الخزائن المسموحة" all={cashboxes} value={u.cashbox_ids ?? null} onChange={(v) => setU({ ...u, cashbox_ids: v })} />
           </div>
         </Sheet>
       )}
@@ -88,6 +97,10 @@ export function UsersPage() {
           <div className="stack">
             {err && <Banner kind="err">{err}</Banner>}
             <Field label="اسم الدور"><input className="input" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} /></Field>
+            <div className="grid grid-2">
+              <Field label="أقصى نسبة خصم على الفاتورة %" hint="0 = بدون حد"><input className="input num" inputMode="decimal" value={r.max_pct ?? (r.limits?.max_discount_bp ? r.limits.max_discount_bp / 100 : 0)} onChange={(e) => setR({ ...r, max_pct: e.target.value })} /></Field>
+              <Field label="أقصى قيمة خصم (ج.م)" hint="0 = بدون حد"><input className="input num" inputMode="decimal" value={r.max_amount ?? (r.limits?.max_discount_amount ? r.limits.max_discount_amount / 100 : 0)} onChange={(e) => setR({ ...r, max_amount: e.target.value })} /></Field>
+            </div>
             {PERMISSION_GROUPS.map((g) => (
               <div key={g.module}>
                 <div className="group-header" style={{ paddingInlineStart: 4 }}>{g.label}</div>
@@ -106,6 +119,29 @@ export function UsersPage() {
             ))}
           </div>
         </Sheet>
+      )}
+    </div>
+  );
+}
+
+function ScopePicker({ label, all, value, onChange }: { label: string; all: any[]; value: string[] | null; onChange: (v: string[] | null) => void }) {
+  const restricted = value !== null;
+  return (
+    <div>
+      <div className="row">
+        <div className="bold" style={{ flex: 1 }}>{label}</div>
+        <span className="small muted">{restricted ? 'محددة' : 'الكل'}</span>
+        <Switch checked={restricted} onChange={(v) => onChange(v ? [] : null)} />
+      </div>
+      {restricted && (
+        <div className="list" style={{ marginTop: 8, background: 'var(--bg-elevated)' }}>
+          {all.map((x) => (
+            <div key={x.id} className="list-row">
+              <div className="title">{x.name}</div>
+              <Switch checked={value!.includes(x.id)} onChange={(v) => onChange(v ? [...value!, x.id] : value!.filter((y) => y !== x.id))} />
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

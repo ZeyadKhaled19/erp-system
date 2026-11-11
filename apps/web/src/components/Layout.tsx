@@ -3,6 +3,7 @@ import {
   ArrowDownLeft, ArrowLeftRight, ArrowUpRight, BarChart3, BookOpen, Boxes, Building2, ChevronDown, ClipboardCheck, CloudOff,
   FileText, Home, Landmark, LayoutGrid, ListTree, LogOut, Menu, Package, PackageSearch, Receipt, RefreshCw, RotateCcw, Scale, ScrollText,
   Search, Settings, ShieldCheck, ShoppingBag, ShoppingCart, TrendingUp, Truck, Undo2, Users, Wallet, Warehouse, HardDriveDownload, AlertTriangle, PackagePlus, BookPlus, UserPlus,
+  CalendarClock, Clock, PieChart, Tags, Barcode,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -34,6 +35,8 @@ const NAV: NavSection[] = [
     items: [
       { to: '/docs/new/sale_invoice', label: 'فاتورة بيع', icon: <ShoppingCart />, color: '#34C759', perm: 'sales.create' },
       { to: '/docs/new/sale_return', label: 'مرتجع بيع', icon: <Undo2 />, color: '#FF9500', perm: 'sales.create' },
+      { to: '/docs/new/quotation', label: 'عرض أسعار / حجز', icon: <FileText />, color: '#5856D6', perm: 'sales.quotation' },
+      { to: '/receivables', label: 'متابعة الفواتير الآجلة', icon: <CalendarClock />, color: '#FF3B30', perm: 'sales.view' },
       { to: '/docs/list/sales', label: 'سجل المبيعات', icon: <FileText />, color: '#30B0C7', perm: 'sales.view' },
       { to: '/parties/customer', label: 'العملاء', icon: <Users />, color: '#5856D6', perm: 'parties.view' },
     ],
@@ -56,11 +59,14 @@ const NAV: NavSection[] = [
       { to: '/reports/stock', label: 'تقرير بضاعة مخزن', icon: <Boxes />, color: '#34C759', perm: 'inventory.view' },
       { to: '/reports/warehouse-movement', label: 'تقرير حركة مخزن', icon: <Warehouse />, color: '#30B0C7', perm: 'inventory.view' },
       { to: '/reports/reorder', label: 'الأصناف تحت حد الطلب', icon: <AlertTriangle />, color: '#FF3B30', perm: 'inventory.view' },
+      { to: '/reports/serial', label: 'بحث برقم سيريال', icon: <Barcode />, color: '#8E8E93', perm: 'inventory.view' },
+      { to: '/reports/expiry', label: 'تقرير صلاحية الأصناف', icon: <CalendarClock />, color: '#FF9500', perm: 'inventory.view' },
       { to: '/docs/new/stock_transfer', label: 'تحويل بين المخازن', icon: <ArrowLeftRight />, color: '#AF52DE', perm: 'inventory.create' },
       { to: '/docs/new/stock_adjustment', label: 'جرد وتسوية', icon: <ClipboardCheck />, color: '#FF2D55', perm: 'inventory.create' },
       { to: '/docs/new/opening_stock', label: 'بضاعة أول المدة', icon: <PackagePlus />, color: '#8E8E93', perm: 'inventory.create' },
       { to: '/docs/list/inventory', label: 'سجل حركات المخازن', icon: <FileText />, color: '#30B0C7', perm: 'inventory.view' },
       { to: '/warehouses', label: 'المخازن والتصنيفات', icon: <Building2 />, color: '#8E8E93', perm: 'items.view' },
+      { to: '/lists', label: 'قوائم الأسعار والمندوبون', icon: <Tags />, color: '#FF9500', perm: 'items.view' },
     ],
   },
   {
@@ -70,6 +76,9 @@ const NAV: NavSection[] = [
       { to: '/docs/new/payment', label: 'سند صرف', icon: <ArrowUpRight />, color: '#FF3B30', perm: 'treasury.create' },
       { to: '/docs/new/expense', label: 'مصروف', icon: <Receipt />, color: '#FF9500', perm: 'treasury.create' },
       { to: '/docs/new/income', label: 'إيراد آخر', icon: <TrendingUp />, color: '#34C759', perm: 'treasury.create' },
+      { to: '/docs/new/cash_transfer', label: 'تحويل بين الخزائن', icon: <ArrowLeftRight />, color: '#5856D6', perm: 'treasury.create' },
+      { to: '/instruments', label: 'الشيكات والأقساط', icon: <CalendarClock />, color: '#AF52DE', perm: 'treasury.view' },
+      { to: '/shift', label: 'الوردية', icon: <Clock />, color: '#30B0C7', perm: 'treasury.shift' },
       { to: '/cashboxes', label: 'الخزائن والبنوك', icon: <Wallet />, color: '#007AFF', perm: 'treasury.view' },
       { to: '/docs/list/treasury', label: 'سجل السندات', icon: <FileText />, color: '#30B0C7', perm: 'treasury.view' },
     ],
@@ -88,8 +97,15 @@ const NAV: NavSection[] = [
     ],
   },
   {
+    title: 'الشركاء',
+    items: [{ to: '/partners', label: 'الشركاء وتوزيع الأرباح', icon: <PieChart />, color: '#34C759', perm: 'partners.view' }],
+  },
+  {
     title: 'التقارير',
-    items: [{ to: '/reports/documents', label: 'تقارير المستندات', icon: <BarChart3 />, color: '#FF2D55', perm: 'reports.view' }],
+    items: [
+      { to: '/reports/analysis', label: 'تحليل المبيعات والمشتريات', icon: <TrendingUp />, color: '#5856D6', perm: 'reports.view' },
+      { to: '/reports/documents', label: 'تقارير المستندات', icon: <BarChart3 />, color: '#FF2D55', perm: 'reports.view' },
+    ],
   },
   {
     title: 'النظام',

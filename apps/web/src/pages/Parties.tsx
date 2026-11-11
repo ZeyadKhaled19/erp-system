@@ -101,9 +101,14 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
     tax_no: party?.tax_no ?? '',
     credit_limit: party?.credit_limit ?? 0,
     price_list: party?.price_list ?? 'retail',
+    price_list_id: party?.price_list_id ?? 'pl-retail',
+    discount_pct: party?.discount_bp ? String(party.discount_bp / 100) : '0',
+    due_days: party?.due_days ?? 0,
+    review_date: party?.review_date ?? '',
     notes: party?.notes ?? '',
     active: party?.active ?? true,
   }));
+  const priceLists = useLiveQuery(async () => (await db.price_lists.orderBy('sort').toArray()).filter((p) => p.active !== false), []) ?? [];
   const [err, setErr] = useState<string | null>(null);
   const set = (k: string, v: unknown) => setF((p: any) => ({ ...p, [k]: v }));
 
@@ -119,7 +124,16 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
     const dup = (await db.parties.where('kind').equals(kind).toArray()).find((p) => p.code === code && p.id !== party?.id);
     if (dup) return setErr('الكود مستخدم');
     const id = party?.id ?? uuid();
-    await saveMaster('party', id, { ...f, kind, code, name: f.name.trim(), phone: f.phone || null, address: f.address || null, tax_no: f.tax_no || null }, party);
+    const discount_bp = Math.round(Number(String(f.discount_pct).replace(',', '.')) * 100);
+    if (!Number.isFinite(discount_bp) || discount_bp < 0 || discount_bp > 10000) return setErr('نسبة الخصم غير صالحة');
+    const { discount_pct, ...rest } = f;
+    void discount_pct;
+    await saveMaster(
+      'party',
+      id,
+      { ...rest, kind, code, name: f.name.trim(), phone: f.phone || null, address: f.address || null, tax_no: f.tax_no || null, discount_bp, review_date: f.review_date || null, price_list: f.price_list_id === 'pl-wholesale' ? 'wholesale' : 'retail' },
+      party,
+    );
     ui.toast('تم الحفظ');
     onSaved?.(id);
     onClose();
@@ -161,10 +175,17 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
               <MoneyInput value={f.credit_limit} onChange={(v) => set('credit_limit', v)} />
             </Field>
             <Field label="قائمة الأسعار">
-              <Segmented block value={f.price_list} onChange={(v) => set('price_list', v)} options={[{ value: 'retail', label: 'قطاعي' }, { value: 'wholesale', label: 'جملة' }]} />
+              <select className="select" value={f.price_list_id ?? ''} onChange={(e) => set('price_list_id', e.target.value)}>
+                {priceLists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
             </Field>
+            <Field label="نسبة خصم افتراضية %"><input className="input num" inputMode="decimal" value={f.discount_pct} onChange={(e) => set('discount_pct', e.target.value)} /></Field>
+            <Field label="تاريخ مراجعة الحساب" hint="للتذكير بمراجعة/تحصيل الحساب"><input type="date" className="input" value={f.review_date ?? ''} onChange={(e) => set('review_date', e.target.value)} /></Field>
           </div>
         )}
+        <Field label="أيام الاستحقاق للفواتير الآجلة" hint="0 = حسب الإعدادات العامة">
+          <input className="input num" type="number" min={0} value={f.due_days} onChange={(e) => set('due_days', Math.max(0, Number(e.target.value) || 0))} />
+        </Field>
         <Field label="ملاحظات">
           <textarea className="textarea" value={f.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
         </Field>

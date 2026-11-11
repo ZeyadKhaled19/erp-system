@@ -553,3 +553,144 @@ export function DocumentsReport() {
     </Shell>
   );
 }
+
+// ---------------------------------------------------------------- تحليل المبيعات/المشتريات
+const GROUPS: Record<string, string> = {
+  item: 'الصنف', category: 'التصنيف', party: 'العميل/المورد', rep: 'المندوب', user: 'المستخدم', warehouse: 'المخزن', day: 'اليوم', month: 'الشهر', hour: 'الساعة', weekday: 'يوم الأسبوع',
+};
+export function SalesAnalysisReport() {
+  const can = usePerm();
+  const [kind, setKind] = useState<'sales' | 'purchases'>('sales');
+  const [group, setGroup] = useState('item');
+  const [from, setFrom] = useState(monthStart());
+  const [to, setTo] = useState(todayISO());
+  const r = useRemote<any>(`/api/reports/sales-analysis?kind=${kind}&group=${group}&from=${from}&to=${to}`);
+  const showProfit = kind === 'sales' && can('reports.profit');
+  return (
+    <Shell
+      title={kind === 'sales' ? 'تحليل المبيعات' : 'تحليل المشتريات'}
+      sub={`حسب ${GROUPS[group]}`}
+      error={r.error}
+      loading={r.loading}
+      filters={
+        <>
+          <Field label="النوع"><Segmented block value={kind} onChange={setKind} options={[{ value: 'sales', label: 'مبيعات' }, { value: 'purchases', label: 'مشتريات' }]} /></Field>
+          <Field label="التجميع حسب">
+            <select className="select" value={group} onChange={(e) => setGroup(e.target.value)}>
+              {Object.entries(GROUPS).filter(([k]) => kind === 'sales' || k !== 'rep').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
+        </>
+      }
+      actions={r.data && <button className="btn" onClick={() => exportCsv('تحليل', [GROUPS[group], 'عدد المستندات', 'الكمية', 'الصافي', 'الخصم', ...(showProfit ? ['التكلفة', 'الربح'] : [])], r.data.rows.map((x: any) => [x.label, x.docs, formatQty(x.qty), formatMoney(x.net), formatMoney(x.discount), ...(showProfit ? [formatMoney(x.cost), formatMoney(x.profit)] : [])]))}>تصدير</button>}
+      note="الصافي بدون ضريبة وبعد الخصومات، والمرتجعات تُطرح. الربح = الصافي − تكلفة البضاعة بالمتوسط المرجح وقت البيع."
+    >
+      {r.data && (
+        <div className="table-wrap">
+          <table className="table responsive">
+            <thead><tr><th>{GROUPS[group]}</th><th className="n">المستندات</th><th className="n">الكمية</th><th className="n">الصافي</th><th className="n">الخصم</th>{showProfit && <><th className="n">التكلفة</th><th className="n">الربح</th><th className="n">هامش %</th></>}<th className="n">من الإجمالي %</th></tr></thead>
+            <tbody>
+              {r.data.rows.map((x: any) => (
+                <tr key={x.key}>
+                  <td data-label={GROUPS[group]} className="bold">{x.label}</td>
+                  <td data-label="المستندات" className="n">{x.docs}</td>
+                  <td data-label="الكمية" className="n">{formatQty(x.qty)}</td>
+                  <td data-label="الصافي" className="n">{formatMoney(x.net)}</td>
+                  <td data-label="الخصم" className="n">{formatMoney(x.discount)}</td>
+                  {showProfit && <><td data-label="التكلفة" className="n">{formatMoney(x.cost)}</td><td data-label="الربح" className={`n bold ${x.profit < 0 ? 'red' : ''}`}>{formatMoney(x.profit)}</td><td data-label="هامش" className="n">{x.net ? ((x.profit * 100) / x.net).toFixed(1) : '0'}%</td></>}
+                  <td data-label="النسبة" className="n">{(x.share_bp / 100).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot><tr><td>الإجمالي</td><td /><td className="n">{formatQty(r.data.totals.qty)}</td><td className="n">{formatMoney(r.data.totals.net)}</td><td />{showProfit && <><td className="n">{formatMoney(r.data.totals.cost)}</td><td className="n">{formatMoney(r.data.totals.net - r.data.totals.cost)}</td><td /></>}<td /></tr></tfoot>
+          </table>
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- بحث السيريال
+export function SerialSearchReport() {
+  const nav = useNavigate();
+  const [q, setQ] = useState('');
+  const [term, setTerm] = useState('');
+  const r = useRemote<any>(term ? `/api/reports/serial?q=${encodeURIComponent(term)}` : null);
+  const ST: Record<string, string> = { in_stock: 'بالمخزن', sold: 'مُباع', returned_to_supplier: 'خارج المخزن' };
+  return (
+    <Shell title="بحث برقم السيريال" error={r.error} loading={r.loading} filters={<Field label="رقم السيريال"><input className="input num" value={q} autoFocus onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setTerm(q.trim())} placeholder="امسح أو اكتب ثم Enter" /></Field>}>
+      {r.data && (
+        <div className="table-wrap">
+          <table className="table responsive">
+            <thead><tr><th>السيريال</th><th>الصنف</th><th>الحالة الحالية</th><th>الحركة</th><th>المستند</th><th>التاريخ</th><th>الطرف</th><th>المخزن</th></tr></thead>
+            <tbody>
+              {r.data.rows.length === 0 && <tr><td colSpan={8} className="muted">لا نتائج</td></tr>}
+              {r.data.rows.map((x: any, i: number) => (
+                <tr key={i} className={x.document_id ? 'click' : ''} onClick={() => x.document_id && nav(`/docs/view/${x.document_id}`)}>
+                  <td data-label="السيريال" className="num bold">{x.serial}</td>
+                  <td data-label="الصنف">{x.item_name}</td>
+                  <td data-label="الحالة"><span className={`badge ${x.status === 'in_stock' ? 'green' : ''}`}>{ST[x.status]}</span></td>
+                  <td data-label="الحركة">{x.direction === 'in' ? 'وارد' : x.direction === 'out' ? 'منصرف' : ''} {x.reversal && <span className="badge red">عكس</span>}</td>
+                  <td data-label="المستند" className="num">{x.number} {x.doc_type ? `(${docLabel(x.doc_type)})` : ''}</td>
+                  <td data-label="التاريخ" className="num">{x.date}</td>
+                  <td data-label="الطرف">{x.party_name ?? ''}</td>
+                  <td data-label="المخزن">{x.warehouse_name ?? ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- الصلاحية
+export function ExpiryReport() {
+  const whs = useWarehouses();
+  const can = usePerm();
+  const [wh, setWh] = useState('');
+  const [until, setUntil] = useState('');
+  const r = useRemote<any>(`/api/reports/expiry?warehouse_id=${wh}&until=${until}`);
+  return (
+    <Shell
+      title="تقرير صلاحية الأصناف"
+      error={r.error}
+      loading={r.loading}
+      filters={
+        <>
+          <Field label="المخزن"><select className="select" value={wh} onChange={(e) => setWh(e.target.value)}><option value="">كل المخازن</option>{whs.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
+          <Field label="صلاحية حتى تاريخ"><input type="date" className="input" value={until} onChange={(e) => setUntil(e.target.value)} /></Field>
+        </>
+      }
+      actions={r.data && <button className="btn" onClick={() => exportCsv('الصلاحية', ['الصنف', 'المخزن', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية'], r.data.rows.map((x: any) => [x.name, x.warehouse_name, x.expiry, x.days_left, formatQty(x.qty)]))}>تصدير</button>}
+      note="الكميات المتاحة فقط لكل دفعة. الصرف يتم تلقائيًا من الأقرب انتهاءً. التنبيه حسب «تنبيه قبل» في بطاقة الصنف."
+    >
+      {r.data && (
+        <div className="table-wrap">
+          <table className="table responsive">
+            <thead><tr><th>الصنف</th><th>المخزن</th><th>تاريخ الانتهاء</th><th className="n">متبقي (يوم)</th><th className="n">الكمية</th>{can('costs.view') && <th className="n">القيمة التقريبية</th>}</tr></thead>
+            <tbody>
+              {r.data.rows.length === 0 && <tr><td colSpan={6} className="muted">لا توجد دفعات</td></tr>}
+              {r.data.rows.map((x: any) => {
+                const expired = x.days_left < 0;
+                const soon = !expired && x.days_left <= (x.expiry_alert_days ?? 30);
+                return (
+                  <tr key={x.id}>
+                    <td data-label="الصنف" className="bold">{x.code} — {x.name}</td>
+                    <td data-label="المخزن">{x.warehouse_name}</td>
+                    <td data-label="الانتهاء" className="num">{x.expiry}</td>
+                    <td data-label="متبقي" className={`n ${expired ? 'red bold' : soon ? 'orange bold' : ''}`}>{expired ? `منتهي منذ ${-x.days_left}` : x.days_left}</td>
+                    <td data-label="الكمية" className="n">{formatQty(x.qty)} {x.base_unit}</td>
+                    {can('costs.view') && <td data-label="القيمة" className="n">{formatMoney(Math.round((x.qty * x.avg_cost) / 1000))}</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Shell>
+  );
+}

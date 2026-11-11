@@ -41,6 +41,9 @@ export interface SessionUser {
   role_id: string;
   role_name: string;
   permissions: string[];
+  limits?: { max_discount_bp?: number; max_discount_amount?: number };
+  warehouse_ids?: string[] | null;
+  cashbox_ids?: string[] | null;
 }
 
 export interface Session {
