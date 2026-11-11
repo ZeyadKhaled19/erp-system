@@ -32,6 +32,13 @@ interface Pay {
   cashbox_id: string;
   amount: number;
 }
+interface Charge {
+  id: string;
+  name: string;
+  mode: 'add' | 'expense';
+  amount: number;
+  cashbox_id?: string | null;
+}
 interface Inst {
   id: string;
   kind: 'cheque' | 'installment';
@@ -101,6 +108,7 @@ export function DocumentEditor() {
   const [jl, setJl] = useState<any[]>([]);
   const [payments, setPayments] = useState<Pay[]>([]);
   const [insts, setInsts] = useState<Inst[]>([]);
+  const [charges, setCharges] = useState<Charge[]>([]);
   const [payAuto, setPayAuto] = useState(true);
   const [counterMode, setCounterMode] = useState<'party' | 'account'>('party');
   const [busy, setBusy] = useState(false);
@@ -122,6 +130,7 @@ export function DocumentEditor() {
       setJl(existing.data?.journal_lines ?? []);
       setPayments(existing.data?.payments ?? []);
       setInsts(existing.data?.instruments ?? []);
+      setCharges(existing.data?.charges ?? []);
       setPayAuto(false);
       setCounterMode(existing.account_id && !existing.party_id ? 'account' : 'party');
       setReady(true);
@@ -146,6 +155,9 @@ export function DocumentEditor() {
       ref_doc_id: sp.get('ref'),
       reserve: false,
       due_date: null,
+      deliver_later: false,
+      shipping_company: '',
+      order_status: '',
       notes: '',
     });
     setJl([
@@ -291,7 +303,8 @@ export function DocumentEditor() {
       return { error: (e as Error).message } as any;
     }
   }, [lines, h.discount, info, type]);
-  const total = calc && !calc.error ? calc.total : 0;
+  const chargesAdd = isInvoice ? charges.filter((c) => c.mode === 'add').reduce((s, c) => s + c.amount, 0) : 0;
+  const total = calc && !calc.error ? calc.total + chargesAdd : 0;
 
   // السداد التلقائي: سطر واحد بكامل المبلغ في الخزينة الافتراضية حتى يعدّل المستخدم
   useEffect(() => {
@@ -353,6 +366,10 @@ export function DocumentEditor() {
       shift_id: myShift && !myShift._sync && (pays.some((p) => p.cashbox_id === myShift.cashbox_id) || (isCashDoc && h.cashbox_id === myShift.cashbox_id)) ? myShift.id : null,
       due_date: isInvoice && credit > 0 ? h.due_date || null : null,
       reserve: type === 'quotation' ? !!h.reserve : false,
+      deliver_later: type === 'sale_invoice' ? !!h.deliver_later : false,
+      order_status: type === 'sale_invoice' ? h.order_status || null : null,
+      shipping_company: type === 'sale_invoice' ? h.shipping_company || null : null,
+      charges: isInvoice ? charges.filter((c) => c.amount > 0 && c.name.trim()) : [],
       from_quotation_id: type === 'sale_invoice' ? h.from_quotation_id || null : null,
       payment_type: info.priced && !info.noPosting ? (credit > 0 || instTotal > 0 ? 'credit' : 'cash') : null,
       payments: pays,
@@ -386,7 +403,7 @@ export function DocumentEditor() {
     for (const l of lines) {
       const it = itemMap.get(l.item_id);
       if (!it) continue;
-      if (it.track_serial && info.stock && info.stock !== 'adjust') {
+      if (it.track_serial && info.stock && info.stock !== 'adjust' && !(type === 'sale_invoice' && h.deliver_later)) {
         const n = l.qty / 1000;
         if (l.serials.length !== n) return `أدخل ${n} رقم سيريال للصنف «${it.name}» (المُدخل ${l.serials.length})`;
       }
@@ -398,6 +415,7 @@ export function DocumentEditor() {
       if (!d.party_id && isPurchase) return 'اختر المورد';
       if (payments.some((p) => !p.cashbox_id)) return 'اختر الخزينة لكل سطر سداد';
       if (insts.some((x) => !x.due_date || x.amount <= 0)) return 'أكمل بيانات الشيكات والأقساط';
+      if (charges.some((c) => c.amount > 0 && (!c.name.trim() || (c.mode === 'expense' && !c.cashbox_id)))) return 'أكمل بيانات الإضافات والمصروفات (الاسم والخزينة)';
     }
     if (['receipt', 'payment'].includes(type) && !d.party_id && !d.account_id) return 'اختر الطرف أو الحساب';
     if (['expense', 'income'].includes(type) && !d.account_id) return 'اختر الحساب';
@@ -586,6 +604,16 @@ export function DocumentEditor() {
               </select>
             </Field>
           )}
+          {type === 'sale_invoice' && can('sales.deliver') && (
+            <Field label="التسليم">
+              <div className="row" style={{ height: 42 }}><Switch checked={!!h.deliver_later} onChange={(v) => set('deliver_later', v)} /> {h.deliver_later ? 'لاحقًا (على مراحل)' : 'فوري'}</div>
+            </Field>
+          )}
+          {type === 'sale_invoice' && h.deliver_later && (
+            <Field label="شركة الشحن">
+              <input className="input" value={h.shipping_company ?? ''} onChange={(e) => set('shipping_company', e.target.value)} />
+            </Field>
+          )}
           {type === 'quotation' && (
             <Field label="حجز البضاعة">
               <div className="row" style={{ height: 42 }}><Switch checked={!!h.reserve} onChange={(v) => set('reserve', v)} /> {h.reserve ? 'تُحجز الكميات' : 'بدون حجز'}</div>
@@ -717,9 +745,9 @@ export function DocumentEditor() {
                       <button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => setLines((ls) => ls.filter((x) => x.id !== l.id))} aria-label="حذف السطر"><Trash2 /></button>
                     </div>
                   </div>
-                  {(needsSerial || needsExpiry) && (
+                  {((needsSerial && !(type === 'sale_invoice' && h.deliver_later)) || needsExpiry) && (
                     <div className="row wrap" style={{ padding: '0 12px 10px', gap: 10, borderBottom: '0.5px solid var(--separator)' }}>
-                      {needsSerial && (
+                      {needsSerial && !(type === 'sale_invoice' && h.deliver_later) && (
                         <div style={{ flex: 2, minWidth: 220 }}>
                           <SerialInput value={l.serials} need={Math.max(Math.round(l.qty / 1000), 0)} onChange={(v) => updLine(l.id, { serials: v })} />
                         </div>
@@ -794,6 +822,41 @@ export function DocumentEditor() {
       {/* ---------- الإجماليات والسداد ---------- */}
       <div className="grid grid-2" style={{ marginTop: 18, alignItems: 'start' }}>
         <div className="stack">
+          {isInvoice && calc && !calc.error && (
+            <div className="card pad stack">
+              <div className="row">
+                <div className="bold" style={{ flex: 1 }}>{type === 'purchase_invoice' ? 'مصروفات تُحمّل على التكلفة' : 'إضافات ومصروفات الفاتورة'}</div>
+                <button className="btn sm" onClick={() => setCharges([...charges, { id: uuid(), name: type === 'purchase_invoice' ? 'شحن' : 'رسوم توصيل', mode: 'add', amount: 0 }])}><Plus /> إضافة</button>
+                <button className="btn sm" onClick={() => setCharges([...charges, { id: uuid(), name: type === 'purchase_invoice' ? 'نقل' : 'مصروف', mode: 'expense', amount: 0, cashbox_id: cashboxes[0]?.id }])}><Plus /> مصروف</button>
+              </div>
+              {charges.length === 0 && (
+                <div className="footnote">
+                  {type === 'purchase_invoice'
+                    ? '«إضافة» يحمّلها المورد على الفاتورة، و«مصروف» تدفعه أنت من خزينة. الاثنان يُوزعان على تكلفة الأصناف بالتناسب مع قيمتها.'
+                    : '«إضافة» تُحصّل من العميل (مثل التوصيل) وتُسجل إيرادًا، و«مصروف» تدفعه أنت على الفاتورة من خزينة.'}
+                </div>
+              )}
+              {charges.map((c, i) => {
+                const upd = (p: Partial<Charge>) => setCharges(charges.map((x, j) => (j === i ? { ...x, ...p } : x)));
+                return (
+                  <div key={c.id} className="row wrap" style={{ gap: 6 }}>
+                    <select className="select" style={{ width: 110 }} value={c.mode} onChange={(e) => upd({ mode: e.target.value as any, cashbox_id: e.target.value === 'expense' ? c.cashbox_id ?? cashboxes[0]?.id : null })}>
+                      <option value="add">إضافة</option>
+                      <option value="expense">مصروف</option>
+                    </select>
+                    <input className="input" style={{ flex: 1, minWidth: 120 }} value={c.name} onChange={(e) => upd({ name: e.target.value })} placeholder="البيان" />
+                    <div style={{ width: 120 }}><MoneyInput value={c.amount} onChange={(v) => upd({ amount: v })} /></div>
+                    {c.mode === 'expense' && (
+                      <select className="select" style={{ width: 150 }} value={c.cashbox_id ?? ''} onChange={(e) => upd({ cashbox_id: e.target.value })}>
+                        {cashboxes.map((cb) => <option key={cb.id} value={cb.id}>{cb.name}</option>)}
+                      </select>
+                    )}
+                    <button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => setCharges(charges.filter((_, j) => j !== i))} aria-label="حذف"><Trash2 /></button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {hasPayments && calc && !calc.error && (
             <div className="card pad stack">
               <div className="row">
@@ -866,9 +929,10 @@ export function DocumentEditor() {
                 </div>
                 <div className="tr"><span className="muted">إجمالي الخصومات</span><span className="num">{formatMoney(calc.discount)}</span></div>
                 <div className="tr"><span className="muted">الضريبة</span><span className="num">{formatMoney(calc.tax)}</span></div>
+                {chargesAdd > 0 && <div className="tr"><span className="muted">إضافات</span><span className="num">{formatMoney(chargesAdd)}</span></div>}
               </>
             )}
-            <div className="tr grand"><span>الإجمالي</span><span className="num">{formatMoney(calc.total)}</span></div>
+            <div className="tr grand"><span>الإجمالي</span><span className="num">{formatMoney(total)}</span></div>
             {hasPayments && (
               <>
                 <div className="tr"><span className="muted">{type.endsWith('return') ? 'مردود نقدًا' : 'مدفوع نقدًا'}</span><span className="num">{formatMoney(cashPaid)}</span></div>

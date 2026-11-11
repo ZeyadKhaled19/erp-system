@@ -1,10 +1,11 @@
 import { DOC_TYPES, formatMoney, formatQty, hasPermission } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Ban, Pencil, Printer, Send, Undo2 } from 'lucide-react';
+import { Ban, Pencil, Printer, Send, Truck, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, Empty, Field, Sheet, useUi } from '../components/ui';
+import { DeliverSheet } from './Deliveries';
 import { cancelDocument, postDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useRemote, useSession, useSettings } from '../lib/hooks';
@@ -18,6 +19,7 @@ export function DocumentView() {
   const settings = useSettings();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const [deliverOpen, setDeliverOpen] = useState(false);
 
   const doc = useLiveQuery(() => db.documents.get(id), [id]);
   const lines = useLiveQuery(() => db.document_lines.where('document_id').equals(id).sortBy('line_no'), [id]) ?? [];
@@ -57,6 +59,8 @@ export function DocumentView() {
   const returnType = doc.doc_type === 'sale_invoice' ? 'sale_return' : doc.doc_type === 'purchase_invoice' ? 'purchase_return' : null;
   const payments: any[] = doc.data?.payments ?? [];
   const shares: any[] = doc.data?.shares ?? [];
+  const charges: any[] = doc.data?.charges ?? [];
+  const undelivered = doc.deliver_later ? lines.reduce((s, l) => s + (l.base_qty - (l.delivered_qty ?? 0)), 0) : 0;
 
   return (
     <div className="page">
@@ -93,6 +97,9 @@ export function DocumentView() {
             )}
             {returnType && doc.status === 'posted' && !doc._sync && can(`${module}.create`) && (
               <button className="btn" onClick={() => nav(`/docs/new/${returnType}?party=${doc.party_id}&ref=${doc.id}`)}><Undo2 /> مرتجع</button>
+            )}
+            {doc.deliver_later && doc.status === 'posted' && undelivered > 0 && !doc._sync && can('sales.deliver') && (
+              <button className="btn primary" onClick={() => setDeliverOpen(true)}><Truck /> تسليم</button>
             )}
             {canCancel && <button className="btn danger" onClick={() => setCancelOpen(true)}><Ban /> إلغاء</button>}
             <button className="btn" onClick={() => window.print()}><Printer /> طباعة</button>
@@ -139,6 +146,9 @@ export function DocumentView() {
           {doc.due_date && <Info k="تاريخ الاستحقاق" v={<span className="num">{doc.due_date}</span>} />}
           {doc.doc_type === 'quotation' && <Info k="حجز البضاعة" v={doc.reserve ? (doc.converted_to_id ? 'انتهى (حُوّل لفاتورة)' : 'محجوزة') : 'بدون حجز'} />}
           {doc.closed && <Info k="المتابعة" v="مغلقة" />}
+          {doc.deliver_later && <Info k="التسليم" v={undelivered > 0 ? <span className="orange bold">متبقي {formatQty(undelivered)}</span> : <span className="green bold">مسلّمة بالكامل</span>} />}
+          {doc.order_status && <Info k="حالة الطلب" v={doc.order_status} />}
+          {doc.shipping_company && <Info k="شركة الشحن" v={doc.shipping_company} />}
           {L?.creator && <Info k="أنشأه" v={L.creator.full_name} />}
         </div>
       </div>
@@ -152,6 +162,7 @@ export function DocumentView() {
                 <th>الصنف</th>
                 <th>الوحدة</th>
                 <th className="n">{doc.doc_type === 'stock_adjustment' ? 'الكمية الفعلية' : 'الكمية'}</th>
+                {doc.deliver_later && <th className="n">المسلّم</th>}
                 {doc.doc_type === 'stock_adjustment' && <th className="n">رصيد النظام</th>}
                 {(info.priced || doc.doc_type === 'opening_stock') && <th className="n">السعر</th>}
                 {info.priced && <th className="n">الخصم</th>}
@@ -166,6 +177,7 @@ export function DocumentView() {
                   <td data-label="الصنف" className="bold">{L?.items.get(l.item_id)?.name ?? '…'}</td>
                   <td data-label="الوحدة">{l.unit_name}</td>
                   <td data-label="الكمية" className="n">{formatQty(l.qty)}</td>
+                  {doc.deliver_later && <td data-label="المسلّم" className="n">{formatQty(Math.round(((l.delivered_qty ?? 0) * 1000) / l.unit_factor))}</td>}
                   {doc.doc_type === 'stock_adjustment' && <td data-label="رصيد النظام" className="n">{l.system_qty != null ? formatQty(l.system_qty) : '—'}</td>}
                   {(info.priced || doc.doc_type === 'opening_stock') && <td data-label="السعر" className="n">{formatMoney(l.price)}</td>}
                   {info.priced && <td data-label="الخصم" className="n">{formatMoney((l.discount ?? 0) + (l.doc_discount ?? 0))}</td>}
@@ -218,6 +230,18 @@ export function DocumentView() {
             </div>
           )}
           {doc.status === 'draft' && <div className="footnote" style={{ marginTop: 8 }}>مسودة للمراجعة. الاعتماد بزر «ترحيل» ويحتاج صلاحية اعتماد توزيع الأرباح؛ يُعاد التحقق من صافي الربح عند الاعتماد.</div>}
+        </div>
+      )}
+
+      {charges.length > 0 && (
+        <div className="card pad" style={{ marginTop: 14 }}>
+          <div className="footnote" style={{ marginBottom: 6 }}>{doc.doc_type === 'purchase_invoice' ? 'مصروفات محمّلة على التكلفة' : 'إضافات ومصروفات'}</div>
+          {charges.map((c) => (
+            <div key={c.id} className="row" style={{ justifyContent: 'space-between' }}>
+              <span>{c.name} <span className="badge">{c.mode === 'add' ? 'إضافة على الفاتورة' : `مصروف من ${L?.cbs.get(c.cashbox_id)?.name ?? 'الخزينة'}`}</span></span>
+              <span className="num">{formatMoney(c.amount)}</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -299,6 +323,27 @@ export function DocumentView() {
               ))}
             </>
           )}
+          {(remote.data.deliveries?.length ?? 0) > 0 && (
+            <>
+              <div className="section-title">التسليمات</div>
+              <div className="list">
+                {remote.data.deliveries.map((d: any) => (
+                  <div key={d.id} className="list-row">
+                    <div className="title">
+                      <span className="num">{d.date}</span> — {d.user_name}
+                      <div className="sub">
+                        {d.lines.map((x: any) => {
+                          const ln = lines.find((l) => l.id === x.line_id);
+                          return `${L?.items.get(ln?.item_id)?.name ?? ''}: ${formatQty(x.qty)}${x.serials?.length ? ` (${x.serials.join('، ')})` : ''}`;
+                        }).join(' · ')}
+                        {d.notes ? ` — ${d.notes}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           {remote.data.related.length > 0 && (
             <>
               <div className="section-title">مستندات مرتبطة</div>
@@ -335,6 +380,7 @@ export function DocumentView() {
         </div>
       )}
 
+      {deliverOpen && <DeliverSheet doc={doc} onClose={() => setDeliverOpen(false)} />}
       {cancelOpen && (
         <Sheet
           title={`إلغاء ${info.label}`}

@@ -30,6 +30,7 @@ import { CreditInvoicesPage, InstrumentsPage } from './pages/Followup';
 import { ListsPage } from './pages/Lists';
 import { PartnersPage } from './pages/Partners';
 import { ShiftPage } from './pages/Shift';
+import { DeliveriesPage } from './pages/Deliveries';
 import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
 
 export function App() {
@@ -143,6 +144,7 @@ export function App() {
           <Route path="/receivables" element={<CreditInvoicesPage />} />
           <Route path="/partners" element={<PartnersPage />} />
           <Route path="/shift" element={<ShiftPage />} />
+          <Route path="/deliveries" element={<DeliveriesPage />} />
           <Route path="/lists" element={<ListsPage />} />
           <Route path="/reports/analysis" element={<SalesAnalysisReport />} />
           <Route path="/reports/serial" element={<SerialSearchReport />} />

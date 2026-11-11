@@ -69,6 +69,8 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
   } else if (doc.doc_type === 'journal_voucher') {
     totals.total = doc.journal_lines.reduce((s, l) => s + l.debit, 0);
   } else if (!info.hasLines) totals.total = doc.amount;
+  const chargesAdd = (doc.charges ?? []).filter((c) => c.mode === 'add').reduce((s, c) => s + c.amount, 0);
+  totals.total += chargesAdd;
   const cashPaid = (doc.payments ?? []).reduce((s, p) => s + p.amount, 0);
   const chequePaid = (doc.instruments ?? []).filter((x) => x.kind === 'cheque').reduce((s, x) => s + x.amount, 0);
   const paid = info.priced ? (info.noPosting ? 0 : cashPaid + chequePaid) : totals.total;
@@ -80,7 +82,7 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
       entity: 'document',
       entity_id: doc.id,
       apply: async () => {
-        const { lines, journal_lines, payments, instruments, from_quotation_id, ...header } = doc;
+        const { lines, journal_lines, payments, instruments, from_quotation_id, charges, ...header } = doc;
         await db.documents.put({
           ...(existing ?? {}),
           ...header,
@@ -89,7 +91,8 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
           tax: totals.tax,
           total: totals.total,
           paid,
-          data: { journal_lines, payments, instruments, from_quotation_id },
+          data: { journal_lines, payments, instruments, from_quotation_id, charges },
+          charges_total: chargesAdd,
           status: action === 'post' ? 'posted' : 'draft',
           number: existing?.number ?? null,
           version: (baseVersion ?? 0) + 1,
@@ -249,4 +252,38 @@ export async function priceFor(item: Record<string, any>, unit: { name: string; 
   if (unit.name !== item.base_unit && unit.sale_price) return unit.sale_price;
   if (unit.name === item.base_unit) return item.sale_price;
   return Math.round((item.sale_price * unit.factor) / 1000);
+}
+
+/** تسجيل تسليم (جزئي أو كامل) لفاتورة بيع مؤجلة التسليم */
+export async function recordDelivery(doc: Record<string, any>, date: string, lines: { line_id: string; qty: number; serials: string[] }[], notes?: string) {
+  const id = crypto.randomUUID();
+  return enqueue(
+    { type: 'delivery.record', id, document_id: doc.id, date, notes: notes ?? null, lines },
+    {
+      label: `تسليم من فاتورة ${doc.number ?? doc.local_number}`,
+      entity: 'document',
+      entity_id: doc.id,
+      apply: async () => {
+        for (const l of lines) {
+          const row = await db.document_lines.get(l.line_id);
+          if (row) await db.document_lines.update(l.line_id, { delivered_qty: (row.delivered_qty ?? 0) + l.qty });
+        }
+        await db.documents.update(doc.id, { _sync: 'pending' });
+      },
+    },
+  );
+}
+
+export async function setDocMeta(doc: Record<string, any>, order_status: string | null, shipping_company: string | null) {
+  return enqueue(
+    { type: 'doc.meta', id: doc.id, order_status, shipping_company },
+    {
+      label: `تحديث حالة الطلب ${doc.number ?? doc.local_number}`,
+      entity: 'document',
+      entity_id: doc.id,
+      apply: async () => {
+        await db.documents.update(doc.id, { order_status, shipping_company, _sync: 'pending' });
+      },
+    },
+  );
 }

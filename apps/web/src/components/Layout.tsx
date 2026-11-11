@@ -37,6 +37,7 @@ const NAV: NavSection[] = [
       { to: '/docs/new/sale_return', label: 'مرتجع بيع', icon: <Undo2 />, color: '#FF9500', perm: 'sales.create' },
       { to: '/docs/new/quotation', label: 'عرض أسعار / حجز', icon: <FileText />, color: '#5856D6', perm: 'sales.quotation' },
       { to: '/receivables', label: 'متابعة الفواتير الآجلة', icon: <CalendarClock />, color: '#FF3B30', perm: 'sales.view' },
+      { to: '/deliveries', label: 'متابعة التسليم', icon: <Truck />, color: '#A2845E', perm: 'sales.view' },
       { to: '/docs/list/sales', label: 'سجل المبيعات', icon: <FileText />, color: '#30B0C7', perm: 'sales.view' },
       { to: '/parties/customer', label: 'العملاء', icon: <Users />, color: '#5856D6', perm: 'parties.view' },
     ],
