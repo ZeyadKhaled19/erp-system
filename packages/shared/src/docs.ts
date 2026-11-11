@@ -98,4 +98,5 @@ export type SystemAccount =
   | 'cash_over_short'
   | 'partners_capital_group'
   | 'partners_current_group'
-  | 'profit_distribution';
+  | 'profit_distribution'
+  | 'misc_expense';

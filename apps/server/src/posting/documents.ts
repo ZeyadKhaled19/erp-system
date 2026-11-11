@@ -158,6 +158,23 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
     total = input.amount;
   }
 
+  // ---- إضافات ومصروفات الفاتورة
+  const charges = input.doc_type === 'sale_invoice' || input.doc_type === 'purchase_invoice' ? input.charges ?? [] : [];
+  if ((input.charges ?? []).length && !charges.length) throw new AppError('الإضافات والمصروفات متاحة في فواتير البيع والشراء فقط');
+  for (const ch of charges) {
+    if (ch.mode === 'expense') {
+      await mustGet(t, 'cashboxes', ch.cashbox_id, 'خزينة المصروف');
+      if (!allowed(ctx.user.cashbox_ids, ch.cashbox_id)) throw new AppError('غير مسموح لك بالعمل على هذه الخزينة', 'forbidden');
+    }
+    if (ch.account_id) {
+      const acc = await mustGet(t, 'accounts', ch.account_id, 'حساب الإضافة/المصروف');
+      if (acc.is_group) throw new AppError('اختر حسابًا فرعيًا للإضافة/المصروف');
+    }
+  }
+  const chargesAdd = charges.filter((c) => c.mode === 'add').reduce((s, c) => s + c.amount, 0);
+  total += chargesAdd;
+  if (input.deliver_later && input.doc_type !== 'sale_invoice') throw new AppError('التسليم المؤجل لفواتير البيع فقط');
+
   // ---- حدود الخصم وأقل سعر (بيع)
   if (isSaleSide && input.doc_type !== 'sale_return') {
     const lim = ctx.user.limits ?? {};
@@ -331,6 +348,10 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
     shift_id: input.shift_id ?? null,
     due_date: dueDate,
     reserve: input.doc_type === 'quotation' ? !!input.reserve : false,
+    deliver_later: input.doc_type === 'sale_invoice' ? !!input.deliver_later : false,
+    order_status: input.order_status ?? null,
+    shipping_company: input.shipping_company ?? null,
+    charges_total: chargesAdd,
     payment_type: info.priced ? (paid >= total ? 'cash' : 'credit') : null,
     side: input.side ?? null,
     ref_doc_id: input.ref_doc_id ?? null,
@@ -344,6 +365,7 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
       journal_lines: input.journal_lines,
       payments,
       instruments,
+      charges,
       from_quotation_id: input.from_quotation_id ?? null,
       ...(distData ?? {}),
     }),
@@ -526,14 +548,28 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
           if (avail < l.base_qty) throw new ReviewError('stock_shortage', `الكمية المتاحة من «${item.name}» بعد الحجوزات غير كافية`, { item_id: l.item_id, available: avail, requested: l.base_qty });
         }
         const c = await stockOut(t, { date, item_id: l.item_id, warehouse_id: doc.warehouse_id, qty: l.base_qty, allowNegative, document_id: docId, line_id: l.id });
-        await trackOut(t, { date, doc, line: l, item, warehouse_id: doc.warehouse_id, qty: l.base_qty }, 'sell');
-        await t.query(`update document_lines set cost = $2 where id = $1`, [l.id, c]);
+        // في التسليم المؤجل يُسجل السيريال وقت التسليم الفعلي
+        await trackOut(t, { date, doc, line: l, item, warehouse_id: doc.warehouse_id, qty: l.base_qty }, 'sell', { skipSerial: !!doc.deliver_later });
+        await t.query(`update document_lines set cost = $2, delivered_qty = $3 where id = $1`, [l.id, c, doc.deliver_later ? 0 : l.base_qty]);
         cost += c;
       }
+      // الخدمات لا تُسلّم؛ وفي التسليم الفوري يُعتبر كل شيء مسلّمًا
+      await t.query(
+        `update document_lines set delivered_qty = base_qty where document_id = $1 and ($2 = false or item_id in (select id from items where is_service))`,
+        [docId, !!doc.deliver_later],
+      );
       await t.query(`update documents set cost = $2 where id = $1`, [docId, cost]);
       const ar = await acc('ar');
       jl.push({ account_id: ar, party_id: doc.party_id, debit: doc.total, credit: 0, memo });
       jl.push({ account_id: await acc('sales'), debit: 0, credit: doc.gross, memo });
+      for (const ch of (data.charges ?? []) as any[]) {
+        if (ch.mode === 'add') {
+          jl.push({ account_id: ch.account_id ?? (await acc('other_income')), debit: 0, credit: ch.amount, memo: `${ch.name} — ${memo}` });
+        } else {
+          jl.push({ account_id: ch.account_id ?? (await acc('misc_expense')), debit: ch.amount, credit: 0, memo: `${ch.name} — ${memo}` });
+          jl.push({ account_id: await cbAccount(ch.cashbox_id), debit: 0, credit: ch.amount, memo: `${ch.name} — ${memo}` });
+        }
+      }
       jl.push({ account_id: await acc('sales_discount'), debit: doc.discount, credit: 0, memo });
       jl.push({ account_id: await acc('vat_output'), debit: 0, credit: doc.tax, memo });
       await postPayments('in', ar, 'تحصيل');
@@ -575,19 +611,37 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
       break;
     }
     case 'purchase_invoice': {
+      // الإضافات والمصروفات تُحمّل على تكلفة الأصناف بالتناسب مع صافي قيمة كل سطر (landed cost)
+      const chList = (data.charges ?? []) as any[];
+      const chTotal = chList.reduce((s, c) => s + c.amount, 0);
+      const netSum = lines.reduce((s, l) => s + (l.total - l.tax), 0);
+      const shares = new Map<string, number>();
+      if (chTotal > 0) {
+        if (netSum <= 0) throw new AppError('لا يمكن تحميل المصروفات على فاتورة بدون قيمة');
+        let used = 0;
+        lines.forEach((l, i) => {
+          const v = i === lines.length - 1 ? chTotal - used : mulDiv(chTotal, l.total - l.tax, netSum);
+          shares.set(l.id, v);
+          used += v;
+        });
+      }
       for (const l of lines) {
         const item = await itemOf(l.item_id);
-        const value = l.total - l.tax; // صافي التكلفة بعد الخصومات وبدون الضريبة القابلة للخصم
+        const value = l.total - l.tax + (shares.get(l.id) ?? 0); // صافي التكلفة بعد الخصومات + نصيبه من المصروفات
         if (!item.is_service) {
           await stockIn(t, { date, item_id: l.item_id, warehouse_id: doc.warehouse_id, qty: l.base_qty, value, document_id: docId, line_id: l.id, setLastCost: true });
           await trackIn(t, { date, doc, line: l, item, warehouse_id: doc.warehouse_id, qty: l.base_qty });
         }
         await t.query(`update document_lines set cost = $2 where id = $1`, [l.id, value]);
       }
-      const serviceCost = (await t.query(`select coalesce(sum(l.total - l.tax), 0)::bigint as v from document_lines l join items i on i.id = l.item_id where l.document_id = $1 and i.is_service`, [docId]))[0]?.v ?? 0;
-      await t.query(`update documents set cost = $2 where id = $1`, [docId, netOfTax]);
+      const serviceCost = (await t.query(`select coalesce(sum(l.cost), 0)::bigint as v from document_lines l join items i on i.id = l.item_id where l.document_id = $1 and i.is_service`, [docId]))[0]?.v ?? 0;
+      const landed = netOfTax - (doc.charges_total ?? 0) + chTotal;
+      await t.query(`update documents set cost = $2 where id = $1`, [docId, landed]);
       const ap = await acc('ap');
-      jl.push({ account_id: await acc('inventory'), debit: netOfTax - serviceCost, credit: 0, memo });
+      jl.push({ account_id: await acc('inventory'), debit: landed - serviceCost, credit: 0, memo });
+      for (const ch of chList.filter((c) => c.mode === 'expense')) {
+        jl.push({ account_id: await cbAccount(ch.cashbox_id), debit: 0, credit: ch.amount, memo: `${ch.name} — ${memo}` });
+      }
       if (serviceCost) jl.push({ account_id: await acc('cogs'), debit: serviceCost, credit: 0, memo: `خدمات — ${memo}` });
       jl.push({ account_id: await acc('vat_input'), debit: doc.tax, credit: 0, memo });
       jl.push({ account_id: ap, party_id: doc.party_id, debit: 0, credit: doc.total, memo });
@@ -784,6 +838,8 @@ export async function cancelDocument(t: Db, ctx: Ctx, docId: string, reason: str
     if (deps && deps.n > 0) throw new AppError('لا يمكن الإلغاء: توجد مستندات مرحّلة مرتبطة به (مرتجعات أو سندات). ألغها أولًا', 'state');
     const alloc = await t.one(`select count(*)::int as n from allocations where invoice_id = $1 and not reversed`, [docId]);
     if (alloc && alloc.n > 0) throw new AppError('لا يمكن الإلغاء: توجد مقبوضات/مدفوعات مخصصة على هذه الفاتورة. ألغها أولًا', 'state');
+    const dlv = await t.one(`select count(*)::int as n from deliveries where document_id = $1`, [docId]);
+    if (dlv && dlv.n > 0) throw new AppError('لا يمكن الإلغاء: تم تسليم جزء من الفاتورة. استخدم مرتجع بيع للكميات المسلّمة', 'state');
     const inst = await t.one(`select count(*)::int as n from instruments where document_id = $1 and status not in ('open','cancelled')`, [docId]);
     if (inst && inst.n > 0) throw new AppError('لا يمكن الإلغاء: تم تحصيل أو إغلاق شيكات/أقساط هذه الفاتورة', 'state');
     if (doc.doc_type === 'profit_distribution') {

@@ -29,6 +29,8 @@ export const BACKUP_TABLES: { name: string; order: string }[] = [
   { name: 'doc_sequences', order: 'key' },
   { name: 'documents', order: 'created_at, id' },
   { name: 'document_lines', order: 'document_id, line_no' },
+  { name: 'deliveries', order: 'created_at, id' },
+  { name: 'delivery_lines', order: 'id' },
   { name: 'document_payments', order: 'id' },
   { name: 'instruments', order: 'id' },
   { name: 'allocations', order: 'id' },
@@ -53,6 +55,7 @@ const SERIAL_SEQS: { seq: string; table: string; col: string }[] = [
   { seq: 'allocations_id_seq', table: 'allocations', col: 'id' },
   { seq: 'serial_moves_id_seq', table: 'serial_moves', col: 'id' },
   { seq: 'lot_moves_id_seq', table: 'lot_moves', col: 'id' },
+  { seq: 'delivery_lines_id_seq', table: 'delivery_lines', col: 'id' },
 ];
 
 export interface BackupFile {

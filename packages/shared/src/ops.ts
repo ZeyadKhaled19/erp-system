@@ -193,6 +193,28 @@ export const docSchema = z.object({
   payments: z.array(paymentSchema).default([]),
   /** شيكات وأقساط للجزء الآجل */
   instruments: z.array(instrumentInputSchema).default([]),
+  /** تسليم مؤجل: تُخصم الكميات عند الترحيل وتُسلم على مراحل */
+  deliver_later: z.boolean().default(false),
+  order_status: z.string().trim().max(50).nullish(),
+  shipping_company: z.string().trim().max(100).nullish(),
+  /**
+   * إضافات ومصروفات الفاتورة:
+   * - add: تُضاف لإجمالي الفاتورة (شحن يحمّله المورد، رسوم توصيل على العميل)
+   * - expense: تُدفع من خزينة ولا تدخل إجمالي الفاتورة (نقل نتحمله نحن)
+   * في المشتريات تُحمّل الاثنتان على تكلفة الأصناف بالتناسب مع قيمتها
+   */
+  charges: z
+    .array(
+      z.object({
+        id,
+        name: z.string().trim().min(1, 'اسم المصروف/الإضافة مطلوب').max(100),
+        mode: z.enum(['add', 'expense']),
+        amount: int.positive(),
+        cashbox_id: id.nullish(),
+        account_id: id.nullish(),
+      }),
+    )
+    .default([]),
   /** توزيع الأرباح: الفترة ونسبة الاحتجاز */
   period_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   period_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
@@ -225,6 +247,20 @@ export const opSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('doc.post'), id, base_version: int.nullable() }),
   z.object({ type: z.literal('doc.cancel'), id, reason: z.string().trim().min(3, 'سبب الإلغاء مطلوب').max(500) }),
   z.object({ type: z.literal('doc.close'), id, closed: z.boolean().default(true) }),
+  z.object({
+    type: z.literal('delivery.record'),
+    id,
+    document_id: id,
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    notes: z.string().max(300).nullish(),
+    lines: z.array(z.object({ line_id: id, qty: int.positive(), serials: z.array(z.string().trim().min(1).max(100)).default([]) })).min(1, 'حدد كمية للتسليم'),
+  }),
+  z.object({
+    type: z.literal('doc.meta'),
+    id,
+    order_status: z.string().trim().max(50).nullish(),
+    shipping_company: z.string().trim().max(100).nullish(),
+  }),
   z.object({
     type: z.literal('instrument.settle'),
     id,

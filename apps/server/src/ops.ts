@@ -3,6 +3,7 @@ import type { AuthUser } from './auth';
 import type { Db } from './db';
 import { AppError, pgErrorToApp, ReviewError } from './errors';
 import { cancelDocument, createAndPost, postDocument, saveDocument, type Ctx } from './posting/documents';
+import { trackOut } from './posting/tracking';
 
 const WRITE_LOCK = 7331;
 
@@ -340,6 +341,10 @@ function entityOf(op: Op): [string | null, string | null] {
       return ['conflict', op.id];
     case 'doc.close':
       return ['document', op.id];
+    case 'delivery.record':
+      return ['document', op.document_id];
+    case 'doc.meta':
+      return ['document', op.id];
     case 'instrument.settle':
       return ['instrument', op.id];
     case 'shift.open':
@@ -356,6 +361,45 @@ async function handleDocClose(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.clos
   need(ctx.user, doc.doc_type === 'sale_invoice' ? 'sales.close_credit' : 'purchases.close_credit');
   await t.query(`update documents set closed = $2 where id = $1`, [op.id, op.closed]);
   return { op_id: '', status: 'accepted', result: { id: op.id, closed: op.closed } };
+}
+
+// ---------------- التسليم المؤجل ----------------
+async function handleDelivery(t: Db, ctx: Ctx, op: Extract<Op, { type: 'delivery.record' }>): Promise<OpResult> {
+  need(ctx.user, 'sales.deliver');
+  const doc = await t.one(`select * from documents where id = $1 for update`, [op.document_id]);
+  if (!doc) throw new AppError('الفاتورة غير موجودة', 'not_found');
+  if (doc.doc_type !== 'sale_invoice' || !doc.deliver_later) throw new AppError('هذه الفاتورة ليست تسليمًا مؤجلًا');
+  if (doc.status !== 'posted') throw new AppError('الفاتورة غير مرحّلة', 'state');
+  if (ctx.user.warehouse_ids && !ctx.user.warehouse_ids.includes(doc.warehouse_id)) throw new AppError('غير مسموح لك بالعمل على هذا المخزن', 'forbidden');
+  if (await t.one(`select 1 from deliveries where id = $1`, [op.id])) throw new AppError('عملية التسليم مسجلة بالفعل', 'state');
+  await t.query(`insert into deliveries (id, document_id, date, notes, created_by, device_id) values ($1,$2,$3,$4,$5,$6)`, [
+    op.id, doc.id, op.date, op.notes ?? null, ctx.user.id, ctx.deviceId,
+  ]);
+  for (const dl of op.lines) {
+    const line = await t.one(`select * from document_lines where id = $1 and document_id = $2 for update`, [dl.line_id, doc.id]);
+    if (!line) throw new AppError('سطر غير موجود في الفاتورة');
+    const item = await t.one(`select * from items where id = $1`, [line.item_id]);
+    const remaining = line.base_qty - line.delivered_qty;
+    if (dl.qty > remaining) throw new AppError(`الكمية المسلّمة من «${item.name}» أكبر من المتبقي (${remaining / 1000})`);
+    if (item.track_serial && !item.is_service) {
+      await trackOut(t, { date: op.date, doc, line, item, warehouse_id: doc.warehouse_id, qty: dl.qty }, 'sell', { skipLots: true, serials: dl.serials });
+    }
+    await t.query(`update document_lines set delivered_qty = delivered_qty + $2 where id = $1`, [line.id, dl.qty]);
+    await t.query(`insert into delivery_lines (delivery_id, line_id, qty, serials) values ($1,$2,$3,$4)`, [op.id, line.id, dl.qty, JSON.stringify(dl.serials ?? [])]);
+  }
+  const left = await t.one(`select coalesce(sum(base_qty - delivered_qty), 0)::bigint as q from document_lines where document_id = $1`, [doc.id]);
+  if (left?.q === 0) await t.query(`update documents set order_status = coalesce(nullif(order_status, ''), 'تم التسليم') where id = $1`, [doc.id]);
+  // تحديث row_version للفاتورة حتى تسحب الأجهزة الكميات المسلّمة
+  await t.query(`update documents set version = version where id = $1`, [doc.id]);
+  return { op_id: '', status: 'accepted', result: { id: op.id, remaining: left?.q ?? 0 } };
+}
+
+async function handleDocMeta(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.meta' }>): Promise<OpResult> {
+  if (!hasPermission(ctx.user.permissions, 'sales.deliver') && !hasPermission(ctx.user.permissions, 'sales.edit')) throw new AppError('ليس لديك صلاحية', 'forbidden');
+  const doc = await t.one(`select doc_type from documents where id = $1`, [op.id]);
+  if (!doc || doc.doc_type !== 'sale_invoice') throw new AppError('الفاتورة غير موجودة', 'not_found');
+  await t.query(`update documents set order_status = $2, shipping_company = $3 where id = $1`, [op.id, op.order_status ?? null, op.shipping_company ?? null]);
+  return { op_id: '', status: 'accepted', result: { id: op.id } };
 }
 
 // ---------------- الشيكات والأقساط ----------------
@@ -511,6 +555,12 @@ export async function applyOp(db: Db, user: AuthUser, deviceId: string, rawEnv: 
           break;
         case 'doc.close':
           r = await handleDocClose(t, ctx, env.op);
+          break;
+        case 'delivery.record':
+          r = await handleDelivery(t, ctx, env.op);
+          break;
+        case 'doc.meta':
+          r = await handleDocMeta(t, ctx, env.op);
           break;
         case 'instrument.settle':
           r = await handleInstrument(t, ctx, env.op);

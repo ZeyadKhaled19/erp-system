@@ -71,11 +71,16 @@ async function addToLot(t: Db, itemId: string, whId: string, expiry: string, qty
 }
 
 /** الصرف: يُرجع دفعات الصلاحية التي صُرفت (لاستخدامها في التحويل) */
-export async function trackOut(t: Db, c: Ctx, mode: 'sell' | 'return_supplier' | 'transfer' | 'adjust'): Promise<{ serials: string[]; lots: { expiry: string; qty: number }[] }> {
+export async function trackOut(
+  t: Db,
+  c: Ctx,
+  mode: 'sell' | 'return_supplier' | 'transfer' | 'adjust',
+  opts: { skipSerial?: boolean; skipLots?: boolean; serials?: string[] } = {},
+): Promise<{ serials: string[]; lots: { expiry: string; qty: number }[] }> {
   const { item, line, doc } = c;
   const out = { serials: [] as string[], lots: [] as { expiry: string; qty: number }[] };
-  if (item.track_serial) {
-    const list = serialList(item, line, c.qty);
+  if (item.track_serial && !opts.skipSerial) {
+    const list = serialList(item, opts.serials ? { ...line, serials: opts.serials } : line, c.qty);
     for (const s of list) {
       const ex = await t.one(`select * from serials where item_id = $1 and serial = $2 for update`, [item.id, s]);
       if (!ex) throw new AppError(`السيريال ${s} غير موجود للصنف «${item.name}»`);
@@ -87,7 +92,7 @@ export async function trackOut(t: Db, c: Ctx, mode: 'sell' | 'return_supplier' |
       out.serials.push(s);
     }
   }
-  if (item.track_expiry) {
+  if (item.track_expiry && !opts.skipLots) {
     let remaining = c.qty;
     const lots = await t.query(`select * from stock_lots where item_id = $1 and warehouse_id = $2 and qty > 0 order by expiry for update`, [item.id, c.warehouse_id]);
     for (const lot of lots) {

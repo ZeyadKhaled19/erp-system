@@ -51,7 +51,7 @@ export const DEFAULT_ACCOUNTS: Acc[] = [
   ['5205', 'نقل ومواصلات', 'expense', false],
   ['5206', 'صيانة', 'expense', false],
   ['5207', 'عمولات بنكية وعمولات الدفع', 'expense', false, 'payment_fees'],
-  ['5299', 'مصروفات متنوعة', 'expense', false],
+  ['5299', 'مصروفات متنوعة', 'expense', false, 'misc_expense'],
   ['53', 'فروقات جرد المخزون', 'expense', false, 'inventory_diff'],
   ['54', 'فروق تكلفة المرتجعات', 'expense', false, 'cost_variance'],
   ['55', 'عجز وزيادة الخزينة', 'expense', false, 'cash_over_short'],

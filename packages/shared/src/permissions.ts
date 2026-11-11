@@ -36,6 +36,7 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
       { key: 'sales.free_return', label: 'مرتجع بدون فاتورة' },
       { key: 'sales.close_credit', label: 'إغلاق متابعة الفواتير الآجلة' },
       { key: 'sales.quotation', label: 'عروض الأسعار والحجز' },
+      { key: 'sales.deliver', label: 'تسليم الفواتير المؤجلة' },
       { key: 'sales.print', label: 'طباعة' },
     ],
   },

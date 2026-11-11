@@ -356,7 +356,14 @@ export async function documentDetail(db: Db, id: string) {
       where a.entity = 'document' and a.entity_id = $1 order by a.id`,
     [id],
   );
-  return { doc, lines, entries: entries.map((e) => ({ ...e, lines: jlines.filter((l) => l.entry_id === e.id) })), related, audit: auditRows };
+  const deliveries = await db.query(
+    `select d.id, d.date, d.notes, d.created_at, u.full_name as user_name,
+            coalesce(json_agg(json_build_object('line_id', l.line_id, 'qty', l.qty, 'serials', l.serials)) filter (where l.id is not null), '[]') as lines
+       from deliveries d left join delivery_lines l on l.delivery_id = d.id left join users u on u.id = d.created_by
+      where d.document_id = $1 group by d.id, u.full_name order by d.created_at`,
+    [id],
+  );
+  return { doc, lines, entries: entries.map((e) => ({ ...e, lines: jlines.filter((l) => l.entry_id === e.id) })), related, audit: auditRows, deliveries };
 }
 
 export async function dashboard(db: Db, today: string) {
