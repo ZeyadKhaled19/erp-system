@@ -341,6 +341,8 @@ function entityOf(op: Op): [string | null, string | null] {
       return ['conflict', op.id];
     case 'doc.close':
       return ['document', op.id];
+    case 'year.close':
+      return ['document', op.id];
     case 'delivery.record':
       return ['document', op.document_id];
     case 'doc.meta':
@@ -361,6 +363,20 @@ async function handleDocClose(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.clos
   need(ctx.user, doc.doc_type === 'sale_invoice' ? 'sales.close_credit' : 'purchases.close_credit');
   await t.query(`update documents set closed = $2 where id = $1`, [op.id, op.closed]);
   return { op_id: '', status: 'accepted', result: { id: op.id, closed: op.closed } };
+}
+
+// ---------------- إقفال السنة المالية ----------------
+async function handleYearClose(t: Db, ctx: Ctx, op: Extract<Op, { type: 'year.close' }>): Promise<OpResult> {
+  need(ctx.user, 'period.lock');
+  const last = await t.one(`select max(date) as d from documents where doc_type = 'year_closing' and status = 'posted'`);
+  if (last?.d && op.date <= last.d) throw new AppError(`يوجد إقفال سابق بتاريخ ${last.d}؛ اختر تاريخًا بعده`, 'state');
+  const locked = (await t.one(`select value from settings where key = 'locked_until'`))?.value;
+  if (locked && op.date <= locked) throw new AppError(`الفترة حتى ${locked} مقفلة بالفعل`, 'state');
+  const pending = await t.one(`select count(*)::int as n from documents where status in ('draft','pending_review') and date <= $1 and doc_type <> 'quotation'`, [op.date]);
+  if (pending?.n) throw new AppError(`يوجد ${pending.n} مستند غير مرحّل (مسودة أو مراجعة) بتاريخ قبل الإقفال؛ رحّلها أو ألغها أولًا`, 'state');
+  const doc = await createAndPost(t, ctx, { id: op.id, doc_type: 'year_closing', date: op.date, notes: `إقفال الفترة حتى ${op.date}` } as any);
+  await t.query(`insert into settings (key, value) values ('locked_until', $1) on conflict (key) do update set value = excluded.value`, [JSON.stringify(op.date)]);
+  return { op_id: '', status: 'accepted', result: { id: doc.id, number: doc.number, net: doc.data?.net_result ?? 0 } };
 }
 
 // ---------------- التسليم المؤجل ----------------
@@ -558,6 +574,9 @@ export async function applyOp(db: Db, user: AuthUser, deviceId: string, rawEnv: 
           break;
         case 'delivery.record':
           r = await handleDelivery(t, ctx, env.op);
+          break;
+        case 'year.close':
+          r = await handleYearClose(t, ctx, env.op);
           break;
         case 'doc.meta':
           r = await handleDocMeta(t, ctx, env.op);

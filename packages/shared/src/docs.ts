@@ -17,7 +17,8 @@ export type DocType =
   | 'quotation'
   | 'partner_capital'
   | 'partner_withdrawal'
-  | 'profit_distribution';
+  | 'profit_distribution'
+  | 'year_closing';
 
 export interface DocTypeInfo {
   label: string;
@@ -54,6 +55,7 @@ export const DOC_TYPES: Record<DocType, DocTypeInfo> = {
   partner_capital: { label: 'إيداع رأس مال شريك', module: 'partners', prefix: 'PC', hasLines: false },
   partner_withdrawal: { label: 'مسحوبات شريك', module: 'partners', prefix: 'PW', hasLines: false },
   profit_distribution: { label: 'توزيع أرباح', module: 'partners', prefix: 'PD', hasLines: false },
+  year_closing: { label: 'قيد إقفال السنة', module: 'accounts', prefix: 'YC', hasLines: false },
 };
 
 export const DOC_STATUS_LABEL: Record<string, string> = {
@@ -99,4 +101,5 @@ export type SystemAccount =
   | 'partners_capital_group'
   | 'partners_current_group'
   | 'profit_distribution'
-  | 'misc_expense';
+  | 'misc_expense'
+  | 'commissions';

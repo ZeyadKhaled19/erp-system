@@ -161,9 +161,10 @@ export function DocumentEditor() {
       to_cashbox_id: '',
       party_id: party ?? (type === 'sale_invoice' || type === 'quotation' ? 'party-cash-customer' : null),
       price_list_id: partyRow?.price_list_id ?? 'pl-retail',
-      sales_rep_id: null,
       partner_id: sp.get('partner'),
-      amount: 0,
+      account_id: sp.get('account'),
+      sales_rep_id: sp.get('rep'),
+      amount: Number(sp.get('amount')) || 0,
       discount: 0,
       side: type === 'party_opening' ? 'debit' : null,
       ref_doc_id: sp.get('ref'),
@@ -172,7 +173,7 @@ export function DocumentEditor() {
       deliver_later: false,
       shipping_company: '',
       order_status: '',
-      notes: '',
+      notes: sp.get('note') ?? '',
     });
     setJl([
       { account_id: '', party_id: null, debit: 0, credit: 0, memo: '' },
@@ -389,7 +390,7 @@ export function DocumentEditor() {
       to_cashbox_id: type === 'cash_transfer' ? h.to_cashbox_id || null : null,
       account_id: ['expense', 'income'].includes(type) || (counterMode === 'account' && ['receipt', 'payment'].includes(type)) ? h.account_id || null : null,
       partner_id: type === 'partner_capital' || type === 'partner_withdrawal' ? h.partner_id || null : null,
-      sales_rep_id: isSale ? h.sales_rep_id || null : null,
+      sales_rep_id: isSale || type === 'expense' ? h.sales_rep_id || null : null,
       price_list_id: isSale ? h.price_list_id || null : null,
       shift_id: myShift && !myShift._sync && (pays.some((p) => p.cashbox_id === myShift.cashbox_id) || (isCashDoc && h.cashbox_id === myShift.cashbox_id)) ? myShift.id : null,
       due_date: isInvoice && credit > 0 ? h.due_date || null : null,
@@ -575,6 +576,14 @@ export function DocumentEditor() {
           {(type === 'expense' || type === 'income') && (
             <Field label={type === 'expense' ? 'بند المصروف' : 'بند الإيراد'}>
               <Picker value={h.account_id} options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))} onChange={(v) => set('account_id', v)} />
+            </Field>
+          )}
+          {type === 'expense' && reps.length > 0 && accounts.find((a) => a.id === h.account_id)?.system_key === 'commissions' && (
+            <Field label="المندوب">
+              <select className="select" value={h.sales_rep_id ?? ''} onChange={(e) => set('sales_rep_id', e.target.value || null)}>
+                <option value="">—</option>
+                {reps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
             </Field>
           )}
           {(type === 'partner_capital' || type === 'partner_withdrawal') && (

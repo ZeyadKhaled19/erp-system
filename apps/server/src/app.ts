@@ -176,6 +176,8 @@ export async function buildApp(opts: AppOptions) {
     return r;
   });
 
+  app.get('/api/reports/commissions', { preHandler: perm('reports.view') }, async (req) => R.commissionsReport(db, range(req)));
+  app.get('/api/reports/closing-preview', { preHandler: perm('reports.financial') }, async (req) => R.closingPreview(db, q(req).to || todayISO()));
   app.get('/api/reports/partners', { preHandler: perm('partners.view') }, async (req) => R.partnersReport(db, range(req)));
   app.get('/api/reports/serial', { preHandler: perm('inventory.view') }, async (req) => R.serialSearch(db, q(req).q ?? ''));
   app.get('/api/reports/expiry', { preHandler: perm('inventory.view') }, async (req) =>

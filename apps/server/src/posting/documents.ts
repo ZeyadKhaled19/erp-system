@@ -153,7 +153,7 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
     );
     ({ gross, discount, tax, total } = r);
     computed = r.lines;
-  } else if (!info.hasLines && input.doc_type !== 'journal_voucher' && input.doc_type !== 'profit_distribution') {
+  } else if (!info.hasLines && !['journal_voucher', 'profit_distribution', 'year_closing'].includes(input.doc_type)) {
     if (input.amount <= 0) throw new AppError('المبلغ يجب أن يكون أكبر من صفر');
     total = input.amount;
   }
@@ -800,6 +800,28 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
       for (const l of data.journal_lines ?? []) jl.push({ ...l, memo: l.memo ?? doc.notes ?? memo });
       break;
     }
+    case 'year_closing': {
+      // يُقفل رصيد كل حساب إيرادات/مصروفات (منذ آخر إقفال) وتوزيعات الأرباح المعلنة في الأرباح المحتجزة
+      const rows = await t.query(
+        `select a.id, a.type, a.system_key, coalesce(sum(l.debit - l.credit), 0)::bigint as bal
+           from journal_lines l join journal_entries e on e.id = l.entry_id join accounts a on a.id = l.account_id
+          where (a.type in ('revenue','expense') or a.system_key = 'profit_distribution') and e.date <= $1
+          group by a.id having coalesce(sum(l.debit - l.credit), 0) <> 0`,
+        [date],
+      );
+      let net = 0; // موجب = ربح يُضاف للأرباح المحتجزة
+      for (const r of rows) {
+        if (r.bal > 0) jl.push({ account_id: r.id, debit: 0, credit: r.bal, memo });
+        else jl.push({ account_id: r.id, debit: -r.bal, credit: 0, memo });
+        net -= r.bal;
+      }
+      const retained = await acc('retained');
+      if (net > 0) jl.push({ account_id: retained, debit: 0, credit: net, memo: `${memo} — صافي الربح` });
+      if (net < 0) jl.push({ account_id: retained, debit: -net, credit: 0, memo: `${memo} — صافي الخسارة` });
+      await t.query(`update documents set total = $2 where id = $1`, [docId, Math.abs(net)]);
+      await t.query(`update documents set data = data || $2::jsonb where id = $1`, [docId, JSON.stringify({ net_result: net })]);
+      break;
+    }
   }
 
   await writeJournal(t, { date, document_id: docId, memo: doc.notes ? `${memo} — ${doc.notes}` : memo, lines: jl, created_by: uid });
@@ -865,7 +887,7 @@ export async function cancelDocument(t: Db, ctx: Ctx, docId: string, reason: str
 /** إنشاء وترحيل مستند داخلي (تحصيل شيك/قسط، فرق وردية) */
 export async function createAndPost(t: Db, ctx: Ctx, doc: Partial<DocInput> & { doc_type: DocType; date: string }) {
   const full: DocInput = {
-    id: crypto.randomUUID(),
+    id: (doc as any).id ?? crypto.randomUUID(),
     lines: [],
     journal_lines: [],
     payments: [],

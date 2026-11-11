@@ -171,7 +171,7 @@ export const docSchema = z.object({
   doc_type: z.enum([
     'sale_invoice', 'sale_return', 'purchase_invoice', 'purchase_return', 'receipt', 'payment', 'expense', 'income',
     'stock_transfer', 'stock_adjustment', 'opening_stock', 'party_opening', 'journal_voucher',
-    'cash_transfer', 'quotation', 'partner_capital', 'partner_withdrawal', 'profit_distribution',
+    'cash_transfer', 'quotation', 'partner_capital', 'partner_withdrawal', 'profit_distribution', 'year_closing',
   ]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'تاريخ غير صالح'),
   party_id: id.nullish(),
@@ -247,6 +247,8 @@ export const opSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('doc.post'), id, base_version: int.nullable() }),
   z.object({ type: z.literal('doc.cancel'), id, reason: z.string().trim().min(3, 'سبب الإلغاء مطلوب').max(500) }),
   z.object({ type: z.literal('doc.close'), id, closed: z.boolean().default(true) }),
+  /** إقفال السنة: نقل صافي ربح الفترة إلى الأرباح المحتجزة وقفل الفترة حتى التاريخ */
+  z.object({ type: z.literal('year.close'), id, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
   z.object({
     type: z.literal('delivery.record'),
     id,

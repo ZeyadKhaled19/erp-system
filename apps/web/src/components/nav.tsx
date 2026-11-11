@@ -168,6 +168,7 @@ export const HUBS: Hub[] = [
           { to: '/reports/analysis', label: 'تحليل المبيعات', desc: 'حسب الصنف أو العميل أو اليوم مع الربح', icon: <TrendingUp />, grad: 'var(--grad-indigo)', perm: 'reports.view', hero: true },
           { to: '/reports/income', label: 'الأرباح والخسائر', icon: <TrendingUp />, grad: 'var(--grad-orange)', perm: 'reports.profit' },
           { to: '/reports/documents', label: 'تقارير المستندات', icon: <BarChart3 />, grad: 'var(--grad-pink)', perm: 'reports.view' },
+          { to: '/reports/commissions', label: 'عمولات المندوبين', icon: <Users />, grad: 'var(--grad-teal)', perm: 'reports.view' },
         ],
       },
       {
@@ -180,6 +181,7 @@ export const HUBS: Hub[] = [
           { to: '/docs/new/journal_voucher', label: 'قيد يومية', icon: <BookPlus />, grad: 'var(--grad-blue)', perm: 'accounts.journal' },
           { to: '/docs/new/party_opening', label: 'رصيد افتتاحي لطرف', icon: <UserPlus />, grad: 'var(--grad-gray)', perm: 'accounts.journal' },
           { to: '/docs/list/accounts', label: 'سجل القيود', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'accounts.view' },
+          { to: '/year-end', label: 'إقفال السنة المالية', icon: <Landmark />, grad: 'var(--grad-red)', perm: 'period.lock' },
         ],
       },
     ],

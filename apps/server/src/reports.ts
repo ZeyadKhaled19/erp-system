@@ -147,7 +147,8 @@ export async function incomeStatement(db: Db, r: Range) {
   const rows = await db.query(
     `select a.id, a.code, a.name, a.type, a.system_key, coalesce(sum(l.credit - l.debit), 0)::bigint as net
        from journal_lines l join journal_entries e on e.id = l.entry_id join accounts a on a.id = l.account_id
-      where a.type in ('revenue','expense') and ${cond}
+       left join documents cd on cd.id = e.document_id
+      where a.type in ('revenue','expense') and coalesce(cd.doc_type, '') <> 'year_closing' and ${cond}
       group by a.id order by a.code`,
     params,
   );
@@ -497,4 +498,51 @@ export async function salesAnalysis(db: Db, r: Range & { group: string; kind: 's
   const totalNet = rows.reduce((s, x) => s + x.net, 0);
   const out = rows.map((x) => ({ ...x, profit: x.net - x.cost, share_bp: totalNet ? Math.round((x.net * 10000) / totalNet) : 0 }));
   return { rows: out, totals: { net: totalNet, cost: rows.reduce((s, x) => s + x.cost, 0), qty: rows.reduce((s, x) => s + x.qty, 0) } };
+}
+
+/** عمولات المندوبين: صافي المبيعات (بدون ضريبة، بعد المرتجعات) × نسبة العمولة، والمصروف منها */
+export async function commissionsReport(db: Db, r: Range) {
+  const reps = await db.query(`select * from sales_reps order by name`);
+  const params: unknown[] = [];
+  const cond = dateCond('d.date', r, params);
+  const sales = await db.query(
+    `select d.sales_rep_id as rep, count(*) filter (where d.doc_type = 'sale_invoice')::int as invoices,
+            coalesce(sum(case when d.doc_type = 'sale_invoice' then d.total - d.tax - d.charges_total else 0 end), 0)::bigint as sales,
+            coalesce(sum(case when d.doc_type = 'sale_return' then d.total - d.tax else 0 end), 0)::bigint as returns,
+            coalesce(sum(case when d.doc_type = 'sale_invoice' then d.cost else -d.cost end), 0)::bigint as cost
+       from documents d where d.status = 'posted' and d.doc_type in ('sale_invoice','sale_return') and d.sales_rep_id is not null and ${cond}
+      group by d.sales_rep_id`,
+    params,
+  );
+  const paid = await db.query(
+    `select d.sales_rep_id as rep, coalesce(sum(d.total), 0)::bigint as paid
+       from documents d join accounts a on a.id = d.account_id
+      where d.status = 'posted' and d.doc_type = 'expense' and a.system_key = 'commissions' and d.sales_rep_id is not null and ${cond}
+      group by d.sales_rep_id`,
+    params,
+  );
+  const sm = new Map(sales.map((x) => [x.rep, x]));
+  const pm = new Map(paid.map((x) => [x.rep, x.paid]));
+  const rows = reps.map((rep) => {
+    const s = sm.get(rep.id) ?? { invoices: 0, sales: 0, returns: 0, cost: 0 };
+    const net = s.sales - s.returns;
+    const commission = Math.round((net * rep.commission_bp) / 10000);
+    const paidAmt = pm.get(rep.id) ?? 0;
+    return { id: rep.id, name: rep.name, active: rep.active, commission_bp: rep.commission_bp, invoices: s.invoices, sales: s.sales, returns: s.returns, net, profit: net - s.cost, commission, paid: paidAmt, due: commission - paidAmt };
+  });
+  return { rows, totals: { net: rows.reduce((a, x) => a + x.net, 0), commission: rows.reduce((a, x) => a + x.commission, 0), paid: rows.reduce((a, x) => a + x.paid, 0), due: rows.reduce((a, x) => a + x.due, 0) } };
+}
+
+/** معاينة إقفال السنة: صافي الربح حتى التاريخ منذ آخر إقفال */
+export async function closingPreview(db: Db, date: string) {
+  const last = await db.one(`select max(date) as d from documents where doc_type = 'year_closing' and status = 'posted'`);
+  const from = last?.d ? (() => { const x = new Date(last.d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); })() : undefined;
+  const is = await incomeStatement(db, { from, to: date });
+  const dist = await db.one(
+    `select coalesce(sum(l.debit - l.credit), 0)::bigint as v from journal_lines l join journal_entries e on e.id = l.entry_id join accounts a on a.id = l.account_id
+      left join documents cd on cd.id = e.document_id where a.system_key = 'profit_distribution' and e.date <= $1 and coalesce(cd.doc_type,'') <> 'year_closing'`,
+    [date],
+  );
+  const locked = (await db.one(`select value from settings where key = 'locked_until'`))?.value ?? null;
+  return { from: from ?? null, to: date, last_closing: last?.d ?? null, revenue: is.total_revenue, expenses: is.total_expenses, net_profit: is.net_profit, distributions: dist?.v ?? 0, locked_until: locked };
 }

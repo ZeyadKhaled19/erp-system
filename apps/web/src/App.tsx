@@ -35,6 +35,7 @@ import { DeliveriesPage } from './pages/Deliveries';
 import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
 import { InvoicesPage } from './pages/Invoices';
+import { CommissionsPage, YearEndPage } from './pages/YearEnd';
 import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
 
 export function App() {
@@ -136,6 +137,8 @@ export function App() {
           <Route path="/hub/:key" element={<HubPage />} />
           <Route path="/pos" element={<PosPage />} />
           <Route path="/invoices" element={<InvoicesPage />} />
+          <Route path="/reports/commissions" element={<CommissionsPage />} />
+          <Route path="/year-end" element={<YearEndPage />} />
           <Route path="/items" element={<ItemsPage />} />
           <Route path="/items/inquiry" element={<ItemInquiry />} />
           <Route path="/warehouses" element={<WarehousesPage />} />
