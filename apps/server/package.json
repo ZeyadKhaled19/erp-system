@@ -1,0 +1,31 @@
+{
+  "name": "@erp/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "migrate": "tsx --env-file-if-exists=../../.env src/cli.ts migrate",
+    "backup": "tsx --env-file-if-exists=../../.env src/cli.ts backup",
+    "restore": "tsx --env-file-if-exists=../../.env src/cli.ts restore",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@erp/shared": "*",
+    "@fastify/cors": "^11.1.0",
+    "@fastify/static": "^8.3.0",
+    "fastify": "^5.6.1",
+    "jose": "^6.1.0",
+    "pg": "^8.16.3",
+    "tsx": "^4.20.6",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "@types/pg": "^8.15.5",
+    "vitest": "^3.2.4"
+  }
+}

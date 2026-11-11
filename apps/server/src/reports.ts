@@ -1,0 +1,395 @@
+import type { Db } from './db';
+import { AppError } from './errors';
+
+/**
+ * التقارير تُحسب من البيانات المُرحّلة فقط (القيود وحركات المخزون)، وليس من المسودات.
+ * القيود الملغاة لا تُستبعد؛ يُعكس أثرها بقيد عكسي، فيبقى الأثر الصافي صفرًا مع الاحتفاظ بالأصل.
+ */
+
+type Range = { from?: string; to?: string };
+const dateCond = (col: string, r: Range, params: unknown[]) => {
+  const parts: string[] = [];
+  if (r.from) {
+    params.push(r.from);
+    parts.push(`${col} >= $${params.length}`);
+  }
+  if (r.to) {
+    params.push(r.to);
+    parts.push(`${col} <= $${params.length}`);
+  }
+  return parts.length ? parts.join(' and ') : 'true';
+};
+
+/** ميزان المراجعة: رصيد أول المدة + حركة الفترة + الرصيد الختامي لكل حساب، مع تجميع الحسابات الرئيسية */
+export async function trialBalance(db: Db, r: Range) {
+  const accounts = await db.query(`select id, code, name, parent_id, type, is_group from accounts order by code`);
+  const params: unknown[] = [];
+  const from = r.from ?? '0001-01-01';
+  const to = r.to ?? '9999-12-31';
+  params.push(from, to);
+  const rows = await db.query(
+    `select l.account_id,
+        coalesce(sum(case when e.date < $1 then l.debit - l.credit else 0 end), 0)::bigint as opening,
+        coalesce(sum(case when e.date >= $1 and e.date <= $2 then l.debit else 0 end), 0)::bigint as debit,
+        coalesce(sum(case when e.date >= $1 and e.date <= $2 then l.credit else 0 end), 0)::bigint as credit
+       from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.date <= $2
+      group by l.account_id`,
+    params,
+  );
+  const byId = new Map(accounts.map((a) => [a.id, { ...a, opening: 0, debit: 0, credit: 0, closing: 0 }]));
+  for (const row of rows) {
+    let a = byId.get(row.account_id);
+    // تجميع الرصيد على الحساب نفسه وكل آبائه
+    while (a) {
+      a.opening += row.opening;
+      a.debit += row.debit;
+      a.credit += row.credit;
+      a = a.parent_id ? byId.get(a.parent_id) : undefined;
+    }
+  }
+  const list = [...byId.values()].map((a) => ({ ...a, closing: a.opening + a.debit - a.credit }));
+  const leaves = list.filter((a) => !a.is_group);
+  const totals = {
+    debit: leaves.reduce((s, a) => s + a.debit, 0),
+    credit: leaves.reduce((s, a) => s + a.credit, 0),
+    closing_debit: leaves.reduce((s, a) => s + Math.max(a.closing, 0), 0),
+    closing_credit: leaves.reduce((s, a) => s + Math.max(-a.closing, 0), 0),
+  };
+  return { accounts: list, totals, balanced: totals.debit === totals.credit && totals.closing_debit === totals.closing_credit };
+}
+
+/** دفتر الأستاذ لحساب (أو حساب رئيسي بكل فروعه) مع رصيد متحرك */
+export async function ledger(db: Db, accountId: string, r: Range & { party_id?: string }) {
+  const acc = await db.one(`select * from accounts where id = $1`, [accountId]);
+  if (!acc) throw new AppError('الحساب غير موجود', 'not_found');
+  const ids = (
+    await db.query(
+      `with recursive t as (select id from accounts where id = $1 union all select a.id from accounts a join t on a.parent_id = t.id) select id from t`,
+      [accountId],
+    )
+  ).map((x) => x.id);
+  const params: unknown[] = [ids];
+  let partyCond = 'true';
+  if (r.party_id) {
+    params.push(r.party_id);
+    partyCond = `l.party_id = $${params.length}`;
+  }
+  let opening = 0;
+  if (r.from) {
+    const o = await db.one(
+      `select coalesce(sum(l.debit - l.credit), 0)::bigint as v from journal_lines l join journal_entries e on e.id = l.entry_id
+        where l.account_id = any($1) and ${partyCond} and e.date < $${params.length + 1}`,
+      [...params, r.from],
+    );
+    opening = o?.v ?? 0;
+  }
+  const cond = dateCond('e.date', r, params);
+  const lines = await db.query(
+    `select e.date, e.number as entry_no, e.memo as entry_memo, l.memo, l.debit, l.credit, l.party_id, p.name as party_name,
+            d.id as document_id, d.number as doc_number, d.doc_type, a.name as account_name
+       from journal_lines l join journal_entries e on e.id = l.entry_id
+       join accounts a on a.id = l.account_id
+       left join documents d on d.id = e.document_id
+       left join parties p on p.id = l.party_id
+      where l.account_id = any($1) and ${partyCond} and ${cond}
+      order by e.date, e.number, l.id`,
+    params,
+  );
+  let bal = opening;
+  const out = lines.map((l) => {
+    bal += l.debit - l.credit;
+    return { ...l, balance: bal };
+  });
+  return { account: acc, opening, lines: out, closing: bal };
+}
+
+/** كشف حساب عميل/مورد: الرصيد موجب = عليه لنا (عميل) أو له عندنا (مورد) */
+export async function partyStatement(db: Db, partyId: string, r: Range) {
+  const party = await db.one(`select * from parties where id = $1`, [partyId]);
+  if (!party) throw new AppError('الطرف غير موجود', 'not_found');
+  const sign = party.kind === 'customer' ? 1 : -1;
+  const params: unknown[] = [partyId];
+  let opening = 0;
+  if (r.from) {
+    const o = await db.one(
+      `select coalesce(sum(l.debit - l.credit), 0)::bigint as v from journal_lines l join journal_entries e on e.id = l.entry_id where l.party_id = $1 and e.date < $2`,
+      [partyId, r.from],
+    );
+    opening = sign * (o?.v ?? 0);
+  }
+  const cond = dateCond('e.date', r, params);
+  const lines = await db.query(
+    `select e.date, e.number as entry_no, coalesce(l.memo, e.memo) as memo, l.debit, l.credit, d.id as document_id, d.number as doc_number, d.doc_type
+       from journal_lines l join journal_entries e on e.id = l.entry_id left join documents d on d.id = e.document_id
+      where l.party_id = $1 and ${cond} order by e.date, e.number, l.id`,
+    params,
+  );
+  let bal = opening;
+  const out = lines.map((l) => {
+    bal += sign * (l.debit - l.credit);
+    return { ...l, balance: bal };
+  });
+  return { party, opening, lines: out, closing: bal };
+}
+
+export async function cashboxMovement(db: Db, cashboxId: string, r: Range) {
+  const cb = await db.one(`select * from cashboxes where id = $1`, [cashboxId]);
+  if (!cb) throw new AppError('الخزينة غير موجودة', 'not_found');
+  const l = await ledger(db, cb.account_id, r);
+  return { cashbox: cb, opening: l.opening, lines: l.lines, closing: l.closing };
+}
+
+/** قائمة الدخل: الإيرادات − المصروفات للفترة */
+export async function incomeStatement(db: Db, r: Range) {
+  const params: unknown[] = [];
+  const cond = dateCond('e.date', r, params);
+  const rows = await db.query(
+    `select a.id, a.code, a.name, a.type, a.system_key, coalesce(sum(l.credit - l.debit), 0)::bigint as net
+       from journal_lines l join journal_entries e on e.id = l.entry_id join accounts a on a.id = l.account_id
+      where a.type in ('revenue','expense') and ${cond}
+      group by a.id order by a.code`,
+    params,
+  );
+  const revenue = rows.filter((x) => x.type === 'revenue');
+  const expenses = rows.filter((x) => x.type === 'expense').map((x) => ({ ...x, net: -x.net }));
+  const sales = revenue.filter((x) => ['sales', 'sales_returns', 'sales_discount'].includes(x.system_key)).reduce((s, x) => s + x.net, 0);
+  const cogs = expenses.filter((x) => x.system_key === 'cogs').reduce((s, x) => s + x.net, 0);
+  const totalRevenue = revenue.reduce((s, x) => s + x.net, 0);
+  const totalExpenses = expenses.reduce((s, x) => s + x.net, 0);
+  return {
+    revenue,
+    expenses,
+    net_sales: sales,
+    cogs,
+    gross_profit: sales - cogs,
+    total_revenue: totalRevenue,
+    total_expenses: totalExpenses,
+    net_profit: totalRevenue - totalExpenses,
+  };
+}
+
+/** الميزانية العمومية في تاريخ: الأصول = الخصوم + حقوق الملكية + صافي ربح الفترة غير المقفلة */
+export async function balanceSheet(db: Db, asOf: string) {
+  const rows = await db.query(
+    `select a.id, a.code, a.name, a.type, a.parent_id, coalesce(sum(l.debit - l.credit), 0)::bigint as bal
+       from accounts a left join journal_lines l on l.account_id = a.id
+       left join journal_entries e on e.id = l.entry_id and e.date <= $1
+      where a.is_group = false and (e.id is not null or l.id is null)
+      group by a.id order by a.code`,
+    [asOf],
+  );
+  const pick = (type: string, sign: number) => rows.filter((x) => x.type === type && x.bal !== 0).map((x) => ({ ...x, amount: sign * x.bal }));
+  const assets = pick('asset', 1);
+  const liabilities = pick('liability', -1);
+  const equity = pick('equity', -1);
+  const profit = -rows.filter((x) => x.type === 'revenue' || x.type === 'expense').reduce((s, x) => s + x.bal, 0);
+  const totalAssets = assets.reduce((s, x) => s + x.amount, 0);
+  const totalLiabilities = liabilities.reduce((s, x) => s + x.amount, 0);
+  const totalEquity = equity.reduce((s, x) => s + x.amount, 0) + profit;
+  return {
+    as_of: asOf,
+    assets,
+    liabilities,
+    equity,
+    current_profit: profit,
+    total_assets: totalAssets,
+    total_liabilities: totalLiabilities,
+    total_equity: totalEquity,
+    balanced: totalAssets === totalLiabilities + totalEquity,
+  };
+}
+
+/** تقرير حركة صنف مع الرصيد بعد كل حركة */
+export async function itemMovement(db: Db, itemId: string, r: Range & { warehouse_id?: string; doc_type?: string }) {
+  const item = await db.one(`select * from items where id = $1`, [itemId]);
+  if (!item) throw new AppError('الصنف غير موجود', 'not_found');
+  const params: unknown[] = [itemId];
+  let extra = '';
+  if (r.warehouse_id) {
+    params.push(r.warehouse_id);
+    extra += ` and m.warehouse_id = $${params.length}`;
+  }
+  if (r.doc_type) {
+    params.push(r.doc_type);
+    extra += ` and d.doc_type = $${params.length}`;
+  }
+  let opening = 0;
+  if (r.from) {
+    const o = await db.one(
+      `select coalesce(sum(m.qty), 0)::bigint as q from stock_moves m where m.item_id = $1 ${r.warehouse_id ? 'and m.warehouse_id = $3' : ''} and m.date < $2`,
+      r.warehouse_id ? [itemId, r.from, r.warehouse_id] : [itemId, r.from],
+    );
+    opening = o?.q ?? 0;
+  }
+  const cond = dateCond('m.date', r, params);
+  const moves = await db.query(
+    `select m.id, m.date, m.qty, m.value, m.reversal, m.warehouse_id, w.name as warehouse_name, d.id as document_id, d.number as doc_number, d.doc_type,
+            p.name as party_name
+       from stock_moves m join documents d on d.id = m.document_id join warehouses w on w.id = m.warehouse_id
+       left join parties p on p.id = d.party_id
+      where m.item_id = $1 ${extra} and ${cond} order by m.date, m.id`,
+    params,
+  );
+  let bal = opening;
+  const out = moves.map((m) => {
+    // عند تصفية نوع المستند لا يكون للرصيد المتحرك معنى، فنعرضه فقط بدون فلتر النوع
+    bal += m.qty;
+    return { ...m, balance: r.doc_type ? null : bal };
+  });
+  return { item, opening, moves: out, closing: r.doc_type ? null : bal };
+}
+
+/** أرصدة وقيمة البضاعة في مخزن (أو كل المخازن) */
+export async function warehouseStock(db: Db, warehouseId?: string, opts: { onlyNonZero?: boolean } = {}) {
+  const params: unknown[] = [];
+  let cond = 'true';
+  if (warehouseId) {
+    params.push(warehouseId);
+    cond = `b.warehouse_id = $1`;
+  }
+  const rows = await db.query(
+    `select i.id as item_id, i.code, i.name, i.base_unit, c.name as category_name, i.reorder_level,
+            coalesce(sum(b.qty), 0)::bigint as qty, coalesce(sum(b.value), 0)::bigint as value
+       from items i left join stock_balances b on b.item_id = i.id and ${cond}
+       left join categories c on c.id = i.category_id
+      where i.active group by i.id, c.name order by i.code`,
+    params,
+  );
+  const list = opts.onlyNonZero ? rows.filter((r) => r.qty !== 0) : rows;
+  return { rows: list, total_value: list.reduce((s, r) => s + r.value, 0) };
+}
+
+export async function warehouseMovement(db: Db, warehouseId: string, r: Range & { item_id?: string }) {
+  const params: unknown[] = [warehouseId];
+  let extra = '';
+  if (r.item_id) {
+    params.push(r.item_id);
+    extra = ` and m.item_id = $${params.length}`;
+  }
+  const cond = dateCond('m.date', r, params);
+  const moves = await db.query(
+    `select m.id, m.date, m.qty, m.value, m.balance_qty, m.reversal, i.code, i.name as item_name, i.base_unit, d.id as document_id, d.number as doc_number, d.doc_type
+       from stock_moves m join items i on i.id = m.item_id join documents d on d.id = m.document_id
+      where m.warehouse_id = $1 ${extra} and ${cond} order by m.date, m.id`,
+    params,
+  );
+  return { moves };
+}
+
+/** الأصناف التي وصلت لحد إعادة الطلب أو أقل منه فقط */
+export async function reorderReport(db: Db) {
+  const rows = await db.query(
+    `select i.id, i.code, i.name, i.base_unit, i.reorder_level, coalesce(sum(b.qty), 0)::bigint as qty
+       from items i left join stock_balances b on b.item_id = i.id
+      where i.active and i.reorder_level > 0
+      group by i.id having coalesce(sum(b.qty), 0) <= i.reorder_level order by i.code`,
+  );
+  return { rows };
+}
+
+/** تقرير المستندات (مبيعات/مشتريات/...) مع الإجماليات، والربح للمبيعات */
+export async function documentsReport(db: Db, r: Range & { doc_types?: string[]; party_id?: string; user_id?: string; status?: string; warehouse_id?: string }) {
+  const params: unknown[] = [];
+  const conds = [dateCond('d.date', r, params)];
+  if (r.doc_types?.length) {
+    params.push(r.doc_types);
+    conds.push(`d.doc_type = any($${params.length})`);
+  }
+  for (const [col, v] of [
+    ['d.party_id', r.party_id],
+    ['d.created_by', r.user_id],
+    ['d.status', r.status],
+    ['d.warehouse_id', r.warehouse_id],
+  ] as const) {
+    if (v) {
+      params.push(v);
+      conds.push(`${col} = $${params.length}`);
+    }
+  }
+  const rows = await db.query(
+    `select d.id, d.number, d.local_number, d.doc_type, d.status, d.date, d.total, d.paid, d.tax, d.discount, d.cost, d.gross,
+            p.name as party_name, u.full_name as user_name, w.name as warehouse_name
+       from documents d left join parties p on p.id = d.party_id left join users u on u.id = d.created_by left join warehouses w on w.id = d.warehouse_id
+      where ${conds.join(' and ')} order by d.date desc, d.created_at desc limit 2000`,
+    params,
+  );
+  const posted = rows.filter((x) => x.status === 'posted');
+  const sign = (t: string) => (t.endsWith('_return') ? -1 : 1);
+  const totals = {
+    count: posted.length,
+    total: posted.reduce((s, x) => s + sign(x.doc_type) * x.total, 0),
+    tax: posted.reduce((s, x) => s + sign(x.doc_type) * x.tax, 0),
+    paid: posted.reduce((s, x) => s + sign(x.doc_type) * x.paid, 0),
+    net: posted.reduce((s, x) => s + sign(x.doc_type) * (x.total - x.tax), 0),
+    cost: posted.reduce((s, x) => s + sign(x.doc_type) * x.cost, 0),
+  };
+  return { rows, totals: { ...totals, profit: totals.net - totals.cost } };
+}
+
+export async function documentDetail(db: Db, id: string) {
+  const doc = await db.one(
+    `select d.*, p.name as party_name, w.name as warehouse_name, w2.name as to_warehouse_name, c.name as cashbox_name,
+            a.name as account_name, u.full_name as created_by_name, pu.full_name as posted_by_name, cu.full_name as cancelled_by_name, r.number as ref_number
+       from documents d left join parties p on p.id = d.party_id left join warehouses w on w.id = d.warehouse_id
+       left join warehouses w2 on w2.id = d.to_warehouse_id left join cashboxes c on c.id = d.cashbox_id
+       left join accounts a on a.id = d.account_id left join users u on u.id = d.created_by left join users pu on pu.id = d.posted_by
+       left join users cu on cu.id = d.cancelled_by left join documents r on r.id = d.ref_doc_id where d.id = $1`,
+    [id],
+  );
+  if (!doc) throw new AppError('المستند غير موجود', 'not_found');
+  const lines = await db.query(
+    `select l.*, i.code as item_code, i.name as item_name from document_lines l join items i on i.id = l.item_id where l.document_id = $1 order by l.line_no`,
+    [id],
+  );
+  const entries = await db.query(`select * from journal_entries where document_id = $1 order by number`, [id]);
+  const jlines = entries.length
+    ? await db.query(
+        `select l.*, a.code as account_code, a.name as account_name, p.name as party_name from journal_lines l join accounts a on a.id = l.account_id
+          left join parties p on p.id = l.party_id where l.entry_id = any($1) order by l.id`,
+        [entries.map((e) => e.id)],
+      )
+    : [];
+  const related = await db.query(`select id, number, doc_type, status, total, date from documents where ref_doc_id = $1 order by created_at`, [id]);
+  const auditRows = await db.query(
+    `select a.at, a.action, a.sync_status, a.device_id, a.client_created_at, u.full_name as user_name, a.details from audit_log a left join users u on u.id = a.user_id
+      where a.entity = 'document' and a.entity_id = $1 order by a.id`,
+    [id],
+  );
+  return { doc, lines, entries: entries.map((e) => ({ ...e, lines: jlines.filter((l) => l.entry_id === e.id) })), related, audit: auditRows };
+}
+
+export async function dashboard(db: Db, today: string) {
+  const sales = await db.one(
+    `select coalesce(sum(case when doc_type = 'sale_invoice' then total else -total end), 0)::bigint as total, count(*)::int as n
+       from documents where doc_type in ('sale_invoice','sale_return') and status = 'posted' and date = $1`,
+    [today],
+  );
+  const month = today.slice(0, 7) + '-01';
+  const monthSales = await db.one(
+    `select coalesce(sum(case when doc_type = 'sale_invoice' then total - tax else -(total - tax) end), 0)::bigint as net,
+            coalesce(sum(case when doc_type = 'sale_invoice' then cost else -cost end), 0)::bigint as cost
+       from documents where doc_type in ('sale_invoice','sale_return') and status = 'posted' and date >= $1 and date <= $2`,
+    [month, today],
+  );
+  const cash = await db.query(`select id, name, kind, balance from cashboxes where active order by name`);
+  const ar = await db.one(`select coalesce(sum(balance), 0)::bigint as v from parties where kind = 'customer'`);
+  const ap = await db.one(`select coalesce(sum(balance), 0)::bigint as v from parties where kind = 'supplier'`);
+  const stock = await db.one(`select coalesce(sum(value), 0)::bigint as v from stock_balances`);
+  const reorder = await reorderReport(db);
+  const conflicts = await db.one(`select count(*)::int as n from sync_conflicts where status = 'open'`);
+  const review = await db.one(`select count(*)::int as n from documents where status = 'pending_review'`);
+  return {
+    today_sales: sales?.total ?? 0,
+    today_count: sales?.n ?? 0,
+    month_net_sales: monthSales?.net ?? 0,
+    month_gross_profit: (monthSales?.net ?? 0) - (monthSales?.cost ?? 0),
+    cashboxes: cash,
+    receivables: ar?.v ?? 0,
+    payables: ap?.v ?? 0,
+    stock_value: stock?.v ?? 0,
+    reorder_count: reorder.rows.length,
+    open_conflicts: conflicts?.n ?? 0,
+    pending_review: review?.n ?? 0,
+  };
+}
