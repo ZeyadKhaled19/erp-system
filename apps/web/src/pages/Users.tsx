@@ -26,7 +26,11 @@ export function UsersPage() {
     setErr(null);
     try {
       await api('/api/admin/users', {
-        body: { id: u.id, username: u.username, full_name: u.full_name, role_id: u.role_id, active: u.active, password: u.password || undefined, warehouse_ids: u.warehouse_ids ?? null, cashbox_ids: u.cashbox_ids ?? null },
+        body: {
+          id: u.id, username: u.username, full_name: u.full_name, role_id: u.role_id, active: u.active, password: u.password || undefined,
+          warehouse_ids: u.role_id === 'role-admin' ? null : u.warehouse_ids ?? null,
+          cashbox_ids: u.role_id === 'role-admin' ? null : u.cashbox_ids ?? null,
+        },
       });
       ui.toast('تم الحفظ');
       setU(null);
@@ -87,8 +91,15 @@ export function UsersPage() {
               </select>
             </Field>
             <div className="row"><Switch checked={u.active} onChange={(v) => setU({ ...u, active: v })} /> {u.active ? 'نشط' : 'موقوف'}</div>
-            <ScopePicker label="المخازن المسموحة" all={warehouses} value={u.warehouse_ids ?? null} onChange={(v) => setU({ ...u, warehouse_ids: v })} />
-            <ScopePicker label="الخزائن المسموحة" all={cashboxes} value={u.cashbox_ids ?? null} onChange={(v) => setU({ ...u, cashbox_ids: v })} />
+            {u.role_id === 'role-admin' ? (
+              <div className="footnote">مدير النظام يعمل على كل المخازن والخزائن (بما فيها أي خزينة أو بنك يُضاف لاحقًا).</div>
+            ) : (
+              <>
+                <ScopePicker label="المخازن المسموحة" all={warehouses} value={u.warehouse_ids ?? null} onChange={(v) => setU({ ...u, warehouse_ids: v })} />
+                <ScopePicker label="الخزائن وطرق الدفع المسموحة" all={cashboxes} value={u.cashbox_ids ?? null} onChange={(v) => setU({ ...u, cashbox_ids: v })} />
+                <div className="footnote">«الكل» يشمل أي مخزن أو خزينة تُضاف لاحقًا. عند التحديد يجب إضافة الجديد هنا يدويًا.</div>
+              </>
+            )}
           </div>
         </Sheet>
       )}

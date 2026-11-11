@@ -244,6 +244,7 @@ export function PosPage() {
           total={calc.total}
           party={party}
           canCredit={can('sales.credit')}
+          onPickParty={(id) => setPartyId(id)}
           onClose={() => setPay(false)}
           onPaid={async (method, cashboxId, received) => {
             const myShift = (await db.cashier_shifts.where('user_id').equals(session.user.id).toArray()).find((s) => s.status === 'open' && !s._sync);
@@ -316,9 +317,16 @@ function LineSheet({ line, name, canPrice, canDiscount, onClose, onSave }: { lin
   );
 }
 
-function PaySheet({ total, party, canCredit, onClose, onPaid }: { total: number; party: any; canCredit: boolean; onClose: () => void; onPaid: (method: 'cash' | 'card' | 'credit', cashboxId: string | null, received: number) => Promise<void> }) {
+function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { total: number; party: any; canCredit: boolean; onClose: () => void; onPaid: (method: 'cash' | 'card' | 'credit', cashboxId: string | null, received: number) => Promise<void>; onPickParty: (id: string) => void }) {
   const { session } = useSession();
-  const boxes = useLiveQuery(async () => (await db.cashboxes.toArray()).filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id))), []) ?? [];
+  const boxes = useLiveQuery(
+    async () =>
+      (await db.cashboxes.toArray())
+        .filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id)))
+        .sort((x, y) => (x.kind === y.kind ? String(x.name).localeCompare(String(y.name), 'ar') : x.kind === 'cash' ? -1 : 1)),
+    [],
+  ) ?? [];
+  const customers = useLiveQuery(async () => (await db.parties.where('kind').equals('customer').toArray()).filter((p) => p.active !== false && p.id !== 'party-cash-customer'), []) ?? [];
   const cash = boxes.filter((b) => b.kind === 'cash');
   const cards = boxes.filter((b) => b.kind === 'bank');
   const [method, setMethod] = useState<'cash' | 'card' | 'credit'>('cash');
@@ -327,7 +335,7 @@ function PaySheet({ total, party, canCredit, onClose, onPaid }: { total: number;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const list = method === 'cash' ? cash : cards;
-  const box = boxId && list.some((b) => b.id === boxId) ? boxId : list[0]?.id;
+  const box = boxId && boxes.some((b) => b.id === boxId) ? boxId : list[0]?.id;
   let recv = 0;
   try {
     recv = received ? parseMoney(received) : total;
@@ -358,15 +366,26 @@ function PaySheet({ total, party, canCredit, onClose, onPaid }: { total: number;
       <div className="stack">
         <div className="big-amount num">{formatMoney(total)}</div>
         {err && <Banner kind="err">{err}</Banner>}
-        <div className="pay-methods">
-          <button className={method === 'cash' ? 'on' : ''} onClick={() => setMethod('cash')}><Banknote />نقدي</button>
-          <button className={method === 'card' ? 'on' : ''} onClick={() => setMethod('card')}><CreditCard />بطاقة / محفظة</button>
+        <div className="pay-methods" style={{ gridTemplateColumns: `repeat(${Math.min(boxes.length + (canCredit ? 1 : 0), 4)}, 1fr)` }}>
+          {boxes.map((b) => (
+            <button key={b.id} className={method !== 'credit' && box === b.id ? 'on' : ''} onClick={() => { setMethod(b.kind === 'bank' ? 'card' : 'cash'); setBoxId(b.id); }}>
+              {b.kind === 'bank' ? <CreditCard /> : <Banknote />}
+              {b.name}
+            </button>
+          ))}
           {canCredit && <button className={method === 'credit' ? 'on' : ''} onClick={() => setMethod('credit')}><Wallet />آجل</button>}
         </div>
-        {method !== 'credit' && list.length > 1 && (
-          <select className="select" value={box} onChange={(e) => setBoxId(e.target.value)}>
-            {list.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+        {method === 'credit' && isCashCustomer && (
+          <div className="stack" style={{ gap: 8 }}>
+            <Banner kind="warn">اختر العميل الذي سيُسجل عليه المبلغ</Banner>
+            <Picker
+              autoFocus
+              value={null}
+              options={customers.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
+              onChange={(v) => v && onPickParty(v)}
+              placeholder="ابحث عن العميل بالاسم أو الهاتف"
+            />
+          </div>
         )}
         {method === 'cash' && (
           <>

@@ -68,7 +68,8 @@ export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | u
     role_name: u.role_name,
     permissions: u.permissions ?? [],
     limits: u.limits ?? {},
-    warehouse_ids: u.warehouse_ids ?? null,
-    cashbox_ids: u.cashbox_ids ?? null,
+    // مدير النظام (كل الصلاحيات) يعمل دائمًا على كل المخازن والخزائن
+    warehouse_ids: (u.permissions ?? []).includes('*') ? null : (u.warehouse_ids ?? null),
+    cashbox_ids: (u.permissions ?? []).includes('*') ? null : (u.cashbox_ids ?? null),
   };
 }

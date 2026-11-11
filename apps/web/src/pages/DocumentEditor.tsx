@@ -2,7 +2,7 @@ import {
   computeDocument, DOC_TYPES, formatMoney, formatQty, hasPermission, mulDiv, todayISO, toBaseQty, uuid, type DocInput, type DocType,
 } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, CalendarClock, ChevronLeft, Clock3, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { Banknote, CalendarClock, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -89,7 +89,13 @@ export function DocumentEditor() {
   const parties = useLiveQuery(() => db.parties.toArray(), []) ?? [];
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
   const allWarehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
-  const cashboxes = useLiveQuery(async () => (await db.cashboxes.toArray()).filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id))), []) ?? [];
+  const cashboxes = useLiveQuery(
+    async () =>
+      (await db.cashboxes.toArray())
+        .filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id)))
+        .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'cash' ? -1 : 1)),
+    [],
+  ) ?? [];
   const accounts = useLiveQuery(() => db.accounts.orderBy('code').toArray(), []) ?? [];
   const priceLists = useLiveQuery(async () => (await db.price_lists.orderBy('sort').toArray()).filter((p) => p.active !== false), []) ?? [];
   const reps = useLiveQuery(async () => (await db.sales_reps.toArray()).filter((r) => r.active !== false), []) ?? [];
@@ -636,7 +642,7 @@ export function DocumentEditor() {
             </Field>
           )}
 
-          {(['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type) || (hasPayments && payMode === 'full' && cashboxes.length > 1)) && (
+          {['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type) && (
             <Field label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}>
               <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -890,14 +896,53 @@ export function DocumentEditor() {
                 <button className={payMode === 'full' ? 'on' : ''} onClick={() => { setInsts([]); setPayMode('full'); setPayAuto(true); }}>
                   <Banknote /> {type.endsWith('return') ? 'رد كامل' : 'مدفوع بالكامل'}
                 </button>
-                <button className={payMode === 'credit' ? 'on' : ''} disabled={h.party_id === 'party-cash-customer'} title={h.party_id === 'party-cash-customer' ? 'اختر عميلًا مسجلًا' : undefined} onClick={() => { setInsts([]); setPayMode('credit'); setPayAuto(false); setPayments([]); }}>
+                <button className={payMode === 'credit' ? 'on' : ''} onClick={() => { setInsts([]); setPayMode('credit'); setPayAuto(false); setPayments([]); }}>
                   <Clock3 /> {type.endsWith('return') ? 'خصم من الحساب' : 'آجل'}
                 </button>
                 <button className={payMode === 'split' ? 'on' : ''} onClick={() => { setPayMode('split'); setPayAuto(false); }}>
                   <SplitSquareHorizontal /> {isInvoice ? 'تقسيم / أقساط' : 'جزء'}
                 </button>
               </div>
-              {payMode === 'credit' && h.party_id !== 'party-cash-customer' && <div className="footnote">سيُسجل المبلغ كاملًا على حساب {party?.name ?? 'الطرف'}.</div>}
+              {payMode === 'full' && (
+                <>
+                  <div className="footnote" style={{ marginTop: 2 }}>{type.endsWith('return') ? 'يُرد من' : 'ادفع عن طريق'}</div>
+                  <div className="pay-boxes">
+                    {cashboxes.map((c) => (
+                      <button key={c.id} type="button" className={h.cashbox_id === c.id ? 'on' : ''} onClick={() => set('cashbox_id', c.id)}>
+                        {c.kind === 'bank' ? <CreditCard /> : <Banknote />}
+                        <span>{c.name}</span>
+                        {c.fee_bp || c.fee_min || c.fee_fixed ? <small>عمولة</small> : null}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {payMode === 'credit' && (h.party_id === 'party-cash-customer' || !h.party_id) && (
+                <div className="stack" style={{ gap: 8 }}>
+                  <Banner kind="warn">{isPurchase ? 'اختر المورد الذي سيُسجل عليه المبلغ.' : 'البيع الآجل يُسجل على حساب عميل: اختر العميل أو أضف عميلًا جديدًا.'}</Banner>
+                  <div className="row" style={{ gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <Picker
+                        autoFocus
+                        value={null}
+                        options={partyOptions.filter((p) => p.id !== 'party-cash-customer' && parties.find((x) => x.id === p.id)?.kind === (isPurchase ? 'supplier' : 'customer'))}
+                        onChange={(v) => {
+                          const p = parties.find((x) => x.id === v);
+                          setH((o: any) => ({ ...o, party_id: v, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
+                        }}
+                        placeholder={isPurchase ? 'ابحث عن المورد' : 'ابحث عن العميل بالاسم أو الهاتف'}
+                      />
+                    </div>
+                    {can('parties.create') && <button type="button" className="btn" onClick={() => setNewParty(true)}><UserPlus /> {isPurchase ? 'مورد جديد' : 'عميل جديد'}</button>}
+                  </div>
+                </div>
+              )}
+              {payMode === 'credit' && h.party_id && h.party_id !== 'party-cash-customer' && (
+                <div className="footnote">
+                  سيُسجل المبلغ كاملًا على حساب <b>{party?.name ?? 'الطرف'}</b> — رصيده الحالي <span className="num">{formatMoney(party?.balance ?? 0)}</span>
+                  {party?.credit_limit ? <> (الحد الائتماني <span className="num">{formatMoney(party.credit_limit)}</span>)</> : null}
+                </div>
+              )}
             </div>
           )}
           {hasPayments && payMode === 'split' && calc && !calc.error && (

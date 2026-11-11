@@ -913,3 +913,12 @@ body { font-size: 16px; letter-spacing: 0; line-height: 1.5; }
 /* شاشة الدخول */
 .login-card .list { border: 1px solid var(--input-border); background: var(--input-bg) !important; }
 .login-card .list .input { border: 0; box-shadow: none; background: transparent; }
+
+/* اختيار طريقة الدفع (كل خزينة/بنك/محفظة كزر) */
+.pay-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.pay-boxes button { display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 12px; border-radius: 14px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--label); font-weight: 600; cursor: pointer; text-align: start; }
+.pay-boxes button svg { width: 20px; height: 20px; color: var(--label-2); flex-shrink: 0; }
+.pay-boxes button span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pay-boxes button small { font-size: 11px; color: var(--label-2); }
+.pay-boxes button.on { border-color: var(--tint); background: var(--tint-soft); color: var(--tint); box-shadow: 0 0 0 3px var(--tint-soft); }
+.pay-boxes button.on svg { color: var(--tint); }
