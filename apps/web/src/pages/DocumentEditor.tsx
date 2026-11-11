@@ -11,7 +11,7 @@ import { localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
-import { PartyEditor } from './Parties';
+import { QuickPartySheet } from '../components/QuickParty';
 
 interface Line {
   id: string;
@@ -1051,7 +1051,16 @@ export function DocumentEditor() {
       </div>
 
       {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void addItem(id), 80)} />}
-      {newParty && <PartyEditor kind={info.partyKind === 'supplier' ? 'supplier' : 'customer'} party={null} onClose={() => setNewParty(false)} onSaved={(id) => set('party_id', id)} />}
+      {newParty && (
+        <QuickPartySheet
+          kind={info.partyKind === 'supplier' ? 'supplier' : 'customer'}
+          onClose={() => setNewParty(false)}
+          onSaved={(id) => {
+            const p = parties.find((x) => x.id === id);
+            setH((o: any) => ({ ...o, party_id: id, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
+          }}
+        />
+      )}
       {planOpen && (
         <InstallmentPlan
           amount={credit}

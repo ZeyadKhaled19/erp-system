@@ -4,6 +4,7 @@ import { Banknote, Check, CreditCard, Printer, ScanLine, ShoppingCart, Trash2, U
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, Picker, Sheet, useUi } from '../components/ui';
+import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
@@ -30,6 +31,7 @@ export function PosPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [partyId, setPartyId] = useState('party-cash-customer');
   const [pickParty, setPickParty] = useState(false);
+  const [newCustomer, setNewCustomer] = useState(false);
   const [pay, setPay] = useState(false);
   const [done, setDone] = useState<{ id: string; total: number; change: number } | null>(null);
   const [editLine, setEditLine] = useState<string | null>(null);
@@ -222,7 +224,7 @@ export function PosPage() {
               placeholder="ابحث بالاسم أو الهاتف"
             />
             <button className="btn" onClick={() => { setPartyId('party-cash-customer'); setPickParty(false); }}>عميل نقدي</button>
-            <button className="btn plain" onClick={() => nav('/parties/customer')}>إضافة عميل جديد…</button>
+            <button className="btn" onClick={() => { setPickParty(false); setNewCustomer(true); }}><UserRound /> إضافة عميل جديد</button>
           </div>
         </Sheet>
       )}
@@ -245,6 +247,7 @@ export function PosPage() {
           party={party}
           canCredit={can('sales.credit')}
           onPickParty={(id) => setPartyId(id)}
+          onNewCustomer={() => setNewCustomer(true)}
           onClose={() => setPay(false)}
           onPaid={async (method, cashboxId, received) => {
             const myShift = (await db.cashier_shifts.where('user_id').equals(session.user.id).toArray()).find((s) => s.status === 'open' && !s._sync);
@@ -277,6 +280,7 @@ export function PosPage() {
           }}
         />
       )}
+      {newCustomer && <QuickPartySheet onClose={() => setNewCustomer(false)} onSaved={(id) => setPartyId(id)} />}
       {done && (
         <Sheet title="تم البيع" onClose={newSale}>
           <div className="stack" style={{ textAlign: 'center' }}>
@@ -317,7 +321,7 @@ function LineSheet({ line, name, canPrice, canDiscount, onClose, onSave }: { lin
   );
 }
 
-function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { total: number; party: any; canCredit: boolean; onClose: () => void; onPaid: (method: 'cash' | 'card' | 'credit', cashboxId: string | null, received: number) => Promise<void>; onPickParty: (id: string) => void }) {
+function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNewCustomer }: { total: number; party: any; canCredit: boolean; onClose: () => void; onPaid: (method: 'cash' | 'card' | 'credit', cashboxId: string | null, received: number) => Promise<void>; onPickParty: (id: string) => void; onNewCustomer: () => void }) {
   const { session } = useSession();
   const boxes = useLiveQuery(
     async () =>
@@ -378,13 +382,24 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
         {method === 'credit' && isCashCustomer && (
           <div className="stack" style={{ gap: 8 }}>
             <Banner kind="warn">اختر العميل الذي سيُسجل عليه المبلغ</Banner>
-            <Picker
-              autoFocus
-              value={null}
-              options={customers.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
-              onChange={(v) => v && onPickParty(v)}
-              placeholder="ابحث عن العميل بالاسم أو الهاتف"
-            />
+            <div className="row" style={{ gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <Picker
+                  autoFocus
+                  value={null}
+                  options={customers.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
+                  onChange={(v) => v && onPickParty(v)}
+                  placeholder="ابحث عن العميل بالاسم أو الهاتف"
+                />
+              </div>
+              <button className="btn" onClick={onNewCustomer}><UserRound /> عميل جديد</button>
+            </div>
+          </div>
+        )}
+        {method === 'credit' && !isCashCustomer && (
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="footnote">سيُسجل على: <b>{party.name}</b></span>
+            <button className="btn sm plain" onClick={onNewCustomer}>عميل آخر جديد</button>
           </div>
         )}
         {method === 'cash' && (
