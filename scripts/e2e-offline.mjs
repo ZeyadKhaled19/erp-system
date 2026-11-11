@@ -133,7 +133,7 @@ try {
   const setVal = (sel, v) => `{ const el = document.querySelector('${sel}'); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, ${JSON.stringify(v)}); el.dispatchEvent(new Event('input', { bubbles: true })); }`;
   await waitFor(`return !!document.querySelector('input[autocomplete=username]')`);
   await evaluate(`${setVal('input[autocomplete=username]', 'admin')} ${setVal('input[autocomplete=current-password]', 'admin123')} document.querySelector('form').requestSubmit(); return true;`);
-  check('تسجيل الدخول', await waitFor(`return document.body.innerText.includes('إجراءات سريعة')`));
+  check('تسجيل الدخول', await waitFor(`return document.body.innerText.includes('آخر العمليات')`));
   check('المزامنة الأولى (سحب البيانات للجهاز)', await waitFor(`${idb('accounts', 'count')} return out > 10;`));
   check('تسجيل Service Worker', await waitFor(`const r = await navigator.serviceWorker.getRegistration(); return !!r?.active;`, 30000));
   await goto(BASE);

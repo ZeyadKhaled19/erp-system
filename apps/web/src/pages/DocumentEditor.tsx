@@ -2,7 +2,7 @@ import {
   computeDocument, DOC_TYPES, formatMoney, formatQty, hasPermission, mulDiv, todayISO, toBaseQty, uuid, type DocInput, type DocType,
 } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarClock, Plus, ScanLine, Trash2, UserPlus } from 'lucide-react';
+import { Banknote, CalendarClock, ChevronLeft, Clock3, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -110,6 +110,8 @@ export function DocumentEditor() {
   const [insts, setInsts] = useState<Inst[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [payAuto, setPayAuto] = useState(true);
+  const [payMode, setPayMode] = useState<'full' | 'credit' | 'split'>('full');
+  const [showMore, setShowMore] = useState(false);
   const [counterMode, setCounterMode] = useState<'party' | 'account'>('party');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +134,12 @@ export function DocumentEditor() {
       setInsts(existing.data?.instruments ?? []);
       setCharges(existing.data?.charges ?? []);
       setPayAuto(false);
+      {
+        const ps = existing.data?.payments ?? [];
+        const ins = existing.data?.instruments ?? [];
+        setPayMode(ins.length || ps.length > 1 ? 'split' : ps.length === 1 && ps[0].amount === existing.total ? 'full' : ps.length ? 'split' : 'credit');
+        setShowMore(!!(existing.sales_rep_id || existing.deliver_later || (existing.data?.charges ?? []).length || ins.length || (existing.price_list_id && existing.price_list_id !== 'pl-retail')));
+      }
       setCounterMode(existing.account_id && !existing.party_id ? 'account' : 'party');
       setReady(true);
       return;
@@ -165,6 +173,7 @@ export function DocumentEditor() {
       { account_id: '', party_id: null, debit: 0, credit: 0, memo: '' },
     ]);
     setPayAuto(type === 'sale_invoice' || type === 'sale_return' ? true : false);
+    setPayMode(type === 'sale_invoice' || type === 'sale_return' ? 'full' : 'credit');
     setReady(true);
   }, [ready, info, params.id, existing, existingLines, warehouses, cashboxes, sp, type, parties, myShift]);
 
@@ -310,10 +319,10 @@ export function DocumentEditor() {
   useEffect(() => {
     if (!hasPayments || !payAuto || !ready) return;
     const instTotal = insts.reduce((s, x) => s + x.amount, 0);
-    const want = h.party_id === 'party-cash-customer' || type === 'sale_invoice' ? total - instTotal : 0;
+    const want = payMode === 'full' ? total - instTotal : 0;
     setPayments(want > 0 && h.cashbox_id ? [{ id: payments[0]?.id ?? uuid(), cashbox_id: h.cashbox_id, amount: want }] : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [total, payAuto, hasPayments, ready, h.cashbox_id, h.party_id, insts]);
+  }, [total, payAuto, hasPayments, ready, h.cashbox_id, h.party_id, insts, payMode]);
 
   const cashPaid = payments.reduce((s, p) => s + p.amount, 0);
   const instTotal = insts.reduce((s, x) => s + x.amount, 0);
@@ -443,16 +452,16 @@ export function DocumentEditor() {
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
       const ok = await ui.confirm({
-        title: `${info.noPosting ? 'اعتماد' : 'ترحيل'} ${info.label}؟`,
-        message: (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الترحيل لا يمكن التعديل، ويتم التصحيح بالإلغاء أو بمستند عكسي.'),
-        confirmLabel: info.noPosting ? 'اعتماد' : 'ترحيل',
+        title: `حفظ ${info.label}؟`,
+        message: (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
+        confirmLabel: 'حفظ',
       });
       if (!ok) return;
     }
     setBusy(true);
     try {
       await saveDocument(d, action, existing ?? null);
-      ui.toast(action === 'post' ? 'تم الحفظ وسيُرحّل عند المزامنة' : 'تم حفظ المسودة');
+      ui.toast(action === 'post' ? 'تم الحفظ' : 'تم حفظ المسودة');
       nav(`/docs/view/${d.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
@@ -495,12 +504,6 @@ export function DocumentEditor() {
       <PageHeader
         title={`${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
-        actions={
-          <>
-            <button className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ مسودة</button>
-            <button className="btn primary" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter">{info.noPosting ? 'اعتماد' : 'ترحيل'}</button>
-          </>
-        }
       />
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
@@ -564,7 +567,7 @@ export function DocumentEditor() {
             </Field>
           )}
 
-          {(info.stock || type === 'quotation') && (
+          {(info.stock || type === 'quotation') && (warehouses.length > 1 || info.stock === 'transfer') && (
             <Field label={info.stock === 'transfer' ? 'من مخزن' : 'المخزن'}>
               <select className="select" value={h.warehouse_id ?? ''} onChange={(e) => set('warehouse_id', e.target.value)} disabled={!!h.ref_doc_id}>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -589,14 +592,14 @@ export function DocumentEditor() {
             </Field>
           )}
 
-          {isSale && type !== 'sale_return' && priceLists.length > 0 && (
+          {showMore && isSale && type !== 'sale_return' && priceLists.length > 0 && (
             <Field label="قائمة الأسعار">
               <select className="select" value={h.price_list_id ?? ''} disabled={priceLocked && !!party?.price_list_id} onChange={(e) => { set('price_list_id', e.target.value); void repriceAll(e.target.value); }}>
                 {priceLists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </Field>
           )}
-          {isSale && reps.length > 0 && (
+          {showMore && isSale && reps.length > 0 && (
             <Field label="مندوب المبيعات">
               <select className="select" value={h.sales_rep_id ?? ''} onChange={(e) => set('sales_rep_id', e.target.value || null)}>
                 <option value="">—</option>
@@ -604,7 +607,7 @@ export function DocumentEditor() {
               </select>
             </Field>
           )}
-          {type === 'sale_invoice' && can('sales.deliver') && (
+          {showMore && type === 'sale_invoice' && can('sales.deliver') && (
             <Field label="التسليم">
               <div className="row" style={{ height: 42 }}><Switch checked={!!h.deliver_later} onChange={(v) => set('deliver_later', v)} /> {h.deliver_later ? 'لاحقًا (على مراحل)' : 'فوري'}</div>
             </Field>
@@ -620,7 +623,7 @@ export function DocumentEditor() {
             </Field>
           )}
 
-          {(['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type) || (hasPayments && payAuto)) && (
+          {(['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type) || (hasPayments && payMode === 'full' && cashboxes.length > 1)) && (
             <Field label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}>
               <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -658,6 +661,11 @@ export function DocumentEditor() {
         )}
         {(type === 'receipt' || type === 'payment') && counterMode === 'party' && !h.ref_doc_id && (
           <div className="footnote" style={{ marginTop: 6 }}>بدون ربط بفاتورة: يُخصص المبلغ تلقائيًا على أقدم الفواتير المفتوحة للطرف.</div>
+        )}
+        {(isSale || isInvoice) && type !== 'sale_return' && (
+          <button type="button" className={`disclosure ${showMore ? 'open' : ''}`} style={{ marginTop: 8 }} onClick={() => setShowMore(!showMore)}>
+            <ChevronLeft /> {showMore ? 'إخفاء الخيارات الإضافية' : 'خيارات إضافية (قائمة الأسعار، المندوب، التسليم اللاحق، مصروفات الفاتورة)'}
+          </button>
         )}
       </div>
 
@@ -822,7 +830,7 @@ export function DocumentEditor() {
       {/* ---------- الإجماليات والسداد ---------- */}
       <div className="grid grid-2" style={{ marginTop: 18, alignItems: 'start' }}>
         <div className="stack">
-          {isInvoice && calc && !calc.error && (
+          {isInvoice && showMore && calc && !calc.error && (
             <div className="card pad stack">
               <div className="row">
                 <div className="bold" style={{ flex: 1 }}>{type === 'purchase_invoice' ? 'مصروفات تُحمّل على التكلفة' : 'إضافات ومصروفات الفاتورة'}</div>
@@ -859,8 +867,25 @@ export function DocumentEditor() {
           )}
           {hasPayments && calc && !calc.error && (
             <div className="card pad stack">
+              <div className="bold">{type.endsWith('return') ? 'رد النقدية للطرف' : 'طريقة السداد'}</div>
+              <div className="pay-quick">
+                <button className={payMode === 'full' ? 'on' : ''} onClick={() => { setInsts([]); setPayMode('full'); setPayAuto(true); }}>
+                  <Banknote /> {type.endsWith('return') ? 'رد كامل' : 'مدفوع بالكامل'}
+                </button>
+                <button className={payMode === 'credit' ? 'on' : ''} disabled={h.party_id === 'party-cash-customer'} title={h.party_id === 'party-cash-customer' ? 'اختر عميلًا مسجلًا' : undefined} onClick={() => { setInsts([]); setPayMode('credit'); setPayAuto(false); setPayments([]); }}>
+                  <Clock3 /> {type.endsWith('return') ? 'خصم من الحساب' : 'آجل'}
+                </button>
+                <button className={payMode === 'split' ? 'on' : ''} onClick={() => { setPayMode('split'); setPayAuto(false); }}>
+                  <SplitSquareHorizontal /> {isInvoice ? 'تقسيم / أقساط' : 'جزء'}
+                </button>
+              </div>
+              {payMode === 'credit' && h.party_id !== 'party-cash-customer' && <div className="footnote">سيُسجل المبلغ كاملًا على حساب {party?.name ?? 'الطرف'}.</div>}
+            </div>
+          )}
+          {hasPayments && payMode === 'split' && calc && !calc.error && (
+            <div className="card pad stack">
               <div className="row">
-                <div className="bold" style={{ flex: 1 }}>{type.endsWith('return') ? 'رد النقدية' : 'السداد'}</div>
+                <div className="bold" style={{ flex: 1 }}>{type.endsWith('return') ? 'رد النقدية' : 'المدفوع الآن'}</div>
                 <button className="btn sm" onClick={() => { setPayAuto(false); setPayments([...payments, { id: uuid(), cashbox_id: cashboxes[0]?.id, amount: Math.max(total - cashPaid - instTotal, 0) }]); }}><Plus /> خزينة</button>
                 {payments.length > 0 && <button className="btn sm plain" onClick={() => { setPayAuto(false); setPayments([]); }}>آجل بالكامل</button>}
               </div>
@@ -945,7 +970,21 @@ export function DocumentEditor() {
         {calc?.error && <Banner kind="err">{calc.error}</Banner>}
       </div>
       <div className="footnote" style={{ marginTop: 14 }}>
-        الاختصارات: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> ترحيل · <kbd>Ctrl</kbd>+<kbd>S</kbd> مسودة · <kbd>F2</kbd> الباركود
+        الاختصارات: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ · <kbd>Ctrl</kbd>+<kbd>S</kbd> مسودة · <kbd>F2</kbd> الباركود
+      </div>
+      <div className="sticky-actions">
+        <div style={{ flex: 1 }}>
+          {(calc && !calc.error) || !info.hasLines ? (
+            <>
+              <div className="caption">الإجمالي</div>
+              <div className="sa-total num">{formatMoney(info.hasLines ? total : type === 'journal_voucher' ? jlTotals.dr : h.amount ?? 0)}</div>
+            </>
+          ) : null}
+        </div>
+        <button className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+        <button className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
+          {info.noPosting ? 'اعتماد' : 'حفظ'}
+        </button>
       </div>
 
       {newItem && <ItemEditor item={null} onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void addItem(id), 50)} />}
