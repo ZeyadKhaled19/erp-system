@@ -93,7 +93,9 @@ export function scaledToString(v: number, scale: number, minFrac = 0): string {
 const groupInt = (s: string) => s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 export function formatMoney(piasters: number, opts: { currency?: boolean } = {}): string {
-  const s = scaledToString(piasters ?? 0, MONEY_SCALE, 2);
+  if (piasters === null || piasters === undefined) piasters = 0;
+  if (!Number.isSafeInteger(piasters)) return '—';
+  const s = scaledToString(piasters, MONEY_SCALE, 2);
   const neg = s.startsWith('-');
   const [i, f] = (neg ? s.slice(1) : s).split('.');
   const out = (neg ? '-' : '') + groupInt(i) + '.' + (f ?? '00');
@@ -101,7 +103,9 @@ export function formatMoney(piasters: number, opts: { currency?: boolean } = {})
 }
 
 export function formatQty(milli: number): string {
-  const s = scaledToString(milli ?? 0, QTY_SCALE, 0);
+  if (milli === null || milli === undefined) milli = 0;
+  if (!Number.isSafeInteger(milli)) return '—';
+  const s = scaledToString(milli, QTY_SCALE, 0);
   const neg = s.startsWith('-');
   const [i, f] = (neg ? s.slice(1) : s).split('.');
   return (neg ? '-' : '') + groupInt(i) + (f ? '.' + f : '');

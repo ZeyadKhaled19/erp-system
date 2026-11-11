@@ -1,0 +1,313 @@
+import { DOC_TYPES, formatMoney, formatQty, hasPermission } from '@erp/shared';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { Ban, Pencil, Printer, Send, Undo2 } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { PageHeader } from '../components/Layout';
+import { Banner, DocStatusBadge, Empty, Field, Sheet, useUi } from '../components/ui';
+import { cancelDocument, postDocument } from '../lib/actions';
+import { db } from '../lib/db';
+import { useRemote, useSession, useSettings } from '../lib/hooks';
+
+export function DocumentView() {
+  const { id = '' } = useParams();
+  const nav = useNavigate();
+  const ui = useUi();
+  const { session } = useSession();
+  const can = (k: string) => hasPermission(session.user.permissions, k);
+  const settings = useSettings();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const doc = useLiveQuery(() => db.documents.get(id), [id]);
+  const lines = useLiveQuery(() => db.document_lines.where('document_id').equals(id).sortBy('line_no'), [id]) ?? [];
+  const lookups = useLiveQuery(async () => {
+    if (!doc) return null;
+    const [party, wh, wh2, cb, acc, creator, ref] = await Promise.all([
+      doc.party_id ? db.parties.get(doc.party_id) : undefined,
+      doc.warehouse_id ? db.warehouses.get(doc.warehouse_id) : undefined,
+      doc.to_warehouse_id ? db.warehouses.get(doc.to_warehouse_id) : undefined,
+      doc.cashbox_id ? db.cashboxes.get(doc.cashbox_id) : undefined,
+      doc.account_id ? db.accounts.get(doc.account_id) : undefined,
+      doc.created_by ? db.users.get(doc.created_by) : undefined,
+      doc.ref_doc_id ? db.documents.get(doc.ref_doc_id) : undefined,
+    ]);
+    const items = new Map((await db.items.bulkGet(lines.map((l) => l.item_id))).filter(Boolean).map((i) => [i!.id, i!]));
+    const accounts = new Map((await db.accounts.toArray()).map((a) => [a.id, a]));
+    const parties = new Map((await db.parties.toArray()).map((p) => [p.id, p]));
+    return { party, wh, wh2, cb, acc, creator, ref, items, accounts, parties };
+  }, [doc, lines]);
+  const remote = useRemote<any>(doc && !doc._sync ? `/api/documents/${id}` : null, [doc?.row_version]);
+
+  if (doc === undefined) return <div className="page muted">جارٍ التحميل…</div>;
+  if (!doc) return <div className="page"><Empty title="المستند غير موجود على هذا الجهاز" /></div>;
+  const info = DOC_TYPES[doc.doc_type as keyof typeof DOC_TYPES];
+  const L = lookups;
+  const module = info.module;
+  const canEdit = (doc.status === 'draft' || doc.status === 'pending_review' || doc._sync === 'rejected') && can(module === 'accounts' ? 'accounts.journal' : `${module}.create`);
+  const canPost = doc.status === 'draft' && !doc._sync && can(module === 'accounts' ? 'accounts.post' : `${module}.post`);
+  const canCancel = doc.status !== 'cancelled' && !(doc._sync === 'pending' && !doc.number) && can(module === 'accounts' ? 'accounts.cancel' : `${module}.cancel`);
+  const returnType = doc.doc_type === 'sale_invoice' ? 'sale_return' : doc.doc_type === 'purchase_invoice' ? 'purchase_return' : null;
+
+  return (
+    <div className="page">
+      <PageHeader
+        title={info.label}
+        sub={
+          <span className="row" style={{ gap: 8 }}>
+            <span className="num bold">{doc.number ?? doc.local_number}</span>
+            <DocStatusBadge status={doc.status} sync={doc._sync} />
+            {!doc.number && <span className="caption">الرقم الرسمي يصدر عند قبول الخادم</span>}
+          </span>
+        }
+        actions={
+          <>
+            {canEdit && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}`)}><Pencil /> تعديل</button>}
+            {canPost && (
+              <button
+                className="btn primary"
+                onClick={async () => {
+                  if (await ui.confirm({ title: `ترحيل ${info.label}؟`, message: 'سيتم تطبيق أثر المستند على المخزون والحسابات. لا يمكن التعديل بعدها.', confirmLabel: 'ترحيل' })) {
+                    await postDocument(doc);
+                    ui.toast('سيُرحّل عند المزامنة');
+                  }
+                }}
+              >
+                <Send /> ترحيل
+              </button>
+            )}
+            {returnType && doc.status === 'posted' && !doc._sync && can(`${module}.create`) && (
+              <button className="btn" onClick={() => nav(`/docs/new/${returnType}?party=${doc.party_id}&ref=${doc.id}`)}><Undo2 /> مرتجع</button>
+            )}
+            {canCancel && <button className="btn danger" onClick={() => setCancelOpen(true)}><Ban /> إلغاء</button>}
+            <button className="btn" onClick={() => window.print()}><Printer /> طباعة</button>
+          </>
+        }
+      />
+      {doc._sync === 'pending' && <div className="no-print" style={{ marginBottom: 12 }}><Banner kind="info">هذا المستند محفوظ على الجهاز وبانتظار المزامنة. لم يُرحّل مركزيًا بعد.</Banner></div>}
+      {doc._sync === 'rejected' && <div className="no-print" style={{ marginBottom: 12 }}><Banner kind="err">رفض الخادم هذا المستند: {doc._error}. عدّله ثم احفظه مرة أخرى، أو تجاهله من مركز المزامنة.</Banner></div>}
+      {(doc.status === 'pending_review' || doc._sync === 'conflict') && (
+        <div className="no-print" style={{ marginBottom: 12 }}><Banner kind="warn">{doc.review_reason ?? doc._error} — يمكن لمستخدم لديه صلاحية حل التعارضات معالجته من مركز المزامنة.</Banner></div>
+      )}
+      {doc.status === 'cancelled' && <div style={{ marginBottom: 12 }}><Banner kind="err">ملغي{doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.</Banner></div>}
+
+      {/* رأس الطباعة */}
+      <div className="print-only" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{settings.company_name}</div>
+            {settings.company_address && <div>{settings.company_address}</div>}
+            {settings.company_phone && <div>{settings.company_phone}</div>}
+            {settings.company_tax_no && <div>رقم التسجيل الضريبي: {settings.company_tax_no}</div>}
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{info.label}</div>
+            <div>رقم: {doc.number ?? doc.local_number}</div>
+            <div>التاريخ: {doc.date}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card pad">
+        <div className="grid grid-4">
+          <Info k="التاريخ" v={<span className="num">{doc.date}</span>} />
+          {L?.party && <Info k={L.party.kind === 'customer' ? 'العميل' : 'المورد'} v={<a onClick={() => nav(`/parties/${L.party!.kind}/${L.party!.id}`)} style={{ cursor: 'pointer' }}>{L.party.name}</a>} />}
+          {L?.wh && <Info k={doc.to_warehouse_id ? 'من مخزن' : 'المخزن'} v={L.wh.name} />}
+          {L?.wh2 && <Info k="إلى مخزن" v={L.wh2.name} />}
+          {L?.cb && <Info k="الخزينة" v={L.cb.name} />}
+          {L?.acc && <Info k="الحساب" v={L.acc.name} />}
+          {info.priced && <Info k="طريقة الدفع" v={doc.payment_type === 'cash' ? 'نقدي' : 'آجل'} />}
+          {L?.ref && <Info k="المستند المرجعي" v={<a style={{ cursor: 'pointer' }} onClick={() => nav(`/docs/view/${L.ref!.id}`)}>{L.ref.number}</a>} />}
+          {L?.creator && <Info k="أنشأه" v={L.creator.full_name} />}
+        </div>
+      </div>
+
+      {lines.length > 0 && (
+        <div className="table-wrap" style={{ marginTop: 14 }}>
+          <table className="table responsive">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الصنف</th>
+                <th>الوحدة</th>
+                <th className="n">{doc.doc_type === 'stock_adjustment' ? 'الكمية الفعلية' : 'الكمية'}</th>
+                {doc.doc_type === 'stock_adjustment' && <th className="n">رصيد النظام</th>}
+                {(info.priced || doc.doc_type === 'opening_stock') && <th className="n">السعر</th>}
+                {info.priced && <th className="n">الخصم</th>}
+                {info.priced && <th className="n">الضريبة</th>}
+                {(info.priced || doc.doc_type === 'opening_stock') && <th className="n">الإجمالي</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.id}>
+                  <td data-label="#" className="num muted">{l.line_no}</td>
+                  <td data-label="الصنف" className="bold">{L?.items.get(l.item_id)?.name ?? '…'}</td>
+                  <td data-label="الوحدة">{l.unit_name}</td>
+                  <td data-label="الكمية" className="n">{formatQty(l.qty)}</td>
+                  {doc.doc_type === 'stock_adjustment' && <td data-label="رصيد النظام" className="n">{l.system_qty != null ? formatQty(l.system_qty) : '—'}</td>}
+                  {(info.priced || doc.doc_type === 'opening_stock') && <td data-label="السعر" className="n">{formatMoney(l.price)}</td>}
+                  {info.priced && <td data-label="الخصم" className="n">{formatMoney((l.discount ?? 0) + (l.doc_discount ?? 0))}</td>}
+                  {info.priced && <td data-label="الضريبة" className="n">{formatMoney(l.tax ?? 0)}</td>}
+                  {(info.priced || doc.doc_type === 'opening_stock') && <td data-label="الإجمالي" className="n bold">{formatMoney(l.total ?? 0)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {doc.doc_type === 'journal_voucher' && (
+        <div className="table-wrap" style={{ marginTop: 14 }}>
+          <table className="table responsive">
+            <thead><tr><th>الحساب</th><th>الطرف</th><th className="n">مدين</th><th className="n">دائن</th><th>البيان</th></tr></thead>
+            <tbody>
+              {(doc.data?.journal_lines ?? []).map((l: any, i: number) => (
+                <tr key={i}>
+                  <td data-label="الحساب">{L?.accounts.get(l.account_id)?.name}</td>
+                  <td data-label="الطرف">{l.party_id ? L?.parties.get(l.party_id)?.name : ''}</td>
+                  <td data-label="مدين" className="n">{l.debit ? formatMoney(l.debit) : ''}</td>
+                  <td data-label="دائن" className="n">{l.credit ? formatMoney(l.credit) : ''}</td>
+                  <td data-label="البيان">{l.memo}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="grid grid-2" style={{ marginTop: 14, alignItems: 'start' }}>
+        <div className="card pad">
+          <div className="footnote">ملاحظات</div>
+          <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{doc.notes || '—'}</div>
+        </div>
+        <div className="card pad totals-box">
+          {info.priced && (
+            <>
+              <div className="tr"><span className="muted">الإجمالي قبل الخصم</span><span className="num">{formatMoney(doc.gross)}</span></div>
+              <div className="tr"><span className="muted">الخصومات</span><span className="num">{formatMoney(doc.discount)}</span></div>
+              <div className="tr"><span className="muted">الضريبة</span><span className="num">{formatMoney(doc.tax)}</span></div>
+            </>
+          )}
+          <div className="tr grand"><span>الإجمالي</span><span className="num">{formatMoney(doc.total)}</span></div>
+          {info.priced && (
+            <>
+              <div className="tr"><span className="muted">{doc.doc_type.endsWith('return') ? 'المردود نقدًا' : 'المدفوع'}</span><span className="num">{formatMoney(doc.paid)}</span></div>
+              <div className="tr bold"><span>المتبقي</span><span className="num">{formatMoney(doc.total - doc.paid)}</span></div>
+              {can('reports.profit') && doc.status === 'posted' && !doc._sync && doc.cost != null && doc.doc_type === 'sale_invoice' && (
+                <div className="tr no-print"><span className="muted">مجمل الربح (الصافي − التكلفة)</span><span className="num green">{formatMoney(doc.total - doc.tax - doc.cost)}</span></div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      {settings.invoice_footer && <div className="print-only" style={{ marginTop: 20, textAlign: 'center' }}>{settings.invoice_footer}</div>}
+
+      {/* القيود والسجل (من الخادم) */}
+      {remote.data && (
+        <div className="no-print">
+          {remote.data.entries.length > 0 && (
+            <>
+              <div className="section-title">القيود المحاسبية</div>
+              {remote.data.entries.map((e: any) => (
+                <div key={e.id} className="table-wrap" style={{ marginBottom: 10 }}>
+                  <table className="table">
+                    <thead>
+                      <tr><th colSpan={4}>قيد رقم <span className="num">{e.number}</span> · {e.date} {e.reverses_id && <span className="badge red">قيد عكسي</span>}</th></tr>
+                    </thead>
+                    <tbody>
+                      {e.lines.map((l: any) => (
+                        <tr key={l.id}>
+                          <td>{l.account_code} — {l.account_name}{l.party_name ? ` / ${l.party_name}` : ''}</td>
+                          <td className="n">{l.debit ? formatMoney(l.debit) : ''}</td>
+                          <td className="n">{l.credit ? formatMoney(l.credit) : ''}</td>
+                          <td className="muted small">{l.memo}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </>
+          )}
+          {remote.data.related.length > 0 && (
+            <>
+              <div className="section-title">مستندات مرتبطة</div>
+              <div className="list">
+                {remote.data.related.map((r: any) => (
+                  <div key={r.id} className="list-row tappable" onClick={() => nav(`/docs/view/${r.id}`)}>
+                    <div className="title">{DOC_TYPES[r.doc_type as keyof typeof DOC_TYPES]?.label} <span className="num muted">{r.number}</span></div>
+                    <DocStatusBadge status={r.status} />
+                    <span className="num">{formatMoney(r.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {remote.data.audit.length > 0 && (
+            <>
+              <div className="section-title">سجل المستند</div>
+              <div className="list">
+                {remote.data.audit.map((a: any, i: number) => (
+                  <div key={i} className="list-row">
+                    <div className="title">
+                      {a.action === 'doc.save' ? (a.details?.action === 'post' ? 'حفظ وترحيل' : 'حفظ مسودة') : a.action === 'doc.post' ? 'ترحيل' : a.action === 'doc.cancel' ? 'إلغاء' : a.action === 'conflict.resolve' ? 'حل تعارض' : a.action}
+                      <div className="sub">{a.user_name} · جهاز <span className="num">{String(a.device_id ?? '').slice(0, 8)}</span> · أُنشئ على الجهاز {a.client_created_at ? new Date(a.client_created_at).toLocaleString('ar-EG') : '—'}</div>
+                    </div>
+                    <span className={`badge ${a.sync_status === 'accepted' ? 'green' : a.sync_status === 'rejected' ? 'red' : 'orange'}`}>
+                      {a.sync_status === 'accepted' ? 'مقبول' : a.sync_status === 'rejected' ? 'مرفوض' : 'تعارض'}
+                    </span>
+                    <span className="caption num">{new Date(a.at).toLocaleString('ar-EG')}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {cancelOpen && (
+        <Sheet
+          title={`إلغاء ${info.label}`}
+          onClose={() => setCancelOpen(false)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setCancelOpen(false)}>رجوع</button>
+              <button
+                className="btn danger primary"
+                disabled={reason.trim().length < 3}
+                onClick={async () => {
+                  await cancelDocument(doc, reason.trim());
+                  setCancelOpen(false);
+                  ui.toast('سيُلغى عند المزامنة');
+                }}
+              >
+                تأكيد الإلغاء
+              </button>
+            </>
+          }
+        >
+          <div className="stack">
+            <Banner kind="warn">
+              {doc.status === 'posted'
+                ? 'سيُعكس أثر المستند بالكامل (المخزون والقيود والأرصدة) بقيد عكسي، مع الاحتفاظ بالمستند الأصلي في السجل.'
+                : 'سيُلغى المستند دون أي أثر محاسبي.'}
+            </Banner>
+            <Field label="سبب الإلغاء *">
+              <textarea className="textarea" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+            </Field>
+          </div>
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+function Info({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div>
+      <div className="footnote">{k}</div>
+      <div style={{ marginTop: 2, fontWeight: 500 }}>{v}</div>
+    </div>
+  );
+}

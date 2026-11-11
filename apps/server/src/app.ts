@@ -291,9 +291,21 @@ export async function buildApp(opts: AppOptions) {
 
   // ---------------- الواجهة (PWA) ----------------
   if (opts.webDist && existsSync(opts.webDist)) {
-    await app.register(fastifyStatic, { root: path.resolve(opts.webDist), wildcard: false });
+    await app.register(fastifyStatic, {
+      root: path.resolve(opts.webDist),
+      wildcard: false,
+      // ملفات assets تحمل بصمة في اسمها فتُخزّن طويلًا؛ index.html و sw.js يجب أن يُتحقق منهما دائمًا
+      setHeaders(res, filePath) {
+        if (/[\\/]assets[\\/]/.test(filePath)) res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+        else res.setHeader('cache-control', 'no-cache');
+      },
+    });
     app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith('/api/')) return reply.status(404).send({ error: 'غير موجود' });
+      // طلب ملف غير موجود (مثل نسخة قديمة من سكربت) يجب أن يعيد 404 وليس صفحة التطبيق
+      if (req.url.startsWith('/api/') || req.url.startsWith('/assets/') || /\.[a-z0-9]{2,5}(\?|$)/i.test(req.url)) {
+        return reply.status(404).send({ error: 'غير موجود' });
+      }
+      reply.header('cache-control', 'no-cache');
       return reply.sendFile('index.html');
     });
   } else {

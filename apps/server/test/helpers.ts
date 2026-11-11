@@ -8,7 +8,10 @@ import { migrate } from '../src/migrate';
 import { seed } from '../src/seed';
 
 export async function setup() {
-  const db = await openDb({ memory: true });
+  // TEST_DATABASE_URL يشغّل نفس الاختبارات على PostgreSQL حقيقي (تُمسح قاعدة الاختبار بالكامل)
+  const url = process.env.TEST_DATABASE_URL;
+  const db = await openDb(url ? { url } : { memory: true });
+  if (url) await db.exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public; DROP SEQUENCE IF EXISTS sync_seq;');
   const backupDir = await mkdtemp(path.join(os.tmpdir(), 'erp-test-'));
   await migrate(db, { backupDir });
   await seed(db, { adminPassword: 'admin123' });
