@@ -16,7 +16,7 @@ function Shell({ title, sub, filters, actions, error, loading, children, note }:
   return (
     <div className="page">
       <div className="print-only" style={{ marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 18 }}>{settings.company_name}</div>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>{settings.company_name}</div>
         <div>{title} — طُبع {new Date().toLocaleString('ar-EG')}</div>
       </div>
       <PageHeader title={title} sub={sub} actions={<>{actions}<button className="btn" onClick={() => window.print()}><Printer /> طباعة</button></>} />
@@ -387,7 +387,7 @@ export function IncomeReport() {
           </div>
           <Section title="الإيرادات" rows={d.revenue} total={d.total_revenue} />
           <Section title="المصروفات والتكاليف" rows={d.expenses} total={d.total_expenses} />
-          <div className="card pad row"><span className="bold" style={{ flex: 1, fontSize: 20 }}>صافي الربح (الخسارة)</span><span className={`num bold ${d.net_profit < 0 ? 'red' : 'green'}`} style={{ fontSize: 24 }}>{formatMoney(d.net_profit)}</span></div>
+          <div className="card pad row"><span className="bold" style={{ flex: 1, fontSize: 20 }}>صافي الربح (الخسارة)</span><span className={`num bold ${d.net_profit < 0 ? 'red' : 'green'}`} style={{ fontSize: 22 }}>{formatMoney(d.net_profit)}</span></div>
         </div>
       )}
     </Shell>
@@ -398,7 +398,7 @@ function Kpi({ label, v, strong }: { label: string; v: number; strong?: boolean 
   return (
     <div className="card stat">
       <div className="stat-label">{label}</div>
-      <div className={`stat-value num ${strong && v < 0 ? 'red' : ''}`} style={{ textAlign: 'start', fontSize: strong ? 26 : 22 }}>{formatMoney(v)}</div>
+      <div className={`stat-value num ${strong && v < 0 ? 'red' : ''}`} style={{ fontSize: strong ? 26 : 22 }}>{formatMoney(v)}</div>
     </div>
   );
 }

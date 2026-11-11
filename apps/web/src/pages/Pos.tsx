@@ -203,7 +203,7 @@ export function PosPage() {
       <div className="pos-cart">
         <div className="pos-cart-head">
           <ShoppingCart style={{ color: 'var(--tint)' }} />
-          <div className="bold" style={{ flex: 1, fontSize: 18 }}>السلة {count > 0 && <span className="muted small">({formatQty(count * 1000)} قطعة)</span>}</div>
+          <div className="bold" style={{ flex: 1, fontSize: 17 }}>السلة {count > 0 && <span className="muted small">({formatQty(count * 1000)} قطعة)</span>}</div>
           {cart.length > 0 && <button className="btn sm plain danger" onClick={() => setCart([])}><Trash2 /> تفريغ</button>}
         </div>
         <div style={{ padding: '0 18px 8px' }}>
@@ -424,7 +424,7 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
           <>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <span className="muted">المستلم</span>
-              <span className="num bold" style={{ fontSize: 24 }}>{formatMoney(recv)}</span>
+              <span className="num bold" style={{ fontSize: 22 }}>{formatMoney(recv)}</span>
             </div>
             <div className="row wrap" style={{ gap: 8 }}>
               {quick.map((v) => <button key={v} className="btn" style={{ flex: 1 }} onClick={() => setReceived(String(v / 100))}>{formatMoney(v)}</button>)}

@@ -113,7 +113,7 @@ export function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-4">
+      <div className="grid grid-3 dash-stats">
         <div className="card stat" style={{ gridColumn: 'span 2' }}>
           <div className="row">
             <span className="stat-icon" style={{ background: 'var(--grad-green)' }}><TrendingUp /></span>
@@ -124,7 +124,7 @@ export function Dashboard() {
               </span>
             )}
           </div>
-          <div className="stat-value num" style={{ textAlign: 'start' }}>{formatMoney(todaySales)}</div>
+          <div className="stat-value num">{formatMoney(todaySales)}</div>
           <Bars values={s} labels={days} />
           <div className="caption">آخر 14 يومًا: <span className="num">{formatMoney(total14)}</span></div>
         </div>
@@ -181,7 +181,7 @@ function Stat({ label, value, icon, grad, onClick }: { label: string; value: num
         <span className="stat-icon" style={{ background: grad }}>{icon}</span>
         <span className="stat-label">{label}</span>
       </div>
-      <div className="stat-value num" style={{ textAlign: 'start', fontSize: 26 }}>{formatMoney(value)}</div>
+      <div className="stat-value num" style={{ fontSize: 28 }}>{formatMoney(value)}</div>
     </div>
   );
 }

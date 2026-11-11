@@ -262,12 +262,12 @@ export function PartyDetail() {
       <div className="grid grid-3">
         <div className="card stat">
           <div className="stat-label">{L.bal}</div>
-          <div className={`stat-value num ${party.balance < 0 ? 'red' : ''}`} style={{ textAlign: 'start' }}>{formatMoney(party.balance ?? 0)}</div>
+          <div className={`stat-value num ${party.balance < 0 ? 'red' : ''}`}>{formatMoney(party.balance ?? 0)}</div>
         </div>
         {kind === 'customer' && (
           <div className="card stat">
             <div className="stat-label">الحد الائتماني</div>
-            <div className="stat-value num" style={{ textAlign: 'start' }}>{party.credit_limit ? formatMoney(party.credit_limit) : 'بدون حد'}</div>
+            <div className="stat-value num">{party.credit_limit ? formatMoney(party.credit_limit) : 'بدون حد'}</div>
           </div>
         )}
         {can('accounts.journal') && (

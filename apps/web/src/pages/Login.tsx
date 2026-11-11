@@ -43,7 +43,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
       <form className="login-card stack" onSubmit={submit}>
         <img className="app-icon" src="/icon.svg" alt="" />
         <div style={{ textAlign: 'center', marginBottom: 6 }}>
-          <h1 style={{ fontSize: 26, margin: '0 0 4px', fontWeight: 700 }}>تسجيل الدخول</h1>
+          <h1 style={{ fontSize: 28, margin: '0 0 4px', fontWeight: 700 }}>تسجيل الدخول</h1>
           <div className="muted" style={{ fontSize: 15 }}>نظام الحسابات والمخازن</div>
         </div>
         {error && <Banner kind="err">{error}</Banner>}

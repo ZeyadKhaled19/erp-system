@@ -11,7 +11,7 @@ export function MonthBars({ data, height = 140 }: { data: { label: string; value
         return (
           <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0 }} title={`${d.label}: ${formatMoney(d.value)}`}>
             <div style={{ width: '70%', maxWidth: 34, height: h, borderRadius: 6, background: last ? 'var(--grad-accent)' : 'var(--tint-soft)', boxShadow: last ? '0 6px 14px var(--tint-glow)' : undefined }} />
-            <div className="caption" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{d.label}</div>
+            <div className="caption" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{d.label}</div>
           </div>
         );
       })}

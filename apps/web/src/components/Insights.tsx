@@ -145,7 +145,7 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
   return (
     <div className="kpi">
       <div className="k-label">{label}</div>
-      <div className={`k-value num ${tone ?? ''}`} style={{ textAlign: 'start' }}>{value}</div>
+      <div className={`k-value num ${tone ?? ''}`}>{value}</div>
       {sub && <div className="k-sub">{sub}</div>}
     </div>
   );

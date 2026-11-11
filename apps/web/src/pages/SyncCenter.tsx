@@ -50,9 +50,9 @@ export function SyncCenter() {
           </div>
           <div className="caption">{s.lastSyncAt ? `آخر مزامنة: ${new Date(s.lastSyncAt).toLocaleString('ar-EG')}` : 'لم تتم مزامنة بعد'}</div>
         </div>
-        <div className="card stat"><div className="stat-label">بانتظار الإرسال</div><div className="stat-value num" style={{ textAlign: 'start' }}>{c.pending}</div></div>
-        <div className="card stat"><div className="stat-label">مرفوضة</div><div className={`stat-value num ${c.rejected ? 'red' : ''}`} style={{ textAlign: 'start' }}>{c.rejected}</div></div>
-        <div className="card stat"><div className="stat-label">تعارضات مفتوحة (للشركة)</div><div className={`stat-value num ${c.conflicts ? 'red' : ''}`} style={{ textAlign: 'start' }}>{c.conflicts}</div></div>
+        <div className="card stat"><div className="stat-label">بانتظار الإرسال</div><div className="stat-value num">{c.pending}</div></div>
+        <div className="card stat"><div className="stat-label">مرفوضة</div><div className={`stat-value num ${c.rejected ? 'red' : ''}`}>{c.rejected}</div></div>
+        <div className="card stat"><div className="stat-label">تعارضات مفتوحة (للشركة)</div><div className={`stat-value num ${c.conflicts ? 'red' : ''}`}>{c.conflicts}</div></div>
       </div>
       {s.lastError && !reachable && <div style={{ marginTop: 12 }}><Banner kind="info">{s.lastError}. كل ما تسجله محفوظ على الجهاز وسيُرسل تلقائيًا عند عودة الاتصال.</Banner></div>}
 

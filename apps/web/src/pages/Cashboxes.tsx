@@ -37,7 +37,7 @@ export function CashboxesPage() {
               <SyncBadge sync={b._sync} error={b._error} />
               {can('treasury.manage') && <button className="btn sm plain" onClick={(e) => { e.stopPropagation(); setEdit(b); }}>تعديل</button>}
             </div>
-            <div className="stat-value num" style={{ textAlign: 'start' }}>{formatMoney(b.balance ?? 0)}</div>
+            <div className="stat-value num">{formatMoney(b.balance ?? 0)}</div>
           </div>
         ))}
       </div>

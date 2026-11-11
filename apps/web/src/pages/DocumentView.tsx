@@ -124,7 +124,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
             {settings.company_tax_no && <div>رقم التسجيل الضريبي: {settings.company_tax_no}</div>}
           </div>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{info.label}</div>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>{info.label}</div>
             <div>رقم: {doc.number ?? doc.local_number}</div>
             <div>التاريخ: {doc.date}</div>
           </div>

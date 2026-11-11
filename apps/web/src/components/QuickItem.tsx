@@ -104,7 +104,7 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced }: { onClose: () =
       <div className="stack" onKeyDown={onKey}>
         {err && <Banner kind="err">{err}</Banner>}
         <Field label="اسم الصنف" required>
-          <input ref={nameRef} className="input" style={{ fontSize: 18, height: 52 }} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus placeholder="مثال: شاي العروسة 250 جم" />
+          <input ref={nameRef} className="input" style={{ fontSize: 17, height: 52 }} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus placeholder="مثال: شاي العروسة 250 جم" />
         </Field>
         <div className="grid grid-3">
           <Field label="سعر البيع" required><MoneyInput value={f.price} onChange={(v) => setF({ ...f, price: v })} /></Field>

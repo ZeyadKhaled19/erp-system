@@ -32,10 +32,10 @@ export function CommissionsPage() {
       {r.data && (
         <>
           <div className="kpis" style={{ marginBottom: 14 }}>
-            <div className="kpi"><div className="k-label">صافي مبيعات المندوبين</div><div className="k-value num" style={{ textAlign: 'start' }}>{formatMoney(r.data.totals.net)}</div></div>
-            <div className="kpi"><div className="k-label">إجمالي العمولات</div><div className="k-value num" style={{ textAlign: 'start' }}>{formatMoney(r.data.totals.commission)}</div></div>
-            <div className="kpi"><div className="k-label">المصروف</div><div className="k-value num" style={{ textAlign: 'start' }}>{formatMoney(r.data.totals.paid)}</div></div>
-            <div className="kpi"><div className="k-label">المستحق</div><div className={`k-value num ${r.data.totals.due > 0 ? 'orange' : ''}`} style={{ textAlign: 'start' }}>{formatMoney(r.data.totals.due)}</div></div>
+            <div className="kpi"><div className="k-label">صافي مبيعات المندوبين</div><div className="k-value num">{formatMoney(r.data.totals.net)}</div></div>
+            <div className="kpi"><div className="k-label">إجمالي العمولات</div><div className="k-value num">{formatMoney(r.data.totals.commission)}</div></div>
+            <div className="kpi"><div className="k-label">المصروف</div><div className="k-value num">{formatMoney(r.data.totals.paid)}</div></div>
+            <div className="kpi"><div className="k-label">المستحق</div><div className={`k-value num ${r.data.totals.due > 0 ? 'orange' : ''}`}>{formatMoney(r.data.totals.due)}</div></div>
           </div>
           <div className="table-wrap">
             <table className="table responsive">

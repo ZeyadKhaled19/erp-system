@@ -149,7 +149,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <button className="search" style={{ width: '100%', border: 0, cursor: 'pointer' }} onClick={() => setSearchOpen(true)}>
             <Search />
-            <span className="muted" style={{ flex: 1, textAlign: 'start' }}>بحث</span>
+            <span className="muted" style={{ flex: 1 }}>بحث</span>
             <kbd className="hide-mobile">Ctrl K</kbd>
           </button>
         </div>
@@ -229,12 +229,12 @@ export function PageHeader({ title, sub, actions }: { title: ReactNode; sub?: Re
     if (typeof title === 'string') document.title = `${title} — الحسابات`;
   }, [title]);
   return (
-    <div className="row wrap" style={{ alignItems: 'flex-end', marginBottom: 18, gap: 12 }}>
-      <div style={{ flex: 1, minWidth: 200 }}>
+    <div className="page-head">
+      <div className="page-head-text">
         <h1 className="large-title">{title}</h1>
         {sub && <div className="page-sub" style={{ marginBottom: 0 }}>{sub}</div>}
       </div>
-      {actions && <div className="row wrap no-print">{actions}</div>}
+      {actions && <div className="page-head-actions no-print">{actions}</div>}
     </div>
   );
 }

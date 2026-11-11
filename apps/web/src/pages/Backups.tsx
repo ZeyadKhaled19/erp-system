@@ -54,7 +54,7 @@ export function BackupsPage() {
         {r.data?.files.length === 0 && <Empty title="لا توجد نسخ بعد" />}
         {r.data?.files.map((f) => (
           <div key={f} className="list-row">
-            <div className="title num" style={{ fontSize: 14 }}>{f}</div>
+            <div className="title num" style={{ fontSize: 15 }}>{f}</div>
             <button className="icon-btn" title="تحميل" onClick={() => download(f)}><Download /></button>
             <button
               className="btn sm danger"

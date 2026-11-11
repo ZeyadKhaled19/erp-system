@@ -73,7 +73,7 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', groupId: 
       <div className="stack" onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void save())}>
         {err && <Banner kind="err">{err}</Banner>}
         <Field label={`اسم ال${label}`} required>
-          <input className="input" style={{ fontSize: 18, height: 52 }} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <input className="input" style={{ fontSize: 17, height: 52 }} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </Field>
         <Field label="رقم الموبايل">
           <input className="input num" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" />
