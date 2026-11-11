@@ -111,6 +111,6 @@ export async function seed(db: Db, opts: { adminPassword?: string } = {}) {
     await t.query(`insert into accounts (id, code, name, parent_id, type) values ('acc-110101', '110101', 'الخزينة الرئيسية', 'acc-1101', 'asset')`);
     await t.query(`insert into cashboxes (id, name, kind, account_id) values ('cb-main', 'الخزينة الرئيسية', 'cash', 'acc-110101')`);
     await t.query(`insert into categories (id, name) values ('cat-general', 'عام')`);
-    await t.query(`insert into parties (id, kind, code, name) values ('party-cash-customer', 'customer', '0', 'عميل نقدي')`);
+    await t.query(`insert into parties (id, kind, code, name, group_id) values ('party-cash-customer', 'customer', '0', 'عميل نقدي', 'pg-cash')`);
   });
 }

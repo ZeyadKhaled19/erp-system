@@ -57,6 +57,8 @@ export const partySchema = z.object({
   credit_limit: nonneg.default(0),
   price_list: z.enum(['retail', 'wholesale']).default('retail'),
   price_list_id: id.nullish(),
+  /** نوع العميل/المورد (نقدي، آجل، أون لاين...) */
+  group_id: id.nullish(),
   discount_bp: nonneg.max(10000).default(0),
   due_days: nonneg.max(3650).default(0),
   review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
@@ -89,6 +91,13 @@ export const salesRepSchema = z.object({
   name: z.string().trim().min(1).max(100),
   phone: z.string().trim().max(50).nullish(),
   commission_bp: nonneg.max(10000).default(0),
+  active: z.boolean().default(true),
+});
+
+export const partyGroupSchema = z.object({
+  name: z.string().trim().min(1, 'الاسم مطلوب').max(60),
+  kind: z.enum(['customer', 'supplier']).default('customer'),
+  sort: int.default(0),
   active: z.boolean().default(true),
 });
 
@@ -127,6 +136,7 @@ export const MASTER_SCHEMAS = {
   sales_rep: salesRepSchema,
   price_list: priceListSchema,
   partner: partnerSchema,
+  party_group: partyGroupSchema,
 } as const;
 export type MasterEntity = keyof typeof MASTER_SCHEMAS;
 
@@ -237,7 +247,7 @@ export type DocInput = z.infer<typeof docSchema>;
 export const opSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('master.upsert'),
-    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner']),
+    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group']),
     id,
     /** النسخة التي عدّل عليها الجهاز؛ null = إنشاء جديد */
     base_version: int.nullable(),
@@ -325,5 +335,6 @@ export const SYNC_TABLES = [
   'sales_reps',
   'partners',
   'cashier_shifts',
+  'party_groups',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];

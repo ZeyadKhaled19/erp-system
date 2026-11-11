@@ -1,5 +1,6 @@
 import { uuid } from '@erp/shared';
 import { UserPlus } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
@@ -9,8 +10,10 @@ import { Banner, Field, MoneyInput, Sheet, useUi } from './ui';
  * إضافة عميل/مورد سريعة من داخل الفاتورة أو البيع السريع:
  * الاسم (إلزامي) والهاتف، والحد الائتماني اختياري. يُختار تلقائيًا بعد الحفظ.
  */
-export function QuickPartySheet({ kind = 'customer', initialName = '', onClose, onSaved }: { kind?: 'customer' | 'supplier'; initialName?: string; onClose: () => void; onSaved: (id: string) => void }) {
+export function QuickPartySheet({ kind = 'customer', initialName = '', groupId: initialGroup = null, onClose, onSaved }: { kind?: 'customer' | 'supplier'; initialName?: string; groupId?: string | null; onClose: () => void; onSaved: (id: string) => void }) {
   const ui = useUi();
+  const groups = useLiveQuery(async () => (await db.party_groups.where('kind').equals(kind).toArray()).filter((g) => g.active !== false).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), [kind]) ?? [];
+  const [groupId, setGroupId] = useState<string>(initialGroup ?? '');
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState('');
   const [limit, setLimit] = useState(0);
@@ -44,6 +47,7 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', onClose, 
       credit_limit: limit,
       price_list: 'retail',
       price_list_id: 'pl-retail',
+      group_id: groupId || null,
       discount_bp: 0,
       due_days: 0,
       review_date: null,
@@ -74,6 +78,15 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', onClose, 
         <Field label="رقم الموبايل">
           <input className="input num" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" />
         </Field>
+        {groups.length > 0 && (
+          <Field label={kind === 'customer' ? 'نوع العميل' : 'نوع المورد'}>
+            <div className="seg-chips">
+              {groups.map((g) => (
+                <button type="button" key={g.id} className={groupId === g.id ? 'on' : ''} onClick={() => setGroupId(groupId === g.id ? '' : g.id)}>{g.name}</button>
+              ))}
+            </div>
+          </Field>
+        )}
         {kind === 'customer' && (
           <Field label="الحد الأقصى للدين" hint="اختياري — 0 يعني بدون حد">
             <MoneyInput value={limit} onChange={setLimit} />

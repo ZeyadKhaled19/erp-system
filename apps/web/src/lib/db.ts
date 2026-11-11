@@ -57,6 +57,7 @@ class LocalDb extends Dexie {
   sales_reps!: Table<Row, string>;
   partners!: Table<Row, string>;
   cashier_shifts!: Table<Row, string>;
+  party_groups!: Table<Row, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<{ key: string; value: any }, string>;
 
@@ -91,6 +92,12 @@ class LocalDb extends Dexie {
       // جداول جديدة على الخادم: سحب كامل لضمان وصول كل بياناتها
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
+    this.version(3).stores({
+      party_groups: 'id, kind, sort',
+      parties: 'id, kind, code, name, group_id, _sync',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
   }
 }
 
@@ -107,5 +114,5 @@ export async function setMeta(key: string, value: unknown) {
 export const SYNCED_TABLE_NAMES = [
   'settings', 'roles', 'users', 'accounts', 'warehouses', 'categories', 'items', 'item_units',
   'stock_balances', 'parties', 'cashboxes', 'documents', 'document_lines', 'sync_conflicts',
-  'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts',
+  'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts', 'party_groups',
 ] as const;

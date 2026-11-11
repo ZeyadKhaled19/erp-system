@@ -4,6 +4,7 @@ import { Banknote, Check, CreditCard, Printer, ScanLine, ShoppingCart, Star, Tra
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, Picker, Sheet, useUi } from '../components/ui';
+import { CustomerFields } from '../components/CustomerFields';
 import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
@@ -415,31 +416,9 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
           {canCredit && <button className={method === 'credit' ? 'on' : ''} onClick={() => setMethod('credit')}><Wallet />آجل</button>}
         </div>
         <div className="stack" style={{ gap: 6 }}>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <b>العميل {method === 'credit' ? '' : <span className="muted small">(اختياري)</span>}</b>
-            {!isCashCustomer && <button className="btn sm plain" onClick={() => onPickParty('party-cash-customer')}>عميل نقدي</button>}
-          </div>
           {method === 'credit' && isCashCustomer && <Banner kind="warn">البيع الآجل يحتاج عميلًا: اختره أو أضف عميلًا جديدًا</Banner>}
-          {!isCashCustomer ? (
-            <div className="row" style={{ gap: 8, justifyContent: 'space-between', background: 'var(--card-2)', borderRadius: 12, padding: '8px 12px' }}>
-              <span><b>{party.name}</b> <span className="muted small num">رصيده {formatMoney(party.balance ?? 0)}</span></span>
-              <button className="btn sm plain" onClick={onNewCustomer}><UserRound /> عميل آخر جديد</button>
-            </div>
-          ) : (
-            <div className="row" style={{ gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <Picker
-                  autoFocus={method === 'credit'}
-                  value={null}
-                  options={customers.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
-                  onChange={(v) => v && onPickParty(v)}
-                  placeholder="ابحث عن العميل بالاسم أو الهاتف"
-                />
-              </div>
-              <button className="btn" onClick={onNewCustomer}><UserRound /> عميل جديد</button>
-            </div>
-          )}
-          {!isCashCustomer && method !== 'credit' && <div className="footnote">الفاتورة تُحفظ في سجل العميل بدون دين.</div>}
+          <CustomerFields partyId={party?.id ?? 'party-cash-customer'} onChange={onPickParty} layout="row" />
+          {!isCashCustomer && <div className="footnote">{method === 'credit' ? `سيُسجل المبلغ دينًا على ${party.name} — رصيده الحالي ${formatMoney(party.balance ?? 0)}` : `الفاتورة تُحفظ في سجل ${party.name} بدون دين.`}</div>}
         </div>
         {method === 'cash' && (
           <>

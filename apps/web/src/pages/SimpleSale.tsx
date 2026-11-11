@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
-import { Banner, MoneyInput, Picker, QtyInput, useUi } from '../components/ui';
+import { CustomerFields } from '../components/CustomerFields';
+import { Banner, GroupChips, MoneyInput, Picker, QtyInput, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
@@ -26,7 +27,134 @@ interface Line {
  * سطر إدخال (الصنف ← الكمية ← السعر ← أضف) بالتنقل بـ Enter، جدول الأصناف،
  * الإجمالي الكبير والعميل وطرق الدفع ظاهرة، وحفظ بزر واحد (F12).
  */
+interface Draft {
+  date?: string;
+  partyId?: string;
+  notes?: string;
+  lines?: Line[];
+  discount?: number;
+  method?: string;
+  paidText?: string;
+}
+interface TabSummary {
+  count: number;
+  total: number;
+  party: string | null;
+}
+const draftKey = (id: string) => `sale-draft-${id}`;
+function loadDraft(id: string): Draft {
+  try {
+    return JSON.parse(localStorage.getItem(draftKey(id)) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+function storeSet(k: string, v: unknown) {
+  try {
+    if (v === null) localStorage.removeItem(k);
+    else localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* التخزين غير متاح */
+  }
+}
+
+/**
+ * فواتير بيع متعددة في تبويبات: كل تبويب فاتورة مستقلة محفوظة كمسودة على الجهاز
+ * (لا تضيع عند التنقل أو إعادة التحميل) حتى تُحفظ.
+ */
 export function SimpleSalePage() {
+  const ui = useUi();
+  const [tabs, setTabs] = useState<string[]>(() => {
+    try {
+      const t = JSON.parse(localStorage.getItem('sale-tabs') ?? '[]');
+      if (Array.isArray(t) && t.length) return t;
+    } catch {
+      /* ignore */
+    }
+    return [uuid()];
+  });
+  const [active, setActive] = useState(tabs[0]);
+  const [sums, setSums] = useState<Record<string, TabSummary>>({});
+  useEffect(() => storeSet('sale-tabs', tabs), [tabs]);
+  const cur = tabs.includes(active) ? active : tabs[0];
+
+  const newTab = () => {
+    if (tabs.length >= 12) return ui.toast('الحد الأقصى 12 فاتورة مفتوحة', 'err');
+    const id = uuid();
+    setTabs((t) => [...t, id]);
+    setActive(id);
+  };
+  const closeTab = async (id: string, ask = true) => {
+    if (ask && (sums[id]?.count ?? 0) > 0) {
+      const ok = await ui.confirm({ title: 'إغلاق الفاتورة؟', message: 'الفاتورة فيها أصناف لم تُحفظ وستُحذف.', confirmLabel: 'إغلاق', destructive: true });
+      if (!ok) return;
+    }
+    storeSet(draftKey(id), null);
+    setTabs((t) => {
+      const i = t.indexOf(id);
+      const n = t.filter((x) => x !== id);
+      if (!n.length) n.push(uuid());
+      if (id === cur) setActive(n[Math.max(0, i - 1)] ?? n[0]);
+      return n;
+    });
+  };
+
+  useEffect(() => {
+    document.title = 'فاتورة بيع — الحسابات';
+    const slot = document.getElementById('nav-title-slot');
+    if (slot) slot.textContent = 'فاتورة بيع';
+  }, []);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'F3' || (e.altKey && (e.key === 'n' || e.key === 'ى'))) {
+        e.preventDefault();
+        newTab();
+      } else if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        const i = tabs.indexOf(cur);
+        setActive(tabs[(i + (e.shiftKey ? tabs.length - 1 : 1)) % tabs.length]);
+      }
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  });
+
+  return (
+    <>
+      <div className="ss-tabs">
+        {tabs.map((id, i) => {
+          const s = sums[id];
+          return (
+            <div key={id} className={`ss-tab ${id === cur ? 'on' : ''}`} onClick={() => setActive(id)} role="tab" aria-selected={id === cur}>
+              <span className="ss-tab-n">{i + 1}</span>
+              <span className="ss-tab-t">{s?.party ?? 'فاتورة جديدة'}</span>
+              {s && s.count > 0 && <span className="ss-tab-v num">{formatMoney(s.total)}</span>}
+              <button className="ss-tab-x" title="إغلاق" onClick={(e) => { e.stopPropagation(); void closeTab(id); }}><X /></button>
+            </div>
+          );
+        })}
+        <button className="ss-tab-add" title="فاتورة جديدة (F3)" onClick={newTab}><Plus /> فاتورة أخرى</button>
+      </div>
+      {tabs.map((id) => (
+        <SaleTab
+          key={id}
+          tabId={id}
+          active={id === cur}
+          onSummary={(s) => setSums((m) => (m[id]?.count === s.count && m[id]?.total === s.total && m[id]?.party === s.party ? m : { ...m, [id]: s }))}
+          onSaved={() => {
+            if (tabs.length > 1) {
+              void closeTab(id, false);
+              return true;
+            }
+            return false;
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active: boolean; onSummary: (s: TabSummary) => void; onSaved: () => boolean }) {
   const ui = useUi();
   const nav = useNavigate();
   const { session } = useSession();
@@ -50,13 +178,14 @@ export function SimpleSalePage() {
   const stock = useLiveQuery(async () => (wh ? new Map((await db.stock_balances.where('warehouse_id').equals(wh).toArray()).map((b) => [b.item_id, b.qty])) : new Map()), [wh]) ?? new Map();
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
-  const [date, setDate] = useState(todayISO());
-  const [partyId, setPartyId] = useState('party-cash-customer');
-  const [notes, setNotes] = useState('');
-  const [lines, setLines] = useState<Line[]>([]);
-  const [discount, setDiscount] = useState(0);
-  const [method, setMethod] = useState<string>(''); // id خزينة أو 'credit'
-  const [paidText, setPaidText] = useState<string>('');
+  const [draft] = useState(() => loadDraft(tabId));
+  const [date, setDate] = useState(draft.date ?? todayISO());
+  const [partyId, setPartyId] = useState(draft.partyId ?? 'party-cash-customer');
+  const [notes, setNotes] = useState(draft.notes ?? '');
+  const [lines, setLines] = useState<Line[]>(draft.lines ?? []);
+  const [discount, setDiscount] = useState(draft.discount ?? 0);
+  const [method, setMethod] = useState<string>(draft.method ?? ''); // id خزينة أو 'credit'
+  const [paidText, setPaidText] = useState<string>(draft.paidText ?? '');
   const [printAfter, setPrintAfter] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -81,11 +210,18 @@ export function SimpleSalePage() {
     if (!method && boxes.length) setMethod(myShift?.cashbox_id && boxes.some((b) => b.id === myShift.cashbox_id) ? myShift.cashbox_id : boxes[0].id);
   }, [boxes, method, myShift]);
 
+  const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
+  const [listOpen, setListOpen] = useState(false);
+  const [catFilter, setCatFilter] = useState('');
+  const catNames = useMemo(() => new Map(cats.map((c) => [c.id, c.name])), [cats]);
+  const groups = useMemo(() => [...new Set(items.map((i) => (i.category_id ? catNames.get(i.category_id) : undefined)).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'ar')), [items, catNames]);
   const matches = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return [];
-    return items.filter((i) => [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))).slice(0, 12);
-  }, [q, items]);
+    const s = entryItem ? '' : q.trim().toLowerCase();
+    return items
+      .filter((i) => (!catFilter || (i.category_id && catNames.get(i.category_id)) === catFilter) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+      .slice(0, 300);
+  }, [q, items, catFilter, catNames, entryItem]);
 
   const pick = async (itemId: string, unitName?: string) => {
     const it = itemMap.get(itemId);
@@ -93,6 +229,7 @@ export function SimpleSalePage() {
     const u = unitName ? units.find((x) => x.item_id === itemId && x.name === unitName) : null;
     const unit = u ? { name: u.name, factor: u.factor, sale_price: u.sale_price, wholesale_price: u.wholesale_price } : { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price };
     setEntryItem(itemId);
+    setListOpen(false);
     setQ(it.name);
     setEntryQty(1000);
     setEntryPrice(await priceFor(it, unit, priceList));
@@ -126,7 +263,10 @@ export function SimpleSalePage() {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const code = q.trim();
-      if (!code) return;
+      if (!code || entryItem) {
+        if (!entryItem && matches[hl]) return pick(matches[hl].id);
+        return;
+      }
       const unit = await db.item_units.where('barcode').equals(code).first();
       if (unit) return pick(unit.item_id, unit.name);
       const exact = (await db.items.where('barcode').equals(code).first()) ?? (await db.items.where('code').equals(code).first());
@@ -155,6 +295,14 @@ export function SimpleSalePage() {
   }
   const remaining = total - paid;
   const isCash = partyId === 'party-cash-customer';
+  const partyName = partyId === 'party-cash-customer' ? null : party?.name ?? null;
+  useEffect(() => {
+    storeSet(draftKey(tabId), lines.length || partyId !== 'party-cash-customer' || notes ? { date, partyId, notes, lines, discount, method, paidText } : null);
+    onSummary({ count: lines.length, total, party: partyName });
+  }, [date, partyId, notes, lines, discount, method, paidText, total, partyName]);
+  useEffect(() => {
+    if (active) setTimeout(() => searchRef.current?.focus(), 30);
+  }, [active]);
   const entryAvail = entryItem ? mulDiv(stock.get(entryItem) ?? 0, 1000, entryUnit?.factor ?? 1000) : null;
 
   const reset = () => {
@@ -203,7 +351,9 @@ export function SimpleSalePage() {
       await saveDocument(doc, 'post', null);
       ui.toast(`تم حفظ الفاتورة${remaining > 0 ? ` — آجل ${formatMoney(remaining)} على ${party?.name}` : ''}`);
       if (printAfter) window.open(`/print/${id}?auto=1`, '_blank');
-      if (andNew) reset();
+      if (andNew) {
+        if (!onSaved()) reset();
+      }
       else nav(`/docs/view/${id}`);
     } catch (e) {
       setErr((e as Error).message);
@@ -213,6 +363,7 @@ export function SimpleSalePage() {
   };
 
   useEffect(() => {
+    if (!active) return;
     const k = (e: KeyboardEvent) => {
       if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
         e.preventDefault();
@@ -228,12 +379,6 @@ export function SimpleSalePage() {
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   });
-  useEffect(() => {
-    document.title = 'فاتورة بيع — الحسابات';
-    const slot = document.getElementById('nav-title-slot');
-    if (slot) slot.textContent = 'فاتورة بيع';
-  }, []);
-
   const unitOptions = (itemId: string) => {
     const it = itemMap.get(itemId);
     if (!it) return [];
@@ -242,7 +387,7 @@ export function SimpleSalePage() {
   const priceLocked = !can('sales.price_change');
 
   return (
-    <div className="ss">
+    <div className="ss" style={active ? undefined : { display: 'none' }}>
       {/* ======= الشريط العلوي: الإدخال + الإجمالي ======= */}
       <div className="ss-top">
         <div className="ss-entry">
@@ -259,11 +404,22 @@ export function SimpleSalePage() {
                   setQ(e.target.value);
                   setHl(0);
                   setEntryItem(null);
+                  setListOpen(true);
                 }}
-                onKeyDown={onSearchKey}
+                onFocus={(e) => {
+                  setListOpen(true);
+                  e.target.select();
+                }}
+                onBlur={() => setTimeout(() => setListOpen(false), 150)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setListOpen(false);
+                  else void onSearchKey(e);
+                }}
               />
-              {q && !entryItem && matches.length > 0 && (
+              {listOpen && (!entryItem || !q) && (
                 <div className="picker-pop">
+                  <GroupChips groups={groups} value={catFilter} onChange={(g) => { setCatFilter(g); setHl(0); }} />
+                  {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
                   {matches.map((m, i) => (
                     <div key={m.id} className={`picker-opt ${i === hl ? 'hl' : ''}`} onMouseDown={(e) => { e.preventDefault(); void pick(m.id); }} onMouseEnter={() => setHl(i)}>
                       <span style={{ flex: 1 }}>{m.name}</span>
@@ -346,20 +502,9 @@ export function SimpleSalePage() {
         {/* ======= العميل والدفع والحفظ ======= */}
         <div className="ss-side">
           <div className="card pad stack" style={{ gap: 12 }}>
-            <div className="field">
-              <label>العميل</label>
-              <div className="row" style={{ gap: 6 }}>
-                <div style={{ flex: 1 }}>
-                  <Picker
-                    value={partyId}
-                    options={customers.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
-                    onChange={(v) => setPartyId(v ?? 'party-cash-customer')}
-                    placeholder="عميل نقدي"
-                  />
-                </div>
-                {can('parties.create') && <button className="icon-btn" title="عميل جديد" onClick={() => setNewParty(true)}><UserPlus /></button>}
-              </div>
-              {!isCash && party && <div className="caption">رصيده الحالي <span className="num">{formatMoney(party.balance ?? 0)}</span> — الفاتورة تُحفظ في سجله</div>}
+            <div>
+              <CustomerFields partyId={partyId} onChange={setPartyId} />
+              {!isCash && party && <div className="caption" style={{ marginTop: 6 }}>رصيده الحالي <span className="num">{formatMoney(party.balance ?? 0)}</span> — الفاتورة تُحفظ في سجله</div>}
             </div>
 
             <div className="field">

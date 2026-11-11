@@ -979,3 +979,32 @@ body { font-size: 16px; letter-spacing: 0; line-height: 1.5; }
 .pos-cats button.fav { display: inline-flex; align-items: center; gap: 6px; }
 .pos-cats button.fav svg { width: 16px; height: 16px; fill: #ffcc00; color: #ffb300; }
 .pos-cats button.fav.on svg { fill: #fff; color: #fff; }
+
+/* تبويبات فواتير البيع */
+.ss-tabs { display: flex; gap: 6px; align-items: center; padding: 8px 24px 0; overflow-x: auto; scrollbar-width: thin; }
+.ss-tab { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-radius: 12px; background: var(--fill-3); color: var(--label-2); cursor: pointer; white-space: nowrap; border: 1.5px solid transparent; transition: background .15s var(--ease); flex-shrink: 0; max-width: 240px; }
+.ss-tab:hover { background: var(--fill-2); }
+.ss-tab.on { background: var(--card); color: var(--label); border-color: var(--tint); box-shadow: var(--shadow-card); }
+.ss-tab-n { width: 22px; height: 22px; border-radius: 7px; background: var(--fill-2); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.ss-tab.on .ss-tab-n { background: var(--tint); color: #fff; }
+.ss-tab-t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.ss-tab-v { font-size: 13px; color: var(--green); font-weight: 700; }
+.ss-tab-x { width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--label-3); display: grid; place-items: center; cursor: pointer; }
+.ss-tab-x:hover { background: var(--red-soft); color: var(--red); }
+.ss-tab-x svg { width: 15px; height: 15px; }
+.ss-tab-add { display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1.5px dashed var(--tint); background: transparent; color: var(--tint); font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.ss-tab-add svg { width: 18px; height: 18px; }
+@media (max-width: 860px) { .ss-tabs { padding: 8px 12px 0; } }
+
+/* تصنيفات أعلى قائمة البحث */
+.picker-groups { position: sticky; top: -4px; z-index: 1; display: flex; gap: 6px; overflow-x: auto; padding: 6px 4px 8px; margin: -4px -4px 4px; background: var(--card); border-bottom: 1px solid var(--separator); scrollbar-width: thin; }
+.picker-groups button { flex-shrink: 0; height: 30px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--fill-3); color: var(--label); font-weight: 600; font-size: 13px; cursor: pointer; }
+.picker-groups button.on { background: var(--tint); color: #fff; }
+.ss-step .picker-pop { max-height: 440px; }
+
+/* أزرار اختيار سريعة (أنواع العملاء...) */
+.seg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg-chips button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--label); font-weight: 600; cursor: pointer; }
+.seg-chips button svg { width: 16px; height: 16px; }
+.seg-chips button.on { border-color: var(--tint); background: var(--tint); color: #fff; }
+.seg-chips button.on .muted { color: rgba(255,255,255,.85); }

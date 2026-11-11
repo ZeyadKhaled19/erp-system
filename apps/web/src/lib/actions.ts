@@ -2,7 +2,7 @@ import { computeDocument, DOC_TYPES, toBaseQty, type DocInput, type MasterEntity
 import { db } from './db';
 import { enqueue, nextLocalNumber } from './sync';
 
-const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners'> = {
+const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners' | 'party_groups'> = {
   item: 'items',
   party: 'parties',
   warehouse: 'warehouses',
@@ -12,9 +12,10 @@ const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categori
   sales_rep: 'sales_reps',
   price_list: 'price_lists',
   partner: 'partners',
+  party_group: 'party_groups',
 };
 const LABEL: Record<MasterEntity, string> = {
-  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك',
+  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك', party_group: 'نوع عميل',
 };
 
 /** حفظ بيانات أساسية: يظهر فورًا على الجهاز ويُرفع عند الاتصال */

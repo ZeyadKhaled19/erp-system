@@ -19,6 +19,7 @@ export const BACKUP_TABLES: { name: string; order: string }[] = [
   { name: 'categories', order: 'name' },
   { name: 'price_lists', order: 'sort, id' },
   { name: 'sales_reps', order: 'id' },
+  { name: 'party_groups', order: 'sort, id' },
   { name: 'items', order: 'code' },
   { name: 'item_units', order: 'id' },
   { name: 'item_prices', order: 'id' },

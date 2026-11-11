@@ -7,6 +7,7 @@ import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, Empty, exportCsv, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { PartyInsights } from '../components/Insights';
+import { PartyGroupSheet } from '../components/CustomerFields';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useRemote } from '../lib/hooks';
 
@@ -18,14 +19,18 @@ export function PartiesPage() {
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'all' | 'balance'>('all');
+  const [grp, setGrp] = useState('');
+  const [grpSheet, setGrpSheet] = useState<any | undefined>(undefined);
+  const groups = useLiveQuery(async () => (await db.party_groups.where('kind').equals(kind).toArray()).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), [kind]) ?? [];
+  const groupName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const [editing, setEditing] = useState<any | null>(null);
   const dq = useDebounced(q);
   const L = KIND_LABEL[kind];
   const parties = useLiveQuery(() => db.parties.where('kind').equals(kind).sortBy('code'), [kind]) ?? [];
   const list = useMemo(() => {
     const s = dq.trim().toLowerCase();
-    return parties.filter((p) => (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s))) && (filter === 'all' || p.balance !== 0));
-  }, [parties, dq, filter]);
+    return parties.filter((p) => (!grp || p.group_id === grp) && (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s))) && (filter === 'all' || p.balance !== 0));
+  }, [parties, dq, filter, grp]);
   const total = list.reduce((s, p) => s + (p.balance ?? 0), 0);
 
   return (
@@ -52,6 +57,19 @@ export function PartiesPage() {
         </div>
         <Segmented value={filter} onChange={setFilter} options={[{ value: 'all', label: 'الكل' }, { value: 'balance', label: 'لهم رصيد' }]} />
       </div>
+      {kind === 'customer' && (
+        <div className="seg-chips" style={{ marginBottom: 12 }}>
+          <button className={!grp ? 'on' : ''} onClick={() => setGrp('')}>كل الأنواع</button>
+          {groups.map((g) => (
+            <button key={g.id} className={grp === g.id ? 'on' : ''} style={g.active === false ? { opacity: 0.5 } : undefined} onClick={() => setGrp(g.id)} onDoubleClick={() => can('parties.edit') && setGrpSheet(g)} title="اضغط مرتين للتعديل">
+              {g.name} <span className="muted small num">{parties.filter((p) => p.group_id === g.id).length}</span>
+            </button>
+          ))}
+          {can('parties.edit') && grp && <button onClick={() => setGrpSheet(groups.find((g) => g.id === grp))}><Pencil /> تعديل النوع</button>}
+          {can('parties.create') && <button onClick={() => setGrpSheet(null)}><Plus /> نوع جديد</button>}
+        </div>
+      )}
+      {grpSheet !== undefined && <PartyGroupSheet group={grpSheet} onClose={() => setGrpSheet(undefined)} onSaved={(id) => setGrp(id)} />}
       {list.length === 0 ? (
         <div className="card">
           <Empty icon={<Users />} title="لا يوجد" />
@@ -64,6 +82,7 @@ export function PartiesPage() {
                 <th>الكود</th>
                 <th>الاسم</th>
                 <th>الهاتف</th>
+                {kind === 'customer' && <th>النوع</th>}
                 <th className="n">{L.bal}</th>
                 <th />
               </tr>
@@ -76,6 +95,7 @@ export function PartiesPage() {
                     {p.name} {p.active === false && <span className="badge">موقوف</span>}
                   </td>
                   <td data-label="الهاتف" className="num muted">{p.phone ?? '—'}</td>
+                  {kind === 'customer' && <td data-label="النوع">{p.group_id ? <span className="badge">{groupName.get(p.group_id) ?? '—'}</span> : <span className="muted">—</span>}</td>}
                   <td data-label={L.bal} className={`n bold ${(p.balance ?? 0) < 0 ? 'red' : ''}`}>{formatMoney(p.balance ?? 0)}</td>
                   <td data-label="">
                     <SyncBadge sync={p._sync} error={p._error} />
@@ -103,6 +123,7 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
     credit_limit: party?.credit_limit ?? 0,
     price_list: party?.price_list ?? 'retail',
     price_list_id: party?.price_list_id ?? 'pl-retail',
+    group_id: party?.group_id ?? null,
     discount_pct: party?.discount_bp ? String(party.discount_bp / 100) : '0',
     due_days: party?.due_days ?? 0,
     review_date: party?.review_date ?? '',
@@ -110,6 +131,7 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
     active: party?.active ?? true,
   }));
   const priceLists = useLiveQuery(async () => (await db.price_lists.orderBy('sort').toArray()).filter((p) => p.active !== false), []) ?? [];
+  const groups = useLiveQuery(async () => (await db.party_groups.where('kind').equals(kind).toArray()).filter((g) => g.active !== false || g.id === party?.group_id).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), [kind]) ?? [];
   const [err, setErr] = useState<string | null>(null);
   const set = (k: string, v: unknown) => setF((p: any) => ({ ...p, [k]: v }));
 
@@ -172,6 +194,12 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
         </Field>
         {kind === 'customer' && (
           <div className="grid grid-2">
+            <Field label="نوع العميل">
+              <select className="select" value={f.group_id ?? ''} onChange={(e) => set('group_id', e.target.value || null)}>
+                <option value="">—</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </Field>
             <Field label="الحد الائتماني" hint="0 = بدون حد">
               <MoneyInput value={f.credit_limit} onChange={(v) => set('credit_limit', v)} />
             </Field>

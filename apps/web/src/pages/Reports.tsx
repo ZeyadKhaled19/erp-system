@@ -39,7 +39,10 @@ function DateRange({ from, to, setFrom, setTo }: { from: string; to: string; set
 }
 
 function useItemOptions() {
-  return useLiveQuery(async () => (await db.items.orderBy('code').toArray()).map((i) => ({ id: i.id, label: i.name, sub: i.code, search: `${i.name} ${i.code} ${i.barcode ?? ''}` })), []) ?? [];
+  return useLiveQuery(async () => {
+    const cats = new Map((await db.categories.toArray()).map((c) => [c.id, c.name]));
+    return (await db.items.orderBy('code').toArray()).map((i) => ({ id: i.id, label: i.name, sub: i.code, search: `${i.name} ${i.code} ${i.barcode ?? ''}`, group: (i.category_id && cats.get(i.category_id)) || undefined }));
+  }, []) ?? [];
 }
 function useWarehouses() {
   return useLiveQuery(() => db.warehouses.orderBy('code').toArray(), []) ?? [];

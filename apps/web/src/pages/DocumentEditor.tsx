@@ -85,6 +85,7 @@ export function DocumentEditor() {
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
+  const catNames = useLiveQuery(async () => new Map((await db.categories.toArray()).map((c) => [c.id, c.name])), []) ?? new Map<string, string>();
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
   const parties = useLiveQuery(() => db.parties.toArray(), []) ?? [];
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
@@ -369,6 +370,7 @@ export function DocumentEditor() {
           label: i.name,
           sub: i.is_service ? `${i.code} · خدمة` : info?.stock ? `متاح ${formatQty(whStock.get(i.id) ?? 0)} · ${formatMoney(i.sale_price)}` : i.code,
           search: `${i.name} ${i.code} ${i.barcode ?? ''}`,
+          group: (i.category_id && catNames.get(i.category_id)) || undefined,
         })),
     [items, whStock, info?.stock],
   );

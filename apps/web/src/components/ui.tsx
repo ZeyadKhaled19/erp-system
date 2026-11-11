@@ -243,19 +243,36 @@ export interface PickOption {
   label: string;
   sub?: string;
   search?: string;
+  /** التصنيف: لو للخيارات أكثر من تصنيف تظهر أزرار للتصفية أعلى القائمة */
+  group?: string;
+}
+
+/** أزرار التصنيفات أعلى قائمة البحث */
+export function GroupChips({ groups, value, onChange }: { groups: string[]; value: string; onChange: (g: string) => void }) {
+  if (groups.length < 2) return null;
+  return (
+    <div className="picker-groups" onMouseDown={(e) => e.preventDefault()}>
+      <button type="button" className={!value ? 'on' : ''} onClick={() => onChange('')}>الكل</button>
+      {groups.map((g) => (
+        <button type="button" key={g} className={value === g ? 'on' : ''} onClick={() => onChange(g)}>{g}</button>
+      ))}
+    </div>
+  );
 }
 
 export function Picker({ value, options, onChange, placeholder, disabled, autoFocus, allowClear }: { value: string | null | undefined; options: PickOption[]; onChange: (id: string | null) => void; placeholder?: string; disabled?: boolean; autoFocus?: boolean; allowClear?: boolean }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [hl, setHl] = useState(0);
+  const [group, setGroup] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.id === value);
+  const groups = useMemo(() => [...new Set(options.map((o) => o.group).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'ar')), [options]);
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const list = s ? options.filter((o) => (o.search ?? `${o.label} ${o.sub ?? ''}`).toLowerCase().includes(s)) : options;
-    return list.slice(0, 60);
-  }, [q, options]);
+    const list = options.filter((o) => (!group || o.group === group) && (!s || (o.search ?? `${o.label} ${o.sub ?? ''}`).toLowerCase().includes(s)));
+    return list.slice(0, 300);
+  }, [q, options, group]);
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
     document.addEventListener('mousedown', h);
@@ -299,6 +316,7 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
       />
       {open && !disabled && (
         <div className="picker-pop">
+          <GroupChips groups={groups} value={group} onChange={(g) => { setGroup(g); setHl(0); }} />
           {allowClear && value && (
             <div className="picker-opt" onMouseDown={() => { onChange(null); setOpen(false); }}>
               <span className="muted">— بدون —</span>

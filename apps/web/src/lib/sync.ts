@@ -94,6 +94,7 @@ const TABLE_OF: Record<string, keyof typeof db | undefined> = {
   sales_rep: 'sales_reps',
   price_list: 'price_lists',
   partner: 'partners',
+  party_group: 'party_groups',
   instrument: 'instruments',
   shift: 'cashier_shifts',
 };

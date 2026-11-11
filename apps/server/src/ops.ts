@@ -17,6 +17,7 @@ const MASTER_TABLE: Record<MasterEntity, string> = {
   sales_rep: 'sales_reps',
   price_list: 'price_lists',
   partner: 'partners',
+  party_group: 'party_groups',
 };
 
 const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
@@ -29,6 +30,7 @@ const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
   sales_rep: ['parties.create', 'parties.edit'],
   price_list: ['settings.manage', 'settings.manage'],
   partner: ['partners.manage', 'partners.manage'],
+  party_group: ['parties.create', 'parties.edit'],
 };
 
 const ENTITY_LABEL: Record<MasterEntity, string> = {
@@ -41,6 +43,7 @@ const ENTITY_LABEL: Record<MasterEntity, string> = {
   sales_rep: 'المندوب',
   price_list: 'قائمة الأسعار',
   partner: 'الشريك',
+  party_group: 'نوع العميل',
 };
 
 function need(user: AuthUser, perm: string) {
