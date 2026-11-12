@@ -12,6 +12,7 @@ import { db } from '../lib/db';
 import { usePerm, useSession, useSettings, useSyncCounts, useSyncState } from '../lib/hooks';
 import { syncNow } from '../lib/sync';
 import { activeHubKey, HUBS, hubPath } from './nav';
+import { TopNav } from './TopNav';
 
 export function SyncPill() {
   const s = useSyncState();
@@ -278,8 +279,15 @@ export function Layout({ children }: { children: ReactNode }) {
           <button className="icon-btn only-mobile" onClick={() => setOpen(true)} aria-label="القائمة">
             <Menu />
           </button>
+          <a href="/" className="tn-brand hide-mobile" title={settings.company_name || 'الحسابات'} onClick={(e) => { e.preventDefault(); nav('/'); }}>
+            {settings.print_logo ? <img className="sb-logo" src={settings.print_logo} alt="" /> : <span className="sb-logo">{(settings.company_name || 'ح').trim()[0]}</span>}
+          </a>
+          <TopNav hubs={hubs.filter((h) => h.key !== 'home')} active={active} can={can} badge={{ system: problems }} />
           <div className="nav-title" id="nav-title-slot" />
-          <div className="spacer" />
+          <div className="spacer only-mobile" />
+          <button className="tn-search hide-mobile" onClick={() => setSearchOpen(true)} title="بحث (Ctrl K)" aria-label="بحث">
+            <Search />
+          </button>
           <button className="top-search hide-mobile" onClick={() => setSearchOpen(true)}>
             <Search />
             <span>ابحث عن فاتورة أو صنف أو عميل</span>
@@ -292,6 +300,12 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
           <button className="icon-btn only-mobile" onClick={() => setSearchOpen(true)} aria-label="بحث">
             <Search />
+          </button>
+          <button className="tn-user hide-mobile" title={`${session.user.full_name} · تفضيلاتي`} aria-label="تفضيلاتي" onClick={() => setAppearance(true)}>
+            {(session.user.full_name || '؟').trim()[0]}
+          </button>
+          <button className="icon-btn hide-mobile" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={logout}>
+            <LogOut />
           </button>
         </div>
         <div className="content" ref={contentRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 30)} style={isPos ? { overflow: 'hidden' } : undefined}>
