@@ -91,7 +91,7 @@ export function ItemsPage() {
                 )
               }
             >
-              تصدير
+              تصدير Excel
             </button>
             {can('items.create') && <button className="btn" onClick={() => setImporting(true)}>استيراد من Excel</button>}
             {can('items.create') && (

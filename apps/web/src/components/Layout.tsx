@@ -12,6 +12,7 @@ import { db } from '../lib/db';
 import { usePerm, useSession, useSettings, useSyncCounts, useSyncState } from '../lib/hooks';
 import { syncNow } from '../lib/sync';
 import { activeHubKey, HUBS, hubPath } from './nav';
+import { ScreenTabs } from './ScreenTabs';
 import { TopNav } from './TopNav';
 import { searchItems } from '../lib/search';
 
@@ -188,10 +189,8 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    setOpen(false);
-    contentRef.current?.scrollTo({ top: 0 });
-  }, [loc.pathname]);
+  // التمرير لكل شاشة تديره تبويبات الشاشات (أعلى الصفحة للشاشة الجديدة، وموضعها السابق عند الرجوع لتبويب)
+  useEffect(() => setOpen(false), [loc.pathname]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -309,6 +308,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <LogOut />
           </button>
         </div>
+        <ScreenTabs userId={session.user.id} scrollRef={contentRef} />
         <div className="content" ref={contentRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 30)} style={isPos ? { overflow: 'hidden' } : undefined}>
           {children}
         </div>

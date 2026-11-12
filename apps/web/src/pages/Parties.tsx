@@ -50,7 +50,7 @@ export function PartiesPage() {
         actions={
           <>
             <button className="btn" onClick={() => exportExcel(L.many, ['الكود', 'الاسم', 'الهاتف', 'الرصيد'], list.map((p) => [p.code, p.name, p.phone, formatMoney(p.balance ?? 0)]))}>
-              تصدير
+              تصدير Excel
             </button>
             {can('parties.create') && (
               <button className="btn primary" onClick={() => setEditing({ kind })}>
@@ -309,7 +309,7 @@ export function PartyDetail() {
               )
             }
           >
-            تصدير
+            تصدير Excel
           </button>
         )}
         <button className="btn no-print" onClick={() => savePdf(`كشف حساب ${party.name}`)}>PDF</button>
