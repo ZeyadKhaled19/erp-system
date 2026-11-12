@@ -1,6 +1,6 @@
 import { uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Check, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
@@ -67,8 +67,11 @@ export function CategoryFilter({ value, onChange, counts, className }: { value: 
   const cats = useCategories();
   if (cats.length < 1) return null;
   return (
+    // القائمة الأصلية تغطي الخانة كلها (شفافة) فالضغط في أي مكان عليها يفتحها
     <label className={`cat-select ${value ? 'on' : ''} ${className ?? ''}`}>
       <span>التصنيف:</span>
+      <b className="cat-select-v">{value ? (cats.find((c) => c.id === value)?.name ?? 'الكل') : 'الكل'}</b>
+      <ChevronDown className="cat-select-i" aria-hidden="true" />
       <select aria-label="فلتر التصنيف" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">الكل</option>
         {cats.map((c) => (

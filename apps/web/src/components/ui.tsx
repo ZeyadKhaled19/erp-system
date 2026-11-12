@@ -253,7 +253,8 @@ export function FloatingPop({ anchor, children, className = 'picker-pop', maxHei
       const vw = window.innerWidth;
       const below = vh - r.bottom - 12;
       const above = r.top - 12;
-      const up = below < Math.min(maxHeight, 220) && above > below;
+      // تحت الخانة دائمًا ما دامت هناك مساحة معقولة؛ لأعلى فقط إن كانت المساحة تحتها ضيقة جدًا
+      const up = below < 240 && above > below + 80;
       const width = Math.min(Math.max(r.width, minWidth), vw - 16);
       // محاذاة على يمين الخانة (واجهة عربية) مع البقاء داخل الشاشة
       let left = r.right - width;

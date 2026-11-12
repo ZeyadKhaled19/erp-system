@@ -343,6 +343,12 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
     setTimeout(() => searchRef.current?.focus(), 20);
   };
 
+  // الصنف المحدد بالأسهم يظهر دائمًا داخل القائمة
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listRef.current?.querySelector(`[data-i="${hl}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [hl, listOpen]);
+
   const onSearchKey = async (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -711,23 +717,30 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
                     setEntryItem(null);
                     setListOpen(true);
                   }}
-                  onFocus={(e) => {
-                    setListOpen(true);
-                    e.target.select();
-                  }}
+                  onFocus={(e) => e.target.select()}
+                  // القائمة تفتح بالضغط على خانة البحث أو بالكتابة أو بالسهم لأسفل فقط (وليس عند رجوع المؤشر تلقائيًا)
+                  onMouseDown={() => setListOpen(true)}
                   onBlur={() => setTimeout(() => setListOpen(false), 150)}
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') setListOpen(false);
-                    else void onSearchKey(e);
+                    else if (!listOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                      e.preventDefault();
+                      setListOpen(true);
+                    } else if (!listOpen && e.key === 'Enter' && !q.trim()) {
+                      e.preventDefault();
+                      setListOpen(true);
+                    } else void onSearchKey(e);
                   }}
                 />
                 {listOpen && (!entryItem || !q) && (
-                  <FloatingPop anchor={searchRef} maxHeight={460} minWidth={440}>
+                  <FloatingPop anchor={searchRef} maxHeight={460} minWidth={440} className="picker-pop has-head">
                     <GroupChips groups={groups} value={catNames.get(catFilter) ?? ''} onChange={(g) => { setCatFilter(cats.find((c) => c.name === g)?.id ?? ''); setHl(0); }} />
+                    <div className="picker-scroll" ref={listRef}>
                     {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
                     {matches.map((m, i) => (
                       <div
                         key={m.id}
+                        data-i={i}
                         className={`picker-opt ${i === hl ? 'hl' : ''}`}
                         onMouseDown={(e) => { e.preventDefault(); hover.hide(); void pick(m.id); }}
                         onMouseEnter={(e) => { setHl(i); (costHover(m.id, m.base_unit) as any).onMouseEnter?.(e); }}
@@ -738,6 +751,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
                         <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
                       </div>
                     ))}
+                    </div>
                   </FloatingPop>
                 )}
               </div>

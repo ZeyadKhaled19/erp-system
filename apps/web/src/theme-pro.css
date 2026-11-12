@@ -1454,3 +1454,20 @@ kbd { font-weight: 500; }
 .st-close-all:hover { background: color-mix(in srgb, var(--label) 10%, transparent); color: var(--label); }
 /* البيع السريع يملأ مساحة المحتوى الفعلية (تتغير مع ظهور شريط التبويبات) */
 @media (min-width: 761px) { .pos-wrap { height: 100%; } }
+
+/* ===================== قائمة أصناف البحث: التصنيفات ثابتة فوق، والأصناف وحدها تتمرر ===================== */
+.picker-pop.has-head { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.picker-pop.has-head .picker-groups { position: static; margin: 0; padding: 8px 8px 8px; flex-shrink: 0; }
+.picker-pop.has-head .picker-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 4px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--label) 25%, transparent) transparent; }
+.picker-scroll::-webkit-scrollbar { width: 8px; }
+.picker-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--label) 22%, transparent); border-radius: 8px; border: 2px solid var(--card); }
+.picker-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* فلتر التصنيف: الخانة كلها قابلة للضغط (القائمة الأصلية شفافة فوقها بالكامل) */
+.cat-select { position: relative; }
+.cat-select .cat-select-v { font-weight: 600; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.cat-select.on .cat-select-v { color: var(--tint); }
+.cat-select .cat-select-i { width: 15px; height: 15px; color: var(--label-3); flex-shrink: 0; }
+.cat-select select { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; min-width: 0; opacity: 0; cursor: pointer; appearance: none; }
+.cat-select:hover { border-color: var(--tint); }
+@media (max-width: 760px) { .si-search .cat-select .cat-select-v { max-width: 110px; } }
