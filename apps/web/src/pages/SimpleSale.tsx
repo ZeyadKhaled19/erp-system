@@ -13,6 +13,7 @@ import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
+import { searchItems } from '../lib/search';
 
 interface Line {
   id: string;
@@ -65,25 +66,29 @@ function storeSet(k: string, v: unknown) {
  * فواتير بيع متعددة في تبويبات: كل تبويب فاتورة مستقلة محفوظة كمسودة على الجهاز
  * (لا تضيع عند التنقل أو إعادة التحميل) حتى تُحفظ.
  */
-export function SimpleSalePage() {
+export function SimpleSalePage({ kind = 'sale' }: { kind?: 'sale' | 'purchase' }) {
   const ui = useUi();
+  const P = kind === 'purchase';
+  const tabsKey = P ? 'purchase-tabs' : 'sale-tabs';
+  const title = P ? 'فاتورة شراء' : 'فاتورة بيع';
+  const newId = () => (P ? 'p-' : '') + uuid();
   const [tabs, setTabs] = useState<string[]>(() => {
     try {
-      const t = JSON.parse(localStorage.getItem('sale-tabs') ?? '[]');
+      const t = JSON.parse(localStorage.getItem(tabsKey) ?? '[]');
       if (Array.isArray(t) && t.length) return t;
     } catch {
       /* ignore */
     }
-    return [uuid()];
+    return [newId()];
   });
   const [active, setActive] = useState(tabs[0]);
   const [sums, setSums] = useState<Record<string, TabSummary>>({});
-  useEffect(() => storeSet('sale-tabs', tabs), [tabs]);
+  useEffect(() => storeSet(tabsKey, tabs), [tabs, tabsKey]);
   const cur = tabs.includes(active) ? active : tabs[0];
 
   const newTab = () => {
     if (tabs.length >= 12) return ui.toast('الحد الأقصى 12 فاتورة مفتوحة', 'err');
-    const id = uuid();
+    const id = newId();
     setTabs((t) => [...t, id]);
     setActive(id);
   };
@@ -96,17 +101,17 @@ export function SimpleSalePage() {
     setTabs((t) => {
       const i = t.indexOf(id);
       const n = t.filter((x) => x !== id);
-      if (!n.length) n.push(uuid());
+      if (!n.length) n.push(newId());
       if (id === cur) setActive(n[Math.max(0, i - 1)] ?? n[0]);
       return n;
     });
   };
 
   useEffect(() => {
-    document.title = 'فاتورة بيع — الحسابات';
+    document.title = `${title} — الحسابات`;
     const slot = document.getElementById('nav-title-slot');
-    if (slot) slot.textContent = 'فاتورة بيع';
-  }, []);
+    if (slot) slot.textContent = title;
+  }, [title]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === 'F3' || (e.altKey && (e.key === 'n' || e.key === 'ى'))) {
@@ -140,6 +145,7 @@ export function SimpleSalePage() {
       </div>
       {tabs.map((id) => (
         <SaleTab
+          kind={kind}
           key={id}
           tabId={id}
           active={id === cur}
@@ -190,16 +196,20 @@ function useColWidths(uid: string) {
   return { w, set: (c: string, v: number) => save({ ...w, [c]: Math.max(44, Math.min(700, Math.round(v))) }), reset: () => save({ ...DEFAULT_W }) };
 }
 
-function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active: boolean; onSummary: (s: TabSummary) => void; onSaved: () => boolean }) {
+function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | 'purchase'; tabId: string; active: boolean; onSummary: (s: TabSummary) => void; onSaved: () => boolean }) {
+  const P = kind === 'purchase';
+  const title = P ? 'فاتورة شراء' : 'فاتورة بيع';
   const ui = useUi();
   const nav = useNavigate();
   const { session } = useSession();
   const uid = session.user.id;
   const can = (k: string) => hasPermission(session.user.permissions, k);
+  const dk = P ? `p.${uid}` : uid; // إعدادات الشراء منفصلة عن البيع
+  const canCredit = P || can('sales.credit');
 
   const items = useLiveQuery(async () => (await db.items.toArray()).filter((i) => i.active !== false), []) ?? [];
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
-  const customers = useLiveQuery(async () => (await db.parties.where('kind').equals('customer').toArray()).filter((p) => p.active !== false), []) ?? [];
+  const customers = useLiveQuery(async () => (await db.parties.where('kind').equals(P ? 'supplier' : 'customer').toArray()).filter((p) => p.active !== false), [P]) ?? [];
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
   const priceLists = useLiveQuery(async () => (await db.price_lists.toArray()).filter((p) => p.active !== false).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), []) ?? [];
   const boxes = useLiveQuery(
@@ -215,16 +225,16 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   const wh = whId || warehouses[0]?.id;
   const stock = useLiveQuery(async () => (wh ? new Map((await db.stock_balances.where('warehouse_id').equals(wh).toArray()).map((b) => [b.item_id, b.qty])) : new Map()), [wh]) ?? new Map();
   // سعر الشراء عند الإشارة للصنف (لمن لديه صلاحية رؤية التكلفة فقط)
-  const showCost = can('costs.view');
+  const showCost = P || can('costs.view');
   const costs = useCostMap(wh, showCost && active);
   const hover = useHoverCard();
   const costHover = (id: string, unit?: string) => (showCost ? hover.bind(<CostCard c={costs.get(id)} unit={unit} />) : {});
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
-  const defaults = useMemo(() => loadDefaults(uid), [uid]);
+  const defaults = useMemo(() => loadDefaults(dk), [dk]);
   const [draft] = useState(() => loadDraft(tabId) as any);
   const [date, setDate] = useState(draft.date ?? todayISO());
-  const [partyId, setPartyId] = useState(draft.partyId ?? 'party-cash-customer');
+  const [partyId, setPartyId] = useState<string>(draft.partyId ?? (P ? '' : 'party-cash-customer'));
   const [notes, setNotes] = useState(draft.notes ?? '');
   const [lines, setLines] = useState<Line[]>(draft.lines ?? []);
   const [discMode, setDiscMode] = useState<'amt' | 'pct'>(draft.discMode ?? 'amt');
@@ -249,7 +259,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
-  const cols = useColWidths(uid);
+  const cols = useColWidths(dk);
 
   // سطر الإدخال
   const [q, setQ] = useState('');
@@ -282,17 +292,15 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   const catNames = useMemo(() => new Map(cats.map((c) => [c.id, c.name])), [cats]);
   const groups = useMemo(() => [...new Set(items.map((i) => (i.category_id ? catNames.get(i.category_id) : undefined)).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'ar')), [items, catNames]);
   const matches = useMemo(() => {
-    const s = entryItem ? '' : q.trim().toLowerCase();
-    return items
-      .filter((i) => (!catFilter || i.category_id === catFilter) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
-      .slice(0, 300);
+    const pool = items.filter((i) => !catFilter || i.category_id === catFilter);
+    return (entryItem || !q.trim() ? [...pool].sort((a, b) => a.name.localeCompare(b.name, 'ar')) : searchItems(pool, q)).slice(0, 300);
   }, [q, items, catFilter, catNames, entryItem]);
 
   const unitOf = (it: any, unitName?: string) => {
     const u = unitName ? units.find((x) => x.item_id === it.id && x.name === unitName) : null;
     return u ? { name: u.name, factor: u.factor, sale_price: u.sale_price, wholesale_price: u.wholesale_price } : { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price };
   };
+  const unitPrice = async (it: any, unit: any) => (P ? mulDiv(costs.get(it.id)?.last ?? costs.get(it.id)?.avg ?? 0, unit.factor ?? 1000, 1000) : priceFor(it, unit, priceList));
   const pick = async (itemId: string, unitName?: string) => {
     const it = itemMap.get(itemId);
     if (!it) return;
@@ -301,7 +309,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     setListOpen(false);
     setQ(it.name);
     setEntryQty(1000);
-    setEntryPrice(await priceFor(it, unit, priceList));
+    setEntryPrice(await unitPrice(it, unit));
     setEntryUnit(unit);
     setTimeout(() => { const el = qtyRef.current?.querySelector('input'); el?.focus(); el?.select(); }, 30);
   };
@@ -399,7 +407,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   useEffect(() => {
     storeSet(
       draftKey(tabId),
-      lines.length || partyId !== 'party-cash-customer' || notes
+      lines.length || (partyId && partyId !== 'party-cash-customer') || notes
         ? { date, partyId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod }
         : null,
     );
@@ -424,21 +432,21 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     setNotes('');
     setPaidText('');
     setRestMethod('');
-    setPartyId('party-cash-customer');
-    setPlOverride(loadDefaults(uid).priceList ?? null);
-    setMethod(loadDefaults(uid).method ?? boxes[0]?.id ?? '');
+    setPartyId(P ? '' : 'party-cash-customer');
+    setPlOverride(loadDefaults(dk).priceList ?? null);
+    setMethod(loadDefaults(dk).method ?? boxes[0]?.id ?? '');
     setErr(null);
     setSel(0);
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
   // ---------- تثبيت الافتراضيات لكل مستخدم ----------
-  const pinned = loadDefaults(uid);
+  const pinned = loadDefaults(dk);
   const pin = (k: 'method' | 'priceList', v: string | null) => {
-    const d = { ...loadDefaults(uid) };
+    const d = { ...loadDefaults(dk) };
     if (v && d[k] !== v) d[k] = v;
     else delete d[k];
-    storeSet(defaultsKey(uid), d);
+    storeSet(defaultsKey(dk), d);
     ui.toast(d[k] ? 'تم التثبيت كافتراضي لك' : 'أُلغي التثبيت');
     setNow(new Date());
   };
@@ -462,8 +470,9 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     setErr(null);
     if (!lines.length) return setErr('أضف صنفًا واحدًا على الأقل');
     if (calc.error) return setErr(calc.error);
+    if (P && !partyId) return setErr('اختر المورد');
     if (credit > 0 && isCash) return setErr('الجزء الآجل يُسجل على عميل: اختر العميل (أو أضف عميلًا جديدًا)');
-    if (credit > 0 && !can('sales.credit')) return setErr('لا تملك صلاحية البيع الآجل؛ اختر طريقة لدفع الباقي');
+    if (credit > 0 && !canCredit) return setErr('لا تملك صلاحية البيع الآجل؛ اختر طريقة لدفع الباقي');
     if (method !== 'credit' && !box) return setErr('اختر طريقة الدفع');
     setBusy(true);
     try {
@@ -474,17 +483,17 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
       ];
       const doc: DocInput = {
         id,
-        doc_type: 'sale_invoice',
+        doc_type: P ? 'purchase_invoice' : 'sale_invoice',
         date,
         party_id: partyId,
         warehouse_id: wh,
         cashbox_id: box || null,
-        price_list_id: priceList,
+        price_list_id: P ? null : priceList,
         payment_type: credit > 0 ? 'credit' : 'cash',
         payments,
         instruments: [],
         charges: addOn > 0 ? [{ id: uuid(), name: addName, mode: 'add', amount: addOn }] : [],
-        shift_id: myShift && payments.some((p) => p.cashbox_id === myShift.cashbox_id) ? myShift.id : null,
+        shift_id: !P && myShift && payments.some((p) => p.cashbox_id === myShift.cashbox_id) ? myShift.id : null,
         lines: lines.map((l) => ({ ...l, serials: [], expiry: null, ref_line_id: null, notes: null })),
         journal_lines: [],
         paid: 0,
@@ -530,7 +539,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   };
   const exportLines = () =>
     exportCsv(
-      'فاتورة بيع',
+      title,
       ['الكود', 'الصنف', 'الوحدة', 'الكمية', 'السعر', 'الإجمالي', 'الخصم', 'النهائي'],
       lines.map((l, i) => {
         const it = itemMap.get(l.item_id);
@@ -539,9 +548,9 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
       }),
     );
   const shareInvoice = async () => {
-    const text = [`فاتورة بيع — ${partyName ?? 'عميل نقدي'} — ${date}`, ...lines.map((l) => `${itemMap.get(l.item_id)?.name} × ${formatQty(l.qty)} = ${formatMoney(mulDiv(l.qty, l.price, 1000) - l.discount)}`), `الإجمالي: ${formatMoney(total)}`].join('\n');
+    const text = [`${title} — ${partyName ?? (P ? 'مورد' : 'عميل نقدي')} — ${date}`, ...lines.map((l) => `${itemMap.get(l.item_id)?.name} × ${formatQty(l.qty)} = ${formatMoney(mulDiv(l.qty, l.price, 1000) - l.discount)}`), `الإجمالي: ${formatMoney(total)}`].join('\n');
     try {
-      if (navigator.share) await navigator.share({ title: 'فاتورة بيع', text });
+      if (navigator.share) await navigator.share({ title, text });
       else {
         await navigator.clipboard.writeText(text);
         ui.toast('نُسخ ملخص الفاتورة');
@@ -551,10 +560,10 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     }
   };
   const lastSales = useLiveQuery(async () => {
-    const all = (await db.documents.where('doc_type').equals('sale_invoice').toArray()).filter((d) => d.status !== 'draft');
+    const all = (await db.documents.where('doc_type').equals(P ? 'purchase_invoice' : 'sale_invoice').toArray()).filter((d) => d.status !== 'draft');
     all.sort((a, b) => String(a.date + (a.created_at ?? '')).localeCompare(String(b.date + (b.created_at ?? ''))));
     return { first: all[0]?.id ?? null, last: all[all.length - 1]?.id ?? null };
-  }, []);
+  }, [P]);
 
   useEffect(() => {
     if (!active) return;
@@ -597,8 +606,8 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     if (!it) return [];
     return [{ name: it.base_unit, factor: 1000 }, ...units.filter((u) => u.item_id === itemId && u.active !== false)];
   };
-  const priceLocked = !can('sales.price_change');
-  const canDisc = can('sales.discount');
+  const priceLocked = !P && !can('sales.price_change');
+  const canDisc = P || can('sales.discount');
   const sum = lines.reduce(
     (a, l, i) => {
       const g = mulDiv(l.qty, l.price, 1000);
@@ -664,7 +673,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
           )}
         </div>
         <div className="si-navs" aria-label="التنقل بين الفواتير">
-          <button title="بحث في فواتير البيع" aria-label="بحث في فواتير البيع" onClick={() => nav('/invoices?k=sales')}><Search /></button>
+          <button title="بحث في الفواتير" aria-label="بحث في الفواتير" onClick={() => nav(`/invoices?k=${P ? 'purchases' : 'sales'}`)}><Search /></button>
           <button title="أول فاتورة" aria-label="أول فاتورة" disabled={!lastSales?.first} onClick={() => lastSales?.first && nav(`/docs/view/${lastSales.first}`)}><ChevronsRight /></button>
           <button title="آخر فاتورة محفوظة" aria-label="آخر فاتورة محفوظة" disabled={!lastSales?.last} onClick={() => lastSales?.last && nav(`/docs/view/${lastSales.last}`)}><ChevronRight /></button>
         </div>
@@ -719,7 +728,8 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                   </FloatingPop>
                 )}
               </div>
-              <button className="btn" title="استعلام عن الصنف (F2)" onClick={() => setInquiry(entryItem ?? lines[sel]?.item_id ?? null)} disabled={!entryItem && !lines[sel]}><Info /> استعلام</button>
+              <CategoryFilter value={catFilter} onChange={(id) => { setCatFilter(id); setHl(0); searchRef.current?.focus(); }} />
+              <button className="btn" title="استعلام عن الصنف (F2)" onClick={() => setInquiry(entryItem ?? lines[sel]?.item_id ?? null)} disabled={!entryItem && !lines[sel]}><Info /> <span className="si-q-l">استعلام</span></button>
             </div>
           </div>
           <div className="ss-step ss-avail">
@@ -731,7 +741,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
             <QtyInput value={entryQty} onChange={setEntryQty} />
           </div>
           <div className="ss-step" ref={priceRef} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEntry())}>
-            <label><b>3</b> سعر البيع</label>
+            <label><b>3</b> {P ? 'سعر الشراء' : 'سعر البيع'}</label>
             <MoneyInput value={entryPrice} onChange={setEntryPrice} disabled={priceLocked} />
           </div>
           <div className="ss-step" style={{ flex: 'none' }}>
@@ -746,7 +756,6 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         </div>
       </div>
 
-      <CategoryFilter value={catFilter} onChange={(id) => { setCatFilter(id); setHl(0); searchRef.current?.focus(); }} />
 
       <div className="si-main">
         {/* ======= أوامر السطر المحدد ======= */}
@@ -787,7 +796,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                 {lines.map((l, i) => {
                   const it = itemMap.get(l.item_id);
                   const avail = mulDiv(stock.get(l.item_id) ?? 0, 1000, l.unit_factor);
-                  const short = it && !it.is_service && toBaseQty(l.qty, l.unit_factor) > (stock.get(l.item_id) ?? 0);
+                  const short = !P && it && !it.is_service && toBaseQty(l.qty, l.unit_factor) > (stock.get(l.item_id) ?? 0);
                   const upd = (p: Partial<Line>) => setLines((ls) => ls.map((x) => (x.id === l.id ? { ...x, ...p } : x)));
                   const uopts = unitOptions(l.item_id);
                   const g = mulDiv(l.qty, l.price, 1000);
@@ -799,7 +808,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                         {uopts.length > 1 ? (
                           <select className="select" style={{ height: 36, width: '100%' }} value={l.unit_name} onChange={async (e) => {
                             const u: any = uopts.find((x: any) => x.name === e.target.value);
-                            upd({ unit_name: u.name, unit_factor: u.factor, price: await priceFor(it!, u.name === it!.base_unit ? { name: u.name, factor: 1000, sale_price: it!.sale_price, wholesale_price: it!.wholesale_price } : u, priceList) });
+                            upd({ unit_name: u.name, unit_factor: u.factor, price: await unitPrice(it!, u.name === it!.base_unit ? { name: u.name, factor: 1000, sale_price: it!.sale_price, wholesale_price: it!.wholesale_price } : u) });
                           }}>
                             {uopts.map((u: any) => <option key={u.name} value={u.name}>{u.name}</option>)}
                           </select>
@@ -842,7 +851,19 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         <div className="ss-side">
           <div className="card pad stack" style={{ gap: 12 }}>
             <div>
-              <CustomerFields partyId={partyId} onChange={setPartyId} autoGroupName={credit > 0 ? 'آجل' : (boxes.find((b) => b.id === box)?.kind === 'bank' || restBox?.kind === 'bank') ? 'بنك' : 'نقدي'} />
+              {P ? (
+                <div className="field">
+                  <label>المورد</label>
+                  <div className="row" style={{ gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Picker value={partyId || null} options={customers.map((c) => ({ id: c.id, label: c.name, sub: c.phone ?? c.code, search: `${c.name} ${c.code} ${c.phone ?? ''}` }))} onChange={(id) => setPartyId(id ?? '')} placeholder="ابحث عن المورد بالاسم أو الكود" />
+                    </div>
+                    <button className="icon-btn" title="مورد جديد" aria-label="مورد جديد" onClick={() => setNewParty(true)}><UserPlus /></button>
+                  </div>
+                </div>
+              ) : (
+                <CustomerFields partyId={partyId} onChange={setPartyId} autoGroupName={credit > 0 ? 'آجل' : (boxes.find((b) => b.id === box)?.kind === 'bank' || restBox?.kind === 'bank') ? 'بنك' : 'نقدي'} />
+              )}
               {!isCash && party && <div className="caption" style={{ marginTop: 6 }}>رصيده الحالي <span className="num">{formatMoney(party.balance ?? 0)}</span> — الفاتورة تُحفظ في سجله</div>}
             </div>
 
@@ -855,7 +876,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                     {pinned.method === b.id && <span className="si-pin" title="مثبتة كافتراضي"><Pin /></span>}
                   </button>
                 ))}
-                {can('sales.credit') && (
+                {canCredit && (
                   <button className={`credit ${method === 'credit' ? 'on' : ''}`} onClick={() => setMethod('credit')}>
                     <Clock3 /><span>آجل</span>
                     {pinned.method === 'credit' && <span className="si-pin" title="مثبتة كافتراضي"><Pin /></span>}
@@ -879,7 +900,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                       {boxes.filter((b) => b.id !== box).map((b) => (
                         <button key={b.id} className={restMethod === b.id ? 'on' : ''} onClick={() => setRestMethod(b.id)}>{b.kind === 'bank' ? <CreditCard /> : <Banknote />}{b.name}</button>
                       ))}
-                      {can('sales.credit') && <button className={!restBox ? 'on' : ''} onClick={() => setRestMethod('')}><Clock3 />آجل</button>}
+                      {canCredit && <button className={!restBox ? 'on' : ''} onClick={() => setRestMethod('')}><Clock3 />آجل</button>}
                     </div>
                   </div>
                 )}
@@ -900,7 +921,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
               {addOn > 0 && <div className="row"><span>{addName}</span><b className="num">{formatMoney(addOn)}</b></div>}
               <div className="row big"><span>الإجمالي</span><b className="num">{formatMoney(total)}</b></div>
               <div className="row"><span>المدفوع</span><b className="num green">{formatMoney(method === 'credit' ? 0 : total - credit)}</b></div>
-              {credit > 0 && <div className="row"><span>آجل على العميل</span><b className="num orange">{formatMoney(credit)}</b></div>}
+              {credit > 0 && <div className="row"><span>{P ? 'آجل للمورد' : 'آجل على العميل'}</span><b className="num orange">{formatMoney(credit)}</b></div>}
             </div>
             {err && <Banner kind="err">{err}</Banner>}
             <div className="field"><label>ملاحظات</label><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
@@ -910,7 +931,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
 
       {/* ======= شريط التعديلات ======= */}
       <div className="card si-adj">
-        <div className="si-adj-g">
+        <div className="si-adj-g" style={P ? { display: 'none' } : undefined}>
           <label>قائمة الأسعار</label>
           <div className="si-adj-row">
             <select className="select" value={plOverride ?? ''} onChange={(e) => void changePriceList(e.target.value || null)}>
@@ -969,20 +990,20 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
         <label className="btn" style={{ gap: 6, cursor: 'pointer' }}><input type="checkbox" checked={printAfter} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
         <span className="spacer" />
-        <button className="btn plain" onClick={() => nav('/docs/new/sale_invoice?advanced=1')}><Settings2 /> فاتورة متقدمة</button>
+        <button className="btn plain" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`)}><Settings2 /> فاتورة متقدمة</button>
         {lines.length > 0 && <button className="btn plain danger" onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
       </div>
 
-      {inquiry && <InquirySheet itemId={inquiry} partyId={partyId} showCost={showCost} cost={costs.get(inquiry)} onClose={() => setInquiry(null)} />}
+      {inquiry && <InquirySheet purchase={P} itemId={inquiry} partyId={partyId} showCost={showCost} cost={costs.get(inquiry)} onClose={() => setInquiry(null)} />}
       {active && hover.node}
       {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void pick(id), 80)} />}
-      {newParty && <QuickPartySheet onClose={() => setNewParty(false)} onSaved={(id) => setPartyId(id)} />}
+      {newParty && <QuickPartySheet kind={P ? 'supplier' : 'customer'} onClose={() => setNewParty(false)} onSaved={(id) => setPartyId(id)} />}
     </div>
   );
 }
 
 /** استعلام سريع عن صنف: الرصيد في كل مخزن، أسعار البيع، آخر سعر لهذا العميل، وسعر الشراء لمن يملك الصلاحية */
-function InquirySheet({ itemId, partyId, showCost, cost, onClose }: { itemId: string; partyId: string; showCost: boolean; cost: any; onClose: () => void }) {
+function InquirySheet({ purchase, itemId, partyId, showCost, cost, onClose }: { purchase?: boolean; itemId: string; partyId: string; showCost: boolean; cost: any; onClose: () => void }) {
   const data = useLiveQuery(async () => {
     const item = await db.items.get(itemId);
     const whs = new Map((await db.warehouses.toArray()).map((w) => [w.id, w.name]));
@@ -991,7 +1012,7 @@ function InquirySheet({ itemId, partyId, showCost, cost, onClose }: { itemId: st
     const prices = (await db.item_prices.where('item_id').equals(itemId).toArray()).filter((p) => p.unit_name === item?.base_unit).map((p) => ({ name: lists.get(p.price_list_id) ?? p.price_list_id, price: p.price }));
     let lastSale: { price: number; date: string } | null = null;
     if (partyId && partyId !== 'party-cash-customer') {
-      const docs = (await db.documents.where('party_id').equals(partyId).toArray()).filter((d) => d.doc_type === 'sale_invoice' && d.status === 'posted');
+      const docs = (await db.documents.where('party_id').equals(partyId).toArray()).filter((d) => d.doc_type === (purchase ? 'purchase_invoice' : 'sale_invoice') && d.status === 'posted');
       docs.sort((a, b) => String(b.date + (b.created_at ?? '')).localeCompare(String(a.date + (a.created_at ?? ''))));
       for (const d of docs) {
         const l = (await db.document_lines.where('document_id').equals(d.id).toArray()).find((x) => x.item_id === itemId);
@@ -1002,7 +1023,7 @@ function InquirySheet({ itemId, partyId, showCost, cost, onClose }: { itemId: st
       }
     }
     return { item, stock, prices, lastSale };
-  }, [itemId, partyId]);
+  }, [itemId, partyId, purchase]);
   const it = data?.item;
   return (
     <Sheet title={`استعلام: ${it?.name ?? ''}`} onClose={onClose}>
@@ -1020,7 +1041,7 @@ function InquirySheet({ itemId, partyId, showCost, cost, onClose }: { itemId: st
             <div className="si-inq-row"><span>السعر الأساسي</span><b className="num">{formatMoney(it?.sale_price ?? 0)}</b></div>
             {(it?.wholesale_price ?? 0) > 0 && <div className="si-inq-row"><span>الجملة</span><b className="num">{formatMoney(it!.wholesale_price)}</b></div>}
             {data.prices.map((p) => <div key={p.name} className="si-inq-row"><span>{p.name}</span><b className="num">{formatMoney(p.price)}</b></div>)}
-            {data.lastSale && <div className="si-inq-row"><span>آخر سعر لهذا العميل</span><b className="num">{formatMoney(data.lastSale.price)} <span className="muted small">({data.lastSale.date})</span></b></div>}
+            {data.lastSale && <div className="si-inq-row"><span>{purchase ? 'آخر سعر من هذا المورد' : 'آخر سعر لهذا العميل'}</span><b className="num">{formatMoney(data.lastSale.price)} <span className="muted small">({data.lastSale.date})</span></b></div>}
           </div>
           {showCost && (
             <div className="si-inq">

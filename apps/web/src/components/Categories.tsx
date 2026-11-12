@@ -62,18 +62,22 @@ export function CategoryField({ value, onChange }: { value: string | null | unde
 }
 
 /** شريط فلتر بالتصنيف (الكل + كل تصنيف وعدد أصنافه) */
-export function CategoryFilter({ value, onChange, counts }: { value: string; onChange: (id: string) => void; counts?: Map<string, number> }) {
+/** فلتر التصنيف الموحد في كل النظام: قائمة منسدلة «التصنيف: الكل» */
+export function CategoryFilter({ value, onChange, counts, className }: { value: string; onChange: (id: string) => void; counts?: Map<string, number>; className?: string }) {
   const cats = useCategories();
-  if (cats.length < 2) return null;
+  if (cats.length < 1) return null;
   return (
-    <div className="seg-chips cat-filter" role="radiogroup" aria-label="فلتر التصنيف">
-      <button type="button" role="radio" aria-checked={!value} className={!value ? 'on' : ''} onClick={() => onChange('')}>كل التصنيفات</button>
-      {cats.map((c) => (
-        <button key={c.id} type="button" role="radio" aria-checked={value === c.id} className={value === c.id ? 'on' : ''} onClick={() => onChange(c.id)}>
-          {c.name}
-          {counts && <span className="muted small num">{counts.get(c.id) ?? 0}</span>}
-        </button>
-      ))}
-    </div>
+    <label className={`cat-select ${value ? 'on' : ''} ${className ?? ''}`}>
+      <span>التصنيف:</span>
+      <select aria-label="فلتر التصنيف" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">الكل</option>
+        {cats.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+            {counts ? ` (${counts.get(c.id) ?? 0})` : ''}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

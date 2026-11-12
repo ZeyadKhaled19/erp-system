@@ -207,7 +207,8 @@ export function App() {
 function NewDocRoute() {
   const { type } = useParams();
   const [sp] = useSearchParams();
-  if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage />;
+  if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage key="sale" />;
+  if (type === 'purchase_invoice' && !sp.get('advanced') && !sp.get('ref')) return <SimpleSalePage key="purchase" kind="purchase" />;
   return <DocumentEditor key={type} />;
 }
 

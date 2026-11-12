@@ -7,6 +7,7 @@ import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, exportCsv, Field, Picker, Segmented } from '../components/ui';
 import { db } from '../lib/db';
 import { useMap, usePerm, useRemote, useSettings } from '../lib/hooks';
+import { CategoryFilter } from '../components/Categories';
 
 const monthStart = () => `${todayISO().slice(0, 7)}-01`;
 const yearStart = () => `${todayISO().slice(0, 4)}-01-01`;
@@ -243,19 +244,20 @@ export function WarehouseMovementReport() {
 // ---------------------------------------------------------------- حد الطلب
 export function ReorderReport() {
   const nav = useNavigate();
+  const [cat, setCat] = useState('');
   const data = useLiveQuery(async () => {
-    const items = (await db.items.toArray()).filter((i) => i.active !== false && i.reorder_level > 0);
+    const items = (await db.items.toArray()).filter((i) => i.active !== false && i.reorder_level > 0 && (!cat || i.category_id === cat));
     const bal = await db.stock_balances.toArray();
     return items
       .map((i: any) => ({ ...i, qty: bal.filter((b) => b.item_id === i.id).reduce((s, b) => s + b.qty, 0) }))
       .filter((i) => i.qty <= i.reorder_level)
       .sort((a, b) => a.code.localeCompare(b.code));
-  }, []) ?? [];
+  }, [cat]) ?? [];
   return (
     <Shell
       title="الأصناف تحت حد الطلب"
       sub={`${data.length} صنف وصل لحد إعادة الطلب أو أقل`}
-      actions={<button className="btn" onClick={() => exportCsv('النواقص', ['الكود', 'الصنف', 'الرصيد', 'حد الطلب', 'العجز'], data.map((r) => [r.code, r.name, formatQty(r.qty), formatQty(r.reorder_level), formatQty(r.reorder_level - r.qty)]))}>تصدير</button>}
+      actions={<><CategoryFilter value={cat} onChange={setCat} /><button className="btn" onClick={() => exportCsv('النواقص', ['الكود', 'الصنف', 'الرصيد', 'حد الطلب', 'العجز'], data.map((r) => [r.code, r.name, formatQty(r.qty), formatQty(r.reorder_level), formatQty(r.reorder_level - r.qty)]))}>تصدير</button></>}
       note="يعرض فقط الأصناف التي لها حد طلب أكبر من صفر ورصيدها الإجمالي (كل المخازن) أقل من أو يساوي الحد."
     >
       <div className="table-wrap">

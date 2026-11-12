@@ -8,6 +8,7 @@ import { Empty, SearchBox, SyncBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { ItemInsights } from '../components/Insights';
 import { useDebounced, usePerm } from '../lib/hooks';
+import { searchItems } from '../lib/search';
 
 /** استعلام عن صنف: بحث بالكود أو الاسم أو الباركود ويعرض الأسعار والأرصدة في كل مخزن (يعمل دون اتصال) */
 export function ItemInquiry() {
@@ -23,7 +24,7 @@ export function ItemInquiry() {
     if (!s) return [];
     const unitHit = await db.item_units.where('barcode').equals(dq.trim()).first();
     if (unitHit) return [await db.items.get(unitHit.item_id)].filter(Boolean) as any[];
-    return db.items.filter((i) => [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))).limit(30).toArray();
+    return searchItems(await db.items.toArray(), dq).slice(0, 30);
   }, [dq]) ?? [];
 
   const detail = useLiveQuery(async () => {

@@ -10,6 +10,7 @@ import { ImportItemsSheet, QuickItemSheet } from '../components/QuickItem';
 import { CategoryField, CategoryFilter } from '../components/Categories';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useSettings } from '../lib/hooks';
+import { searchItems } from '../lib/search';
 
 export function ItemsPage() {
   const can = usePerm();
@@ -42,19 +43,14 @@ export function ItemsPage() {
 
   const list = useMemo(() => {
     if (!data) return [];
-    const s = dq.trim().toLowerCase();
-    return data.items.filter(
-      (i) => (showInactive || i.active !== false) && (!cat || i.category_id === cat) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))),
-    );
+    return searchItems(data.items.filter((i) => (showInactive || i.active !== false) && (!cat || i.category_id === cat)), dq);
   }, [data, dq, cat, showInactive]);
   const catName = new Map((data?.cats ?? []).map((c) => [c.id, c.name]));
   // عدد الأصناف في كل تصنيف (حسب البحث وإظهار الموقوفة)
   const catCounts = useMemo(() => {
     const m = new Map<string, number>();
     if (!data) return m;
-    const s = dq.trim().toLowerCase();
-    data.items
-      .filter((i) => (showInactive || i.active !== false) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
+    searchItems(data.items.filter((i) => showInactive || i.active !== false), dq)
       .forEach((i) => m.set(i.category_id ?? '', (m.get(i.category_id ?? '') ?? 0) + 1));
     return m;
   }, [data, dq, showInactive]);

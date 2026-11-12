@@ -2,6 +2,7 @@ import { DOC_STATUS_LABEL, moneyInput, parseMoney, parseQty, qtyInput } from '@e
 import { AlertTriangle, CheckCircle2, Info, Search, X, XCircle } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { matchScore } from '../lib/search';
 
 // ---------------------------------------------------------------- حقول
 
@@ -316,9 +317,15 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
   const current = options.find((o) => o.id === value);
   const groups = useMemo(() => [...new Set(options.map((o) => o.group).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'ar')), [options]);
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    const list = options.filter((o) => (!group || o.group === group) && (!s || (o.search ?? `${o.label} ${o.sub ?? ''}`).toLowerCase().includes(s)));
-    return list.slice(0, 300);
+    const pool = options.filter((o) => !group || o.group === group);
+    if (!q.trim()) return pool.slice(0, 300);
+    // بحث ذكي: أي جزء من الكلمة، أكثر من كلمة، مع توحيد الحروف العربية؛ الأقرب أولًا
+    return pool
+      .map((o) => ({ o, sc: matchScore(q, [o.label, o.search ?? '', o.sub ?? '']) }))
+      .filter((x) => x.sc >= 0)
+      .sort((a, b) => b.sc - a.sc)
+      .slice(0, 300)
+      .map((x) => x.o);
   }, [q, options, group]);
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && !popRef.current?.contains(e.target as Node) && setOpen(false);

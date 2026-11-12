@@ -13,6 +13,7 @@ import { usePerm, useSession, useSettings, useSyncCounts, useSyncState } from '.
 import { syncNow } from '../lib/sync';
 import { activeHubKey, HUBS, hubPath } from './nav';
 import { TopNav } from './TopNav';
+import { searchItems } from '../lib/search';
 
 export function SyncPill() {
   const s = useSyncState();
@@ -57,7 +58,7 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
     if (!s) return [];
     const match = (...v: (string | undefined | null)[]) => v.some((x) => x?.toLowerCase().includes(s));
     // نتائج البحث لا تعرض إلا ما يملك المستخدم صلاحية مشاهدته
-    const items = (can('items.view') ? await db.items.filter((i) => match(i.name, i.code, i.barcode)).limit(8).toArray() : []).map((i) => ({
+    const items = (can('items.view') ? searchItems(await db.items.toArray(), q).slice(0, 8) : []).map((i) => ({
       key: 'i' + i.id, label: i.name, sub: `صنف · ${i.code}`, to: `/items/inquiry?id=${i.id}`,
     }));
     const parties = (can('parties.view') ? await db.parties.filter((p) => match(p.name, p.code, p.phone)).limit(8).toArray() : []).map((p) => ({

@@ -1341,3 +1341,17 @@ kbd { font-weight: 500; }
 .topnav-menus { position: relative; overflow: hidden; }
 .tn-groups.more { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); width: min(640px, calc(100vw - 32px)); }
 @media (max-width: 760px) { .topnav-menus { display: none; } }
+
+/* فلتر التصنيف الموحد */
+.cat-select { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 1px solid var(--input-border); border-radius: 9px; background: var(--card); color: var(--label-2); font-size: 13.5px; cursor: pointer; flex-shrink: 0; max-width: 100%; }
+.cat-select > span { white-space: nowrap; }
+.cat-select select { border: 0; background: transparent; color: var(--label); font: inherit; font-weight: 600; outline: none; cursor: pointer; min-width: 70px; max-width: 220px; }
+.cat-select.on { border-color: var(--tint); background: var(--tint-soft); }
+.cat-select.on select { color: var(--tint); }
+.cat-select:focus-within { box-shadow: 0 0 0 3px var(--tint-soft); }
+.si-search .cat-select { height: 38px; } .cat-select { align-self: flex-start; } .si-search .cat-select, .row .cat-select { align-self: auto; }
+.si-search .picker { min-width: 160px; }
+@media (max-width: 1400px) {
+  .si-search .cat-select > span, .si-search .si-q-l { display: none; }
+  .si-search .cat-select select { max-width: 120px; }
+}

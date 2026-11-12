@@ -3,7 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Banknote, Check, CreditCard, History, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Banner, DocStatusBadge, Picker, Sheet, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, FloatingPop, Picker, Sheet, useUi } from '../components/ui';
+import { CategoryFilter } from '../components/Categories';
+import { searchItems } from '../lib/search';
 import { CustomerFields } from '../components/CustomerFields';
 import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
@@ -171,6 +173,9 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const [done, setDone] = useState<{ id: string; total: number; change: number } | null>(null);
   const [editLine, setEditLine] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const searchBox = useRef<HTMLDivElement>(null);
+  const [sugHl, setSugHl] = useState(0);
+  const [sugOpen, setSugOpen] = useState(false);
 
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
   const [whId, setWhId] = useState<string>('');
@@ -188,12 +193,11 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
   const shown = useMemo(() => {
-    const s = q.trim().toLowerCase();
     const fav = new Set(favs);
-    return items
-      .filter((i) => (cat === '__fav' ? fav.has(i.id) : !cat || i.category_id === cat) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
-      .sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id)))
-      .slice(0, 120);
+    const pool = items.filter((i) => (cat === '__fav' ? fav.has(i.id) : !cat || i.category_id === cat));
+    // بحث ذكي بالكلام: أي جزء من الاسم أو الكود، أكثر من كلمة، مع توحيد الحروف العربية
+    if (q.trim()) return searchItems(pool, q).slice(0, 120);
+    return pool.sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id))).slice(0, 120);
   }, [items, q, cat, favs]);
 
   const add = async (itemId: string, qty = 1000) => {
@@ -221,10 +225,10 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
     if (it) {
       await add(it.id);
       setQ('');
-    } else if (shown.length === 1) {
-      await add(shown[0].id);
+    } else if (shown[sugHl]) {
+      await add(shown[sugHl].id);
       setQ('');
-    } else ui.toast(`لا يوجد صنف بالكود ${code}`, 'err');
+    } else ui.toast(`لا يوجد صنف باسم أو كود «${code}»`, 'err');
   };
 
   const calc = useMemo(() => computeDocument(cart.map((l) => ({ qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp })), 0), [cart]);
@@ -270,30 +274,54 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
     <div className="pos" style={active ? undefined : { display: 'none' }}>
       <div className="pos-left">
         <div className="row" style={{ gap: 10 }}>
-          <div className="search" style={{ flex: 1, height: 52, background: 'var(--card)', boxShadow: 'var(--shadow-card)' }}>
+          <div className="search" ref={searchBox} style={{ flex: 1, height: 46, background: 'var(--card)', boxShadow: 'var(--shadow-card)' }}>
             <ScanLine />
             <input
               ref={searchRef}
               autoFocus
               value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void onSearchEnter())}
-              placeholder="امسح الباركود أو ابحث باسم الصنف (F2)"
-              style={{ fontSize: 17 }}
+              onChange={(e) => { setQ(e.target.value); setSugHl(0); setSugOpen(true); }}
+              onFocus={() => setSugOpen(true)}
+              onBlur={() => setTimeout(() => setSugOpen(false), 150)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setSugOpen(true); setSugHl((h) => Math.min(h + 1, Math.min(shown.length, 12) - 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setSugHl((h) => Math.max(h - 1, 0)); }
+                else if (e.key === 'Escape') setSugOpen(false);
+                else if (e.key === 'Enter') { e.preventDefault(); void onSearchEnter(); }
+              }}
+              placeholder="ابحث باسم الصنف أو جزء منه أو الكود، أو امسح الباركود (F2)"
+              style={{ fontSize: 16 }}
             />
             {q && <button className="icon-btn" style={{ width: 28, height: 28 }} onClick={() => setQ('')}><X style={{ width: 16, height: 16 }} /></button>}
           </div>
+          <CategoryFilter value={cat === '__fav' ? '' : cat} onChange={(id) => { setCat(id); searchRef.current?.focus(); }} className="pos-cat-select" />
           {warehouses.length > 1 && (
             <select className="select" style={{ width: 170, background: 'var(--card)' }} value={wh} onChange={(e) => setWhId(e.target.value)}>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           )}
         </div>
-        {(cats.length > 1 || favs.length > 0) && (
+        {sugOpen && q.trim() && (
+          <FloatingPop anchor={searchBox} maxHeight={420} minWidth={420}>
+            {shown.length === 0 && <div className="picker-opt muted">لا يوجد صنف يطابق «{q}»</div>}
+            {shown.slice(0, 12).map((m, i) => (
+              <div
+                key={m.id}
+                className={`picker-opt ${i === sugHl ? 'hl' : ''}`}
+                onMouseEnter={() => setSugHl(i)}
+                onMouseDown={(e) => { e.preventDefault(); void add(m.id); setQ(''); }}
+              >
+                <span className="muted small num" style={{ minWidth: 44 }}>{m.code}</span>
+                <span style={{ flex: 1 }}>{m.name}</span>
+                <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
+              </div>
+            ))}
+          </FloatingPop>
+        )}
+        {favs.length > 0 && (
           <div className="pos-cats">
-            <button className={!cat ? 'on' : ''} onClick={() => setCat('')}>الكل</button>
-            {favs.length > 0 && <button className={`fav ${cat === '__fav' ? 'on' : ''}`} onClick={() => setCat('__fav')}><Star /> المفضلة</button>}
-            {cats.length > 1 && cats.map((c) => <button key={c.id} className={cat === c.id ? 'on' : ''} onClick={() => setCat(c.id)}>{c.name}</button>)}
+            <button className={cat !== '__fav' ? 'on' : ''} onClick={() => setCat('')}>كل الأصناف</button>
+            <button className={`fav ${cat === '__fav' ? 'on' : ''}`} onClick={() => setCat('__fav')}><Star /> المفضلة</button>
           </div>
         )}
         <div className="pos-grid">
