@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, CreditCard, History, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, Check, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, DocStatusBadge, FloatingPop, Picker, Sheet, useUi } from '../components/ui';
@@ -22,8 +22,6 @@ interface CartLine {
   tax_rate_bp: number;
 }
 
-const AVATAR = ['#007AFF', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5856D6', '#30B0C7', '#A2845E'];
-const colorFor = (s: string) => AVATAR[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR.length];
 
 /** البيع السريع: اختر الأصناف بلمسة ثم ادفع — مصمم للكاشير والشاشات اللمسية */
 interface PosSummary {
@@ -175,6 +173,23 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const searchRef = useRef<HTMLInputElement>(null);
   const searchBox = useRef<HTMLDivElement>(null);
   const [sugHl, setSugHl] = useState(0);
+  const viewKey = `erp.pos.view.${session.user.id}`;
+  const [view, setView] = useState<{ mode: 'grid' | 'list'; inStock: boolean }>(() => {
+    try {
+      return { mode: 'grid', inStock: false, ...(JSON.parse(localStorage.getItem(viewKey) ?? '{}') ?? {}) };
+    } catch {
+      return { mode: 'grid', inStock: false };
+    }
+  });
+  const setViewPref = (v: Partial<typeof view>) => {
+    const n = { ...view, ...v };
+    setView(n);
+    try {
+      localStorage.setItem(viewKey, JSON.stringify(n));
+    } catch {
+      /* ignore */
+    }
+  };
   const [sugOpen, setSugOpen] = useState(false);
 
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
@@ -194,11 +209,13 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
 
   const shown = useMemo(() => {
     const fav = new Set(favs);
-    const pool = items.filter((i) => (cat === '__fav' ? fav.has(i.id) : !cat || i.category_id === cat));
+    const avail = (i: any) => i.is_service || (stock.get(i.id) ?? 0) > 0;
+    const pool = items.filter((i) => (cat === '__fav' ? fav.has(i.id) : !cat || i.category_id === cat) && (!view.inStock || avail(i)));
     // بحث ذكي بالكلام: أي جزء من الاسم أو الكود، أكثر من كلمة، مع توحيد الحروف العربية
-    if (q.trim()) return searchItems(pool, q).slice(0, 120);
-    return pool.sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id))).slice(0, 120);
-  }, [items, q, cat, favs]);
+    if (q.trim()) return searchItems(pool, q);
+    return [...pool].sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id)) || Number(avail(b)) - Number(avail(a)) || a.name.localeCompare(b.name, 'ar'));
+  }, [items, q, cat, favs, view.inStock, stock]);
+  const LIMIT = 240;
 
   const add = async (itemId: string, qty = 1000) => {
     const it = itemMap.get(itemId);
@@ -301,8 +318,8 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             </select>
           )}
         </div>
-        {sugOpen && q.trim() && (
-          <FloatingPop anchor={searchBox} maxHeight={420} minWidth={420}>
+        {sugOpen && (q.trim().length >= 2 || /^\d+$/.test(q.trim())) && (
+          <FloatingPop anchor={searchBox} maxHeight={380} minWidth={420}>
             {shown.length === 0 && <div className="picker-opt muted">لا يوجد صنف يطابق «{q}»</div>}
             {shown.slice(0, 12).map((m, i) => (
               <div
@@ -318,38 +335,48 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             ))}
           </FloatingPop>
         )}
-        {favs.length > 0 && (
+        <div className="pos-tools">
           <div className="pos-cats">
             <button className={cat !== '__fav' ? 'on' : ''} onClick={() => setCat('')}>كل الأصناف</button>
-            <button className={`fav ${cat === '__fav' ? 'on' : ''}`} onClick={() => setCat('__fav')}><Star /> المفضلة</button>
+            {favs.length > 0 && <button className={`fav ${cat === '__fav' ? 'on' : ''}`} onClick={() => setCat('__fav')}><Star /> المفضلة <span className="num">{favs.length}</span></button>}
+            <button className={view.inStock ? 'on' : ''} onClick={() => setViewPref({ inStock: !view.inStock })} title="إخفاء الأصناف التي رصيدها صفر"><PackageCheck /> المتوفر فقط</button>
           </div>
-        )}
-        <div className="pos-grid">
+          <span className="pos-count muted small">{shown.length > LIMIT ? `يعرض ${LIMIT} من ${shown.length} — ابحث أو اختر تصنيفًا` : `${shown.length} صنف`}</span>
+          <div className="segmented pos-view" role="group" aria-label="طريقة العرض">
+            <button className={view.mode === 'grid' ? 'on' : ''} title="مربعات" aria-label="عرض مربعات" onClick={() => setViewPref({ mode: 'grid' })}><LayoutGrid /></button>
+            <button className={view.mode === 'list' ? 'on' : ''} title="قائمة" aria-label="عرض قائمة" onClick={() => setViewPref({ mode: 'list' })}><List /></button>
+          </div>
+        </div>
+        <div className={`pos-grid ${view.mode === 'list' ? 'as-list' : ''}`}>
           {shown.length === 0 && <div className="muted" style={{ padding: 20 }}>لا توجد أصناف{q ? ' مطابقة' : ''}. أضف الأصناف من قسم المخزون.</div>}
           {shown.length > 0 && favs.length === 0 && !q && <div className="footnote" style={{ gridColumn: '1 / -1' }}>اضغط ☆ على أي صنف تستخدمه كثيرًا ليظهر أولًا وفي تبويب «المفضلة».</div>}
-          {shown.map((i) => {
+          {shown.slice(0, LIMIT).map((i) => {
             const inCart = cart.find((l) => l.item_id === i.id);
             const have = stock.get(i.id) ?? 0;
             const out = !i.is_service && have <= 0;
             const isFav = favs.includes(i.id);
             return (
-              <button key={i.id} className={`pos-item ${out ? 'out' : ''}`} onClick={() => { hover.hide(); void add(i.id); }} {...costHover(i.id, i.base_unit)}>
-                <span
-                  role="button"
-                  className={`pi-star ${isFav ? 'on' : ''}`}
-                  title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFav(i.id);
-                  }}
-                >
-                  <Star />
+              <button key={i.id} className={`pos-item ${out ? 'out' : ''} ${inCart ? 'in-cart' : ''}`} onClick={() => { hover.hide(); void add(i.id); }} {...costHover(i.id, i.base_unit)}>
+                <span className="pi-top">
+                  <span className="pi-name" title={i.name}>{i.name}</span>
+                  <span
+                    role="button"
+                    className={`pi-star ${isFav ? 'on' : ''}`}
+                    title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFav(i.id);
+                    }}
+                  >
+                    <Star />
+                  </span>
                 </span>
-                {inCart && <span className="pi-badge">{formatQty(inCart.qty)}</span>}
-                <span className="pi-avatar" style={{ background: colorFor(i.name) }}>{i.name.trim()[0]}</span>
-                <span className="pi-name">{i.name}</span>
-                <span className="pi-price num">{formatMoney(i.sale_price)}</span>
-                <span className="pi-qty">{i.is_service ? 'خدمة' : out ? 'غير متوفر' : `متاح ${formatQty(have)}`}</span>
+                <span className="pi-code num">{i.code}</span>
+                <span className="pi-bottom">
+                  <span className="pi-price num">{formatMoney(i.sale_price)}</span>
+                  <span className={`pi-qty ${out ? 'out' : ''}`}>{i.is_service ? 'خدمة' : out ? 'نفد' : `متاح ${formatQty(have)}`}</span>
+                </span>
+                {inCart && <span className="pi-badge num">{formatQty(inCart.qty)}</span>}
               </button>
             );
           })}
