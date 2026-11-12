@@ -1,14 +1,14 @@
 import { DOC_TYPES, formatMoney, hasPermission, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  AlertTriangle, ArrowDownLeft, Banknote, CalendarClock, ChevronLeft, ClipboardList, FileText, HandCoins, Package, Receipt, ShoppingBag, ShoppingCart, Store, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
+  AlertTriangle, ArrowLeftRight, Banknote, BarChart3, Boxes, CalendarClock, CalendarDays, ChevronLeft, ClipboardCheck, ClipboardList, FileText, HandCoins, ListTree, Package, PackageSearch, PieChart, Receipt, RotateCcw, ShoppingBag, ShoppingCart, Store, Truck, TrendingDown, TrendingUp, Undo2, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { type ShortcutColor } from '../components/ShortcutCard';
-import { ShortcutBoard } from '../components/ShortcutBoard';
+import { ShortcutBoard, type Size } from '../components/ShortcutBoard';
 import { useQuickActions } from '../lib/quickActions';
 import { usePerm, useSession, useSyncCounts } from '../lib/hooks';
 
@@ -110,44 +110,57 @@ export function Dashboard() {
     if (a) qa.use(a);
     nav(to);
   };
-  type Card = { label: string; to: string; icon: ReactNode; color: ShortcutColor; perm: string; badge?: ReactNode; sub?: string };
+  type Card = { label: string; to: string; icon: ReactNode; color: ShortcutColor; perm: string; badge?: ReactNode; sub?: string; size?: Size };
+  // كتالوج المربعات: كل مربع يظهر لمن يملك صلاحيته، والمستخدم يغير الحجم ويرتب ويخفي ما لا يحتاجه
   const groupsDef: { title: string; cards: Card[] }[] = [
     {
-      title: 'المبيعات والمرتجعات',
+      title: 'الفواتير',
       cards: [
-        { label: 'بيع سريع', to: '/pos', icon: <Zap />, color: 'green', perm: 'sales.create', sub: 'كاشير بالباركود' },
-        { label: 'المبيعات', to: '/docs/new/sale_invoice', icon: <ShoppingCart />, color: 'blue', perm: 'sales.create', badge: can('sales.view') ? data?.todayCount ?? 0 : undefined, sub: 'فواتير اليوم' },
-        { label: 'المرتجعات', to: '/docs/new/sale_return', icon: <ClipboardList />, color: 'purple', perm: 'sales.create', badge: can('sales.view') ? c?.saleReturns ?? 0 : undefined, sub: 'مرتجعات اليوم' },
-        { label: 'عروض الأسعار', to: '/docs/new/quotation', icon: <FileText />, color: 'pink', perm: 'sales.quotation', badge: c?.openQuotes ?? 0, sub: 'مفتوحة' },
+        { label: 'بيع سريع', to: '/pos', icon: <Zap />, color: 'green', perm: 'sales.create', sub: 'كاشير بالباركود', size: 'l' },
+        { label: 'بيع', to: '/docs/new/sale_invoice', icon: <ShoppingCart />, color: 'blue', perm: 'sales.create', badge: can('sales.view') ? data?.todayCount ?? 0 : undefined, sub: 'فواتير اليوم', size: 'm' },
+        { label: 'شراء', to: '/docs/new/purchase_invoice', icon: <Store />, color: 'red', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchases ?? 0 : undefined, sub: 'فواتير اليوم', size: 'm' },
+        { label: 'مرتجع بيع', to: '/docs/new/sale_return', icon: <Undo2 />, color: 'purple', perm: 'sales.create', badge: can('sales.view') ? c?.saleReturns ?? 0 : undefined },
+        { label: 'مرتجع شراء', to: '/docs/new/purchase_return', icon: <RotateCcw />, color: 'pink', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchaseReturns ?? 0 : undefined },
+        { label: 'عرض أسعار', to: '/docs/new/quotation', icon: <FileText />, color: 'teal', perm: 'sales.quotation', badge: c?.openQuotes ?? 0 },
+        { label: 'سجل الفواتير', to: '/invoices', icon: <ClipboardList />, color: 'slate', perm: 'sales.view' },
       ],
     },
     {
-      title: 'العملاء',
+      title: 'الخزينة',
       cards: [
-        { label: 'العملاء', to: '/parties/customer', icon: <Users />, color: 'teal', perm: 'parties.view', badge: c?.customers ?? 0 },
-        { label: 'سداد عملاء', to: '/docs/new/receipt', icon: <HandCoins />, color: 'orange', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.receivables ?? 0) : undefined, sub: 'المستحق عليهم' },
+        { label: 'قبض', to: '/docs/new/receipt', icon: <HandCoins />, color: 'green', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.receivables ?? 0) : undefined, sub: 'المستحق على العملاء' },
+        { label: 'صرف', to: '/docs/new/payment', icon: <Banknote />, color: 'orange', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.payables ?? 0) : undefined, sub: 'المستحق للموردين' },
+        { label: 'مصروف', to: '/docs/new/expense', icon: <Receipt />, color: 'red', perm: 'treasury.create' },
+        { label: 'تحويل بين الخزائن', to: '/docs/new/cash_transfer', icon: <ArrowLeftRight />, color: 'indigo', perm: 'treasury.create' },
+        { label: 'الخزائن', to: '/cashboxes', icon: <Wallet />, color: 'teal', perm: 'treasury.view' },
       ],
     },
     {
-      title: 'المشتريات',
+      title: 'البضاعة',
       cards: [
-        { label: 'المشتريات', to: '/docs/new/purchase_invoice', icon: <Store />, color: 'yellow', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchases ?? 0 : undefined, sub: 'فواتير اليوم' },
-        { label: 'مرتجع مشتريات', to: '/docs/new/purchase_return', icon: <ClipboardList />, color: 'red', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchaseReturns ?? 0 : undefined, sub: 'مرتجعات اليوم' },
+        { label: 'الأصناف', to: '/items', icon: <Package />, color: 'blue', perm: 'items.view', badge: c?.items ?? 0, size: 'm' },
+        { label: 'جرد وتسوية', to: '/docs/new/stock_adjustment', icon: <ClipboardCheck />, color: 'yellow', perm: 'inventory.create' },
+        { label: 'تحويل لمخزن', to: '/docs/new/stock_transfer', icon: <Truck />, color: 'teal', perm: 'inventory.create' },
+        { label: 'بضاعة مخزن', to: '/reports/stock', icon: <Boxes />, color: 'slate', perm: 'inventory.view' },
+        { label: 'استعلام صنف', to: '/items/inquiry', icon: <PackageSearch />, color: 'indigo', perm: 'items.view' },
       ],
     },
     {
-      title: 'الموردين',
+      title: 'الحسابات',
       cards: [
-        { label: 'الموردون', to: '/parties/supplier', icon: <Truck />, color: 'indigo', perm: 'parties.view', badge: c?.suppliers ?? 0 },
-        { label: 'سداد موردين', to: '/docs/new/payment', icon: <Banknote />, color: 'slate', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.payables ?? 0) : undefined, sub: 'المستحق لهم' },
+        { label: 'العملاء', to: '/parties/customer', icon: <Users />, color: 'indigo', perm: 'parties.view', badge: c?.customers ?? 0 },
+        { label: 'الموردون', to: '/parties/supplier', icon: <Truck />, color: 'slate', perm: 'parties.view', badge: c?.suppliers ?? 0 },
+        { label: 'متابعة الآجل', to: '/receivables', icon: <CalendarClock />, color: 'orange', perm: 'sales.view' },
+        { label: 'دليل الحسابات', to: '/accounts', icon: <ListTree />, color: 'purple', perm: 'accounts.view' },
       ],
     },
     {
-      title: 'المخزون والخزينة',
+      title: 'التقارير',
       cards: [
-        { label: 'الأصناف', to: '/items', icon: <Package />, color: 'blue', perm: 'items.view', badge: c?.items ?? 0 },
-        { label: 'المصروفات', to: '/docs/new/expense', icon: <Receipt />, color: 'red', perm: 'treasury.create' },
-        { label: 'الخزائن والبنوك', to: '/cashboxes', icon: <Wallet />, color: 'teal', perm: 'treasury.view' },
+        { label: 'الحركة اليومية', to: '/reports/daily', icon: <CalendarDays />, color: 'indigo', perm: 'reports.view' },
+        { label: 'تحليل المبيعات', to: '/reports/analysis', icon: <BarChart3 />, color: 'blue', perm: 'reports.view' },
+        { label: 'الأرباح والخسائر', to: '/reports/income', icon: <TrendingUp />, color: 'green', perm: 'reports.profit' },
+        { label: 'المقبوضات والمصروفات', to: '/reports/treasury', icon: <PieChart />, color: 'pink', perm: 'treasury.view' },
       ],
     },
   ];
@@ -156,11 +169,9 @@ export function Dashboard() {
   const hour = new Date().getHours();
   return (
     <div className="page">
-      <div className="row wrap" style={{ alignItems: 'flex-end', marginBottom: 18 }}>
-        <div style={{ flex: 1 }}>
-          <div className="page-sub" style={{ margin: 0 }}>{new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
-          <h1 className="large-title">{hour < 12 ? 'صباح الخير' : 'مساء الخير'}، {session.user.full_name.split(' ')[0]}</h1>
-        </div>
+      <div className="dash-hello">
+        <b>{hour < 12 ? 'صباح الخير' : 'مساء الخير'}، {session.user.full_name.split(' ')[0]}</b>
+        <span className="muted">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
       </div>
 
       <ShortcutBoard groups={shortcutGroups} onOpen={go} />

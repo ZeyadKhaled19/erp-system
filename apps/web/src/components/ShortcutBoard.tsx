@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Eye, EyeOff, GripVertical, Plus, RotateCcw, Settings2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Eye, EyeOff, GripVertical, Plus, RotateCcw, Scaling, Settings2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSession } from '../lib/hooks';
 import { ShortcutCard, type ShortcutColor } from './ShortcutCard';
@@ -11,22 +11,27 @@ export interface BoardCard {
   color: ShortcutColor;
   badge?: ReactNode;
   sub?: string;
+  /** الحجم الافتراضي للمربع (المستخدم يغيّره) */
+  size?: Size;
 }
 export interface BoardGroup {
   title: string;
   cards: BoardCard[];
 }
-type Size = 's' | 'm' | 'l';
+export type Size = 's' | 'm' | 'l';
 interface Layout {
   groups: { title: string; items: string[] }[];
   hidden: string[];
   size: Record<string, Size>;
 }
 const EMPTY: Layout = { groups: [], hidden: [], size: {} };
-const SIZE_LABEL: Record<Size, string> = { s: 'صغير', m: 'متوسط', l: 'كبير' };
-const NEXT_SIZE: Record<Size, Size> = { m: 'l', l: 's', s: 'm' };
+const SIZE_LABEL: Record<Size, string> = { s: 'صغير', m: 'عريض', l: 'كبير' };
+const NEXT_SIZE: Record<Size, Size> = { s: 'm', m: 'l', l: 's' };
+/** مساحة كل حجم بالمربعات: صغير 1×1، عريض 2×1، كبير 2×2 */
+const AREA: Record<Size, { w: number; h: number }> = { s: { w: 1, h: 1 }, m: { w: 2, h: 1 }, l: { w: 2, h: 2 } };
 
-const keyFor = (uid: string) => `erp.shortcuts.${uid}`;
+// v2: لوحة المربعات الجديدة (ترتيب وأحجام مختلفة عن البطاقات القديمة)
+const keyFor = (uid: string) => `erp.shortcuts.v2.${uid}`;
 function loadLayout(uid: string): Layout {
   try {
     const v = JSON.parse(localStorage.getItem(keyFor(uid)) ?? 'null');
@@ -82,7 +87,14 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
 
   const arranged = useMemo(() => arrange(defaults, layout), [defaults, layout]);
   const hidden = new Set(layout.hidden);
-  const sizeOf = (id: string): Size => layout.size[id] ?? 'm';
+  const defaultSize = useMemo(() => new Map(defaults.flatMap((g) => g.cards.map((c) => [c.to, c.size ?? 's'] as const))), [defaults]);
+  const sizeOf = (id: string): Size => layout.size[id] ?? defaultSize.get(id) ?? 's';
+  /** عدد أعمدة المجموعة حسب مساحة مربعاتها (2 إلى 4) حتى تتجاور المجموعات وتملأ الشاشة */
+  const colsFor = (cards: BoardCard[]) => {
+    const cells = cards.reduce((n, c) => n + AREA[sizeOf(c.to)].w * AREA[sizeOf(c.to)].h, 0);
+    const widest = Math.max(1, ...cards.map((c) => AREA[sizeOf(c.to)].w));
+    return Math.min(4, Math.max(2, widest, Math.ceil(cells / 2)));
+  };
 
   const commit = (groups: BoardGroup[], h = layout.hidden, size = layout.size) => {
     const l = toLayout(groups, h, size);
@@ -140,7 +152,7 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
   const toggleHidden = (id: string) => commit(clone(), hidden.has(id) ? layout.hidden.filter((x) => x !== id) : [...layout.hidden, id]);
   const cycleSize = (id: string) => commit(clone(), layout.hidden, { ...layout.size, [id]: NEXT_SIZE[sizeOf(id)] });
   const reset = async () => {
-    const ok = await ui.confirm({ title: 'استرجاع الترتيب الافتراضي؟', message: 'سيرجع ترتيب الاختصارات وأحجامها كما كانت، وتظهر كل البطاقات المخفية.', confirmLabel: 'استرجاع' });
+    const ok = await ui.confirm({ title: 'استرجاع الترتيب الافتراضي؟', message: 'سيرجع ترتيب المربعات وأحجامها كما كانت، وتظهر كل المربعات المخفية.', confirmLabel: 'استرجاع' });
     if (!ok) return;
     storeLayout(uid, null);
     setLayout(EMPTY);
@@ -156,17 +168,18 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
       <div className="sb-board-bar">
         {editing ? (
           <>
-            <span className="sb-board-hint">اسحب البطاقات لترتيبها أو انقلها لمجموعة أخرى، واضغط على الحجم لتغييره.</span>
+            <span className="sb-board-hint">اسحب المربعات لترتيبها أو انقلها لمجموعة أخرى. اضغط على المربع لتغيير حجمه (صغير ← عريض ← كبير)، و<EyeOff style={{ width: 14, height: 14, verticalAlign: -2 }} /> لإخفائه.</span>
             <button type="button" className="btn sm plain" onClick={() => void reset()}><RotateCcw /> الافتراضي</button>
             <button type="button" className="btn sm primary" onClick={() => setEditing(false)}><Check /> تم</button>
           </>
         ) : (
-          <button type="button" className="btn sm plain sb-board-edit" onClick={() => setEditing(true)}><Settings2 /> تخصيص الاختصارات</button>
+          <button type="button" className="btn sm plain sb-board-edit" onClick={() => setEditing(true)}><Settings2 /> تخصيص المربعات</button>
         )}
       </div>
 
+      <div className="sc-board-flow">
       {visibleGroups.map((g, vi) => (
-        <section key={g.title} className="sc-group">
+        <section key={g.title} className="sc-group" style={{ ['--cols' as any]: colsFor(g.cards) }}>
           <div className="sc-title-row">
             <h2 className="sc-title">{g.title}</h2>
             {editing && (
@@ -194,13 +207,13 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
                   onDragLeave={() => setOver((o) => (o === c.to ? null : o))}
                   onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dropOn(g.gi, c.to); }}
                 >
-                  <ShortcutCard label={c.label} icon={c.icon} color={c.color} badge={editing ? undefined : c.badge} sub={sz === 's' ? undefined : c.sub} onClick={() => (editing ? cycleSize(c.to) : onOpen(c.to))} />
+                  <ShortcutCard label={c.label} icon={c.icon} color={c.color} badge={editing ? undefined : c.badge} sub={sz === 'l' ? c.sub : undefined} onClick={() => (editing ? cycleSize(c.to) : onOpen(c.to))} />
                   {editing && (
                     <div className="sc-tools" onClick={(e) => e.stopPropagation()}>
                       <span className="sc-tool grip" title="اسحب للترتيب" aria-hidden="true"><GripVertical /></span>
                       <button type="button" className="sc-tool" title="قبل" aria-label={`نقل ${c.label} للأمام`} onClick={() => step(c.to, -1)}><ArrowRight /></button>
                       <button type="button" className="sc-tool" title="بعد" aria-label={`نقل ${c.label} للخلف`} onClick={() => step(c.to, 1)}><ArrowLeft /></button>
-                      <button type="button" className="sc-tool size" title="تغيير الحجم" aria-label={`حجم ${c.label}: ${SIZE_LABEL[sz]}`} onClick={() => cycleSize(c.to)}>{SIZE_LABEL[sz]}</button>
+                      <button type="button" className="sc-tool size" title={`الحجم: ${SIZE_LABEL[sz]} — اضغط للتغيير`} aria-label={`حجم ${c.label}: ${SIZE_LABEL[sz]}`} onClick={() => cycleSize(c.to)}><Scaling /></button>
                       <button type="button" className="sc-tool" title="إخفاء" aria-label={`إخفاء ${c.label}`} onClick={() => toggleHidden(c.to)}><EyeOff /></button>
                     </div>
                   )}
@@ -211,10 +224,11 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
           </div>
         </section>
       ))}
+      </div>
 
       {editing && hiddenCards.length > 0 && (
         <div className="sc-hidden">
-          <span className="sc-hidden-t"><Eye /> بطاقات مخفية</span>
+          <span className="sc-hidden-t"><Eye /> مربعات مخفية — اضغط لإظهارها</span>
           {hiddenCards.map((c) => (
             <button key={c.to} type="button" className="btn sm" onClick={() => toggleHidden(c.to)}><Plus /> {c.label}</button>
           ))}
