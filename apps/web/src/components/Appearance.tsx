@@ -14,7 +14,7 @@ export function useAppearance(): [Appearance, (a: Appearance) => void] {
   return [a, saveAppearance];
 }
 
-const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, navy: <Palette />, amber: <Palette />, teal: <Palette />, paprika: <Palette />, dark: <Moon />, system: <Monitor /> };
+const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, navy: <Palette />, amber: <Palette />, teal: <Palette />, paprika: <Palette />, sage: <Palette />, coral: <Palette />, dark: <Moon />, system: <Monitor /> };
 
 /** لوحة المظهر: الوضع، لون التمييز، الخط، الكثافة — التغيير فوري ويخص المستخدم الحالي فقط */
 /** صفحة البداية الشخصية: من المساحات المسموحة فقط، و«حسب الدور» يتبع إعداد المدير */

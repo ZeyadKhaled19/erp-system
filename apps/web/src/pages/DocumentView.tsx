@@ -1,9 +1,10 @@
 import { DOC_TYPES, formatMoney, formatQty, hasPermission } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Ban, Maximize2, Pencil, Printer, Send, Truck, Undo2, Wallet } from 'lucide-react';
+import { Ban, Banknote, Clock3, CreditCard, Maximize2, Pencil, Printer, Send, Truck, Undo2, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { lookOf, payState } from './Invoices';
+import { creditPart, payMethodLabel, payParts } from '../lib/payMethod';
 import { Banner, DocStatusBadge, Empty, Field, Sheet, useUi } from '../components/ui';
 import { DeliverSheet } from './Deliveries';
 import { cancelDocument, postDocument } from '../lib/actions';
@@ -150,6 +151,17 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
           )}
         </div>
         {ps && ps.key !== 'paid' && <div className="inv-progress lg"><i style={{ width: `${ps.pct}%` }} /></div>}
+        {info.priced && doc.doc_type !== 'quotation' && L?.cbs && (payParts(doc, L.cbs).length > 0 || creditPart(doc) > 0) && (
+          <div className="dv-paychips" aria-label="طريقة الدفع">
+            <span className="dv-paychips-l">طريقة الدفع</span>
+            {payParts(doc, L.cbs).map((x) => (
+              <span key={x.id} className={`dv-paychip ${x.kind === 'cash' ? 'cash' : 'bank'}`}>
+                {x.kind === 'cash' ? <Banknote /> : <CreditCard />} {x.name} <b className="num">{formatMoney(x.amount)}</b>
+              </span>
+            ))}
+            {creditPart(doc) > 0 && <span className="dv-paychip credit"><Clock3 /> آجل <b className="num">{formatMoney(creditPart(doc))}</b></span>}
+          </div>
+        )}
 
         <div className="dv-actions no-print">
           {canEdit && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}`)}><Pencil /> تعديل</button>}
@@ -361,7 +373,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
             {L?.wh2 && <Info k="إلى مخزن" v={L.wh2.name} />}
             {L?.cb && <Info k="الخزينة" v={L.cb.name} />}
             {L?.acc && <Info k="الحساب" v={L.acc.name} />}
-            {info.priced && <Info k="طريقة الدفع" v={doc.payment_type === 'cash' ? 'نقدي' : 'آجل'} />}
+            {info.priced && <Info k="طريقة الدفع" v={L?.cbs ? payMethodLabel(doc, L.cbs) : '—'} />}
             {L?.ref && <Info k="المستند المرجعي" v={<a style={{ cursor: 'pointer' }} onClick={() => nav(`/docs/view/${L.ref!.id}`)}>{L.ref.number}</a>} />}
             {L?.toCb && <Info k="إلى خزينة" v={L.toCb.name} />}
             {L?.partner && <Info k="الشريك" v={L.partner.name} />}

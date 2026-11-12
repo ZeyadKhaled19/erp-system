@@ -10,6 +10,7 @@ import { DocStatusBadge, Empty, exportCsv, SearchBox } from '../components/ui';
 import { db } from '../lib/db';
 import { useDebounced, useMap, useSession } from '../lib/hooks';
 import { DocumentView } from './DocumentView';
+import { creditPart, payParts } from '../lib/payMethod';
 
 const KINDS: Record<string, { label: string; types: string[]; perm: string[] }> = {
   all: { label: 'الكل', types: [], perm: [] },
@@ -103,6 +104,8 @@ export function InvoicesPage() {
   const { session } = useSession();
   const can = (k: string) => hasPermission(session.user.permissions, k);
   const parties = useMap('parties');
+  const cbs = useMap('cashboxes');
+  const cashboxes = [...cbs.values()].filter((c: any) => c.active !== false);
   const get = (k: string, d = '') => sp.get(k) ?? d;
   const [kind, setKind] = useState(get('k', 'all'));
   const [period, setPeriod] = useState(get('p', 'month'));
@@ -111,6 +114,7 @@ export function InvoicesPage() {
   const [status, setStatus] = useState(get('st'));
   const [pay, setPay] = useState(get('pay'));
   const [sort, setSort] = useState(get('sort', 'new'));
+  const [method, setMethod] = useState(get('m'));
   const [q, setQ] = useState('');
   const dq = useDebounced(q);
   const sel = sp.get('id');
@@ -139,11 +143,20 @@ export function InvoicesPage() {
         const ps = payState(d);
         if (!ps || (pay === 'paid' ? ps.key !== 'paid' : pay === 'partial' ? ps.key !== 'partial' : ps.key !== 'unpaid')) return false;
       }
+      if (method) {
+        if (method === 'credit') {
+          if (creditPart(d) <= 0) return false;
+        } else {
+          // هل استُخدمت هذه الخزينة/الطريقة في سداد المستند؟
+          const used = (d.data?.payments ?? []).some((pp: any) => pp.cashbox_id === method && pp.amount > 0) || (!(d.data?.payments ?? []).length && d.cashbox_id === method && (d.paid ?? 0) > 0);
+          if (!used) return false;
+        }
+      }
       if (!s) return true;
       const p = parties.get(d.party_id);
       return [d.number, d.local_number, p?.name, p?.phone, d.notes, String(d.total / 100)].some((v) => v?.toLowerCase?.().includes(s));
     });
-  }, [docs, status, pay, dq, parties]);
+  }, [docs, status, pay, dq, parties, method, cbs]);
   const ofKind = (k: string, d: any) => {
     const types = KINDS[k].types;
     return types.length ? types.includes(d.doc_type) : !HIDDEN_IN_ALL.includes(d.doc_type);
@@ -184,9 +197,10 @@ export function InvoicesPage() {
     put('st', status);
     put('pay', pay);
     put('sort', sort, 'new');
+    put('m', method);
     setSp(n, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, period, from, to, status, pay, sort]);
+  }, [kind, period, from, to, status, pay, sort, method]);
   useEffect(() => {
     if ((!sel || !list.some((d) => d.id === sel)) && list[0] && window.innerWidth > 1100) select(list[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,12 +222,13 @@ export function InvoicesPage() {
     return () => window.removeEventListener('keydown', k);
   });
 
-  const activeFilters = (status ? 1 : 0) + (pay ? 1 : 0) + (dq ? 1 : 0) + (period !== 'month' ? 1 : 0) + (kind !== 'all' ? 1 : 0);
+  const activeFilters = (status ? 1 : 0) + (pay ? 1 : 0) + (method ? 1 : 0) + (dq ? 1 : 0) + (period !== 'month' ? 1 : 0) + (kind !== 'all' ? 1 : 0);
   const clearAll = () => {
     setKind('all');
     setPeriod('month');
     setStatus('');
     setPay('');
+    setMethod('');
     setQ('');
     setSort('new');
   };
@@ -232,8 +247,8 @@ export function InvoicesPage() {
   const exportList = () =>
     exportCsv(
       'الفواتير',
-      ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'الإجمالي', 'المدفوع', 'المتبقي', 'الحالة'],
-      list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType]?.label, d.date, parties.get(d.party_id)?.name ?? '', formatMoney(d.total), formatMoney(d.paid ?? 0), formatMoney((d.total ?? 0) - (d.paid ?? 0)), d.status]),
+      ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'الإجمالي', 'المدفوع', 'المتبقي', 'طريقة الدفع', 'الحالة'],
+      list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType]?.label, d.date, parties.get(d.party_id)?.name ?? '', formatMoney(d.total), formatMoney(d.paid ?? 0), formatMoney((d.total ?? 0) - (d.paid ?? 0)), [...payParts(d, cbs).map((x) => x.name), ...(creditPart(d) > 0 ? ['آجل'] : [])].join(' + '), d.status]),
     );
 
   const showSales = kind === 'all' || kind === 'sales' || kind === 'returns';
@@ -328,6 +343,11 @@ export function InvoicesPage() {
               {Object.entries(PAYS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           )}
+          <select className="select" aria-label="طريقة الدفع" value={method} onChange={(e) => setMethod(e.target.value)}>
+            <option value="">كل طرق الدفع</option>
+            {cashboxes.map((c: any) => <option key={c.id} value={c.id}>{c.kind === 'cash' ? `نقدي (${c.name})` : c.name}</option>)}
+            <option value="credit">آجل</option>
+          </select>
           <select className="select" aria-label="الترتيب" value={sort} onChange={(e) => setSort(e.target.value)}>
             <option value="new">الأحدث أولًا</option>
             <option value="amount">الأكبر مبلغًا</option>
@@ -388,6 +408,7 @@ export function InvoicesPage() {
                       <div className="inv-chips">
                         {(d.status !== 'posted' || d._sync) && <DocStatusBadge status={d.status} sync={d._sync} />}
                         {ps && <span className={`inv-pay ${ps.key}`}>{ps.label}</span>}
+                        {payParts(d, cbs).filter((x) => x.kind !== 'cash').map((x) => <span key={x.id} className="inv-method">{x.name}</span>)}
                       </div>
                     </div>
                   </div>

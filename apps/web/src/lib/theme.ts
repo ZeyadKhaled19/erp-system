@@ -4,9 +4,9 @@
  * لا يمس قاعدة البيانات.
  */
 
-export type ThemeMode = 'light' | 'navy' | 'amber' | 'teal' | 'paprika' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'navy' | 'amber' | 'teal' | 'paprika' | 'sage' | 'coral' | 'dark' | 'system';
 /** أوضاع البالتات: كل ألوان النظام فيها من البالتة فقط، ولون التمييز يتبعها */
-export const PALETTE_MODES = ['navy', 'amber', 'teal', 'paprika'] as const;
+export const PALETTE_MODES = ['navy', 'amber', 'teal', 'paprika', 'sage', 'coral'] as const;
 export const isPaletteMode = (m: string) => (PALETTE_MODES as readonly string[]).includes(m);
 export type Accent = 'sky' | 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
 export type Density = 'comfortable' | 'compact';
@@ -37,6 +37,8 @@ export const THEMES: { id: ThemeMode; label: string; desc: string }[] = [
   { id: 'amber', label: 'بروسي برتقالي', desc: 'أزرق بروسي وبرتقالي على رمادي فاتح' },
   { id: 'teal', label: 'تركوازي غروب', desc: 'تركواز وذهبي وخوخي' },
   { id: 'paprika', label: 'فحمي بابريكا', desc: 'فحمي ورملي وبرتقالي بابريكا' },
+  { id: 'sage', label: 'مريمي هادئ', desc: 'رمادي مخضر وتيل وفحمي مزرق' },
+  { id: 'coral', label: 'استوائي مرجاني', desc: 'أزرق سماوي وتركواز ومشمشي ومرجاني' },
   { id: 'dark', label: 'غامق', desc: 'كحلي داكن مريح ليلًا' },
   { id: 'system', label: 'حسب الجهاز', desc: 'يتبع إعداد ويندوز أو الموبايل' },
 ];
@@ -98,7 +100,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
   el.dataset.font = a.font;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'navy' ? '#1D2D44' : theme === 'amber' ? '#14213D' : theme === 'teal' ? '#264653' : theme === 'paprika' ? '#252422' : '#F4F6F9');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'navy' ? '#1D2D44' : theme === 'amber' ? '#14213D' : theme === 'teal' ? '#264653' : theme === 'paprika' ? '#252422' : theme === 'sage' ? '#2F3E46' : theme === 'coral' ? '#004D65' : '#F4F6F9');
 }
 
 export function saveAppearance(a: Appearance) {

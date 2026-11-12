@@ -2,6 +2,7 @@ import { DOC_TYPES, formatMoney, formatQty, tafqeetEGP, type DocType } from '@er
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { payMethodLabel } from '../lib/payMethod';
 import { db } from '../lib/db';
 import { useSettings } from '../lib/hooks';
 
@@ -172,7 +173,7 @@ function Full({ doc, d, settings, delivery }: P & { delivery: boolean }) {
         {d.party && <Cell k={d.party.kind === 'supplier' ? 'المورد' : 'العميل'} v={<>{d.party.name}{d.party.phone ? <span className="ltr"> — {d.party.phone}</span> : null}{d.party.address ? ` — ${d.party.address}` : ''}{d.party.tax_no ? <> — ر.ض <span className="ltr">{d.party.tax_no}</span></> : null}</>} />}
         {d.wh && <Cell k={d.wh2 ? 'من مخزن' : 'المخزن'} v={d.wh.name} />}
         {d.wh2 && <Cell k="إلى مخزن" v={d.wh2.name} />}
-        {info.priced && !delivery && <Cell k="طريقة الدفع" v={doc.total - doc.paid > 0 ? 'آجل' : 'نقدي'} />}
+        {info.priced && !delivery && <Cell k="طريقة الدفع" v={payMethodLabel(doc, d.cbs)} />}
         {doc.due_date && !delivery && <Cell k="تاريخ الاستحقاق" v={<span className="ltr">{doc.due_date}</span>} />}
         {d.rep && <Cell k="المندوب" v={d.rep.name} />}
         {doc.shipping_company && <Cell k="الشحن" v={doc.shipping_company} />}
@@ -372,6 +373,7 @@ function Thermal({ doc, d, settings }: P) {
       {info.priced && doc.tax > 0 && <div className="t-row"><span>الضريبة</span><span className="ltr">{formatMoney(doc.tax)}</span></div>}
       {charges.filter((c) => c.mode === 'add').map((c) => <div key={c.id} className="t-row"><span>{c.name}</span><span className="ltr">{formatMoney(c.amount)}</span></div>)}
       <div className="t-row t-grand"><span>الإجمالي</span><span className="ltr">{formatMoney(doc.total)}</span></div>
+      {info.priced && <div className="t-row"><span>طريقة الدفع</span><span>{payMethodLabel(doc, d.cbs)}</span></div>}
       {payments.map((p) => <div key={p.id} className="t-row"><span>{d.cbs.get(p.cashbox_id)?.name}</span><span className="ltr">{formatMoney(p.amount)}</span></div>)}
       {info.priced && doc.total - doc.paid > 0 && <div className="t-row"><span>المتبقي (آجل)</span><span className="ltr">{formatMoney(doc.total - doc.paid)}</span></div>}
       <div className="t-sep" />
