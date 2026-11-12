@@ -1064,3 +1064,8 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 :root[data-theme="coral"] .login-wrap { background: var(--bg); }
 :root[data-theme="coral"] .toast { background: #004D65; color: #FEFEF2; }
 .ap-prev.coral { background: #FFF0E3; border-color: #FED9B7; } .ap-prev.coral b { background: #004D65; } .ap-prev.coral i { background: linear-gradient(90deg, transparent 55%, #0081A7 55%, #0081A7 75%, transparent 75%); }
+
+/* شريط مبالغ الفاتورة: كل رقم تحت عنوانه مباشرة (يمين) */
+.dv-m { align-items: flex-start; text-align: right; }
+.dv-m b { display: block; text-align: right; direction: ltr; unicode-bidi: isolate; }
+.dv-m span { text-align: right; }
