@@ -16,7 +16,7 @@ afterAll(async () => {
 describe('customer types (party groups)', () => {
   it('ships default types and classifies the cash customer', async () => {
     const rows = (await env.db.query(`select id, name from party_groups order by sort`));
-    expect(rows.map((r: any) => r.id)).toEqual(['pg-cash', 'pg-credit', 'pg-online']);
+    expect(rows.map((r: any) => r.id)).toEqual(['pg-cash', 'pg-credit', 'pg-online', 'pg-bank']);
     const cash = (await env.db.one(`select group_id from parties where id = 'party-cash-customer'`));
     expect(cash.group_id).toBe('pg-cash');
   });

@@ -287,7 +287,8 @@ export function PosPage() {
           onPickParty={(id) => setPartyId(id)}
           onNewCustomer={() => setNewCustomer(true)}
           onClose={() => setPay(false)}
-          onPaid={async (method, cashboxId, received) => {
+          onPaid={async ({ payments, credit, change }) => {
+            const cashboxId = payments[0]?.cashbox_id ?? null;
             const myShift = (await db.cashier_shifts.where('user_id').equals(session.user.id).toArray()).find((s) => s.status === 'open' && !s._sync);
             const id = uuid();
             const doc: DocInput = {
@@ -298,11 +299,11 @@ export function PosPage() {
               warehouse_id: wh,
               cashbox_id: cashboxId,
               price_list_id: party?.price_list_id ?? 'pl-retail',
-              payment_type: method === 'credit' ? 'credit' : 'cash',
-              payments: method === 'credit' ? [] : [{ id: uuid(), cashbox_id: cashboxId!, amount: calc.total }],
+              payment_type: credit > 0 ? 'credit' : 'cash',
+              payments: payments.map((x) => ({ id: uuid(), cashbox_id: x.cashbox_id, amount: x.amount })),
               instruments: [],
               charges: [],
-              shift_id: myShift && myShift.cashbox_id === cashboxId ? myShift.id : null,
+              shift_id: myShift && payments.some((x) => x.cashbox_id === myShift.cashbox_id) ? myShift.id : null,
               lines: cart.map((l) => ({ id: uuid(), item_id: l.item_id, unit_name: itemMap.get(l.item_id)!.base_unit, unit_factor: 1000, qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp, serials: [], expiry: null, ref_line_id: null, notes: null })),
               journal_lines: [],
               paid: 0,
@@ -314,7 +315,7 @@ export function PosPage() {
             } as DocInput;
             await saveDocument(doc, 'post', null);
             setPay(false);
-            setDone({ id, total: calc.total, change: method === 'cash' ? Math.max(received - calc.total, 0) : 0 });
+            setDone({ id, total: calc.total, change });
           }}
         />
       )}
@@ -360,7 +361,17 @@ function LineSheet({ line, name, canPrice, canDiscount, onClose, onSave }: { lin
   );
 }
 
-function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNewCustomer }: { total: number; party: any; canCredit: boolean; onClose: () => void; onPaid: (method: 'cash' | 'card' | 'credit', cashboxId: string | null, received: number) => Promise<void>; onPickParty: (id: string) => void; onNewCustomer: () => void }) {
+export interface PayResult {
+  payments: { cashbox_id: string; amount: number }[];
+  credit: number;
+  change: number;
+}
+
+/**
+ * الدفع في البيع السريع: طريقة أساسية + المبلغ المستلم بها، ولو أقل من الإجمالي يظهر «الباقي»
+ * ويُختار له طريقة ثانية (خزينة/بنك) أو آجل. نوع العميل يتبع طرق الدفع تلقائيًا (نقدي/بنك/آجل).
+ */
+function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { total: number; party: any; canCredit: boolean; onClose: () => void; onPaid: (r: PayResult) => Promise<void>; onPickParty: (id: string) => void; onNewCustomer?: () => void }) {
   const { session } = useSession();
   const boxes = useLiveQuery(
     async () =>
@@ -369,35 +380,55 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
         .sort((x, y) => (x.kind === y.kind ? String(x.name).localeCompare(String(y.name), 'ar') : x.kind === 'cash' ? -1 : 1)),
     [],
   ) ?? [];
-  const customers = useLiveQuery(async () => (await db.parties.where('kind').equals('customer').toArray()).filter((p) => p.active !== false && p.id !== 'party-cash-customer'), []) ?? [];
-  const cash = boxes.filter((b) => b.kind === 'cash');
-  const cards = boxes.filter((b) => b.kind === 'bank');
-  const [method, setMethod] = useState<'cash' | 'card' | 'credit'>('cash');
-  const [boxId, setBoxId] = useState<string>('');
+  const [primary, setPrimary] = useState<string>(''); // id خزينة أو 'credit'
   const [received, setReceived] = useState('');
+  const [rest, setRest] = useState<string>(''); // طريقة الباقي: id خزينة أو 'credit'
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const list = method === 'cash' ? cash : cards;
-  const box = boxId && boxes.some((b) => b.id === boxId) ? boxId : list[0]?.id;
-  let recv = 0;
-  try {
-    recv = received ? parseMoney(received) : total;
-  } catch {
-    recv = 0;
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  const prim = primary || boxes[0]?.id || (canCredit ? 'credit' : '');
+  const primBox = boxes.find((b) => b.id === prim);
+  const isCredit = prim === 'credit';
+  let recv = total;
+  if (!isCredit && received.trim()) {
+    try {
+      recv = parseMoney(received);
+    } catch {
+      recv = 0;
+    }
   }
-  const change = recv - total;
+  const paidPrimary = isCredit ? 0 : Math.min(recv, total);
+  const change = !isCredit && primBox?.kind === 'cash' ? Math.max(recv - total, 0) : 0;
+  const remainder = total - paidPrimary;
+  const restBox = boxes.find((b) => b.id === rest);
+  const credit = isCredit ? total : remainder > 0 && rest === 'credit' ? remainder : 0;
   const isCashCustomer = !party || party.id === 'party-cash-customer';
-  const key = (k: string) => setReceived((r) => (k === '⌫' ? r.slice(0, -1) : k === '.' && r.includes('.') ? r : r + k));
+  // نوع العميل يتبع طرق الدفع
+  const anyBank = (!isCredit && primBox?.kind === 'bank' && paidPrimary > 0) || (remainder > 0 && restBox?.kind === 'bank');
+  const autoGroup = credit > 0 ? 'آجل' : anyBank ? 'بنك' : 'نقدي';
+
   const quick = [total, Math.ceil(total / 5000) * 5000, Math.ceil(total / 10000) * 10000, Math.ceil(total / 20000) * 20000].filter((v, i, a) => a.indexOf(v) === i).slice(0, 4);
+  const choosePrimary = (id: string) => {
+    setPrimary(id);
+    setReceived('');
+    setRest('');
+    setErr(null);
+    if (id !== 'credit') setTimeout(() => amountRef.current?.focus(), 30);
+  };
 
   const confirm = async () => {
     setErr(null);
-    if (method === 'credit' && isCashCustomer) return setErr('البيع الآجل يحتاج اختيار عميل مسجل من السلة');
-    if (method !== 'credit' && !box) return setErr(method === 'card' ? 'لا توجد خزينة بنكية/بطاقات. أضفها من «الخزائن والبنوك»' : 'لا توجد خزينة نقدية');
-    if (method === 'cash' && recv < total) return setErr('المبلغ المستلم أقل من الإجمالي');
+    if (!prim) return setErr('لا توجد خزائن. أضفها من «الخزائن والبنوك»');
+    if (!isCredit && recv <= 0) return setErr('اكتب المبلغ المستلم');
+    if (remainder > 0 && !isCredit && !rest) return setErr(`حدد طريقة دفع الباقي (${formatMoney(remainder)})`);
+    if (credit > 0 && isCashCustomer) return setErr('الجزء الآجل يحتاج عميلًا مسجلًا: اختره أو أضف عميلًا جديدًا');
+    const payments: { cashbox_id: string; amount: number }[] = [];
+    if (!isCredit && paidPrimary > 0) payments.push({ cashbox_id: prim, amount: paidPrimary });
+    if (!isCredit && remainder > 0 && restBox) payments.push({ cashbox_id: restBox.id, amount: remainder });
     setBusy(true);
     try {
-      await onPaid(method, method === 'credit' ? null : box!, recv);
+      await onPaid({ payments, credit, change });
     } catch (e) {
       setErr((e as Error).message);
       setBusy(false);
@@ -406,46 +437,77 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
 
   return (
     <Sheet title="الدفع" onClose={onClose}>
-      <div className="stack">
+      <div className="stack" onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLInputElement).closest('.pay-amount') && (e.preventDefault(), void confirm())}>
         <div className="big-amount num">{formatMoney(total)}</div>
         {err && <Banner kind="err">{err}</Banner>}
+
         <div className="pay-methods" style={{ gridTemplateColumns: `repeat(${Math.min(boxes.length + (canCredit ? 1 : 0), 4)}, 1fr)` }}>
           {boxes.map((b) => (
-            <button key={b.id} className={method !== 'credit' && box === b.id ? 'on' : ''} onClick={() => { setMethod(b.kind === 'bank' ? 'card' : 'cash'); setBoxId(b.id); }}>
+            <button key={b.id} className={prim === b.id ? 'on' : ''} onClick={() => choosePrimary(b.id)}>
               {b.kind === 'bank' ? <CreditCard /> : <Banknote />}
               {b.name}
             </button>
           ))}
-          {canCredit && <button className={method === 'credit' ? 'on' : ''} onClick={() => setMethod('credit')}><Wallet />آجل</button>}
+          {canCredit && <button className={isCredit ? 'on' : ''} onClick={() => choosePrimary('credit')}><Wallet />آجل</button>}
         </div>
-        <div className="stack" style={{ gap: 6 }}>
-          {method === 'credit' && isCashCustomer && <Banner kind="warn">البيع الآجل يحتاج عميلًا: اختره أو أضف عميلًا جديدًا</Banner>}
-          <CustomerFields partyId={party?.id ?? 'party-cash-customer'} onChange={onPickParty} layout="row" />
-          {!isCashCustomer && <div className="footnote">{method === 'credit' ? `سيُسجل المبلغ دينًا على ${party.name} — رصيده الحالي ${formatMoney(party.balance ?? 0)}` : `الفاتورة تُحفظ في سجل ${party.name} بدون دين.`}</div>}
-        </div>
-        {method === 'cash' && (
-          <>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <span className="muted">المستلم</span>
-              <span className="num bold" style={{ fontSize: 22 }}>{formatMoney(recv)}</span>
+
+        {!isCredit && (
+          <div className="pay-amount">
+            <label htmlFor="pay-recv">المبلغ المدفوع {primBox ? (primBox.kind === 'cash' ? 'نقدًا' : `بـ ${primBox.name}`) : ''}</label>
+            <input id="pay-recv" ref={amountRef} className="input num" inputMode="decimal" placeholder={formatMoney(total)} value={received} onChange={(e) => { setReceived(e.target.value); setErr(null); }} autoFocus />
+            <div className="pay-quick">
+              {quick.map((v) => <button key={v} type="button" className="btn" onClick={() => setReceived(String(v / 100))}>{formatMoney(v)}</button>)}
             </div>
-            <div className="row wrap" style={{ gap: 8 }}>
-              {quick.map((v) => <button key={v} className="btn" style={{ flex: 1 }} onClick={() => setReceived(String(v / 100))}>{formatMoney(v)}</button>)}
-            </div>
-            <div className="keypad">
-              {['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '⌫'].map((k) => <button key={k} onClick={() => key(k)}>{k}</button>)}
-            </div>
-            <div className="row" style={{ justifyContent: 'space-between', fontSize: 20 }}>
-              <span>الباقي</span>
-              <b className={`num ${change < 0 ? 'red' : 'green'}`}>{formatMoney(Math.max(change, 0))}</b>
-            </div>
-          </>
+          </div>
         )}
-        {method === 'credit' && <div className="footnote">{isCashCustomer ? 'اختر العميل أعلاه.' : `سيُسجل المبلغ دينًا على ${party.name} (الرصيد الحالي ${formatMoney(party.balance ?? 0)}).`}</div>}
+
+        {change > 0 && (
+          <div className="pay-line ok"><span>الباقي للعميل</span><b className="num">{formatMoney(change)}</b></div>
+        )}
+
+        {!isCredit && remainder > 0 && (
+          <div className="pay-rest">
+            <div className="pay-line warn"><span>الباقي المطلوب</span><b className="num">{formatMoney(remainder)}</b></div>
+            <div className="pay-rest-l">يُدفع الباقي بـ:</div>
+            <div className="pay-methods sm" style={{ gridTemplateColumns: `repeat(${Math.min(boxes.length - 1 + (canCredit ? 1 : 0), 4) || 1}, 1fr)` }}>
+              {boxes.filter((b) => b.id !== prim).map((b) => (
+                <button key={b.id} className={rest === b.id ? 'on' : ''} onClick={() => setRest(b.id)}>
+                  {b.kind === 'bank' ? <CreditCard /> : <Banknote />}
+                  {b.name}
+                </button>
+              ))}
+              {canCredit && <button className={rest === 'credit' ? 'on' : ''} onClick={() => setRest('credit')}><Wallet />آجل</button>}
+            </div>
+          </div>
+        )}
+
+        <div className="stack" style={{ gap: 6 }}>
+          {credit > 0 && isCashCustomer && <Banner kind="warn">الجزء الآجل يُسجل على عميل: اختره أو أضف عميلًا جديدًا</Banner>}
+          <CustomerFields partyId={party?.id ?? 'party-cash-customer'} onChange={onPickParty} layout="row" autoGroupName={autoGroup} />
+          {!isCashCustomer && <div className="footnote">{credit > 0 ? `سيُسجل ${formatMoney(credit)} دينًا على ${party.name} — رصيده الحالي ${formatMoney(party.balance ?? 0)}` : `الفاتورة تُحفظ في سجل ${party.name} بدون دين.`}</div>}
+        </div>
+
+        {(payments_preview(paidPrimary, primBox, remainder, restBox, credit, isCredit, total)).length > 1 && (
+          <div className="pay-summary">
+            {payments_preview(paidPrimary, primBox, remainder, restBox, credit, isCredit, total).map((p) => (
+              <span key={p.k}>{p.label} <b className="num">{formatMoney(p.amount)}</b></span>
+            ))}
+          </div>
+        )}
         <button className="btn success primary xl block" disabled={busy} onClick={confirm}><Check /> تأكيد البيع</button>
       </div>
     </Sheet>
   );
+}
+
+/** ملخص توزيع المبلغ على طرق الدفع (للعرض) */
+function payments_preview(paidPrimary: number, primBox: any, remainder: number, restBox: any, credit: number, isCredit: boolean, total: number) {
+  const out: { k: string; label: string; amount: number }[] = [];
+  if (isCredit) return [{ k: 'c', label: 'آجل', amount: total }];
+  if (paidPrimary > 0 && primBox) out.push({ k: 'p', label: primBox.kind === 'cash' ? 'نقدي' : primBox.name, amount: paidPrimary });
+  if (remainder > 0 && restBox) out.push({ k: 'r', label: restBox.kind === 'cash' ? 'نقدي' : restBox.name, amount: remainder });
+  if (credit > 0) out.push({ k: 'c', label: 'آجل', amount: credit });
+  return out;
 }
 
 /** آخر المبيعات للكاشير: فتح الفاتورة أو إعادة طباعتها بدون مغادرة البيع السريع */

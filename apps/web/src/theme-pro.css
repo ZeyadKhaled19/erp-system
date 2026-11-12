@@ -1069,3 +1069,27 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 .dv-m { align-items: flex-start; text-align: right; }
 .dv-m b { display: block; text-align: right; direction: ltr; unicode-bidi: isolate; }
 .dv-m span { text-align: right; }
+
+/* الدفع في البيع السريع */
+.pay-amount { display: flex; flex-direction: column; gap: 6px; }
+.pay-amount label { font-size: 13px; font-weight: 600; color: var(--label-field); }
+.pay-amount .input { height: 52px; font-size: 22px; font-weight: 700; text-align: left; }
+.pay-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pay-quick .btn { height: 38px; font-size: 14px; }
+.pay-line { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 12px; font-size: 15px; font-weight: 600; }
+.pay-line b { font-size: 20px; }
+.pay-line.ok { background: var(--green-soft); color: var(--green-text); }
+.pay-line.warn { background: var(--orange-soft); color: var(--orange-text); }
+.pay-rest { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px dashed var(--border-strong); border-radius: 14px; }
+.pay-rest-l { font-size: 13px; font-weight: 600; color: var(--label-2); }
+.pay-methods.sm button { min-height: 52px; font-size: 13px; }
+.pay-summary { display: flex; flex-wrap: wrap; gap: 8px; }
+.pay-summary span { display: inline-flex; gap: 6px; align-items: center; padding: 4px 12px; border-radius: 999px; background: var(--tint-soft); color: var(--tint); font-weight: 600; font-size: 13px; }
+
+/* أنواع العملاء المثبتة */
+.grp-pins { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.grp-pins button { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label); font-weight: 600; font-size: 13px; cursor: pointer; }
+.grp-pins button.on { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+.icon-btn.pinned { color: var(--tint); background: var(--tint-soft); }
+.icon-btn.danger { color: var(--red-text); }
+.field .row > .icon-btn { width: 36px; height: 36px; }
