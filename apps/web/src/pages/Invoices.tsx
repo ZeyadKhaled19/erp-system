@@ -6,7 +6,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { DocStatusBadge, Empty, exportCsv, SearchBox } from '../components/ui';
+import { DocStatusBadge, Empty, exportExcel, SearchBox } from '../components/ui';
 import { db } from '../lib/db';
 import { useDebounced, useMap, useSession } from '../lib/hooks';
 import { DocumentView } from './DocumentView';
@@ -245,7 +245,7 @@ export function InvoicesPage() {
   }, [list]);
 
   const exportList = () =>
-    exportCsv(
+    exportExcel(
       'الفواتير',
       ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'الإجمالي', 'المدفوع', 'المتبقي', 'طريقة الدفع', 'الحالة'],
       list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType]?.label, d.date, parties.get(d.party_id)?.name ?? '', formatMoney(d.total), formatMoney(d.paid ?? 0), formatMoney((d.total ?? 0) - (d.paid ?? 0)), [...payParts(d, cbs).map((x) => x.name), ...(creditPart(d) > 0 ? ['آجل'] : [])].join(' + '), d.status]),
@@ -263,7 +263,7 @@ export function InvoicesPage() {
         sub={`${list.length} مستند · ${PERIODS[period].replace('…', '')}${period !== 'all' ? ` (${start === '0000-00-00' ? 'البداية' : start} ← ${end === '9999-12-31' ? 'اليوم' : end})` : ''}`}
         actions={
           <>
-            <button className="btn" onClick={exportList} disabled={!list.length}><Download /> تصدير</button>
+            <button className="btn" onClick={exportList} disabled={!list.length}><Download /> تصدير Excel</button>
             {can('purchases.create') && <button className="btn" onClick={() => nav('/docs/new/purchase_invoice')}><Plus /> فاتورة شراء</button>}
             {can('sales.create') && <button className="btn primary" onClick={() => nav('/docs/new/sale_invoice')}><Plus /> فاتورة بيع</button>}
           </>

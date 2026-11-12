@@ -7,7 +7,7 @@ import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
 import { CategoryFilter } from '../components/Categories';
-import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportCsv, useUi } from '../components/ui';
+import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportExcel, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
@@ -551,7 +551,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
     reset();
   };
   const exportLines = () =>
-    exportCsv(
+    exportExcel(
       title,
       ['الكود', 'الصنف', 'الوحدة', 'الكمية', 'السعر', 'الإجمالي', 'الخصم', 'النهائي'],
       lines.map((l, i) => {

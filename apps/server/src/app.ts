@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
-import { hasPermission, todayISO, WORKSPACE_IDS } from '@erp/shared';
+import { ALL_PERMISSIONS, hasPermission, todayISO, WORKSPACE_IDS } from '@erp/shared';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser } from './auth';
@@ -138,6 +138,7 @@ export async function buildApp(opts: AppOptions) {
     R.ledger(db, (req.params as any).id, { ...range(req), party_id: q(req).party_id }),
   );
   app.get('/api/reports/income-statement', { preHandler: perm('reports.profit') }, async (req) => R.incomeStatement(db, range(req)));
+  app.get('/api/reports/cash-result', { preHandler: perm('reports.profit') }, async (req) => R.cashResult(db, range(req)));
   app.get('/api/reports/balance-sheet', { preHandler: perm('reports.financial') }, async (req) => R.balanceSheet(db, q(req).to || todayISO()));
   app.get('/api/reports/party/:id', { preHandler: perm('parties.view') }, async (req) => R.partyStatement(db, (req.params as any).id, { ...range(req), items: q(req).items === '1' }));
   app.get('/api/reports/cashbox/:id', { preHandler: perm('treasury.view') }, async (req) => R.cashboxMovement(db, (req.params as any).id, range(req)));
@@ -243,28 +244,35 @@ export async function buildApp(opts: AppOptions) {
         password: z.string().min(6, 'كلمة المرور 6 أحرف على الأقل').optional(),
         warehouse_ids: z.array(z.string()).nullable().optional(),
         cashbox_ids: z.array(z.string()).nullable().optional(),
+        extra_permissions: z.array(z.string()).optional(),
+        denied_permissions: z.array(z.string()).optional(),
       })
       .parse(req.body);
+    const known = new Set(ALL_PERMISSIONS);
+    const extra = [...new Set((b.extra_permissions ?? []).filter((p) => known.has(p)))];
+    const denied = [...new Set((b.denied_permissions ?? []).filter((p) => known.has(p) && !extra.includes(p)))];
     if (b.id === req.user!.id && !b.active) throw new AppError('لا يمكنك إيقاف حسابك الحالي');
     return db.tx(async (t) => {
       await t.query(`select pg_advisory_xact_lock(7331)`);
       if (!(await t.one(`select 1 from roles where id = $1`, [b.role_id]))) throw new AppError('الدور غير موجود');
       let id = b.id;
       if (id) {
-        await t.query(`update users set username = $2, full_name = $3, role_id = $4, active = $5, warehouse_ids = $6, cashbox_ids = $7 where id = $1`, [
+        await t.query(`update users set username = $2, full_name = $3, role_id = $4, active = $5, warehouse_ids = $6, cashbox_ids = $7, extra_permissions = $8, denied_permissions = $9 where id = $1`, [
           id, b.username, b.full_name, b.role_id, b.active, b.warehouse_ids ? JSON.stringify(b.warehouse_ids) : null, b.cashbox_ids ? JSON.stringify(b.cashbox_ids) : null,
+          JSON.stringify(extra), JSON.stringify(denied),
         ]);
         if (b.password) await t.query(`update users set password_hash = $2 where id = $1`, [id, await hashPassword(b.password)]);
       } else {
         if (!b.password) throw new AppError('كلمة المرور مطلوب للمستخدم الجديد');
         id = crypto.randomUUID();
-        await t.query(`insert into users (id, username, full_name, password_hash, role_id, active, warehouse_ids, cashbox_ids) values ($1,$2,$3,$4,$5,$6,$7,$8)`, [
+        await t.query(`insert into users (id, username, full_name, password_hash, role_id, active, warehouse_ids, cashbox_ids, extra_permissions, denied_permissions) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [
           id, b.username, b.full_name, await hashPassword(b.password), b.role_id, b.active,
           b.warehouse_ids ? JSON.stringify(b.warehouse_ids) : null, b.cashbox_ids ? JSON.stringify(b.cashbox_ids) : null,
+          JSON.stringify(extra), JSON.stringify(denied),
         ]);
       }
       await t.query(`insert into audit_log (user_id, device_id, action, entity, entity_id, details) values ($1,$2,'user.save','user',$3,$4)`, [
-        req.user!.id, req.deviceId, id, JSON.stringify({ username: b.username, role_id: b.role_id, active: b.active, password_changed: !!b.password }),
+        req.user!.id, req.deviceId, id, JSON.stringify({ username: b.username, role_id: b.role_id, active: b.active, password_changed: !!b.password, extra_permissions: extra, denied_permissions: denied }),
       ]);
       return { id };
     });

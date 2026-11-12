@@ -4,7 +4,7 @@ import { CalendarClock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Empty, exportCsv, Field, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
+import { Empty, exportExcel, Field, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
 import { closeCreditInvoice, settleInstrument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useMap, usePerm } from '../lib/hooks';
@@ -39,7 +39,7 @@ export function InstrumentsPage() {
       <PageHeader
         title="الشيكات والأقساط"
         sub={`${list.length} · الإجمالي ${formatMoney(total)}${overdue ? ` · متأخر ${formatMoney(overdue)}` : ''}`}
-        actions={<button className="btn" onClick={() => exportCsv('الشيكات والأقساط', ['النوع', 'الطرف', 'الاستحقاق', 'المبلغ', 'رقم الشيك', 'البنك', 'الحالة'], list.map((x) => [x.kind === 'cheque' ? 'شيك' : 'قسط', parties.get(x.party_id)?.name, x.due_date, formatMoney(x.amount), x.cheque_no, x.bank, STATUS[x.status]?.label]))}>تصدير</button>}
+        actions={<button className="btn" onClick={() => exportExcel('الشيكات والأقساط', ['النوع', 'الطرف', 'الاستحقاق', 'المبلغ', 'رقم الشيك', 'البنك', 'الحالة'], list.map((x) => [x.kind === 'cheque' ? 'شيك' : 'قسط', parties.get(x.party_id)?.name, x.due_date, formatMoney(x.amount), x.cheque_no, x.bank, STATUS[x.status]?.label]))}>تصدير Excel</button>}
       />
       <div className="row wrap" style={{ marginBottom: 12 }}>
         <Segmented value={dir} onChange={setDir} options={[{ value: 'in', label: 'واردة (من العملاء)' }, { value: 'out', label: 'صادرة (للموردين)' }]} />

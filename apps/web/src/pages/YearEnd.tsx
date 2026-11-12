@@ -3,7 +3,7 @@ import { Lock, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, exportCsv, Field, useUi } from '../components/ui';
+import { Banner, exportExcel, Field, useUi } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useRemote } from '../lib/hooks';
 import { enqueue } from '../lib/sync';
@@ -20,7 +20,7 @@ export function CommissionsPage() {
       <PageHeader
         title="عمولات المندوبين"
         sub="العمولة = صافي المبيعات بدون ضريبة بعد خصم المرتجعات × نسبة المندوب"
-        actions={r.data && <button className="btn" onClick={() => exportCsv('عمولات المندوبين', ['المندوب', 'الفواتير', 'صافي المبيعات', 'النسبة %', 'العمولة', 'المصروف', 'المستحق'], r.data.rows.map((x: any) => [x.name, x.invoices, formatMoney(x.net), x.commission_bp / 100, formatMoney(x.commission), formatMoney(x.paid), formatMoney(x.due)]))}>تصدير</button>}
+        actions={r.data && <button className="btn" onClick={() => exportExcel('عمولات المندوبين', ['المندوب', 'الفواتير', 'صافي المبيعات', 'النسبة %', 'العمولة', 'المصروف', 'المستحق'], r.data.rows.map((x: any) => [x.name, x.invoices, formatMoney(x.net), x.commission_bp / 100, formatMoney(x.commission), formatMoney(x.paid), formatMoney(x.due)]))}>تصدير Excel</button>}
       />
       <div className="card pad" style={{ marginBottom: 14 }}>
         <div className="grid grid-4" style={{ alignItems: 'end' }}>

@@ -4,7 +4,7 @@ import { Pencil, Plus, Users } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, DocStatusBadge, Empty, exportCsv, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, Empty, exportExcel, savePdf, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { PartyInsights } from '../components/Insights';
 import { PartyGroupSheet } from '../components/CustomerFields';
@@ -49,7 +49,7 @@ export function PartiesPage() {
         sub={`${list.length} · إجمالي ${L.bal}: ${formatMoney(total)}`}
         actions={
           <>
-            <button className="btn" onClick={() => exportCsv(L.many, ['الكود', 'الاسم', 'الهاتف', 'الرصيد'], list.map((p) => [p.code, p.name, p.phone, formatMoney(p.balance ?? 0)]))}>
+            <button className="btn" onClick={() => exportExcel(L.many, ['الكود', 'الاسم', 'الهاتف', 'الرصيد'], list.map((p) => [p.code, p.name, p.phone, formatMoney(p.balance ?? 0)]))}>
               تصدير
             </button>
             {can('parties.create') && (
@@ -299,7 +299,7 @@ export function PartyDetail() {
           <button
             className="btn"
             onClick={() =>
-              exportCsv(
+              exportExcel(
                 `كشف حساب ${party.name}${byItems ? ' بالأصناف' : ''}`,
                 ['التاريخ', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد'],
                 st.data.lines.flatMap((l: any) => [
@@ -312,6 +312,7 @@ export function PartyDetail() {
             تصدير
           </button>
         )}
+        <button className="btn no-print" onClick={() => savePdf(`كشف حساب ${party.name}`)}>PDF</button>
         <button className="btn no-print" onClick={() => window.print()}>طباعة</button>
       </div>
       {party._sync && <Banner kind="info">هذا الطرف لم يُزامن بعد؛ الكشف يظهر بعد قبوله على الخادم.</Banner>}

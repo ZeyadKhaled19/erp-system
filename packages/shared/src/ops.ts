@@ -231,6 +231,8 @@ export const docSchema = z.object({
   period_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   period_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   retained_bp: nonneg.max(10000).default(0),
+  /** أساس توزيع الأرباح: الربح المحاسبي (افتراضي) أو النتيجة النقدية للفترة */
+  profit_basis: z.enum(['accrual', 'cash']).nullish(),
   payment_type: z.enum(['cash', 'credit']).nullish(),
   /** المبلغ المدفوع (فواتير) أو مبلغ السند */
   paid: nonneg.default(0),

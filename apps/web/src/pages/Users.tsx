@@ -32,6 +32,8 @@ export function UsersPage() {
           id: u.id, username: u.username, full_name: u.full_name, role_id: u.role_id, active: u.active, password: u.password || undefined,
           warehouse_ids: u.role_id === 'role-admin' ? null : u.warehouse_ids ?? null,
           cashbox_ids: u.role_id === 'role-admin' ? null : u.cashbox_ids ?? null,
+          extra_permissions: u.role_id === 'role-admin' ? [] : u.extra_permissions ?? [],
+          denied_permissions: u.role_id === 'role-admin' ? [] : u.denied_permissions ?? [],
         },
       });
       // خزنة مستقلة للموظف الجديد باسمه ومسؤوليته
@@ -111,6 +113,12 @@ export function UsersPage() {
                 <ScopePicker label="المخازن المسموحة" all={warehouses} value={u.warehouse_ids ?? null} onChange={(v) => setU({ ...u, warehouse_ids: v })} />
                 <ScopePicker label="الخزائن وطرق الدفع المسموحة" all={cashboxes} value={u.cashbox_ids ?? null} onChange={(v) => setU({ ...u, cashbox_ids: v })} />
                 <div className="footnote">«الكل» يشمل أي مخزن أو خزينة تُضاف لاحقًا. عند التحديد يجب إضافة الجديد هنا يدويًا.</div>
+                <UserPermOverrides
+                  rolePerms={roles.find((x) => x.id === u.role_id)?.permissions ?? []}
+                  extra={u.extra_permissions ?? []}
+                  denied={u.denied_permissions ?? []}
+                  onChange={(extra, denied) => setU({ ...u, extra_permissions: extra, denied_permissions: denied })}
+                />
               </>
             )}
           </div>
@@ -218,5 +226,52 @@ function RoleHomes({ roles }: { roles: any[] }) {
       </div>
       <div className="footnote" style={{ marginTop: 6 }}>صفحة البداية لا تمنح أي صلاحية؛ تظهر فقط المساحات التي يملك الدور صلاحية فتحها.</div>
     </>
+  );
+}
+
+/** صلاحيات خاصة بالمستخدم: لكل صلاحية «حسب الدور» أو «سماح» أو «منع» لهذا المستخدم وحده */
+function UserPermOverrides({ rolePerms, extra, denied, onChange }: { rolePerms: string[]; extra: string[]; denied: string[]; onChange: (extra: string[], denied: string[]) => void }) {
+  const [open, setOpen] = useState(extra.length + denied.length > 0);
+  const set = (key: string, v: 'role' | 'allow' | 'deny') => {
+    const e = extra.filter((p) => p !== key);
+    const d = denied.filter((p) => p !== key);
+    if (v === 'allow') e.push(key);
+    if (v === 'deny') d.push(key);
+    onChange(e, d);
+  };
+  const count = extra.length + denied.length;
+  return (
+    <div className="upo">
+      <button type="button" className="btn sm" onClick={() => setOpen(!open)}>
+        صلاحيات خاصة بهذا المستخدم {count > 0 && <span className="badge blue num">{count}</span>} {open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <div className="stack" style={{ marginTop: 8 }}>
+          <div className="footnote">الافتراضي «حسب الدور». اختر «سماح» لإعطائه صلاحية ليست في دوره، أو «منع» لسحب صلاحية من دوره عنه وحده.</div>
+          {PERMISSION_GROUPS.map((g) => (
+            <div key={g.module}>
+              <div className="group-header" style={{ paddingInlineStart: 4 }}>{g.label}</div>
+              <div className="list" style={{ background: 'var(--bg-elevated)' }}>
+                {g.actions.map((a) => {
+                  const fromRole = rolePerms.includes('*') || rolePerms.includes(a.key);
+                  const v = extra.includes(a.key) ? 'allow' : denied.includes(a.key) ? 'deny' : 'role';
+                  const eff = v === 'allow' || (v === 'role' && fromRole);
+                  return (
+                    <div key={a.key} className={`list-row upo-row ${v !== 'role' ? 'changed' : ''}`}>
+                      <div className="title">{a.label}<div className="sub">{eff ? 'مسموح' : 'غير مسموح'}{v === 'role' ? ' (من الدور)' : ' (خاص بالمستخدم)'}</div></div>
+                      <select className="select upo-sel" value={v} onChange={(e) => set(a.key, e.target.value as any)}>
+                        <option value="role">حسب الدور ({fromRole ? 'مسموح' : 'ممنوع'})</option>
+                        <option value="allow">سماح</option>
+                        <option value="deny">منع</option>
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

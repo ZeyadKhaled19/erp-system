@@ -4,7 +4,7 @@ import { FileText, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { DocStatusBadge, Empty, exportCsv, SearchBox, Segmented } from '../components/ui';
+import { DocStatusBadge, Empty, exportExcel, SearchBox, Segmented } from '../components/ui';
 import { db } from '../lib/db';
 import { useDebounced, useMap, usePerm } from '../lib/hooks';
 
@@ -46,7 +46,7 @@ export function DocumentsList() {
         sub={`${list.length} مستند · صافي المرحّل ${formatMoney(total)}`}
         actions={
           <>
-            <button className="btn" onClick={() => exportCsv(MODULE_LABEL[module], ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'الحالة', 'الإجمالي', 'المدفوع'], list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType].label, d.date, parties.get(d.party_id)?.name, d.status, formatMoney(d.total), formatMoney(d.paid)]))}>
+            <button className="btn" onClick={() => exportExcel(MODULE_LABEL[module], ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'الحالة', 'الإجمالي', 'المدفوع'], list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType].label, d.date, parties.get(d.party_id)?.name, d.status, formatMoney(d.total), formatMoney(d.paid)]))}>
               تصدير
             </button>
             {types[0] && can(`${module === 'accounts' ? 'accounts.journal' : module + '.create'}`) && (

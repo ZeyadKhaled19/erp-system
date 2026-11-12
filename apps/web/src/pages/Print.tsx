@@ -108,6 +108,7 @@ export function PrintPage() {
           ))}
         </select>
         <button className="btn primary" onClick={() => window.print()}>طباعة</button>
+        <button className="btn" title="في نافذة الطباعة اختر «حفظ كـ PDF»" onClick={() => window.print()}>حفظ PDF</button>
       </div>
       <div className={thermal ? 'paper thermal' : 'paper'}>
         {thermal ? (

@@ -1,13 +1,14 @@
 import { ACCOUNT_TYPE_LABEL, DOC_TYPES, formatMoney, formatQty, todayISO, type DocType } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Printer } from 'lucide-react';
+import { FileDown, Printer } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, DocStatusBadge, exportCsv, Field, Picker, Segmented } from '../components/ui';
+import { Banner, DocStatusBadge, exportExcel, Field, Picker, savePdf, Segmented } from '../components/ui';
 import { db } from '../lib/db';
 import { useMap, usePerm, useRemote, useSettings } from '../lib/hooks';
 import { CategoryFilter } from '../components/Categories';
+import { CashResultTable } from './Partners';
 
 const monthStart = () => `${todayISO().slice(0, 7)}-01`;
 const yearStart = () => `${todayISO().slice(0, 4)}-01-01`;
@@ -20,7 +21,7 @@ function Shell({ title, sub, filters, actions, error, loading, children, note }:
         <div style={{ fontWeight: 700, fontSize: 17 }}>{settings.company_name}</div>
         <div>{title} — طُبع {new Date().toLocaleString('ar-EG')}</div>
       </div>
-      <PageHeader title={title} sub={sub} actions={<>{actions}<button className="btn" onClick={() => window.print()}><Printer /> طباعة</button></>} />
+      <PageHeader title={title} sub={sub} actions={<>{actions}<button className="btn" title="احفظ التقرير كملف PDF (اختر «حفظ كـ PDF» في نافذة الطباعة)" onClick={() => savePdf(title)}><FileDown /> PDF</button><button className="btn" onClick={() => window.print()}><Printer /> طباعة</button></>} />
       {filters && <div className="card pad no-print" style={{ marginBottom: 14 }}><div className="grid grid-4" style={{ alignItems: 'end' }}>{filters}</div></div>}
       {error && <div style={{ marginBottom: 12 }}><Banner kind="warn">{error}</Banner></div>}
       {loading && <div className="muted" style={{ marginBottom: 8 }}>جارٍ التحميل…</div>}
@@ -87,7 +88,7 @@ export function ItemMovementReport() {
           </Field>
         </>
       }
-      actions={r.data && <button className="btn" onClick={() => exportCsv('حركة صنف', ['التاريخ', 'المستند', 'النوع', 'المخزن', 'الطرف', 'وارد', 'منصرف', 'الرصيد'], r.data.moves.map((m: any) => [m.date, m.doc_number, docLabel(m.doc_type), m.warehouse_name, m.party_name, m.qty > 0 ? formatQty(m.qty) : '', m.qty < 0 ? formatQty(-m.qty) : '', m.balance != null ? formatQty(m.balance) : '']))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel('حركة صنف', ['التاريخ', 'المستند', 'النوع', 'المخزن', 'الطرف', 'وارد', 'منصرف', 'الرصيد'], r.data.moves.map((m: any) => [m.date, m.doc_number, docLabel(m.doc_type), m.warehouse_name, m.party_name, m.qty > 0 ? formatQty(m.qty) : '', m.qty < 0 ? formatQty(-m.qty) : '', m.balance != null ? formatQty(m.balance) : '']))}>تصدير Excel</button>}
       note="الكميات بالوحدة الأساسية للصنف. الحركات العكسية ناتجة عن إلغاء مستندات."
     >
       {!id && <div className="card pad muted">اختر صنفًا لعرض حركته.</div>}
@@ -165,7 +166,7 @@ export function StockReport() {
           <Field label="العرض"><Segmented block value={nonzero ? '1' : '0'} onChange={(v) => setNonzero(v === '1')} options={[{ value: '1', label: 'الأصناف ذات الرصيد' }, { value: '0', label: 'كل الأصناف' }]} /></Field>
         </>
       }
-      actions={<button className="btn" onClick={() => exportCsv('بضاعة مخزن', ['الكود', 'الصنف', 'التصنيف', 'الوحدة', 'الكمية', ...(can('costs.view') ? ['متوسط التكلفة', 'القيمة بالتكلفة'] : []), 'سعر البيع', 'القيمة بسعر البيع (تقديرية)'], data.map((r) => [r.code, r.name, r.cat, r.base_unit, formatQty(r.qty), ...(can('costs.view') ? [r.qty ? formatMoney(Math.round((r.value * 1000) / r.qty)) : '', formatMoney(r.value)] : []), formatMoney(r.sale_price ?? 0), formatMoney(r.sale_value)]))}>تصدير</button>}
+      actions={<button className="btn" onClick={() => exportExcel('بضاعة مخزن', ['الكود', 'الصنف', 'التصنيف', 'الوحدة', 'الكمية', ...(can('costs.view') ? ['متوسط التكلفة', 'القيمة بالتكلفة'] : []), 'سعر البيع', 'القيمة بسعر البيع (تقديرية)'], data.map((r) => [r.code, r.name, r.cat, r.base_unit, formatQty(r.qty), ...(can('costs.view') ? [r.qty ? formatMoney(Math.round((r.value * 1000) / r.qty)) : '', formatMoney(r.value)] : []), formatMoney(r.sale_price ?? 0), formatMoney(r.sale_value)]))}>تصدير Excel</button>}
       note="القيمة بالتكلفة = الكمية المتبقية × متوسط تكلفة الشراء (المتوسط المرجح). القيمة بسعر البيع تقديرية فقط ولا تُستخدم كتكلفة أو ربح. الأرصدة حسب آخر مزامنة."
     >
       <div className="table-wrap">
@@ -218,7 +219,7 @@ export function WarehouseMovementReport() {
           <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
         </>
       }
-      actions={r.data && <button className="btn" onClick={() => exportCsv('حركة مخزن', ['التاريخ', 'المستند', 'النوع', 'الصنف', 'وارد', 'منصرف', 'الرصيد بعد الحركة'], r.data.moves.map((m: any) => [m.date, m.doc_number, docLabel(m.doc_type), m.item_name, m.qty > 0 ? formatQty(m.qty) : '', m.qty < 0 ? formatQty(-m.qty) : '', formatQty(m.balance_qty)]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel('حركة مخزن', ['التاريخ', 'المستند', 'النوع', 'الصنف', 'وارد', 'منصرف', 'الرصيد بعد الحركة'], r.data.moves.map((m: any) => [m.date, m.doc_number, docLabel(m.doc_type), m.item_name, m.qty > 0 ? formatQty(m.qty) : '', m.qty < 0 ? formatQty(-m.qty) : '', formatQty(m.balance_qty)]))}>تصدير Excel</button>}
     >
       {r.data && (
         <div className="table-wrap">
@@ -261,7 +262,7 @@ export function ReorderReport() {
     <Shell
       title="الأصناف تحت حد الطلب"
       sub={`${data.length} صنف وصل لحد إعادة الطلب أو أقل`}
-      actions={<><CategoryFilter value={cat} onChange={setCat} /><button className="btn" onClick={() => exportCsv('النواقص', ['الكود', 'الصنف', 'الرصيد', 'حد الطلب', 'العجز'], data.map((r) => [r.code, r.name, formatQty(r.qty), formatQty(r.reorder_level), formatQty(r.reorder_level - r.qty)]))}>تصدير</button></>}
+      actions={<><CategoryFilter value={cat} onChange={setCat} /><button className="btn" onClick={() => exportExcel('النواقص', ['الكود', 'الصنف', 'الرصيد', 'حد الطلب', 'العجز'], data.map((r) => [r.code, r.name, formatQty(r.qty), formatQty(r.reorder_level), formatQty(r.reorder_level - r.qty)]))}>تصدير Excel</button></>}
       note="يعرض فقط الأصناف التي لها حد طلب أكبر من صفر ورصيدها الإجمالي (كل المخازن) أقل من أو يساوي الحد."
     >
       <div className="table-wrap">
@@ -310,7 +311,7 @@ export function TrialBalanceReport() {
       error={r.error}
       loading={r.loading}
       filters={<><DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} /><Field label="المستوى"><Segmented block value={level} onChange={setLevel} options={[{ value: 'all', label: 'بالتجميع' }, { value: 'leaf', label: 'الفرعية فقط' }]} /></Field></>}
-      actions={r.data && <button className="btn" onClick={() => exportCsv('ميزان المراجعة', ['الرقم', 'الحساب', 'رصيد أول المدة', 'مدين', 'دائن', 'الرصيد الختامي'], rows.map((a: any) => [a.code, a.name, formatMoney(a.opening), formatMoney(a.debit), formatMoney(a.credit), formatMoney(a.closing)]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel('ميزان المراجعة', ['الرقم', 'الحساب', 'رصيد أول المدة', 'مدين', 'دائن', 'الرصيد الختامي'], rows.map((a: any) => [a.code, a.name, formatMoney(a.opening), formatMoney(a.debit), formatMoney(a.credit), formatMoney(a.closing)]))}>تصدير Excel</button>}
       note="الرصيد موجب = مدين، سالب = دائن. الحسابات الرئيسية تجمع أرصدة فروعها؛ الإجمالي محسوب من الحسابات الفرعية فقط."
     >
       {r.data && (
@@ -354,7 +355,7 @@ export function LedgerReport() {
       error={r.error}
       loading={r.loading}
       filters={<><Field label="الحساب"><Picker value={id} options={opts} onChange={(v) => setSp(v ? { account: v } : {})} /></Field><DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} /></>}
-      actions={r.data && <button className="btn" onClick={() => exportCsv('دفتر الأستاذ', ['التاريخ', 'القيد', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد'], r.data.lines.map((l: any) => [l.date, l.entry_no, l.doc_number, l.memo ?? l.entry_memo, formatMoney(l.debit), formatMoney(l.credit), formatMoney(l.balance)]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel('دفتر الأستاذ', ['التاريخ', 'القيد', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد'], r.data.lines.map((l: any) => [l.date, l.entry_no, l.doc_number, l.memo ?? l.entry_memo, formatMoney(l.debit), formatMoney(l.credit), formatMoney(l.balance)]))}>تصدير Excel</button>}
       note="للحساب الرئيسي تُعرض حركات كل فروعه. الرصيد موجب = مدين."
     >
       {!id && <div className="card pad muted">اختر حسابًا.</div>}
@@ -389,6 +390,7 @@ export function IncomeReport() {
   const [from, setFrom] = useState(yearStart());
   const [to, setTo] = useState(todayISO());
   const r = useRemote<any>(`/api/reports/income-statement?from=${from}&to=${to}`);
+  const cr = useRemote<any>(`/api/reports/cash-result?from=${from}&to=${to}`);
   const d = r.data;
   return (
     <Shell title="قائمة الدخل" error={r.error} loading={r.loading} filters={<DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />}
@@ -403,7 +405,13 @@ export function IncomeReport() {
           </div>
           <Section title="الإيرادات" rows={d.revenue} total={d.total_revenue} />
           <Section title="المصروفات والتكاليف" rows={d.expenses} total={d.total_expenses} />
-          <div className="card pad row"><span className="bold" style={{ flex: 1, fontSize: 20 }}>صافي الربح (الخسارة)</span><span className={`num bold ${d.net_profit < 0 ? 'red' : 'green'}`} style={{ fontSize: 22 }}>{formatMoney(d.net_profit)}</span></div>
+          <div className="card pad row"><span className="bold" style={{ flex: 1, fontSize: 20 }}>صافي الربح المحاسبي (الخسارة)</span><span className={`num bold ${d.net_profit < 0 ? 'red' : 'green'}`} style={{ fontSize: 22 }}>{formatMoney(d.net_profit)}</span></div>
+          {cr.data && (
+            <div className="card pad">
+              <div className="section-title" style={{ marginTop: 0 }}>النتيجة النقدية للفترة (منفصلة عن الربح المحاسبي)</div>
+              <CashResultTable d={cr.data} />
+            </div>
+          )}
         </div>
       )}
     </Shell>
@@ -536,7 +544,7 @@ export function DocumentsReport() {
           </Field>
         </>
       }
-      actions={r.data && <button className="btn" onClick={() => exportCsv(REPORT_GROUPS[group].label, ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'المستخدم', 'الحالة', 'الإجمالي', 'الضريبة', 'المدفوع'], r.data.rows.map((d: any) => [d.number, docLabel(d.doc_type), d.date, d.party_name, d.user_name, d.status, formatMoney(d.total), formatMoney(d.tax), formatMoney(d.paid)]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel(REPORT_GROUPS[group].label, ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'المستخدم', 'الحالة', 'الإجمالي', 'الضريبة', 'المدفوع'], r.data.rows.map((d: any) => [d.number, docLabel(d.doc_type), d.date, d.party_name, d.user_name, d.status, formatMoney(d.total), formatMoney(d.tax), formatMoney(d.paid)]))}>تصدير Excel</button>}
       note={showProfit ? 'الربح = (الإجمالي − الضريبة) − تكلفة البضاعة بالمتوسط المرجح وقت البيع. المرتجعات تُطرح. الإجماليات للمستندات المرحّلة فقط.' : 'الإجماليات للمستندات المرحّلة فقط، والمرتجعات تُطرح.'}
     >
       {r.data && (
@@ -602,7 +610,7 @@ export function SalesAnalysisReport() {
           <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
         </>
       }
-      actions={r.data && <button className="btn" onClick={() => exportCsv('تحليل', [GROUPS[group], 'عدد المستندات', 'الكمية', 'الصافي', 'الخصم', ...(showProfit ? ['التكلفة', 'الربح'] : [])], r.data.rows.map((x: any) => [x.label, x.docs, formatQty(x.qty), formatMoney(x.net), formatMoney(x.discount), ...(showProfit ? [formatMoney(x.cost), formatMoney(x.profit)] : [])]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel('تحليل', [GROUPS[group], 'عدد المستندات', 'الكمية', 'الصافي', 'الخصم', ...(showProfit ? ['التكلفة', 'الربح'] : [])], r.data.rows.map((x: any) => [x.label, x.docs, formatQty(x.qty), formatMoney(x.net), formatMoney(x.discount), ...(showProfit ? [formatMoney(x.cost), formatMoney(x.profit)] : [])]))}>تصدير Excel</button>}
       note="الصافي بدون ضريبة وبعد الخصومات، والمرتجعات تُطرح. الربح = الصافي − تكلفة البضاعة بالمتوسط المرجح وقت البيع."
     >
       {r.data && (
@@ -683,7 +691,7 @@ export function ExpiryReport() {
           <Field label="صلاحية حتى تاريخ"><input type="date" className="input" value={until} onChange={(e) => setUntil(e.target.value)} /></Field>
         </>
       }
-      actions={r.data && <button className="btn" onClick={() => exportCsv('الصلاحية', ['الصنف', 'المخزن', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية'], r.data.rows.map((x: any) => [x.name, x.warehouse_name, x.expiry, x.days_left, formatQty(x.qty)]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel('الصلاحية', ['الصنف', 'المخزن', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية'], r.data.rows.map((x: any) => [x.name, x.warehouse_name, x.expiry, x.days_left, formatQty(x.qty)]))}>تصدير Excel</button>}
       note="الكميات المتاحة فقط لكل دفعة. الصرف يتم تلقائيًا من الأقرب انتهاءً. التنبيه حسب «تنبيه قبل» في بطاقة الصنف."
     >
       {r.data && (
@@ -761,7 +769,7 @@ export function TreasuryAnalysisReport() {
           <Field label="التحويلات بين الخزائن"><Segmented block value={internal ? '1' : '0'} onChange={(v) => setInternal(v === '1')} options={[{ value: '0', label: 'مستبعدة' }, { value: '1', label: 'مضمنة' }]} /></Field>
         </>
       }
-      actions={r.data && <button className="btn" onClick={() => exportCsv(title, [T_GROUPS[group], 'عدد الحركات', 'المبلغ', 'النسبة %'], r.data.rows.map((x: any) => [tLabel(group, x.label), x.count, formatMoney(x.amount), (x.share_bp / 100).toFixed(1)]))}>تصدير</button>}
+      actions={r.data && <button className="btn" onClick={() => exportExcel(title, [T_GROUPS[group], 'عدد الحركات', 'المبلغ', 'النسبة %'], r.data.rows.map((x: any) => [tLabel(group, x.label), x.count, formatMoney(x.amount), (x.share_bp / 100).toFixed(1)]))}>تصدير Excel</button>}
       note="محسوب من الحركة الفعلية على الخزائن والبنوك (نقدي)، وليس من الفواتير الآجلة. المستندات الملغاة مستبعدة. التحويل بين الخزائن نقل داخلي ولا يُحسب مقبوضًا أو مصروفًا إلا إذا اخترت تضمينه."
     >
       {r.data && (
@@ -818,7 +826,7 @@ export function DailyMovementReport() {
           </Field>
         </>
       }
-      actions={d && <button className="btn" onClick={() => exportCsv(`الحركة اليومية ${from}`, ['الوقت', 'المستند', 'النوع', 'الطرف', 'المستخدم', 'الإجمالي', 'المدفوع', 'المتبقي'], d.docs.map((x: any) => [new Date(x.created_at).toLocaleString('ar-EG'), x.number ?? x.local_number, docLabel(x.doc_type), x.party_name ?? '', x.user_name ?? '', formatMoney(x.total), formatMoney(x.paid), ['sale_invoice', 'purchase_invoice'].includes(x.doc_type) ? formatMoney(x.total - x.paid) : '']))}>تصدير</button>}
+      actions={d && <button className="btn" onClick={() => exportExcel(`الحركة اليومية ${from}`, ['الوقت', 'المستند', 'النوع', 'الطرف', 'المستخدم', 'الإجمالي', 'المدفوع', 'المتبقي'], d.docs.map((x: any) => [new Date(x.created_at).toLocaleString('ar-EG'), x.number ?? x.local_number, docLabel(x.doc_type), x.party_name ?? '', x.user_name ?? '', formatMoney(x.total), formatMoney(x.paid), ['sale_invoice', 'purchase_invoice'].includes(x.doc_type) ? formatMoney(x.total - x.paid) : '']))}>تصدير Excel</button>}
       note="المستندات المرحّلة وتحت المراجعة في الفترة (بدون عروض الأسعار والملغاة). حركة الخزائن من القيود الفعلية؛ الرصيد الختامي يشمل كل الحركات حتى لو اخترت مستخدمًا."
     >
       {d && (
@@ -910,7 +918,7 @@ export function NegativeStockReport() {
     <Shell
       title="أرصدة سالبة تحتاج مراجعة"
       sub={rows.length ? `${rows.length} صنف/مخزن` : 'لا توجد أرصدة سالبة'}
-      actions={rows.length > 0 && <button className="btn" onClick={() => exportCsv('أرصدة سالبة', ['الكود', 'الصنف', 'المخزن', 'الرصيد', 'الوحدة'], rows.map((r: any) => [r.item.code, r.item.name, r.warehouse_name, formatQty(r.qty), r.item.base_unit]))}>تصدير</button>}
+      actions={rows.length > 0 && <button className="btn" onClick={() => exportExcel('أرصدة سالبة', ['الكود', 'الصنف', 'المخزن', 'الرصيد', 'الوحدة'], rows.map((r: any) => [r.item.code, r.item.name, r.warehouse_name, formatQty(r.qty), r.item.base_unit]))}>تصدير Excel</button>}
       note="الفواتير لا تُسقط ولا تُعدّل: البيع يُسجّل كما هو، والرصيد السالب يظهر هنا حتى يُعالج بفاتورة شراء أو تحويل من مخزن آخر أو جرد وتسوية. افتح حركة الصنف لمعرفة الفواتير التي سببت العجز."
     >
       {rows.length === 0 ? (

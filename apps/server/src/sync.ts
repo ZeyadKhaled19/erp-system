@@ -5,7 +5,7 @@ const WINDOW = 5000;
 
 /** الأعمدة المسحوبة لكل جدول (لا نرسل كلمات المرور أبدًا) */
 const SELECT: Partial<Record<SyncTable, string>> = {
-  users: 'id, username, full_name, role_id, active, warehouse_ids, cashbox_ids, row_version',
+  users: 'id, username, full_name, role_id, active, warehouse_ids, cashbox_ids, extra_permissions, denied_permissions, row_version',
   documents: `*, (select coalesce(json_agg(l.id), '[]'::json) from document_lines l where l.document_id = documents.id) as line_ids`,
 };
 

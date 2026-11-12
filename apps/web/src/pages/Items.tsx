@@ -4,7 +4,7 @@ import { Package, Plus, Trash2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, Empty, exportCsv, Field, MoneyInput, QtyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, Empty, exportExcel, Field, MoneyInput, QtyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { ImportItemsSheet, QuickItemSheet } from '../components/QuickItem';
 import { CategoryField, CategoryFilter } from '../components/Categories';
@@ -84,7 +84,7 @@ export function ItemsPage() {
             <button
               className="btn"
               onClick={() =>
-                exportCsv(
+                exportExcel(
                   'الأصناف',
                   ['الكود', 'الاسم', 'الباركود', 'التصنيف', 'الوحدة', 'سعر البيع', 'سعر الجملة', 'الرصيد', 'حد الطلب'],
                   list.map((i) => [i.code, i.name, i.barcode, catName.get(i.category_id), i.base_unit, formatMoney(i.sale_price), formatMoney(i.wholesale_price), formatQty(data?.qty.get(i.id) ?? 0), formatQty(i.reorder_level)]),

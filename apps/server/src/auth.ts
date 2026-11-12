@@ -55,11 +55,18 @@ export function makeTokens(secret: string) {
 
 export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | undefined> {
   const u = await db.one(
-    `select u.id, u.username, u.full_name, u.role_id, u.active, u.warehouse_ids, u.cashbox_ids, r.name as role_name, r.permissions, r.limits
+    `select u.id, u.username, u.full_name, u.role_id, u.active, u.warehouse_ids, u.cashbox_ids, u.extra_permissions, u.denied_permissions, r.name as role_name, r.permissions, r.limits
        from users u join roles r on r.id = u.role_id where u.id = $1`,
     [userId],
   );
   if (!u || !u.active) return undefined;
+  // صلاحيات الدور + ما أُضيف لهذا المستخدم − ما مُنع عنه (مدير النظام «كل الصلاحيات» لا يتأثر)
+  const rolePerms: string[] = u.permissions ?? [];
+  let perms = rolePerms;
+  if (!rolePerms.includes('*')) {
+    const denied = new Set<string>(u.denied_permissions ?? []);
+    perms = [...new Set([...rolePerms, ...((u.extra_permissions ?? []) as string[])])].filter((p) => !denied.has(p));
+  }
   // الخزائن التي الموظف مسؤول عنها مسموحة له دائمًا حتى لو قُيّدت خزائنه
   let cashboxIds: string[] | null = u.cashbox_ids ?? null;
   if (cashboxIds) {
@@ -72,7 +79,7 @@ export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | u
     full_name: u.full_name,
     role_id: u.role_id,
     role_name: u.role_name,
-    permissions: u.permissions ?? [],
+    permissions: perms,
     limits: u.limits ?? {},
     // مدير النظام (كل الصلاحيات) يعمل دائمًا على كل المخازن والخزائن
     warehouse_ids: (u.permissions ?? []).includes('*') ? null : (u.warehouse_ids ?? null),

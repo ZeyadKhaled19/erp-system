@@ -389,17 +389,47 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
   );
 }
 
-/** تصدير جدول CSV متوافق مع Excel العربي (UTF-8 BOM) */
-export function exportCsv(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
-  const esc = (v: unknown) => {
-    const s = v === null || v === undefined ? '' : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+/** نص رقمي منسق (مثل 1,234.50 أو 12.5 أو 7) → رقم حقيقي في Excel؛ الأكواد والباركود تبقى نصًا */
+const NUMERIC = /^-?(0|[1-9]\d{0,2}(,\d{3})*|[1-9]\d{0,2}(,\d{3})*)(\.\d+)?$|^-?0\.\d+$/;
+function excelValue(v: unknown): string | number | null {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v).trim();
+  if (NUMERIC.test(s)) return Number(s.replace(/,/g, ''));
+  return s;
+}
+
+/**
+ * تصدير جدول إلى ملف Excel حقيقي (.xlsx) باتجاه من اليمين لليسار:
+ * صف عناوين ثابت وعريض، والأرقام كأرقام قابلة للجمع في Excel.
+ */
+export async function exportExcel(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
+  const { default: writeXlsxFile } = await import('write-excel-file/browser');
+  const head = headers.map((h) => ({ value: h, fontWeight: 'bold' as const, backgroundColor: '#E8EAF0', align: 'center' as const }));
+  const body = rows.map((r) => r.map((v) => {
+    const x = excelValue(v);
+    // المبالغ المنسقة بكسور (120.00) تبقى بخانتين عشريتين في Excel
+    const decimals = typeof v === 'string' ? /\.\d/.test(v) : typeof x === 'number' && !Number.isInteger(x);
+    return x === null ? null : typeof x === 'number' ? { value: x, type: Number, format: decimals ? '#,##0.00' : '#,##0' } : { value: x, type: String };
+  }));
+  const widths = headers.map((h, i) => Math.min(60, Math.max(8, String(h).length + 2, ...rows.slice(0, 500).map((r) => String(r[i] ?? '').length + 2))));
+  const name = (filename.replace(/\.(csv|xlsx)$/i, '') + ` ${new Date().toISOString().slice(0, 10)}`).replace(/[\/:*?"<>|]/g, '-');
+  await writeXlsxFile([head, ...body] as any, {
+    sheet: name.slice(0, 31),
+    rightToLeft: true,
+    stickyRowsCount: 1,
+    columns: widths.map((width) => ({ width })),
+  }, { fontFamily: 'Arial', fontSize: 11 }).toFile(`${name}.xlsx`);
+}
+
+/** حفظ PDF: يفتح نافذة الطباعة باسم ملف مناسب؛ اختر «حفظ كـ PDF» (يدعم العربية والاتجاه من اليمين لليسار) */
+export function savePdf(title: string) {
+  const old = document.title;
+  document.title = `${title} ${new Date().toISOString().slice(0, 10)}`;
+  const restore = () => {
+    document.title = old;
+    window.removeEventListener('afterprint', restore);
   };
-  const csv = '﻿' + [headers, ...rows].map((r) => r.map(esc).join(',')).join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  window.addEventListener('afterprint', restore);
+  window.print();
 }

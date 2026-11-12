@@ -308,7 +308,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
         <div className="card pad dv-panel">
           <div className="grid grid-4">
             <Info k="الفترة" v={<span className="num">{doc.data?.period_from} ← {doc.data?.period_to}</span>} />
-            <Info k="صافي الربح المرحّل" v={doc.data?.net_profit != null ? formatMoney(doc.data.net_profit) : 'يُحسب عند المزامنة'} />
+            <Info k={doc.data?.profit_basis === 'cash' ? 'النتيجة النقدية للفترة' : 'صافي الربح المحاسبي'} v={doc.data?.net_profit != null ? formatMoney(doc.data.net_profit) : 'يُحسب عند المزامنة'} />
             <Info k="المحتجز" v={doc.data?.retained != null ? `${formatMoney(doc.data.retained)} (${(doc.data.retained_bp ?? 0) / 100}%)` : '—'} />
             <Info k="القابل للتوزيع" v={formatMoney(doc.total)} />
           </div>

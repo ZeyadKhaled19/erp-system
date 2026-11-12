@@ -674,3 +674,86 @@ export async function dailyMovement(db: Db, r: Range & { user_id?: string }) {
     docs,
   };
 }
+
+// ---------------------------------------------------------------- النتيجة النقدية للفترة
+/**
+ * النتيجة النقدية: المقبوضات الفعلية من العملاء − المدفوعات التشغيلية الفعلية، من حركة الخزائن والبنوك فقط.
+ * - الفاتورة الآجلة تُحسب عند التحصيل، والسداد الجزئي بالمبلغ المحصّل فقط (لأن الحساب من حركة الخزينة الفعلية).
+ * - تُستبعد: الأرصدة الافتتاحية، رأس المال ومسحوبات وتوزيعات الشركاء، القيود اليدوية (قروض وتسويات)،
+ *   والتحويل بين الخزائن، وأي مصروف/إيراد على حساب ليس من نوع مصروفات/إيرادات (مثل قرض).
+ * - مدفوعات الموردين (شراء البضاعة) تظهر كبند مستقل، وليست تكلفة بضاعة مباعة.
+ */
+export async function cashResult(db: Db, r: Range) {
+  const params: unknown[] = [];
+  const cond = dateCond('e.date', r, params);
+  const rows = await db.query(
+    `select coalesce(d.doc_type, 'jv') as doc_type, p.kind as party_kind, da.type as acc_type,
+            coalesce(sum(l.debit), 0)::bigint as cash_in, coalesce(sum(l.credit), 0)::bigint as cash_out
+       ${CASH_LINES}
+      where ${cond} and coalesce(d.status, 'posted') <> 'cancelled'
+      group by 1, 2, 3`,
+    params,
+  );
+  const out = { collections: 0, customer_refunds: 0, other_income: 0, operating_expenses: 0, payment_fees: 0, supplier_payments: 0, supplier_refunds: 0 };
+  const excluded = new Map<string, { doc_type: string; cash_in: number; cash_out: number }>();
+  const exclude = (t: string, i: number, o: number) => {
+    const x = excluded.get(t) ?? { doc_type: t, cash_in: 0, cash_out: 0 };
+    x.cash_in += i;
+    x.cash_out += o;
+    excluded.set(t, x);
+  };
+  for (const x of rows) {
+    const i = Number(x.cash_in);
+    const o = Number(x.cash_out);
+    switch (x.doc_type) {
+      case 'sale_invoice':
+        out.collections += i;
+        out.payment_fees += o; // عمولة الدفع بالبطاقة/المحفظة المخصومة من الخزينة
+        break;
+      case 'sale_return':
+        out.customer_refunds += o - i;
+        break;
+      case 'purchase_invoice':
+        out.supplier_payments += o;
+        out.supplier_refunds += i;
+        break;
+      case 'purchase_return':
+        out.supplier_refunds += i - o;
+        break;
+      case 'receipt':
+        if (x.party_kind === 'supplier') out.supplier_refunds += i;
+        else out.collections += i;
+        out.payment_fees += o;
+        break;
+      case 'payment':
+        if (x.party_kind === 'customer') out.customer_refunds += o;
+        else out.supplier_payments += o;
+        out.supplier_refunds += i;
+        break;
+      case 'expense':
+        if (x.acc_type === 'expense') out.operating_expenses += o - i;
+        else exclude('expense_non_operating', i, o);
+        break;
+      case 'income':
+        if (x.acc_type === 'revenue') out.other_income += i - o;
+        else exclude('income_non_operating', i, o);
+        break;
+      default:
+        exclude(x.doc_type, i, o);
+    }
+  }
+  const netCollections = out.collections - out.customer_refunds + out.other_income;
+  const operatingOut = out.operating_expenses + out.payment_fees;
+  const netSupplier = out.supplier_payments - out.supplier_refunds;
+  return {
+    ...out,
+    net_collections: netCollections,
+    operating_out: operatingOut,
+    net_supplier_payments: netSupplier,
+    /** قبل مدفوعات البضاعة: يوضح أثر التشغيل وحده */
+    before_goods: netCollections - operatingOut,
+    /** النتيجة النقدية للفترة (القابلة للتوزيع على الأساس النقدي) */
+    result: netCollections - operatingOut - netSupplier,
+    excluded: [...excluded.values()].filter((x) => x.cash_in || x.cash_out),
+  };
+}

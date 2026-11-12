@@ -4,7 +4,7 @@ import {
 import type { AuthUser } from '../auth';
 import type { Db } from '../db';
 import { AppError, ReviewError } from '../errors';
-import { incomeStatement } from '../reports';
+import { cashResult, incomeStatement } from '../reports';
 import { getSettings, reverseDocumentJournals, sysAccount, writeJournal, type JLine } from './ledger';
 import { currentQty, reverseStockMoves, stockIn, stockOut } from './stock';
 import { reverseTracking, trackIn, trackOut, trackTransfer } from './tracking';
@@ -259,8 +259,10 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
     const sumBp = partners.reduce((s, p) => s + p.profit_bp, 0);
     if (sumBp !== 10000) throw new AppError(`مجموع نسب توزيع الأرباح ${sumBp / 100}% ولا يساوي 100% (الفرق ${(10000 - sumBp) / 100}%). عدّل نسب الشركاء أولًا`);
     const is = await incomeStatement(t, { from: input.period_from, to: input.period_to });
-    const net = is.net_profit;
-    if (net <= 0) throw new AppError(`صافي ربح الفترة ${net / 100} — لا يوجد ربح قابل للتوزيع`);
+    const basis = input.profit_basis === 'cash' ? 'cash' : 'accrual';
+    const cash = basis === 'cash' ? await cashResult(t, { from: input.period_from, to: input.period_to }) : null;
+    const net = cash ? cash.result : is.net_profit;
+    if (net <= 0) throw new AppError(`${cash ? 'النتيجة النقدية' : 'صافي ربح'} الفترة ${net / 100} — لا يوجد ربح قابل للتوزيع`);
     const retained = applyBp(net, input.retained_bp ?? 0);
     const distributable = net - retained;
     if (distributable <= 0) throw new AppError('لا يتبقى ربح للتوزيع بعد الاحتجاز');
@@ -269,6 +271,9 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
       period_from: input.period_from,
       period_to: input.period_to,
       net_profit: net,
+      profit_basis: basis,
+      accrual_profit: is.net_profit,
+      cash_result: cash?.result ?? null,
       revenue: is.total_revenue,
       expenses: is.total_expenses,
       retained_bp: input.retained_bp ?? 0,
@@ -724,9 +729,11 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
     case 'profit_distribution': {
       if (!hasPermission(ctx.user.permissions, 'partners.distribute')) throw new AppError('اعتماد توزيع الأرباح يحتاج صلاحية خاصة', 'forbidden');
       // الأرقام تُعاد حسابها عند الاعتماد حتى لا يُعتمد توزيع على أرقام قديمة
-      const is = await incomeStatement(t, { from: data.period_from, to: data.period_to });
-      if (is.net_profit !== data.net_profit) {
-        throw new AppError(`تغير صافي ربح الفترة منذ إعداد المسودة (كان ${data.net_profit / 100} وأصبح ${is.net_profit / 100}). أعد حفظ المسودة لتحديث الأرقام`, 'state');
+      const nowNet = data.profit_basis === 'cash'
+        ? (await cashResult(t, { from: data.period_from, to: data.period_to })).result
+        : (await incomeStatement(t, { from: data.period_from, to: data.period_to })).net_profit;
+      if (nowNet !== data.net_profit) {
+        throw new AppError(`تغيرت ${data.profit_basis === 'cash' ? 'النتيجة النقدية' : 'صافي ربح'} الفترة منذ إعداد المسودة (كان ${data.net_profit / 100} وأصبح ${nowNet / 100}). أعد حفظ المسودة لتحديث الأرقام`, 'state');
       }
       const distAcc = await acc('profit_distribution');
       jl.push({ account_id: distAcc, debit: doc.total, credit: 0, memo });

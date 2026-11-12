@@ -4,7 +4,7 @@ import { ArrowDownLeft, ArrowUpRight, PieChart, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, DocStatusBadge, Empty, Field, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, Empty, Field, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { usePerm, useRemote } from '../lib/hooks';
@@ -160,7 +160,9 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
   const [from, setFrom] = useState(`${y}-01-01`);
   const [to, setTo] = useState(todayISO());
   const [ret, setRet] = useState('0');
+  const [basis, setBasis] = useState<'accrual' | 'cash'>('accrual');
   const is = useRemote<any>(`/api/reports/income-statement?from=${from}&to=${to}`, []);
+  const cr = useRemote<any>(`/api/reports/cash-result?from=${from}&to=${to}`, []);
   const partners = useLiveQuery(async () => (await db.partners.toArray()).filter((p) => p.active !== false), []) ?? [];
   let retBp = 0;
   try {
@@ -168,7 +170,8 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
   } catch {
     retBp = -1;
   }
-  const net = is.data?.net_profit ?? 0;
+  const net = (basis === 'cash' ? cr.data?.result : is.data?.net_profit) ?? 0;
+  const ready = basis === 'cash' ? !!cr.data : !!is.data;
   const retained = Math.round((net * Math.max(retBp, 0)) / 10000);
   const distributable = net - retained;
   const sumBp = partners.reduce((s, p) => s + p.profit_bp, 0);
@@ -182,11 +185,11 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
           <button className="btn" onClick={onClose}>إلغاء</button>
           <button
             className="btn primary"
-            disabled={!is.data || net <= 0 || sumBp !== 10000 || retBp < 0 || retBp > 10000}
+            disabled={!ready || net <= 0 || sumBp !== 10000 || retBp < 0 || retBp > 10000}
             onClick={async () => {
               const id = uuid();
               await saveDocument(
-                { id, doc_type: 'profit_distribution', date: to, period_from: from, period_to: to, retained_bp: retBp, lines: [], journal_lines: [], payments: [], instruments: [], paid: 0, amount: 0, discount: 0, reserve: false, notes: `توزيع أرباح ${from} إلى ${to}` } as any,
+                { id, doc_type: 'profit_distribution', date: to, period_from: from, period_to: to, retained_bp: retBp, profit_basis: basis, lines: [], journal_lines: [], payments: [], instruments: [], paid: 0, amount: 0, discount: 0, reserve: false, notes: `توزيع أرباح ${from} إلى ${to} (${basis === 'cash' ? 'على أساس النتيجة النقدية' : 'على أساس الربح المحاسبي'})` } as any,
                 'draft',
               );
               ui.toast('أُعدت مسودة التوزيع؛ راجعها ثم اعتمدها');
@@ -205,18 +208,40 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
           <Field label="إلى تاريخ"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
           <Field label="نسبة الأرباح المحتجزة %"><input className="input num" inputMode="decimal" value={ret} onChange={(e) => setRet(e.target.value)} /></Field>
         </div>
-        {is.error && <Banner kind="warn">{is.error}</Banner>}
+        <Field label="أساس التوزيع">
+          <Segmented block value={basis} onChange={setBasis} options={[{ value: 'accrual', label: 'الربح المحاسبي' }, { value: 'cash', label: 'النتيجة النقدية' }]} />
+        </Field>
+        {(is.error || cr.error) && <Banner kind="warn">{is.error || cr.error}</Banner>}
+        {is.data && cr.data && (
+          <div className="grid grid-2">
+            <button type="button" className={`card pad pr-basis ${basis === 'accrual' ? 'on' : ''}`} onClick={() => setBasis('accrual')}>
+              <div className="caption">1) الربح المحاسبي</div>
+              <div className={`stat-value num ${is.data.net_profit < 0 ? 'red' : ''}`}>{formatMoney(is.data.net_profit)}</div>
+              <div className="footnote">المبيعات المسجلة − تكلفة البضاعة المباعة (متوسط مرجح) − مصروفات الفترة</div>
+            </button>
+            <button type="button" className={`card pad pr-basis ${basis === 'cash' ? 'on' : ''}`} onClick={() => setBasis('cash')}>
+              <div className="caption">2) النتيجة النقدية</div>
+              <div className={`stat-value num ${cr.data.result < 0 ? 'red' : ''}`}>{formatMoney(cr.data.result)}</div>
+              <div className="footnote">المحصّل فعلًا من العملاء − المدفوع فعلًا (مصروفات ومورّدين)</div>
+            </button>
+          </div>
+        )}
+        {basis === 'cash' && cr.data && <CashResultTable d={cr.data} />}
         {sumBp !== 10000 && <Banner kind="err">مجموع نسب توزيع الأرباح للشركاء {bpToPercent(sumBp)}% ولا يساوي 100%.</Banner>}
-        {is.data && (
+        {basis === 'accrual' && is.data && (
           <div className="list">
             <div className="list-row"><div className="title">إجمالي الإيرادات</div><span className="num">{formatMoney(is.data.total_revenue)}</span></div>
             <div className="list-row"><div className="title">إجمالي المصروفات والتكاليف</div><span className="num">{formatMoney(is.data.total_expenses)}</span></div>
             <div className="list-row"><div className="title bold">صافي الربح المرحّل للفترة</div><span className={`num bold ${net < 0 ? 'red' : ''}`}>{formatMoney(net)}</span></div>
-            <div className="list-row"><div className="title">أرباح محتجزة</div><span className="num">{formatMoney(retained)}</span></div>
-            <div className="list-row"><div className="title bold">القابل للتوزيع</div><span className="num bold">{formatMoney(Math.max(distributable, 0))}</span></div>
           </div>
         )}
-        {is.data && distributable > 0 && (
+        {ready && net > 0 && (
+          <div className="list">
+            <div className="list-row"><div className="title">أرباح محتجزة</div><span className="num">{formatMoney(retained)}</span></div>
+            <div className="list-row"><div className="title bold">القابل للتوزيع ({basis === 'cash' ? 'نقدي' : 'محاسبي'})</div><span className="num bold">{formatMoney(Math.max(distributable, 0))}</span></div>
+          </div>
+        )}
+        {ready && distributable > 0 && (
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>الشريك</th><th className="n">نسبة الأرباح</th><th className="n">النصيب التقديري</th></tr></thead>
@@ -229,10 +254,46 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
           </div>
         )}
         <div className="footnote">
-          الحساب من القيود المرحّلة فقط (بعد المصروفات والتكاليف والمرتجعات المسجلة)، وصافي الربح ليس رصيد الخزينة. المسودة تُعرض للمراجعة، والاعتماد يحتاج صلاحية «اعتماد توزيع الأرباح»
+          الربح المحاسبي من القيود المرحّلة (بعد المصروفات والتكاليف والمرتجعات)، والنتيجة النقدية من حركة الخزائن الفعلية فقط (الآجل يُحسب عند تحصيله)؛ ولا أيٌّ منهما هو رصيد الخزينة.
+          يُعاد حساب الأساس المختار عند الاعتماد. المسودة تُعرض للمراجعة، والاعتماد يحتاج صلاحية «اعتماد توزيع الأرباح»
           ويُنشئ قيدًا: من حـ/ توزيعات أرباح معلنة إلى حـ/ جاري كل شريك. السحب الفعلي يتم بمستند «مسحوبات شريك».
         </div>
       </div>
     </Sheet>
+  );
+}
+
+const EXCLUDED_LABEL: Record<string, string> = {
+  cash_transfer: 'تحويلات بين الخزائن', partner_capital: 'رأس مال الشركاء', partner_withdrawal: 'مسحوبات الشركاء', profit_distribution: 'توزيعات أرباح',
+  party_opening: 'أرصدة افتتاحية', jv: 'قيود يومية (قروض/تسويات/افتتاحي)', journal_voucher: 'قيود يومية (قروض/تسويات/افتتاحي)',
+  expense_non_operating: 'صرف على حسابات غير مصروفات (قروض/أصول)', income_non_operating: 'قبض على حسابات غير إيرادات (قروض/رأس مال)', opening_stock: 'بضاعة أول المدة',
+};
+
+/** تفصيل النتيجة النقدية للفترة: من أين جاءت الأرقام وما المستبعد */
+export function CashResultTable({ d }: { d: any }) {
+  const row = (label: string, v: number, cls = '') => (
+    <div className="list-row"><div className={`title ${cls}`}>{label}</div><span className={`num ${cls} ${v < 0 ? 'red' : ''}`}>{formatMoney(v)}</span></div>
+  );
+  return (
+    <div className="stack">
+      <div className="list">
+        {row('المحصّل من العملاء (نقدي + تحصيل الآجل)', d.collections)}
+        {d.customer_refunds !== 0 && row('− مردود للعملاء', -d.customer_refunds)}
+        {d.other_income !== 0 && row('+ إيرادات نقدية أخرى', d.other_income)}
+        {row('صافي المقبوضات', d.net_collections, 'bold')}
+        {row('− مصروفات تشغيلية مدفوعة', -d.operating_expenses)}
+        {d.payment_fees !== 0 && row('− عمولات الدفع (بطاقات/محافظ)', -d.payment_fees)}
+        {row('النتيجة قبل مدفوعات البضاعة', d.before_goods, 'bold')}
+        {row('− المدفوع للموردين (شراء بضاعة)', -d.supplier_payments)}
+        {d.supplier_refunds !== 0 && row('+ مردود من الموردين', d.supplier_refunds)}
+        {row('النتيجة النقدية للفترة', d.result, 'bold')}
+      </div>
+      {d.excluded?.length > 0 && (
+        <div className="footnote">
+          مستبعد من النتيجة (ليس دخلًا ولا مصروفًا تشغيليًا):{' '}
+          {d.excluded.map((x: any) => `${EXCLUDED_LABEL[x.doc_type] ?? x.doc_type} (وارد ${formatMoney(x.cash_in)} / منصرف ${formatMoney(x.cash_out)})`).join('، ')}
+        </div>
+      )}
+    </div>
   );
 }
