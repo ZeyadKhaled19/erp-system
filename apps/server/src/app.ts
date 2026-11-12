@@ -73,12 +73,32 @@ export async function buildApp(opts: AppOptions) {
   });
 
   // ---------------- الدخول ----------------
+  // حماية من تخمين كلمات المرور (مهم عند فتح النظام على الإنترنت): 10 محاولات خاطئة لنفس الاسم = إيقاف 15 دقيقة
+  const LOGIN_MAX = 10;
+  const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+  const failures = new Map<string, { n: number; first: number }>();
+  const lockedFor = (key: string) => {
+    const f = failures.get(key);
+    if (!f) return 0;
+    const left = f.first + LOGIN_WINDOW_MS - Date.now();
+    if (left <= 0) {
+      failures.delete(key);
+      return 0;
+    }
+    return f.n >= LOGIN_MAX ? left : 0;
+  };
   app.post('/api/auth/login', async (req) => {
     const body = z
       .object({ username: z.string().min(1), password: z.string().min(1), device_id: z.string().min(8).max(64), device_name: z.string().max(100).optional() })
       .parse(req.body);
+    const key = body.username.trim().toLowerCase();
+    const wait = lockedFor(key);
+    if (wait > 0) throw new AppError(`محاولات دخول خاطئة كثيرة لهذا المستخدم. حاول بعد ${Math.ceil(wait / 60000)} دقيقة`, 'auth');
     const u = await db.one(`select * from users where lower(username) = lower($1)`, [body.username.trim()]);
     if (!u || !u.active || !(await verifyPassword(body.password, u.password_hash))) {
+      const f = failures.get(key);
+      if (f && Date.now() - f.first < LOGIN_WINDOW_MS) f.n++;
+      else failures.set(key, { n: 1, first: Date.now() });
       await db.query(`insert into audit_log (action, entity, details, device_id) values ('login_failed', 'user', $1, $2)`, [
         JSON.stringify({ username: body.username }),
         body.device_id,
@@ -89,6 +109,7 @@ export async function buildApp(opts: AppOptions) {
       `insert into devices (id, name, user_id) values ($1, $2, $3) on conflict (id) do update set name = coalesce(excluded.name, devices.name), user_id = excluded.user_id, last_seen = now()`,
       [body.device_id, body.device_name ?? null, u.id],
     );
+    failures.delete(key);
     await db.query(`insert into audit_log (user_id, device_id, action, entity, entity_id) values ($1, $2, 'login', 'user', $1)`, [u.id, body.device_id]);
     const user = (await loadAuthUser(db, u.id))!;
     return { token: await tokens.sign(u.id, body.device_id), user };

@@ -39,6 +39,16 @@ describe('auth', () => {
     const p = await env.app.inject({ method: 'GET', url: '/api/sync/pull' });
     expect(p.statusCode).toBe(401);
   });
+  it('locks a username after 10 wrong passwords, even with the right one, and leaves others alone', async () => {
+    const bad = () => env.app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'locked-user', password: 'wrong', device_id: 'device-x-0002' } });
+    for (let i = 0; i < 10; i++) expect((await bad()).statusCode).toBe(401);
+    const r = await bad();
+    expect(r.statusCode).toBe(401);
+    expect(r.json().error).toContain('محاولات دخول خاطئة كثيرة');
+    // مستخدم آخر غير متأثر
+    const ok = await env.app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-x-0003' } });
+    expect(ok.statusCode).toBe(200);
+  });
   it('never stores plain passwords', async () => {
     const u = await env.db.one(`select password_hash from users where username = 'admin'`);
     expect(u.password_hash.startsWith('scrypt$')).toBe(true);
