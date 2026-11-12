@@ -456,3 +456,42 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 :root[data-accent="sky"] { --tint: #0284C7; --tint-press: #0369A1; }
 :root[data-theme="dark"][data-accent="sky"] { --tint: #38BDF8; --tint-press: #7DD3FC; }
 :root[data-accent="sky"] .print-root { --tint: #0284C7; --tint-press: #0369A1; }
+
+/* التصنيفات */
+.cat-field { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cat-field > button { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label); font-weight: 500; font-size: 14px; cursor: pointer; }
+.cat-field > button.on { background: var(--tint); border-color: var(--tint); color: var(--on-tint); font-weight: 600; }
+.cat-field > .cat-add { border-style: dashed; color: var(--tint); border-color: var(--tint); display: inline-flex; align-items: center; gap: 4px; }
+.cat-field .cat-add svg { width: 15px; height: 15px; }
+.cat-new { display: inline-flex; align-items: center; gap: 4px; }
+.cat-new .input { height: 34px; width: 170px; font-size: 14px; }
+.cat-new .icon-btn { width: 32px; height: 32px; }
+.cat-filter { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+.cat-filter button { flex-shrink: 0; }
+.table .group-row td { background: var(--card-2); font-weight: 700; color: var(--heading); font-size: 13px; padding: 8px 14px; border-bottom: 1px solid var(--separator); }
+.table tbody tr.group-row:hover td { background: var(--card-2); }
+@media (max-width: 640px) { .table.responsive .group-row td::before { content: none; } }
+
+/* ---------- وضع الأزرق السماوي (عائلة الفاتح بدرجات سماوية) ---------- */
+:root[data-theme="sky"] {
+  --bg: #E3F2FC; --bg-elevated: #FFFFFF; --bg-secondary: #FFFFFF; --bg-tertiary: #E3F2FC;
+  --app-bg: #E3F2FC;
+  --card: #FFFFFF; --card-2: #F2F9FE; --hover: #E6F4FD; --field: #F2F9FE;
+  --bar: #F4FAFE; --sidebar-bg: #D6ECFA;
+  --label: #0B2A3D; --label-2: #3D5F74; --label-3: #7A97AA; --heading: #082233; --label-field: #24485E;
+  --separator: #C9E3F3; --separator-opaque: #C9E3F3; --border-strong: #A6CDE6;
+  --fill: rgba(2, 132, 199, 0.07); --fill-2: rgba(2, 132, 199, 0.11); --fill-3: rgba(2, 132, 199, 0.05);
+  --input-bg: #FFFFFF; --input-border: #B5D7EC; --input-border-hover: #8EC2E2; --input-disabled: #EAF5FC;
+  --zebra: rgba(2, 132, 199, 0.025);
+  --shadow-card: 0 1px 2px rgba(8, 60, 100, 0.06);
+  --shadow-lift: 0 4px 12px rgba(8, 60, 100, 0.10), 0 1px 3px rgba(8, 60, 100, 0.06);
+  color-scheme: light;
+}
+:root[data-theme="sky"] .sb-item.active { background: rgba(255, 255, 255, 0.75); }
+:root[data-theme="sky"] .sb-item:hover { background: rgba(255, 255, 255, 0.5); }
+:root[data-theme="sky"] .sidebar-foot { border-top-color: #BCDDF1; }
+:root[data-theme="sky"] .login-wrap { background: var(--bg); }
+/* معاينة الوضع في لوحة المظهر */
+.ap-prev.sky { background: #E3F2FC; border-color: #C9E3F3; } .ap-prev.sky b { background: #D6ECFA; border-inline-start: 1px solid #C9E3F3; }
+.ap-modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 760px) { .ap-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

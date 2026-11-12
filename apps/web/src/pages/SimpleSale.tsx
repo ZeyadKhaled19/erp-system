@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
+import { CategoryFilter } from '../components/Categories';
 import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
@@ -218,7 +219,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   const matches = useMemo(() => {
     const s = entryItem ? '' : q.trim().toLowerCase();
     return items
-      .filter((i) => (!catFilter || (i.category_id && catNames.get(i.category_id)) === catFilter) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
+      .filter((i) => (!catFilter || i.category_id === catFilter) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
       .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
       .slice(0, 300);
   }, [q, items, catFilter, catNames, entryItem]);
@@ -389,6 +390,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   return (
     <div className="ss" style={active ? undefined : { display: 'none' }}>
       {/* ======= الشريط العلوي: الإدخال + الإجمالي ======= */}
+      <CategoryFilter value={catFilter} onChange={(id) => { setCatFilter(id); setHl(0); searchRef.current?.focus(); }} />
       <div className="ss-top">
         <div className="ss-entry">
           <div className="ss-step" style={{ flex: 3 }}>
@@ -418,7 +420,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
               />
               {listOpen && (!entryItem || !q) && (
                 <FloatingPop anchor={searchRef} maxHeight={460}>
-                  <GroupChips groups={groups} value={catFilter} onChange={(g) => { setCatFilter(g); setHl(0); }} />
+                  <GroupChips groups={groups} value={catNames.get(catFilter) ?? ''} onChange={(g) => { setCatFilter(cats.find((c) => c.name === g)?.id ?? ''); setHl(0); }} />
                   {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
                   {matches.map((m, i) => (
                     <div key={m.id} className={`picker-opt ${i === hl ? 'hl' : ''}`} onMouseDown={(e) => { e.preventDefault(); void pick(m.id); }} onMouseEnter={() => setHl(i)}>

@@ -6,6 +6,7 @@ import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { usePerm, useSettings } from '../lib/hooks';
 import { Banner, Field, MoneyInput, QtyInput, Sheet, useUi } from './ui';
+import { CategoryField } from './Categories';
 
 async function nextCode(offset = 0) {
   const all = await db.items.toArray();
@@ -123,13 +124,7 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced }: { onClose: () =
           ) : <div />}
         </div>
         <datalist id="unit-presets">{['قطعة', 'كرتونة', 'علبة', 'كيلو', 'جرام', 'لتر', 'متر', 'دستة', 'عبوة'].map((u) => <option key={u} value={u} />)}</datalist>
-        {cats.length > 1 && (
-          <div className="row wrap" style={{ gap: 6 }}>
-            {cats.map((c) => (
-              <button key={c.id} type="button" className={`btn sm ${f.cat === c.id ? 'primary' : ''}`} onClick={() => setF({ ...f, cat: c.id })}>{c.name}</button>
-            ))}
-          </div>
-        )}
+        <CategoryField value={f.cat} onChange={(id) => setF({ ...f, cat: id })} />
         <div className="footnote">اضغط Enter للحفظ وإضافة الصنف التالي مباشرة. الكود يُولّد تلقائيًا.</div>
         {added.length > 0 && (
           <div className="list" style={{ background: 'var(--card-2)' }}>

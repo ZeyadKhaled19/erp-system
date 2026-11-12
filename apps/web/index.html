@@ -14,7 +14,7 @@
           var m = a.theme === 'auto' ? 'system' : a.theme || 'system';
           var dark = m === 'dark' || ((m === 'system') && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
           var d = document.documentElement;
-          d.dataset.theme = dark ? 'dark' : 'light';
+          d.dataset.theme = m === 'sky' ? 'sky' : dark ? 'dark' : 'light';
           d.dataset.accent = a.accent || 'sky';
           d.dataset.font = a.font || 'plex';
         } catch (e) {}

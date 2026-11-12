@@ -124,6 +124,8 @@ export function StockReport() {
   const nav = useNavigate();
   const [wh, setWh] = useState('');
   const [nonzero, setNonzero] = useState(true);
+  const [cat, setCat] = useState('');
+  const catList = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar')), []) ?? [];
   // التقرير محلي بالكامل (من آخر مزامنة) ليعمل دون اتصال
   const data = useLiveQuery(async () => {
     const items = await db.items.orderBy('code').toArray();
@@ -133,8 +135,8 @@ export function StockReport() {
       const b = bal.filter((x) => x.item_id === i.id && (!wh || x.warehouse_id === wh));
       return { ...i, qty: b.reduce((s, x) => s + x.qty, 0), value: b.reduce((s, x) => s + x.value, 0), cat: cats.get(i.category_id) };
     });
-    return rows.filter((r) => !nonzero || r.qty !== 0);
-  }, [wh, nonzero]) ?? [];
+    return rows.filter((r) => (!nonzero || r.qty !== 0) && (!cat || r.category_id === cat));
+  }, [wh, nonzero, cat]) ?? [];
   const total = data.reduce((s, r) => s + r.value, 0);
   return (
     <Shell
@@ -148,6 +150,14 @@ export function StockReport() {
               {whs.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </Field>
+          {catList.length > 1 && (
+            <Field label="التصنيف">
+              <select className="select" value={cat} onChange={(e) => setCat(e.target.value)}>
+                <option value="">كل التصنيفات</option>
+                {catList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="العرض"><Segmented block value={nonzero ? '1' : '0'} onChange={(v) => setNonzero(v === '1')} options={[{ value: '1', label: 'الأصناف ذات الرصيد' }, { value: '0', label: 'كل الأصناف' }]} /></Field>
         </>
       }

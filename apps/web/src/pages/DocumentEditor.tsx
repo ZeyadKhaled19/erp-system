@@ -13,6 +13,7 @@ import { useSession, useSettings } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
+import { CategoryFilter } from '../components/Categories';
 
 interface Line {
   id: string;
@@ -372,10 +373,13 @@ export function DocumentEditor() {
     async () => (h.warehouse_id ? new Map((await db.stock_balances.where('warehouse_id').equals(h.warehouse_id).toArray()).map((b) => [b.item_id, b.qty])) : new Map()),
     [h.warehouse_id],
   ) ?? new Map();
+  // فلتر التصنيف يحدد الأصناف المعروضة في البحث، والأصناف المختارة بالفعل تبقى ظاهرة
+  const [catFilter, setCatFilter] = useState('');
+  const usedItems = lines.map((l: any) => l.item_id).join(',');
   const itemOptions: PickOption[] = useMemo(
     () =>
       items
-        .filter((i) => i.active !== false)
+        .filter((i) => i.active !== false && (!catFilter || i.category_id === catFilter || usedItems.includes(i.id)))
         .map((i) => ({
           id: i.id,
           label: i.name,
@@ -383,7 +387,7 @@ export function DocumentEditor() {
           search: `${i.name} ${i.code} ${i.barcode ?? ''}`,
           group: (i.category_id && catNames.get(i.category_id)) || undefined,
         })),
-    [items, whStock, info?.stock],
+    [items, whStock, info?.stock, catFilter, catNames, usedItems],
   );
   const leafAccounts = (filter?: (a: any) => boolean): PickOption[] =>
     accounts.filter((a) => !a.is_group && a.active !== false && (!filter || filter(a))).map((a) => ({ id: a.id, label: a.name, sub: a.code, search: `${a.code} ${a.name}` }));
@@ -722,6 +726,11 @@ export function DocumentEditor() {
               </>
             )}
           </div>
+          {showLineAdd && (
+            <div style={{ marginBottom: 10 }}>
+              <CategoryFilter value={catFilter} onChange={setCatFilter} />
+            </div>
+          )}
           <div className="card doc-lines">
             <div className="line head">
               <div>الصنف</div>

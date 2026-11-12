@@ -166,7 +166,23 @@ export function Layout({ children }: { children: ReactNode }) {
   }, []);
   const toggleTheme = () => {
     const a = loadAppearance();
-    saveAppearance({ ...a, theme: resolvedTheme(a) === 'dark' ? 'light' : 'dark' });
+    // الرجوع من الغامق إلى آخر وضع فاتح استخدمه المستخدم (فاتح أو سماوي)
+    if (resolvedTheme(a) === 'dark') {
+      let back: 'light' | 'sky' = 'light';
+      try {
+        back = localStorage.getItem(`erp.lastLight.${session.user.id}`) === 'sky' ? 'sky' : 'light';
+      } catch {
+        /* ignore */
+      }
+      saveAppearance({ ...a, theme: back });
+    } else {
+      try {
+        localStorage.setItem(`erp.lastLight.${session.user.id}`, resolvedTheme(a));
+      } catch {
+        /* ignore */
+      }
+      saveAppearance({ ...a, theme: 'dark' });
+    }
   };
 
   useEffect(() => {

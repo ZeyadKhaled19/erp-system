@@ -1,12 +1,13 @@
 import { bpToPercent, formatMoney, formatQty, parsePercentBp, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Package, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, Empty, exportCsv, Field, MoneyInput, QtyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { ImportItemsSheet, QuickItemSheet } from '../components/QuickItem';
+import { CategoryField, CategoryFilter } from '../components/Categories';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useSettings } from '../lib/hooks';
 
@@ -47,6 +48,35 @@ export function ItemsPage() {
     );
   }, [data, dq, cat, showInactive]);
   const catName = new Map((data?.cats ?? []).map((c) => [c.id, c.name]));
+  // عدد الأصناف في كل تصنيف (حسب البحث وإظهار الموقوفة)
+  const catCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!data) return m;
+    const s = dq.trim().toLowerCase();
+    data.items
+      .filter((i) => (showInactive || i.active !== false) && (!s || [i.name, i.code, i.barcode].some((v) => v?.toLowerCase().includes(s))))
+      .forEach((i) => m.set(i.category_id ?? '', (m.get(i.category_id ?? '') ?? 0) + 1));
+    return m;
+  }, [data, dq, showInactive]);
+  const [grouped, setGrouped] = useState(() => {
+    try {
+      return localStorage.getItem('erp.items.grouped') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setGroupedPersist = (v: boolean) => {
+    setGrouped(v);
+    try {
+      localStorage.setItem('erp.items.grouped', v ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
+  const showGroups = grouped && !cat;
+  const rows = showGroups
+    ? [...list].sort((a, b) => String(catName.get(a.category_id) ?? 'ي').localeCompare(String(catName.get(b.category_id) ?? 'ي'), 'ar') || String(a.code).localeCompare(String(b.code), 'ar', { numeric: true }))
+    : list;
 
   return (
     <div className="page">
@@ -80,15 +110,17 @@ export function ItemsPage() {
         <div style={{ flex: 1, minWidth: 220 }}>
           <SearchBox value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو الباركود" autoFocus />
         </div>
-        <select className="select" style={{ width: 180 }} value={cat} onChange={(e) => setCat(e.target.value)}>
-          <option value="">كل التصنيفات</option>
-          {data?.cats.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        {catCounts.size > 1 && (
+          <label className="row small muted">
+            <Switch checked={grouped} onChange={setGroupedPersist} /> تجميع حسب التصنيف
+          </label>
+        )}
         <label className="row small muted">
           <Switch checked={showInactive} onChange={setShowInactive} /> الموقوفة
         </label>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <CategoryFilter value={cat} onChange={setCat} counts={catCounts} />
       </div>
       {list.length === 0 ? (
         <div className="card">
@@ -111,11 +143,18 @@ export function ItemsPage() {
               </tr>
             </thead>
             <tbody>
-              {list.map((i) => {
+              {rows.map((i, idx) => {
                 const qty = data?.qty.get(i.id) ?? 0;
                 const low = i.reorder_level > 0 && qty <= i.reorder_level;
+                const head = showGroups && (idx === 0 || rows[idx - 1].category_id !== i.category_id);
                 return (
-                  <tr key={i.id} className="click" onClick={() => (can('items.edit') ? setEditing(i) : nav(`/items/inquiry?id=${i.id}`))}>
+                  <Fragment key={i.id}>
+                  {head && (
+                    <tr className="group-row">
+                      <td colSpan={7}>{catName.get(i.category_id) ?? 'بدون تصنيف'} <span className="muted small num">{catCounts.get(i.category_id ?? '') ?? 0} صنف</span></td>
+                    </tr>
+                  )}
+                  <tr className="click" onClick={() => (can('items.edit') ? setEditing(i) : nav(`/items/inquiry?id=${i.id}`))}>
                     <td data-label="الكود" className="num">{i.code}</td>
                     <td data-label="الاسم">
                       <span className="bold">{i.name}</span> {i.active === false && <span className="badge">موقوف</span>}
@@ -128,6 +167,7 @@ export function ItemsPage() {
                       <SyncBadge sync={i._sync} error={i._error} />
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -250,14 +290,9 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
           <Field label="الباركود" hint="امسح الباركود بالماسح الضوئي داخل الحقل">
             <input className="input num" value={f.barcode} onChange={(e) => set('barcode', e.target.value)} />
           </Field>
-          <Field label="التصنيف">
-            <select className="select" value={f.category_id ?? ''} onChange={(e) => set('category_id', e.target.value || null)}>
-              <option value="">—</option>
-              {cats.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </Field>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <CategoryField value={f.category_id} onChange={(id) => set('category_id', id)} />
+          </div>
           <Field label="الوحدة الأساسية">
             <input className="input" value={f.base_unit} onChange={(e) => set('base_unit', e.target.value)} disabled={!!item} />
           </Field>

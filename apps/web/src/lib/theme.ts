@@ -4,7 +4,7 @@
  * لا يمس قاعدة البيانات.
  */
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'sky' | 'dark' | 'system';
 export type Accent = 'sky' | 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
 export type Density = 'comfortable' | 'compact';
 export type FontName = 'plex' | 'readex' | 'cairo' | 'tajawal' | 'almarai' | 'system';
@@ -30,6 +30,7 @@ export const FONTS: { id: FontName; label: string; family: string }[] = [
 
 export const THEMES: { id: ThemeMode; label: string; desc: string }[] = [
   { id: 'light', label: 'فاتح', desc: 'خلفية هادئة وأسطح بيضاء' },
+  { id: 'sky', label: 'أزرق سماوي', desc: 'خلفية وقائمة بدرجات السماوي' },
   { id: 'dark', label: 'غامق', desc: 'كحلي داكن مريح ليلًا' },
   { id: 'system', label: 'حسب الجهاز', desc: 'يتبع إعداد ويندوز أو الموبايل' },
 ];
@@ -57,7 +58,7 @@ function currentUserId(): string | null {
 function normalize(raw: any): Appearance {
   const a = { ...DEFAULT_APPEARANCE, ...(raw ?? {}) };
   if (a.theme === 'auto') a.theme = 'system';
-  if (!['light', 'dark', 'system'].includes(a.theme)) a.theme = 'light';
+  if (!['light', 'sky', 'dark', 'system'].includes(a.theme)) a.theme = 'light';
   if (!ACCENTS.some((x) => x.id === a.accent)) a.accent = a.accent === 'indigo' ? 'purple' : 'sky';
   if (!FONTS.some((x) => x.id === a.font)) a.font = 'plex';
   if (a.density !== 'compact') a.density = 'comfortable';
@@ -78,7 +79,7 @@ export function loadAppearance(userId: string | null = currentUserId()): Appeara
 
 const media = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-color-scheme: dark)') : undefined;
 
-export function resolvedTheme(a: Appearance = loadAppearance()): 'light' | 'dark' {
+export function resolvedTheme(a: Appearance = loadAppearance()): 'light' | 'sky' | 'dark' {
   return a.theme === 'system' ? (media?.matches ? 'dark' : 'light') : a.theme;
 }
 
@@ -90,7 +91,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
   el.dataset.font = a.font;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : '#F4F6F9');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'sky' ? '#E3F2FC' : '#F4F6F9');
 }
 
 export function saveAppearance(a: Appearance) {
