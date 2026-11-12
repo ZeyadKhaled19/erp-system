@@ -11,6 +11,8 @@ import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, useUi } 
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
+import { useCostMap } from '../lib/costs';
+import { CostCard, useHoverCard } from '../components/HoverCard';
 
 interface Line {
   id: string;
@@ -177,6 +179,11 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   const [whId, setWhId] = useState('');
   const wh = whId || warehouses[0]?.id;
   const stock = useLiveQuery(async () => (wh ? new Map((await db.stock_balances.where('warehouse_id').equals(wh).toArray()).map((b) => [b.item_id, b.qty])) : new Map()), [wh]) ?? new Map();
+  // سعر الشراء عند الإشارة للصنف (لمن لديه صلاحية رؤية التكلفة فقط)
+  const showCost = can('costs.view');
+  const costs = useCostMap(wh, showCost && active);
+  const hover = useHoverCard();
+  const costHover = (id: string, unit?: string) => (showCost ? hover.bind(<CostCard c={costs.get(id)} unit={unit} />) : {});
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
   const [draft] = useState(() => loadDraft(tabId));
@@ -213,6 +220,10 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
 
   const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
   const [listOpen, setListOpen] = useState(false);
+  useEffect(() => {
+    if (!listOpen) hover.hide();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listOpen]);
   const [catFilter, setCatFilter] = useState('');
   const catNames = useMemo(() => new Map(cats.map((c) => [c.id, c.name])), [cats]);
   const groups = useMemo(() => [...new Set(items.map((i) => (i.category_id ? catNames.get(i.category_id) : undefined)).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'ar')), [items, catNames]);
@@ -419,11 +430,17 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                 }}
               />
               {listOpen && (!entryItem || !q) && (
-                <FloatingPop anchor={searchRef} maxHeight={460}>
+                <FloatingPop anchor={searchRef} maxHeight={460} minWidth={440}>
                   <GroupChips groups={groups} value={catNames.get(catFilter) ?? ''} onChange={(g) => { setCatFilter(cats.find((c) => c.name === g)?.id ?? ''); setHl(0); }} />
                   {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
                   {matches.map((m, i) => (
-                    <div key={m.id} className={`picker-opt ${i === hl ? 'hl' : ''}`} onMouseDown={(e) => { e.preventDefault(); void pick(m.id); }} onMouseEnter={() => setHl(i)}>
+                    <div
+                      key={m.id}
+                      className={`picker-opt ${i === hl ? 'hl' : ''}`}
+                      onMouseDown={(e) => { e.preventDefault(); hover.hide(); void pick(m.id); }}
+                      onMouseEnter={(e) => { setHl(i); (costHover(m.id, m.base_unit) as any).onMouseEnter?.(e); }}
+                      onMouseLeave={() => hover.hide()}
+                    >
                       <span style={{ flex: 1 }}>{m.name}</span>
                       <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
                     </div>
@@ -434,7 +451,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
           </div>
           <div className="ss-step ss-avail">
             <label>المتاح</label>
-            <div className={`ss-avail-v num ${entryAvail !== null && entryAvail <= 0 ? 'red' : ''}`}>{entryAvail === null ? '—' : itemMap.get(entryItem!)?.is_service ? 'خدمة' : formatQty(entryAvail)}</div>
+            <div className={`ss-avail-v num ${entryAvail !== null && entryAvail <= 0 ? 'red' : ''}`} {...(entryItem ? costHover(entryItem, itemMap.get(entryItem)?.base_unit) : {})}>{entryAvail === null ? '—' : itemMap.get(entryItem!)?.is_service ? 'خدمة' : formatQty(entryAvail)}</div>
           </div>
           <div className="ss-step" ref={qtyRef} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), priceLocked ? addEntry() : (priceRef.current?.querySelector('input')?.focus(), priceRef.current?.querySelector('input')?.select()))}>
             <label><b>2</b> الكمية</label>
@@ -476,7 +493,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
                 return (
                   <tr key={l.id}>
                     <td className="muted">{i + 1}</td>
-                    <td className="bold">{it?.name}</td>
+                    <td className="bold"><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span></td>
                     <td>
                       {uopts.length > 1 ? (
                         <select className="select" style={{ height: 36, minWidth: 90 }} value={l.unit_name} onChange={async (e) => {
@@ -575,6 +592,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         </div>
       </div>
 
+      {active && hover.node}
       {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void pick(id), 80)} />}
       {newParty && <QuickPartySheet onClose={() => setNewParty(false)} onSaved={(id) => setPartyId(id)} />}
     </div>

@@ -241,7 +241,7 @@ export function useUi() {
  * تُرسم القائمة في body بموضع ثابت تحت الخانة (أو فوقها لو المساحة لا تكفي)،
  * فلا يقصها أي صندوق أو كارت أو نافذة مهما كان فيها overflow.
  */
-export function FloatingPop({ anchor, children, className = 'picker-pop', maxHeight = 340, popRef }: { anchor: React.RefObject<HTMLElement | null>; children: ReactNode; className?: string; maxHeight?: number; popRef?: React.RefObject<HTMLDivElement | null> }) {
+export function FloatingPop({ anchor, children, className = 'picker-pop', maxHeight = 340, popRef, minWidth = 280 }: { anchor: React.RefObject<HTMLElement | null>; children: ReactNode; className?: string; maxHeight?: number; popRef?: React.RefObject<HTMLDivElement | null>; minWidth?: number }) {
   const [pos, setPos] = useState<React.CSSProperties | null>(null);
   useEffect(() => {
     const place = () => {
@@ -253,7 +253,7 @@ export function FloatingPop({ anchor, children, className = 'picker-pop', maxHei
       const below = vh - r.bottom - 12;
       const above = r.top - 12;
       const up = below < Math.min(maxHeight, 220) && above > below;
-      const width = Math.min(Math.max(r.width, 280), vw - 16);
+      const width = Math.min(Math.max(r.width, minWidth), vw - 16);
       // محاذاة على يمين الخانة (واجهة عربية) مع البقاء داخل الشاشة
       let left = r.right - width;
       left = Math.max(8, Math.min(left, vw - width - 8));
@@ -272,7 +272,7 @@ export function FloatingPop({ anchor, children, className = 'picker-pop', maxHei
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [anchor, maxHeight]);
+  }, [anchor, maxHeight, minWidth]);
   if (!pos) return null;
   return createPortal(
     <div ref={popRef} className={`${className} floating`} style={pos} onMouseDown={(e) => e.preventDefault()}>

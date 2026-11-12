@@ -9,6 +9,8 @@ import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
+import { useCostMap } from '../lib/costs';
+import { CostCard, useHoverCard } from '../components/HoverCard';
 
 interface CartLine {
   item_id: string;
@@ -176,6 +178,11 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
   const items = useLiveQuery(async () => (await db.items.toArray()).filter((i) => i.active !== false).sort((a, b) => a.name.localeCompare(b.name, 'ar')), []) ?? [];
   const stock = useLiveQuery(async () => (wh ? new Map((await db.stock_balances.where('warehouse_id').equals(wh).toArray()).map((b) => [b.item_id, b.qty])) : new Map()), [wh]) ?? new Map();
+  // سعر الشراء عند الإشارة للصنف (لمن لديه صلاحية رؤية التكلفة فقط)
+  const showCost = can('costs.view');
+  const costs = useCostMap(wh, showCost && active);
+  const hover = useHoverCard();
+  const costHover = (id: string, unit?: string) => (showCost ? hover.bind(<CostCard c={costs.get(id)} unit={unit} />) : {});
   const parties = useLiveQuery(async () => (await db.parties.where('kind').equals('customer').toArray()).filter((p) => p.active !== false), []) ?? [];
   const party = parties.find((p) => p.id === partyId);
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
@@ -298,7 +305,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             const out = !i.is_service && have <= 0;
             const isFav = favs.includes(i.id);
             return (
-              <button key={i.id} className={`pos-item ${out ? 'out' : ''}`} onClick={() => void add(i.id)}>
+              <button key={i.id} className={`pos-item ${out ? 'out' : ''}`} onClick={() => { hover.hide(); void add(i.id); }} {...costHover(i.id, i.base_unit)}>
                 <span
                   role="button"
                   className={`pi-star ${isFav ? 'on' : ''}`}
@@ -346,7 +353,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             const short = it && !it.is_service && l.qty > have;
             return (
               <div key={l.item_id} className="pos-line">
-                <div className="pl-name" onClick={() => setEditLine(l.item_id)} style={{ cursor: 'pointer' }}>
+                <div className="pl-name" onClick={() => { hover.hide(); setEditLine(l.item_id); }} style={{ cursor: 'pointer' }} {...costHover(l.item_id, it?.base_unit)}>
                   <div>{it?.name}</div>
                   <div className="pl-sub num">{formatMoney(l.price)} {l.discount ? `· خصم ${formatMoney(l.discount)}` : ''} {short ? <span className="red">· الرصيد {formatQty(have)}</span> : null}</div>
                 </div>
@@ -439,6 +446,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
           }}
         />
       )}
+      {active && hover.node}
       {recentOpen && <RecentSales onClose={() => setRecentOpen(false)} />}
       {newCustomer && <QuickPartySheet onClose={() => setNewCustomer(false)} onSaved={(id) => setPartyId(id)} />}
       {done && (
@@ -671,3 +679,4 @@ function RecentSales({ onClose }: { onClose: () => void }) {
     </Sheet>
   );
 }
+

@@ -1102,3 +1102,15 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
   .pos-wrap { height: auto; }
   .pos-tabs { padding: 8px 16px 4px; }
 }
+
+/* خانة سعر الشراء العائمة عند الإشارة للصنف */
+.hover-card { position: fixed; z-index: 1200; transform: translateX(-50%); min-width: 210px; max-width: 260px; padding: 10px 12px; border-radius: 12px; background: var(--card); color: var(--label); border: 1px solid var(--separator); box-shadow: var(--shadow-pop); pointer-events: none; animation: hcIn .12s ease-out; }
+.hover-card.above { transform: translate(-50%, 0); }
+@keyframes hcIn { from { opacity: 0; } to { opacity: 1; } }
+.hc-title { font-size: 12px; font-weight: 700; color: var(--tint); margin-bottom: 6px; }
+.hc-title span { color: var(--label-3); font-weight: 500; }
+.hc-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--label-2); padding: 2px 0; }
+.hc-row b { color: var(--heading); font-size: 15px; }
+.hc-sub { font-size: 11px; color: var(--label-3); margin: -2px 0 4px; }
+.hc-empty { font-size: 13px; color: var(--label-2); }
+.hc-target { cursor: default; }
