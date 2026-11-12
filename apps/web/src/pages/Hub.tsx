@@ -1,6 +1,9 @@
 import { ChevronLeft } from 'lucide-react';
 import { useEffect } from 'react';
 import { HUB_WORKSPACE, WorkspaceSummary } from '../components/WorkspaceSummary';
+import { ShortcutCard, type ShortcutColor } from '../components/ShortcutCard';
+
+const SC_COLORS: ShortcutColor[] = ['blue', 'purple', 'teal', 'orange', 'yellow', 'red', 'indigo', 'pink', 'green', 'slate'];
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { HUBS } from '../components/nav';
 import { usePerm } from '../lib/hooks';
@@ -37,24 +40,9 @@ export function HubPage() {
           <div key={g.title}>
             <div className="hub-group-title">{g.title}</div>
             {gi === 0 ? (
-              <div className="tiles">
-                {heroes.map((l) => (
-                  <button key={l.to} className="tile hero" style={{ background: l.grad }} onClick={() => nav(l.to)}>
-                    <span className="ti">{l.icon}</span>
-                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <span className="tt">{l.label}</span>
-                      {l.desc && <span className="td">{l.desc}</span>}
-                    </span>
-                  </button>
-                ))}
-                {rest.map((l) => (
-                  <button key={l.to} className="tile" onClick={() => nav(l.to)}>
-                    <span className="ti">{l.icon}</span>
-                    <span className="tile-text">
-                      <span className="tt">{l.label}</span>
-                      {l.desc && <span className="td">{l.desc}</span>}
-                    </span>
-                  </button>
+              <div className="sc-grid">
+                {[...heroes, ...rest].map((l, i) => (
+                  <ShortcutCard key={l.to} label={l.label} icon={l.icon} color={SC_COLORS[i % SC_COLORS.length]} sub={l.desc} onClick={() => nav(l.to)} />
                 ))}
               </div>
             ) : (

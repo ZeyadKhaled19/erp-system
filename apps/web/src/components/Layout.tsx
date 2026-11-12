@@ -168,9 +168,9 @@ export function Layout({ children }: { children: ReactNode }) {
     const a = loadAppearance();
     // الرجوع من الغامق إلى آخر وضع فاتح استخدمه المستخدم (فاتح أو سماوي)
     if (resolvedTheme(a) === 'dark') {
-      let back: 'light' | 'sky' = 'light';
+      let back: 'light' | 'olive' = 'light';
       try {
-        back = localStorage.getItem(`erp.lastLight.${session.user.id}`) === 'sky' ? 'sky' : 'light';
+        back = localStorage.getItem(`erp.lastLight.${session.user.id}`) === 'olive' ? 'olive' : 'light';
       } catch {
         /* ignore */
       }

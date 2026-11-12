@@ -1,4 +1,4 @@
-import { Check, Cloud, Home, Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Home, Leaf, Monitor, Moon, Sun } from 'lucide-react';
 import { useHome } from '../lib/home';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ACCENTS, FONTS, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
@@ -14,7 +14,7 @@ export function useAppearance(): [Appearance, (a: Appearance) => void] {
   return [a, saveAppearance];
 }
 
-const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, sky: <Cloud />, dark: <Moon />, system: <Monitor /> };
+const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, olive: <Leaf />, dark: <Moon />, system: <Monitor /> };
 
 /** لوحة المظهر: الوضع، لون التمييز، الخط، الكثافة — التغيير فوري ويخص المستخدم الحالي فقط */
 /** صفحة البداية الشخصية: من المساحات المسموحة فقط، و«حسب الدور» يتبع إعداد المدير */

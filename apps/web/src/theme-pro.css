@@ -472,52 +472,101 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 .table tbody tr.group-row:hover td { background: var(--card-2); }
 @media (max-width: 640px) { .table.responsive .group-row td::before { content: none; } }
 
-/* ---------- وضع الأزرق السماوي (عائلة الفاتح بدرجات سماوية) ---------- */
-:root[data-theme="sky"] {
-  --bg: #E3F2FC; --bg-elevated: #FFFFFF; --bg-secondary: #FFFFFF; --bg-tertiary: #E3F2FC;
-  --app-bg: #E3F2FC;
-  --card: #FFFFFF; --card-2: #F2F9FE; --hover: #E6F4FD; --field: #F2F9FE;
-  --bar: #F4FAFE; --sidebar-bg: #D6ECFA;
-  --label: #0B2A3D; --label-2: #3D5F74; --label-3: #7A97AA; --heading: #082233; --label-field: #24485E;
-  --separator: #C9E3F3; --separator-opaque: #C9E3F3; --border-strong: #A6CDE6;
-  --fill: rgba(2, 132, 199, 0.07); --fill-2: rgba(2, 132, 199, 0.11); --fill-3: rgba(2, 132, 199, 0.05);
-  --input-bg: #FFFFFF; --input-border: #B5D7EC; --input-border-hover: #8EC2E2; --input-disabled: #EAF5FC;
-  --zebra: rgba(2, 132, 199, 0.025);
-  --shadow-card: 0 1px 2px rgba(8, 60, 100, 0.06);
-  --shadow-lift: 0 4px 12px rgba(8, 60, 100, 0.10), 0 1px 3px rgba(8, 60, 100, 0.06);
-  color-scheme: light;
-}
-:root[data-theme="sky"] .sb-item.active { background: rgba(255, 255, 255, 0.75); }
-:root[data-theme="sky"] .sb-item:hover { background: rgba(255, 255, 255, 0.5); }
-:root[data-theme="sky"] .sidebar-foot { border-top-color: #BCDDF1; }
-:root[data-theme="sky"] .login-wrap { background: var(--bg); }
 /* معاينة الوضع في لوحة المظهر */
-.ap-prev.sky { background: #E3F2FC; border-color: #C9E3F3; } .ap-prev.sky b { background: #D6ECFA; border-inline-start: 1px solid #C9E3F3; }
 .ap-modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 760px) { .ap-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* ---------- وضع الأزرق السماوي: نسخة أقوى (قائمة زرقاء وخلفية زرقاء واضحة) ---------- */
-:root[data-theme="sky"] {
-  --bg: #CBE6F8; --bg-tertiary: #CBE6F8; --app-bg: #CBE6F8;
-  --card-2: #EEF7FD; --hover: #E3F2FC; --field: #F4FAFE;
-  --bar: #EAF5FD; --sidebar-bg: #0369A1;
-  --separator: #B4D9F0; --separator-opaque: #B4D9F0; --border-strong: #8FC4E6;
-  --input-border: #9FCDEA; --input-border-hover: #6FB3DE;
-  --tint: #0284C7; --tint-press: #0369A1;
+
+/* ---------- بطاقات الاختصارات الملونة ---------- */
+.sc-group { margin-bottom: 18px; }
+.sc-title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--tint); margin: 6px 0 12px; }
+.sc-title::before { content: ''; width: 5px; height: 24px; border-radius: 3px; background: var(--tint); }
+.sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.sc {
+  position: relative; overflow: hidden; aspect-ratio: 1.15 / 1; min-height: 150px; border: 0; border-radius: 24px; padding: 18px;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: right;
+  color: #FFFFFF; cursor: pointer; box-shadow: 0 10px 22px -10px var(--sc-shadow, rgba(0, 0, 0, .35));
+  background: linear-gradient(150deg, var(--sc-a), var(--sc-b));
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease), filter .15s;
 }
-:root[data-theme="sky"] .sidebar { border-inline-end-color: #035A8A; color: #FFFFFF; }
-:root[data-theme="sky"] .sidebar-title { color: #FFFFFF; }
-:root[data-theme="sky"] .sb-brand-s, :root[data-theme="sky"] .sb-user-r { color: rgba(255, 255, 255, 0.72); }
-:root[data-theme="sky"] .sb-logo { background: #FFFFFF; color: #0369A1; }
-:root[data-theme="sky"] .sb-section-title { color: rgba(255, 255, 255, 0.62); }
-:root[data-theme="sky"] .sb-item { color: rgba(255, 255, 255, 0.88); }
-:root[data-theme="sky"] .sb-item:hover { background: rgba(255, 255, 255, 0.14); color: #FFFFFF; }
-:root[data-theme="sky"] .sb-item.active { background: #FFFFFF; color: #0369A1; }
-:root[data-theme="sky"] .sidebar-foot { border-top-color: rgba(255, 255, 255, 0.18); }
-:root[data-theme="sky"] .sb-avatar { background: rgba(255, 255, 255, 0.18); color: #FFFFFF; }
-:root[data-theme="sky"] .sb-user-n { color: #FFFFFF; }
-:root[data-theme="sky"] .sidebar .icon-btn { color: rgba(255, 255, 255, 0.85); }
-:root[data-theme="sky"] .sidebar .icon-btn:hover { background: rgba(255, 255, 255, 0.14); color: #FFFFFF; }
-:root[data-theme="sky"] .app.sb-collapsed .sb-section-title::after { background: rgba(255, 255, 255, 0.2); }
-:root[data-theme="sky"] .nav-bar { border-bottom-color: #B4D9F0; }
-.ap-prev.sky { background: #CBE6F8; border-color: #B4D9F0; } .ap-prev.sky b { background: #0369A1; border-inline-start: 0; }
+.sc:hover { transform: translateY(-3px); box-shadow: 0 16px 28px -12px var(--sc-shadow, rgba(0, 0, 0, .4)); filter: saturate(1.08); }
+.sc:active { transform: translateY(0) scale(.98); }
+.sc:focus-visible { outline: 3px solid var(--tint); outline-offset: 3px; }
+.sc-icon { position: absolute; top: 18px; inset-inline-start: 18px; display: grid; place-items: center; }
+.sc-icon svg { width: 36px; height: 36px; stroke-width: 2.2; color: #FFFFFF; }
+.sc-badge { position: absolute; top: 16px; inset-inline-end: 16px; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 999px; background: #EF5350; color: #FFFFFF; display: grid; place-items: center; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(0, 0, 0, .18); }
+.sc-mark { position: absolute; inset-inline-end: -18px; bottom: -22px; opacity: .16; pointer-events: none; }
+.sc-mark svg { width: 120px; height: 120px; stroke-width: 1.6; color: #FFFFFF; }
+.sc-text { margin-top: auto; position: relative; display: flex; flex-direction: column; gap: 2px; }
+.sc-label { font-size: 18px; font-weight: 700; line-height: 1.3; text-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.sc-sub { font-size: 12px; opacity: .88; }
+.sc-blue { --sc-a: #5BA3E0; --sc-b: #3F7FC7; --sc-shadow: rgba(63, 127, 199, .55); }
+.sc-purple { --sc-a: #A06CC6; --sc-b: #7E4DAE; --sc-shadow: rgba(126, 77, 174, .55); }
+.sc-teal { --sc-a: #5BBBA4; --sc-b: #3F9C86; --sc-shadow: rgba(63, 156, 134, .5); }
+.sc-orange { --sc-a: #EB9248; --sc-b: #D56A2C; --sc-shadow: rgba(213, 106, 44, .5); }
+.sc-red { --sc-a: #E06A5C; --sc-b: #C24A3E; --sc-shadow: rgba(194, 74, 62, .5); }
+.sc-yellow { --sc-a: #F0C64A; --sc-b: #E3A43A; --sc-shadow: rgba(227, 164, 58, .5); }
+.sc-pink { --sc-a: #E77CA6; --sc-b: #CC4F83; --sc-shadow: rgba(204, 79, 131, .5); }
+.sc-indigo { --sc-a: #7C86E3; --sc-b: #5761C7; --sc-shadow: rgba(87, 97, 199, .5); }
+.sc-green { --sc-a: #63C77A; --sc-b: #3EA75A; --sc-shadow: rgba(62, 167, 90, .5); }
+.sc-slate { --sc-a: #8A9BB0; --sc-b: #66788F; --sc-shadow: rgba(102, 120, 143, .5); }
+:root[data-theme="dark"] .sc { box-shadow: 0 10px 22px -12px rgba(0, 0, 0, .7); }
+@media (max-width: 640px) {
+  .sc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .sc { aspect-ratio: 1 / 1; min-height: 0; border-radius: 22px; padding: 14px; }
+  .sc-icon { top: 14px; inset-inline-start: 14px; }
+  .sc-icon svg { width: 30px; height: 30px; }
+  .sc-badge { top: 12px; inset-inline-end: 12px; height: 30px; min-width: 30px; font-size: 14px; }
+  .sc-label { font-size: 16px; }
+  .sc-mark svg { width: 96px; height: 96px; }
+}
+
+/* ---------- الوضع الزيتي (عائلة الفاتح: قائمة زيتية وخلفية زيتي فاتح) ---------- */
+:root[data-theme="olive"] {
+  --bg: #E4E9D6; --bg-elevated: #FFFFFF; --bg-secondary: #FFFFFF; --bg-tertiary: #E4E9D6; --app-bg: #E4E9D6;
+  --card: #FFFFFF; --card-2: #F4F6EE; --hover: #EDF0E3; --field: #F7F8F2;
+  --bar: #F3F5EC; --sidebar-bg: #4F5D2F;
+  --label: #1F2612; --label-2: #4C553A; --label-3: #858C72; --heading: #1A2010; --label-field: #3A4329;
+  --separator: #D2D9BF; --separator-opaque: #D2D9BF; --border-strong: #B7C29A;
+  --fill: rgba(94, 112, 49, 0.07); --fill-2: rgba(94, 112, 49, 0.11); --fill-3: rgba(94, 112, 49, 0.05);
+  --input-bg: #FFFFFF; --input-border: #C3CCA6; --input-border-hover: #A3B07D; --input-disabled: #EEF1E5;
+  --zebra: rgba(94, 112, 49, 0.025);
+  --shadow-card: 0 1px 2px rgba(40, 50, 20, 0.07);
+  --shadow-lift: 0 4px 12px rgba(40, 50, 20, 0.10), 0 1px 3px rgba(40, 50, 20, 0.06);
+  color-scheme: light;
+}
+:root[data-theme="olive"] .sidebar { border-inline-end-color: #434F27; color: #FFFFFF; }
+:root[data-theme="olive"] .sidebar-title, :root[data-theme="olive"] .sb-user-n { color: #FFFFFF; }
+:root[data-theme="olive"] .sb-brand-s, :root[data-theme="olive"] .sb-user-r { color: rgba(255, 255, 255, 0.72); }
+:root[data-theme="olive"] .sb-logo { background: #FFFFFF; color: #4F5D2F; }
+:root[data-theme="olive"] .sb-section-title { color: rgba(255, 255, 255, 0.62); }
+:root[data-theme="olive"] .sb-item { color: rgba(255, 255, 255, 0.88); }
+:root[data-theme="olive"] .sb-item:hover { background: rgba(255, 255, 255, 0.14); color: #FFFFFF; }
+:root[data-theme="olive"] .sb-item.active { background: #FFFFFF; color: #4F5D2F; }
+:root[data-theme="olive"] .sidebar-foot { border-top-color: rgba(255, 255, 255, 0.18); }
+:root[data-theme="olive"] .sb-avatar { background: rgba(255, 255, 255, 0.18); color: #FFFFFF; }
+:root[data-theme="olive"] .sidebar .icon-btn { color: rgba(255, 255, 255, 0.85); }
+:root[data-theme="olive"] .sidebar .icon-btn:hover { background: rgba(255, 255, 255, 0.14); color: #FFFFFF; }
+:root[data-theme="olive"] .app.sb-collapsed .sb-section-title::after { background: rgba(255, 255, 255, 0.2); }
+:root[data-theme="olive"] .login-wrap { background: var(--bg); }
+.ap-prev.olive { background: #E4E9D6; border-color: #D2D9BF; } .ap-prev.olive b { background: #4F5D2F; }
+
+/* لون التمييز الزيتي (الافتراضي) */
+:root[data-accent="olive"] { --tint: #5E7031; --tint-press: #4B5A26; }
+:root[data-theme="dark"][data-accent="olive"] { --tint: #A9BE6E; --tint-press: #BDCF8A; }
+:root[data-accent="olive"] .print-root { --tint: #5E7031; --tint-press: #4B5A26; }
+
+/* نص البطاقات الطويل لا يتجاوز سطرين */
+.sc-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 85%; }
+/* العدّاد في الركن المقابل للأيقونة (يمين-لليسار) والبطاقات تملأ الصف */
+.sc-badge { inset-inline-end: auto; inset-inline-start: auto; left: 16px; right: auto; direction: ltr; }
+.sc-icon { inset-inline-start: auto; right: 18px; left: auto; }
+.sc-mark { inset-inline-end: auto; left: -18px; right: auto; }
+.sc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .sc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .sc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sc-badge { left: 12px; }
+  .sc-icon { right: 14px; }
+}
+.sc-sub { max-width: none; }

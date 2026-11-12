@@ -1,12 +1,13 @@
 import { DOC_TYPES, formatMoney, hasPermission, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  AlertTriangle, ArrowDownLeft, CalendarClock, ChevronLeft, Package, Receipt, ShoppingBag, ShoppingCart, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
+  AlertTriangle, ArrowDownLeft, Banknote, CalendarClock, ChevronLeft, ClipboardList, FileText, HandCoins, Package, Receipt, ShoppingBag, ShoppingCart, Store, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
+import { ShortcutCard, ShortcutGroup, type ShortcutColor } from '../components/ShortcutCard';
 import { useQuickActions } from '../lib/quickActions';
 import { usePerm, useSession, useSyncCounts } from '../lib/hooks';
 
@@ -68,7 +69,18 @@ export function Dashboard() {
       .filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && hasPermission(perms, `${m}.view`); })
       .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
       .slice(0, 6);
-    return { series, todayCount, cashboxes, receivables, payables, stockValue, reorder, overdue, pendingDelivery, dueSoon, review, recent };
+    const todayPosted = docs.filter((d) => d.date === today && d.status === 'posted');
+    const countToday = (t: string) => todayPosted.filter((d) => d.doc_type === t).length;
+    const counts = {
+      saleReturns: countToday('sale_return'),
+      purchases: countToday('purchase_invoice'),
+      purchaseReturns: countToday('purchase_return'),
+      customers: parties.filter((p) => p.kind === 'customer' && p.active !== false && p.id !== 'party-cash-customer').length,
+      suppliers: parties.filter((p) => p.kind === 'supplier' && p.active !== false).length,
+      items: items.filter((i) => i.active !== false).length,
+      openQuotes: (await db.documents.where('doc_type').equals('quotation').toArray()).filter((d) => !d.converted_to_id && d.status !== 'cancelled').length,
+    };
+    return { series, todayCount, cashboxes, receivables, payables, stockValue, reorder, overdue, pendingDelivery, dueSoon, review, recent, counts };
   }, [today, days, perms.join(',')]);
 
   const s = data?.series ?? [];
@@ -90,6 +102,56 @@ export function Dashboard() {
   const qa = useQuickActions('dashboard');
   const actions = qa.actions.filter((a) => a.key !== 'pos').slice(0, 4);
 
+  // بطاقات الاختصارات: مجموعات ثابتة، كل بطاقة تظهر لمن يملك صلاحيتها، والعدّادات من بيانات الجهاز
+  const c = data?.counts;
+  const go = (to: string) => {
+    const a = qa.actions.find((x) => x.to === to);
+    if (a) qa.use(a);
+    nav(to);
+  };
+  type Card = { label: string; to: string; icon: ReactNode; color: ShortcutColor; perm: string; badge?: ReactNode; sub?: string };
+  const groupsDef: { title: string; cards: Card[] }[] = [
+    {
+      title: 'المبيعات والمرتجعات',
+      cards: [
+        { label: 'بيع سريع', to: '/pos', icon: <Zap />, color: 'green', perm: 'sales.create', sub: 'كاشير بالباركود' },
+        { label: 'المبيعات', to: '/docs/new/sale_invoice', icon: <ShoppingCart />, color: 'blue', perm: 'sales.create', badge: can('sales.view') ? data?.todayCount ?? 0 : undefined, sub: 'فواتير اليوم' },
+        { label: 'المرتجعات', to: '/docs/new/sale_return', icon: <ClipboardList />, color: 'purple', perm: 'sales.create', badge: can('sales.view') ? c?.saleReturns ?? 0 : undefined, sub: 'مرتجعات اليوم' },
+        { label: 'عروض الأسعار', to: '/docs/new/quotation', icon: <FileText />, color: 'pink', perm: 'sales.quotation', badge: c?.openQuotes ?? 0, sub: 'مفتوحة' },
+      ],
+    },
+    {
+      title: 'العملاء',
+      cards: [
+        { label: 'العملاء', to: '/parties/customer', icon: <Users />, color: 'teal', perm: 'parties.view', badge: c?.customers ?? 0 },
+        { label: 'سداد عملاء', to: '/docs/new/receipt', icon: <HandCoins />, color: 'orange', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.receivables ?? 0) : undefined, sub: 'المستحق عليهم' },
+      ],
+    },
+    {
+      title: 'المشتريات',
+      cards: [
+        { label: 'المشتريات', to: '/docs/new/purchase_invoice', icon: <Store />, color: 'yellow', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchases ?? 0 : undefined, sub: 'فواتير اليوم' },
+        { label: 'مرتجع مشتريات', to: '/docs/new/purchase_return', icon: <ClipboardList />, color: 'red', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchaseReturns ?? 0 : undefined, sub: 'مرتجعات اليوم' },
+      ],
+    },
+    {
+      title: 'الموردين',
+      cards: [
+        { label: 'الموردون', to: '/parties/supplier', icon: <Truck />, color: 'indigo', perm: 'parties.view', badge: c?.suppliers ?? 0 },
+        { label: 'سداد موردين', to: '/docs/new/payment', icon: <Banknote />, color: 'slate', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.payables ?? 0) : undefined, sub: 'المستحق لهم' },
+      ],
+    },
+    {
+      title: 'المخزون والخزينة',
+      cards: [
+        { label: 'الأصناف', to: '/items', icon: <Package />, color: 'blue', perm: 'items.view', badge: c?.items ?? 0 },
+        { label: 'المصروفات', to: '/docs/new/expense', icon: <Receipt />, color: 'red', perm: 'treasury.create' },
+        { label: 'الخزائن والبنوك', to: '/cashboxes', icon: <Wallet />, color: 'teal', perm: 'treasury.view' },
+      ],
+    },
+  ];
+  const shortcutGroups = groupsDef.map((g) => ({ ...g, cards: g.cards.filter((x) => can(x.perm)) })).filter((g) => g.cards.length);
+
   const hour = new Date().getHours();
   return (
     <div className="page">
@@ -100,23 +162,13 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="tiles" style={{ marginBottom: 18 }}>
-        {can('sales.create') && (
-          <button className="tile hero green" onClick={() => { const p = qa.actions.find((x) => x.key === 'pos'); if (p) qa.use(p); nav('/pos'); }}>
-            <span className="ti"><Zap /></span>
-            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <span className="tt">بيع سريع</span>
-              <span className="td">اختر الأصناف وادفع في خطوتين</span>
-            </span>
-          </button>
-        )}
-        {actions.map((a) => (
-          <button key={a.key} className="tile" onClick={() => { qa.use(a); nav(a.to); }}>
-            <span className="ti">{a.icon}</span>
-            <span className="tt">{a.label}</span>
-          </button>
-        ))}
-      </div>
+      {shortcutGroups.map((g) => (
+        <ShortcutGroup key={g.title} title={g.title}>
+          {g.cards.map((c) => (
+            <ShortcutCard key={c.to} label={c.label} icon={c.icon} color={c.color} badge={c.badge} sub={c.sub} onClick={() => go(c.to)} />
+          ))}
+        </ShortcutGroup>
+      ))}
 
       <div className="grid grid-3 dash-stats">
         {can('sales.view') && <div className="card stat" style={{ gridColumn: 'span 2' }}>
