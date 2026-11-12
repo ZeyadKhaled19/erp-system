@@ -7,7 +7,8 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
-import { ShortcutCard, ShortcutGroup, type ShortcutColor } from '../components/ShortcutCard';
+import { type ShortcutColor } from '../components/ShortcutCard';
+import { ShortcutBoard } from '../components/ShortcutBoard';
 import { useQuickActions } from '../lib/quickActions';
 import { usePerm, useSession, useSyncCounts } from '../lib/hooks';
 
@@ -162,13 +163,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {shortcutGroups.map((g) => (
-        <ShortcutGroup key={g.title} title={g.title}>
-          {g.cards.map((c) => (
-            <ShortcutCard key={c.to} label={c.label} icon={c.icon} color={c.color} badge={c.badge} sub={c.sub} onClick={() => go(c.to)} />
-          ))}
-        </ShortcutGroup>
-      ))}
+      <ShortcutBoard groups={shortcutGroups} onOpen={go} />
 
       <div className="grid grid-3 dash-stats">
         {can('sales.view') && <div className="card stat" style={{ gridColumn: 'span 2' }}>

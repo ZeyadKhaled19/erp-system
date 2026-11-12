@@ -570,3 +570,46 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
   .sc-icon { right: 14px; }
 }
 .sc-sub { max-width: none; }
+
+/* ---------- تخصيص الاختصارات ---------- */
+.sb-board-bar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 4px; min-height: 34px; flex-wrap: wrap; }
+.sb-board.editing .sb-board-bar { justify-content: space-between; background: var(--tint-soft); border: 1px dashed var(--tint); border-radius: 12px; padding: 8px 12px; margin-bottom: 12px; }
+.sb-board-hint { flex: 1; min-width: 200px; font-size: 13px; color: var(--label-2); }
+.sc-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sc-group-tools { display: inline-flex; gap: 4px; }
+.sc-group-tools .icon-btn { width: 32px; height: 32px; }
+.sc-grid { grid-auto-flow: dense; align-items: start; }
+.sc-wrap { position: relative; min-width: 0; }
+.sc-wrap > .sc { width: 100%; }
+.sc-wrap.sz-l { grid-column: span 2; }
+.sc-wrap.sz-l > .sc { aspect-ratio: 2.4 / 1; }
+.sc-wrap.sz-s > .sc { aspect-ratio: auto; min-height: 0; height: 92px; padding: 12px 14px; border-radius: 18px; }
+.sc-wrap.sz-s .sc-icon { top: 12px; right: 14px; }
+.sc-wrap.sz-s .sc-icon svg { width: 24px; height: 24px; }
+.sc-wrap.sz-s .sc-badge { top: 10px; left: 10px; height: 26px; min-width: 26px; font-size: 13px; }
+.sc-wrap.sz-s .sc-label { font-size: 15px; }
+.sc-wrap.sz-s .sc-mark svg { width: 70px; height: 70px; }
+.sb-board.editing .sc { cursor: grab; outline: 2px dashed rgba(255, 255, 255, .7); outline-offset: -6px; }
+.sc-wrap.dragging { opacity: .45; }
+.sc-wrap.over::before { content: ''; position: absolute; inset-inline-end: -9px; top: 8px; bottom: 8px; width: 4px; border-radius: 4px; background: var(--tint); z-index: 2; }
+.sc-tools { position: absolute; bottom: 10px; left: 10px; display: flex; gap: 4px; z-index: 3; }
+.sc-tool { height: 30px; min-width: 30px; padding: 0 8px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .92); color: #1F2937; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
+.sc-tool svg { width: 15px; height: 15px; }
+.sc-tool.grip { cursor: grab; background: rgba(255, 255, 255, .7); }
+.sc-tool:hover { background: #FFFFFF; }
+.sc-drop-empty { grid-column: 1 / -1; border: 2px dashed var(--border-strong); border-radius: 18px; padding: 22px; text-align: center; color: var(--label-3); font-size: 14px; }
+.sc-hidden { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px dashed var(--border-strong); border-radius: 14px; margin: 4px 0 18px; }
+.sc-hidden-t { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--label-2); font-size: 13px; }
+.sc-hidden-t svg { width: 16px; height: 16px; }
+@media (max-width: 640px) {
+  .sc-wrap.sz-l > .sc { aspect-ratio: 2.1 / 1; }
+  .sc-wrap.sz-s > .sc { height: 84px; }
+  .sc-tools { bottom: 8px; left: 8px; gap: 3px; }
+  .sc-tool { height: 28px; min-width: 28px; padding: 0 6px; }
+}
+/* أدوات التخصيص مكان العدّاد (أعلى اليسار) حتى لا تغطي اسم البطاقة */
+.sc-tools { top: 10px; bottom: auto; left: 10px; flex-wrap: wrap; max-width: calc(100% - 70px); }
+.sc-wrap.sz-s .sc-tools { top: 8px; left: 8px; }
+.sc-wrap.sz-s .sc-tool { height: 24px; min-width: 24px; padding: 0 5px; font-size: 11px; }
+.sc-wrap.sz-s .sc-tool svg { width: 13px; height: 13px; }
+.sb-board.editing .sc-wrap.sz-s > .sc { height: 128px; }
