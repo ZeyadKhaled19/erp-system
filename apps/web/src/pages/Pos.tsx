@@ -10,7 +10,7 @@ import { CustomerFields } from '../components/CustomerFields';
 import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useSession } from '../lib/hooks';
+import { useSession, useSettings } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 
@@ -221,9 +221,21 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
     document.querySelector('.pos-item.hl')?.scrollIntoView({ block: 'nearest' });
   }, [sugHl]);
 
+  // لا نبيع أكثر من الرصيد المتاح (إلا إذا سمحت الإعدادات بالبيع بالسالب)؛
+  // وإلا يُحفظ البيع «بانتظار المراجعة» ولا تُسجل المديونية حتى يُعالج
+  const settings = useSettings();
+  const fits = (itemId: string, total: number) => {
+    const it = itemMap.get(itemId);
+    if (!it || it.is_service || settings.allow_negative_stock) return true;
+    const have = stock.get(itemId) ?? 0;
+    if (total <= have) return true;
+    ui.toast(have > 0 ? `الرصيد غير كافٍ: المتاح من «${it.name}» ${formatQty(have)} فقط` : `«${it.name}» غير متوفر في المخزن (الرصيد صفر)`, 'err');
+    return false;
+  };
   const add = async (itemId: string, qty = 1000) => {
     const it = itemMap.get(itemId);
     if (!it) return;
+    if (!fits(itemId, (cart.find((l) => l.item_id === itemId)?.qty ?? 0) + qty)) return;
     const price = await priceFor(it, { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price }, party?.price_list_id ?? 'pl-retail');
     setCart((c) => {
       const ex = c.find((l) => l.item_id === itemId);
@@ -231,7 +243,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
       return [...c, { item_id: itemId, qty, price, discount: 0, tax_rate_bp: it.tax_rate_bp ?? 0 }];
     });
   };
-  const setQty = (itemId: string, qty: number) => setCart((c) => (qty <= 0 ? c.filter((l) => l.item_id !== itemId) : c.map((l) => (l.item_id === itemId ? { ...l, qty } : l))));
+  const setQty = (itemId: string, qty: number) => (qty > (cart.find((l) => l.item_id === itemId)?.qty ?? 0) && !fits(itemId, qty)) || setCart((c) => (qty <= 0 ? c.filter((l) => l.item_id !== itemId) : c.map((l) => (l.item_id === itemId ? { ...l, qty } : l))));
 
   const onSearchEnter = async () => {
     const code = q.trim();
@@ -441,6 +453,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
           canDiscount={can('sales.discount')}
           onClose={() => setEditLine(null)}
           onSave={(p) => {
+            if (p.qty != null && p.qty > (cart.find((l) => l.item_id === editLine)?.qty ?? 0) && !fits(editLine, p.qty)) return;
             setCart((c) => c.map((l) => (l.item_id === editLine ? { ...l, ...p } : l)).filter((l) => l.qty > 0));
             setEditLine(null);
           }}

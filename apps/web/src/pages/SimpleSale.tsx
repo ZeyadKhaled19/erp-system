@@ -10,7 +10,7 @@ import { CategoryFilter } from '../components/Categories';
 import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportCsv, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useSession } from '../lib/hooks';
+import { useSession, useSettings } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 import { searchItems } from '../lib/search';
@@ -206,6 +206,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   const can = (k: string) => hasPermission(session.user.permissions, k);
   const dk = P ? `p.${uid}` : uid; // إعدادات الشراء منفصلة عن البيع
   const canCredit = P || can('sales.credit');
+  const settings = useSettings();
 
   const items = useLiveQuery(async () => (await db.items.toArray()).filter((i) => i.active !== false), []) ?? [];
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
@@ -317,6 +318,14 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
     const it = entryItem ? itemMap.get(entryItem) : null;
     if (!it || entryQty <= 0) return;
     const unit = entryUnit ?? { name: it.base_unit, factor: 1000 };
+    if (!P && !it.is_service && !settings.allow_negative_stock) {
+      const used = lines.filter((l) => l.item_id === it.id).reduce((a, l) => a + toBaseQty(l.qty, l.unit_factor), 0);
+      const have = stock.get(it.id) ?? 0;
+      if (used + toBaseQty(entryQty, unit.factor) > have) {
+        ui.toast(have - used > 0 ? `الرصيد غير كافٍ: المتاح من «${it.name}» ${formatQty(have - used)} فقط` : `«${it.name}» غير متوفر في المخزن (الرصيد صفر)`, 'err');
+        return;
+      }
+    }
     let idx = -1;
     setLines((ls) => {
       const same = ls.findIndex((l) => l.item_id === it.id && l.unit_name === unit.name && l.price === entryPrice);
@@ -470,6 +479,12 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
     setErr(null);
     if (!lines.length) return setErr('أضف صنفًا واحدًا على الأقل');
     if (calc.error) return setErr(calc.error);
+    if (!P && !settings.allow_negative_stock) {
+      const need = new Map<string, number>();
+      for (const l of lines) if (!itemMap.get(l.item_id)?.is_service) need.set(l.item_id, (need.get(l.item_id) ?? 0) + toBaseQty(l.qty, l.unit_factor));
+      const short = [...need].filter(([id, q]) => q > (stock.get(id) ?? 0)).map(([id]) => `«${itemMap.get(id)?.name}» (المتاح ${formatQty(stock.get(id) ?? 0)})`);
+      if (short.length) return setErr(`الرصيد غير كافٍ في المخزن: ${short.join('، ')}. عدّل الكمية أو احذف الصنف، أو أضف رصيدًا بفاتورة شراء أولًا.`);
+    }
     if (P && !partyId) return setErr('اختر المورد');
     if (credit > 0 && isCash) return setErr('الجزء الآجل يُسجل على عميل: اختر العميل (أو أضف عميلًا جديدًا)');
     if (credit > 0 && !canCredit) return setErr('لا تملك صلاحية البيع الآجل؛ اختر طريقة لدفع الباقي');
