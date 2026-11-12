@@ -1355,3 +1355,15 @@ kbd { font-weight: 500; }
   .si-search .cat-select > span, .si-search .si-q-l { display: none; }
   .si-search .cat-select select { max-width: 120px; }
 }
+
+/* استيراد الأصناف من Excel */
+.imp-drop { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px dashed var(--border-strong); border-radius: 14px; background: var(--card-2); }
+.imp-drop > svg { width: 30px; height: 30px; color: var(--green); flex-shrink: 0; }
+.imp-paste summary { cursor: pointer; color: var(--tint); font-size: 13.5px; font-weight: 500; }
+.imp-map-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.imp-map { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.imp-col { flex: 0 0 160px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--separator); border-radius: 10px; background: var(--card); }
+.imp-col.on { border-color: var(--tint); background: var(--tint-soft); }
+.imp-col-h { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.imp-col-s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.imp-col .select { height: 34px; font-size: 13px; }
