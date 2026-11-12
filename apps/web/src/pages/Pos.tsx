@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, Check, ChevronDown, ChevronUp, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, DocStatusBadge, Picker, Sheet, useUi } from '../components/ui';
@@ -168,6 +168,8 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const [recentOpen, setRecentOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState(false);
   const [pay, setPay] = useState(false);
+  // على الموبايل: السلة شريط صغير أسفل الشاشة يُفتح بلمسة فوق الأصناف
+  const [cartOpen, setCartOpen] = useState(false);
   const [done, setDone] = useState<{ id: string; total: number; change: number } | null>(null);
   const [editLine, setEditLine] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -380,14 +382,16 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
         </div>
       </div>
 
-      <div className="pos-cart">
+      {cartOpen && <div className="pos-cart-scrim only-mobile" onClick={() => setCartOpen(false)} />}
+      <div className={`pos-cart ${cartOpen ? 'open' : ''}`}>
         <div className="pos-cart-head">
+          <button type="button" className="icon-btn only-mobile" aria-label="إغلاق السلة" onClick={() => setCartOpen(false)}><ChevronDown /></button>
           <ShoppingCart style={{ color: 'var(--tint)' }} />
           <div className="bold" style={{ flex: 1, fontSize: 17 }}>السلة {count > 0 && <span className="muted small">({formatQty(count * 1000)} قطعة)</span>}</div>
           {can('sales.view') && <button className="btn sm plain" onClick={() => setRecentOpen(true)} title="آخر المبيعات"><History /> <span className="hide-mobile">آخر المبيعات</span></button>}
           {cart.length > 0 && <button className="btn sm plain danger" onClick={() => setCart([])}><Trash2 /> تفريغ</button>}
         </div>
-        <div style={{ padding: '0 18px 8px' }}>
+        <div className="pos-cust" style={{ padding: '0 18px 8px' }}>
           <button className="btn block" style={{ justifyContent: 'flex-start' }} onClick={() => setPickParty(true)}>
             <UserRound /> {party?.name ?? 'عميل نقدي'}
           </button>
@@ -420,10 +424,16 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
           })}
         </div>
         <div className="pos-cart-foot">
+          <button type="button" className="pos-cart-toggle only-mobile" onClick={() => setCartOpen(!cartOpen)} aria-expanded={cartOpen}>
+            <ShoppingCart />
+            <span>السلة {count > 0 ? <b className="num">({formatQty(count * 1000)})</b> : null}</span>
+            <span className="num pct-total">{formatMoney(calc.total)}</span>
+            {cartOpen ? <ChevronDown /> : <ChevronUp />}
+          </button>
           {calc.tax > 0 && <div className="row" style={{ justifyContent: 'space-between' }}><span className="muted">منها ضريبة</span><span className="num">{formatMoney(calc.tax)}</span></div>}
           {calc.discount > 0 && <div className="row" style={{ justifyContent: 'space-between' }}><span className="muted">خصومات</span><span className="num">{formatMoney(calc.discount)}</span></div>}
           <div className="pos-total"><span>الإجمالي</span><span className="num">{formatMoney(calc.total)}</span></div>
-          <button className="btn primary xl block" disabled={!cart.length} onClick={() => setPay(true)}>ادفع <span className="caption" style={{ color: 'rgba(255,255,255,.8)' }}>F9</span></button>
+          <button className="btn primary xl block" disabled={!cart.length} onClick={() => { setCartOpen(false); setPay(true); }}>ادفع <span className="caption" style={{ color: 'rgba(255,255,255,.8)' }}>F9</span></button>
         </div>
       </div>
 

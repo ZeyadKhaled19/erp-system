@@ -829,9 +829,9 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
                   const g = mulDiv(l.qty, l.price, 1000);
                   return (
                     <tr key={l.id} className={i === sel ? 'sel' : undefined} onClick={() => setSel(i)} onFocusCapture={() => setSel(i)}>
-                      <td className="code num">{it?.code}</td>
-                      <td className="bold si-name" title={it?.name}><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span></td>
-                      <td>
+                      <td className="code num c-code">{it?.code}</td>
+                      <td className="bold si-name c-name" title={it?.name}><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span></td>
+                      <td className="c-unit" data-label="الوحدة">
                         {uopts.length > 1 ? (
                           <select className="select" style={{ height: 36, width: '100%' }} value={l.unit_name} onChange={async (e) => {
                             const u: any = uopts.find((x: any) => x.name === e.target.value);
@@ -841,13 +841,13 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
                           </select>
                         ) : l.unit_name}
                       </td>
-                      <td>{it?.is_service ? <span className="muted small">خدمة</span> : <span className={`stock-chip ${avail <= 0 ? 'out' : short ? 'low' : ''}`} style={{ marginTop: 0 }}>{formatQty(avail)}</span>}</td>
-                      <td className="n" data-cell={`${l.id}-qty`}><QtyInput value={l.qty} onChange={(v) => upd({ qty: v })} /></td>
-                      <td className="n" data-cell={`${l.id}-price`}><MoneyInput value={l.price} onChange={(v) => upd({ price: v })} disabled={priceLocked} /></td>
-                      <td className="n num">{formatMoney(g)}</td>
-                      {canDisc && <td className="n" data-cell={`${l.id}-disc`}><MoneyInput value={l.discount} onChange={(v) => upd({ discount: v })} /></td>}
-                      <td className="n bold num">{formatMoney(calc.lines?.[i]?.total ?? g - l.discount)}</td>
-                      <td><button className="icon-btn" style={{ color: 'var(--red)' }} onClick={(e) => { e.stopPropagation(); setLines((ls) => ls.filter((x) => x.id !== l.id)); }} aria-label="حذف"><Trash2 /></button></td>
+                      <td className="c-avail" data-label="المتاح">{it?.is_service ? <span className="muted small">خدمة</span> : <span className={`stock-chip ${avail <= 0 ? 'out' : short ? 'low' : ''}`} style={{ marginTop: 0 }}>{formatQty(avail)}</span>}</td>
+                      <td className="n c-qty" data-label="الكمية" data-cell={`${l.id}-qty`}><QtyInput value={l.qty} onChange={(v) => upd({ qty: v })} /></td>
+                      <td className="n c-price" data-label="السعر" data-cell={`${l.id}-price`}><MoneyInput value={l.price} onChange={(v) => upd({ price: v })} disabled={priceLocked} /></td>
+                      <td className="n num c-gross">{formatMoney(g)}</td>
+                      {canDisc && <td className="n c-disc" data-label="الخصم" data-cell={`${l.id}-disc`}><MoneyInput value={l.discount} onChange={(v) => upd({ discount: v })} /></td>}
+                      <td className="n bold num c-net" data-label="الصافي">{formatMoney(calc.lines?.[i]?.total ?? g - l.discount)}</td>
+                      <td className="c-del"><button className="icon-btn" style={{ color: 'var(--red)' }} onClick={(e) => { e.stopPropagation(); setLines((ls) => ls.filter((x) => x.id !== l.id)); }} aria-label="حذف"><Trash2 /></button></td>
                     </tr>
                   );
                 })}

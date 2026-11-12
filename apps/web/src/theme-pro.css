@@ -1604,3 +1604,71 @@ kbd { font-weight: 500; }
 @media (max-width: 1250px) { .sb-board { --cols: 5; } }
 @media (max-width: 980px) { .sb-board { --cols: 4; } }
 @media (max-width: 640px) { .sb-board { --cols: 3; } .sb-board .sc-grid { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); } }
+
+/* ===================== الموبايل: البيع السريع ===================== */
+/* عمود واحد لا يتجاوز عرض الشاشة مهما كان المحتوى */
+@media (max-width: 1000px) { .pos { grid-template-columns: minmax(0, 1fr); } .pos-left { min-width: 0; } }
+.pos-cart-toggle { display: none; }
+@media (max-width: 760px) {
+  .pos { padding: 4px 12px 150px; gap: 10px; }
+  .pos-tools { flex-wrap: wrap; row-gap: 6px; }
+  .pos-tools .pos-cats { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .pos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* السلة: شريط ثابت فوق شريط التنقل السفلي، ويتمدد عند الفتح */
+  .pos-cart {
+    position: fixed; inset-inline: 0; bottom: calc(57px + env(safe-area-inset-bottom)); z-index: 70;
+    max-height: 78vh; border-radius: 18px 18px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .14);
+  }
+  .pos-cart:not(.open) .pos-cart-head, .pos-cart:not(.open) .pos-cust, .pos-cart:not(.open) .pos-cart-lines { display: none; }
+  .pos-cart:not(.open) .pos-cart-foot { border-top: 0; padding: 10px 14px 12px; gap: 8px; }
+  .pos-cart:not(.open) .pos-cart-foot .pos-total { display: none; }
+  .pos-cart:not(.open) .pos-cart-foot .btn.xl { height: 48px; font-size: 16px; }
+  .pos-cart-toggle {
+    display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: var(--tint-soft); color: var(--tint);
+    border-radius: 12px; padding: 10px 12px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .pos-cart-toggle svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .pos-cart-toggle .pct-total { margin-inline-start: auto; font-size: 17px; color: var(--heading); }
+  .pos-cart.open .pos-cart-toggle { display: none; }
+  .pos-cart-scrim { position: fixed; inset: 0; z-index: 65; background: rgba(0, 0, 0, .35); }
+}
+@media (max-width: 760px) {
+  .pos-left > .row { min-width: 0; }
+  .pos-left > .row > :first-child { flex: 1 1 0; min-width: 0; }
+  .pos-cat-select { flex-shrink: 1; min-width: 0; max-width: 42%; }
+  .pos-cat-select > span { display: none; }
+  /* قاعدة عامة: فلتر التصنيف لا يتجاوز مساحته على الشاشات الصغيرة */
+  .cat-select { max-width: 100%; min-width: 0; }
+  .cat-select .cat-select-v { max-width: 120px; }
+}
+
+/* ===================== الموبايل: فاتورة البيع/الشراء ===================== */
+@media (max-width: 760px) {
+  /* سطر الإدخال: البحث سطر كامل، ثم المتاح/الكمية/السعر/إضافة في شبكة */
+  .ss-entry { flex-wrap: wrap; padding: 12px; gap: 10px; }
+  .ss-entry > .ss-step:first-child { flex: 1 1 100% !important; }
+  .ss-entry > .ss-step:not(:first-child) { flex: 1 1 calc(50% - 10px) !important; }
+  .ss-entry > .ss-step:last-child { flex: 1 1 100% !important; }
+  .ss-entry > .ss-step:last-child .btn { width: 100%; }
+  /* أعمدة اختصارات F2..F12 لا معنى لها على اللمس */
+  .si-main { grid-template-columns: minmax(0, 1fr) !important; }
+  .si-keys { display: none !important; }
+  /* الجدول يتحول لبطاقات: الاسم ثم الكمية والسعر والصافي */
+  .si-tw { overflow: visible; }
+  .si-table { width: 100% !important; min-width: 0 !important; table-layout: auto; border: 0; }
+  .si-table colgroup, .si-table thead, .si-table tfoot { display: none; }
+  .si-table tbody { display: flex; flex-direction: column; gap: 8px; }
+  .si-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; padding: 10px 12px; border: 1px solid var(--separator); border-radius: 12px; background: var(--card); position: relative; }
+  .si-table tbody tr.sel { border-color: var(--tint); box-shadow: inset 0 0 0 1px var(--tint); }
+  .si-table tbody td { display: block; padding: 0; border: 0; text-align: start; min-width: 0; }
+  .si-table tbody td[colspan] { grid-column: 1 / -1; }
+  .si-table td.c-name { grid-column: 1 / -1; padding-inline-end: 40px; white-space: normal; font-size: 15px; }
+  .si-table td.c-code, .si-table td.c-gross { display: none; }
+  .si-table td.c-del { position: absolute; top: 4px; left: 4px; }
+  .si-table td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 500; color: var(--label-3); margin-bottom: 3px; }
+  .si-table td.c-net { align-self: end; font-size: 16px; }
+  .si-table .input { height: 40px; }
+  /* شريط الحفظ أسفل النماذج لا يتجاوز عرض الشاشة */
+  .sticky-actions { margin-inline: -12px; padding-inline: 12px; }
+}
+@media (max-width: 640px) { .sb-board .sc-wrap.sz-s > .sc { padding-top: 28px; gap: 4px; } .sb-board .sc-badge { top: 6px; left: 6px; height: 18px; font-size: 10.5px; padding: 0 6px; } }
