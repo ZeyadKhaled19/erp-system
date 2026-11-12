@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, CreditCard, History, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, Check, CreditCard, History, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, DocStatusBadge, Picker, Sheet, useUi } from '../components/ui';
@@ -22,7 +22,114 @@ const AVATAR = ['#007AFF', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5856D6'
 const colorFor = (s: string) => AVATAR[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR.length];
 
 /** البيع السريع: اختر الأصناف بلمسة ثم ادفع — مصمم للكاشير والشاشات اللمسية */
+interface PosSummary {
+  count: number;
+  total: number;
+  party: string | null;
+}
+const posDraftKey = (id: string) => `erp.pos.draft.${id}`;
+function posStore(k: string, v: unknown) {
+  try {
+    if (v === null) localStorage.removeItem(k);
+    else localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* التخزين غير متاح */
+  }
+}
+
+/** البيع السريع بتابات: كل تاب عملية بيع مستقلة (سلة وعميل)، محفوظة على الجهاز حتى تُدفع */
 export function PosPage() {
+  const ui = useUi();
+  const [tabs, setTabs] = useState<string[]>(() => {
+    try {
+      const t = JSON.parse(localStorage.getItem('erp.pos.tabs') ?? '[]');
+      if (Array.isArray(t) && t.length) return t;
+    } catch {
+      /* ignore */
+    }
+    return [uuid()];
+  });
+  const [active, setActive] = useState(tabs[0]);
+  const [sums, setSums] = useState<Record<string, PosSummary>>({});
+  useEffect(() => posStore('erp.pos.tabs', tabs), [tabs]);
+  const cur = tabs.includes(active) ? active : tabs[0];
+  useEffect(() => {
+    document.title = 'بيع سريع — الحسابات';
+    const slot = document.getElementById('nav-title-slot');
+    if (slot) slot.textContent = 'بيع سريع';
+  }, []);
+
+  const newTab = () => {
+    if (tabs.length >= 10) return ui.toast('الحد الأقصى 10 عمليات بيع مفتوحة', 'err');
+    const id = uuid();
+    setTabs((t) => [...t, id]);
+    setActive(id);
+  };
+  const closeTab = async (id: string, ask = true) => {
+    if (ask && (sums[id]?.count ?? 0) > 0) {
+      const ok = await ui.confirm({ title: 'إغلاق عملية البيع؟', message: 'السلة فيها أصناف لم تُدفع وستُحذف.', confirmLabel: 'إغلاق', destructive: true });
+      if (!ok) return;
+    }
+    posStore(posDraftKey(id), null);
+    setTabs((t) => {
+      const i = t.indexOf(id);
+      const n = t.filter((x) => x !== id);
+      if (!n.length) n.push(uuid());
+      if (id === cur) setActive(n[Math.max(0, i - 1)] ?? n[0]);
+      return n;
+    });
+  };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'F3') {
+        e.preventDefault();
+        newTab();
+      } else if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        const i = tabs.indexOf(cur);
+        setActive(tabs[(i + (e.shiftKey ? tabs.length - 1 : 1)) % tabs.length]);
+      }
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  });
+
+  return (
+    <div className="pos-wrap">
+      <div className="pos-tabs" role="tablist" aria-label="عمليات البيع المفتوحة">
+        {tabs.map((id, i) => {
+          const sm = sums[id];
+          return (
+            <div key={id} role="tab" aria-selected={id === cur} tabIndex={0} className={`ss-tab ${id === cur ? 'on' : ''}`} onClick={() => setActive(id)} onKeyDown={(e) => e.key === 'Enter' && setActive(id)}>
+              <span className="ss-tab-n">{i + 1}</span>
+              <span className="ss-tab-t">{sm?.party ?? (sm?.count ? 'عميل نقدي' : 'بيع جديد')}</span>
+              {sm && sm.count > 0 && <span className="ss-tab-v num">{formatMoney(sm.total)}</span>}
+              <button className="ss-tab-x" title="إغلاق" aria-label={`إغلاق عملية البيع ${i + 1}`} onClick={(e) => { e.stopPropagation(); void closeTab(id); }}><X /></button>
+            </div>
+          );
+        })}
+        <button className="ss-tab-add" title="عملية بيع جديدة (F3)" onClick={newTab}><Plus /> بيع آخر</button>
+      </div>
+      {tabs.map((id) => (
+        <PosSale
+          key={id}
+          tabId={id}
+          active={id === cur}
+          onSummary={(sm) => setSums((m) => (m[id] && m[id].count === sm.count && m[id].total === sm.total && m[id].party === sm.party ? m : { ...m, [id]: sm }))}
+          onFinished={() => {
+            if (tabs.length > 1) {
+              void closeTab(id, false);
+              return true;
+            }
+            return false;
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; active: boolean; onSummary: (s: PosSummary) => void; onFinished: () => boolean }) {
   const ui = useUi();
   const nav = useNavigate();
   const { session } = useSession();
@@ -46,8 +153,15 @@ export function PosPage() {
       }
       return n;
     });
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [partyId, setPartyId] = useState('party-cash-customer');
+  const [draft] = useState<{ cart?: CartLine[]; partyId?: string }>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(posDraftKey(tabId)) ?? '{}') ?? {};
+    } catch {
+      return {};
+    }
+  });
+  const [cart, setCart] = useState<CartLine[]>(draft.cart ?? []);
+  const [partyId, setPartyId] = useState(draft.partyId ?? 'party-cash-customer');
   const [pickParty, setPickParty] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState(false);
@@ -74,12 +188,6 @@ export function PosPage() {
       .sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id)))
       .slice(0, 120);
   }, [items, q, cat, favs]);
-
-  useEffect(() => {
-    document.title = 'بيع سريع — الحسابات';
-    const slot = document.getElementById('nav-title-slot');
-    if (slot) slot.textContent = 'بيع سريع';
-  }, []);
 
   const add = async (itemId: string, qty = 1000) => {
     const it = itemMap.get(itemId);
@@ -115,7 +223,18 @@ export function PosPage() {
   const calc = useMemo(() => computeDocument(cart.map((l) => ({ qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp })), 0), [cart]);
   const count = cart.reduce((s, l) => s + l.qty, 0) / 1000;
 
+  const partyName = partyId === 'party-cash-customer' ? null : party?.name ?? null;
   useEffect(() => {
+    posStore(posDraftKey(tabId), cart.length || partyId !== 'party-cash-customer' ? { cart, partyId } : null);
+    onSummary({ count: cart.length, total: calc.total ?? 0, party: partyName });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, partyId, calc.total, partyName]);
+  useEffect(() => {
+    if (active) setTimeout(() => searchRef.current?.focus(), 30);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
     const k = (e: KeyboardEvent) => {
       if (e.key === 'F2') {
         e.preventDefault();
@@ -128,19 +247,20 @@ export function PosPage() {
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [cart.length, pay, done]);
+  }, [cart.length, pay, done, active]);
 
   const newSale = () => {
+    if (onFinished()) return;
     setCart([]);
     setPartyId('party-cash-customer');
     setDone(null);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
-  if (!wh) return <div className="page"><Banner kind="warn">لا يوجد مخزن مسموح لك بالبيع منه.</Banner></div>;
+  if (!wh) return active ? <div className="page"><Banner kind="warn">لا يوجد مخزن مسموح لك بالبيع منه.</Banner></div> : null;
 
   return (
-    <div className="pos">
+    <div className="pos" style={active ? undefined : { display: 'none' }}>
       <div className="pos-left">
         <div className="row" style={{ gap: 10 }}>
           <div className="search" style={{ flex: 1, height: 52, background: 'var(--card)', boxShadow: 'var(--shadow-card)' }}>

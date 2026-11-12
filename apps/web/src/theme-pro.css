@@ -1093,3 +1093,12 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 .icon-btn.pinned { color: var(--tint); background: var(--tint-soft); }
 .icon-btn.danger { color: var(--red-text); }
 .field .row > .icon-btn { width: 36px; height: 36px; }
+
+/* تابات البيع السريع */
+.pos-wrap { display: flex; flex-direction: column; height: calc(100vh - 60px); min-height: 0; }
+.pos-tabs { display: flex; gap: 6px; align-items: center; padding: 10px 24px 6px; overflow-x: auto; flex-shrink: 0; }
+.pos-wrap > .pos { flex: 1; min-height: 0; height: auto; }
+@media (max-width: 760px) {
+  .pos-wrap { height: auto; }
+  .pos-tabs { padding: 8px 16px 4px; }
+}
