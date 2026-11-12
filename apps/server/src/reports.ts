@@ -105,7 +105,7 @@ export async function ledger(db: Db, accountId: string, r: Range & { party_id?: 
 }
 
 /** كشف حساب عميل/مورد: الرصيد موجب = عليه لنا (عميل) أو له عندنا (مورد) */
-export async function partyStatement(db: Db, partyId: string, r: Range) {
+export async function partyStatement(db: Db, partyId: string, r: Range & { items?: boolean } = {}) {
   const party = await db.one(`select * from parties where id = $1`, [partyId]);
   if (!party) throw new AppError('الطرف غير موجود', 'not_found');
   const sign = party.kind === 'customer' ? 1 : -1;
@@ -126,10 +126,30 @@ export async function partyStatement(db: Db, partyId: string, r: Range) {
     params,
   );
   let bal = opening;
-  const out = lines.map((l) => {
+  const out: any[] = lines.map((l) => {
     bal += sign * (l.debit - l.credit);
     return { ...l, balance: bal };
   });
+  // كشف حساب بالأصناف: أصناف كل مستند تُرفق بأول سطر له في الكشف
+  if (r.items) {
+    const ids = [...new Set(out.map((l) => l.document_id).filter(Boolean))];
+    if (ids.length) {
+      const dl = await db.query(
+        `select dl.document_id, dl.line_no, i.code, i.name, dl.unit_name, dl.qty, dl.price, dl.discount, dl.total
+           from document_lines dl join items i on i.id = dl.item_id
+          where dl.document_id = any($1) order by dl.document_id, dl.line_no`,
+        [ids],
+      );
+      const by = new Map<string, any[]>();
+      for (const x of dl) (by.get(x.document_id) ?? by.set(x.document_id, []).get(x.document_id)!).push(x);
+      const seen = new Set<string>();
+      for (const l of out) {
+        if (!l.document_id || seen.has(l.document_id)) continue;
+        seen.add(l.document_id);
+        if (by.has(l.document_id)) l.items = by.get(l.document_id);
+      }
+    }
+  }
   return { party, opening, lines: out, closing: bal };
 }
 
@@ -545,4 +565,112 @@ export async function closingPreview(db: Db, date: string) {
   );
   const locked = (await db.one(`select value from settings where key = 'locked_until'`))?.value ?? null;
   return { from: from ?? null, to: date, last_closing: last?.d ?? null, revenue: is.total_revenue, expenses: is.total_expenses, net_profit: is.net_profit, distributions: dist?.v ?? 0, locked_until: locked };
+}
+
+// ---------------------------------------------------------------- حركة الخزائن (أساس تحليل المقبوضات والمصروفات والحركة اليومية)
+/**
+ * سطور القيود على حسابات الخزائن والبنوك. المدين = مقبوض، الدائن = مدفوع.
+ * المستندات الملغاة تُستبعد بأصلها وعكسها معًا (أثرها الصافي صفر).
+ */
+const CASH_LINES = `
+  from journal_lines l
+  join journal_entries e on e.id = l.entry_id
+  join cashboxes cb on cb.account_id = l.account_id
+  left join documents d on d.id = e.document_id
+  left join parties p on p.id = coalesce(l.party_id, d.party_id)
+  left join accounts da on da.id = d.account_id
+  left join users u on u.id = d.created_by`;
+
+/** تحليل المقبوضات أو المصروفات حسب البند/الطرف/الخزينة/المستخدم/النوع/اليوم/الشهر */
+export async function treasuryAnalysis(db: Db, r: Range & { dir: 'in' | 'out'; group: string; cashbox_id?: string; user_id?: string; internal?: boolean }) {
+  const groups: Record<string, { key: string; label: string }> = {
+    // البند: حساب المصروف/الإيراد إن وُجد، وإلا نوع المستند
+    item: { key: `coalesce(da.id, d.doc_type, 'jv')`, label: `coalesce(da.name, d.doc_type, 'jv')` },
+    type: { key: `coalesce(d.doc_type, 'jv')`, label: `coalesce(d.doc_type, 'jv')` },
+    party: { key: `coalesce(p.id, '-')`, label: `coalesce(p.name, 'بدون طرف')` },
+    cashbox: { key: `cb.id`, label: `cb.name` },
+    user: { key: `coalesce(u.id, '-')`, label: `coalesce(u.full_name, '—')` },
+    day: { key: `e.date::text`, label: `e.date::text` },
+    month: { key: `to_char(e.date, 'YYYY-MM')`, label: `to_char(e.date, 'YYYY-MM')` },
+  };
+  const g = groups[r.group] ?? groups.item;
+  const amt = r.dir === 'in' ? 'l.debit' : 'l.credit';
+  const params: unknown[] = [];
+  const conds = [dateCond('e.date', r, params), `${amt} > 0`, `coalesce(d.status, 'posted') <> 'cancelled'`];
+  // التحويل بين الخزائن نقل داخلي: لا يُحسب مقبوضًا ولا مصروفًا إلا عند طلبه صراحة
+  if (!r.internal) conds.push(`coalesce(d.doc_type, '') <> 'cash_transfer'`);
+  if (r.cashbox_id) {
+    params.push(r.cashbox_id);
+    conds.push(`cb.id = $${params.length}`);
+  }
+  if (r.user_id) {
+    params.push(r.user_id);
+    conds.push(`d.created_by = $${params.length}`);
+  }
+  const rows = await db.query(
+    `select ${g.key} as key, ${g.label} as label, count(distinct e.id)::int as count, sum(${amt})::bigint as amount
+       ${CASH_LINES}
+      where ${conds.join(' and ')}
+      group by 1, 2 order by amount desc`,
+    params,
+  );
+  const total = rows.reduce((s, x) => s + Number(x.amount), 0);
+  return { rows: rows.map((x) => ({ ...x, amount: Number(x.amount), share_bp: total ? Math.round((Number(x.amount) * 10000) / total) : 0 })), total };
+}
+
+/** الحركة اليومية: ملخص المستندات بأنواعها + حركة كل خزينة + قائمة المستندات للفترة (افتراضيًا يوم واحد) */
+export async function dailyMovement(db: Db, r: Range & { user_id?: string }) {
+  const params: unknown[] = [];
+  const conds = [dateCond('d.date', r, params), `d.status in ('posted','pending_review')`, `d.doc_type not in ('quotation','year_closing')`];
+  if (r.user_id) {
+    params.push(r.user_id);
+    conds.push(`d.created_by = $${params.length}`);
+  }
+  const docs = await db.query(
+    `select d.id, d.doc_type, d.number, d.local_number, d.status, d.date, d.created_at, d.total, d.paid, d.discount, d.payment_type,
+            p.name as party_name, u.full_name as user_name, w.name as warehouse_name, cb.name as cashbox_name
+       from documents d left join parties p on p.id = d.party_id left join users u on u.id = d.created_by
+       left join warehouses w on w.id = d.warehouse_id left join cashboxes cb on cb.id = d.cashbox_id
+      where ${conds.join(' and ')}
+      order by d.created_at`,
+    params,
+  );
+  const byType = new Map<string, { doc_type: string; count: number; total: number; paid: number; remaining: number }>();
+  for (const d of docs) {
+    const t = byType.get(d.doc_type) ?? { doc_type: d.doc_type, count: 0, total: 0, paid: 0, remaining: 0 };
+    t.count++;
+    t.total += Number(d.total);
+    t.paid += Number(d.paid);
+    if (['sale_invoice', 'purchase_invoice'].includes(d.doc_type)) t.remaining += Number(d.total) - Number(d.paid);
+    byType.set(d.doc_type, t);
+  }
+  // حركة الخزائن: رصيد أول الفترة + مقبوضات + مدفوعات + الرصيد آخرها
+  const p2: unknown[] = [];
+  const inRange = dateCond('e.date', r, p2);
+  let before = 'false';
+  if (r.from) {
+    p2.push(r.from);
+    before = `e.date < $${p2.length}`;
+  }
+  let mine = '';
+  if (r.user_id) {
+    p2.push(r.user_id);
+    mine = ` and d.created_by = $${p2.length}`;
+  }
+  const live = `coalesce(d.status, 'posted') <> 'cancelled'`;
+  const boxes = await db.query(
+    `select cb.id, cb.name, cb.kind,
+            coalesce(sum(case when ${before} then l.debit - l.credit end), 0)::bigint as opening,
+            coalesce(sum(case when ${inRange} and ${live}${mine} then l.debit end), 0)::bigint as cash_in,
+            coalesce(sum(case when ${inRange} and ${live}${mine} then l.credit end), 0)::bigint as cash_out,
+            coalesce(sum(case when ${inRange} then l.debit - l.credit end), 0)::bigint as net_all
+       ${CASH_LINES}
+      group by cb.id, cb.name, cb.kind order by cb.kind, cb.name`,
+    p2,
+  );
+  return {
+    by_type: [...byType.values()],
+    cashboxes: boxes.map((b) => ({ ...b, opening: Number(b.opening), cash_in: Number(b.cash_in), cash_out: Number(b.cash_out), closing: Number(b.opening) + Number(b.net_all) })),
+    docs,
+  };
 }

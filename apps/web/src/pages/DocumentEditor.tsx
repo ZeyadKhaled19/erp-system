@@ -9,7 +9,7 @@ import { PageHeader } from '../components/Layout';
 import { Banner, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
 import { localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useSession, useSettings } from '../lib/hooks';
+import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
@@ -94,9 +94,7 @@ export function DocumentEditor() {
   const allWarehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
   const cashboxes = useLiveQuery(
     async () =>
-      (await db.cashboxes.toArray())
-        .filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id)))
-        .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'cash' ? -1 : 1)),
+      userCashboxes(session.user),
     [],
   ) ?? [];
   const accounts = useLiveQuery(() => db.accounts.orderBy('code').toArray(), []) ?? [];

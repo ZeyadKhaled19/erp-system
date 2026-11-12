@@ -1,7 +1,7 @@
-import { DOC_TYPES, formatMoney, todayISO, uuid } from '@erp/shared';
+import { DOC_TYPES, formatMoney, formatQty, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Pencil, Plus, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, Empty, exportCsv, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
@@ -244,7 +244,8 @@ export function PartyDetail() {
   const L = KIND_LABEL[kind];
   const party = useLiveQuery(() => db.parties.get(id), [id]);
   const docs = useLiveQuery(async () => (await db.documents.where('party_id').equals(id).toArray()).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 50), [id]) ?? [];
-  const st = useRemote<any>(party && !party._sync ? `/api/reports/party/${id}?from=${range.from}&to=${range.to}` : null, [party?.row_version]);
+  const [byItems, setByItems] = useState(false);
+  const st = useRemote<any>(party && !party._sync ? `/api/reports/party/${id}?from=${range.from}&to=${range.to}${byItems ? '&items=1' : ''}` : null, [party?.row_version]);
   if (!party) return <div className="page"><Empty title="غير موجود" /></div>;
 
   return (
@@ -293,11 +294,19 @@ export function PartyDetail() {
         <div className="section-title" style={{ margin: 0, flex: 1 }}>كشف الحساب</div>
         <input type="date" className="input" style={{ width: 160 }} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
         <input type="date" className="input" style={{ width: 160 }} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        <Segmented value={byItems ? '1' : '0'} onChange={(v) => setByItems(v === '1')} options={[{ value: '0', label: 'مختصر' }, { value: '1', label: 'بالأصناف' }]} />
         {st.data && (
           <button
             className="btn"
             onClick={() =>
-              exportCsv(`كشف حساب ${party.name}`, ['التاريخ', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد'], st.data.lines.map((l: any) => [l.date, l.doc_number, l.memo, formatMoney(l.debit), formatMoney(l.credit), formatMoney(l.balance)]))
+              exportCsv(
+                `كشف حساب ${party.name}${byItems ? ' بالأصناف' : ''}`,
+                ['التاريخ', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد'],
+                st.data.lines.flatMap((l: any) => [
+                  [l.date, l.doc_number, l.memo, formatMoney(l.debit), formatMoney(l.credit), formatMoney(l.balance)],
+                  ...(l.items ?? []).map((x: any) => ['', '', `   ${x.name} — ${formatQty(x.qty)} ${x.unit_name} × ${formatMoney(x.price)}${x.discount ? ` خصم ${formatMoney(x.discount)}` : ''} = ${formatMoney(x.total)}`, '', '', '']),
+                ]),
+              )
             }
           >
             تصدير
@@ -326,7 +335,8 @@ export function PartyDetail() {
                 <td className="n bold">{formatMoney(st.data.opening)}</td>
               </tr>
               {st.data.lines.map((l: any, i: number) => (
-                <tr key={i} className={l.document_id ? 'click' : ''} onClick={() => l.document_id && nav(`/docs/view/${l.document_id}`)}>
+                <Fragment key={i}>
+                <tr className={l.document_id ? 'click' : ''} onClick={() => l.document_id && nav(`/docs/view/${l.document_id}`)}>
                   <td data-label="التاريخ" className="num">{l.date}</td>
                   <td data-label="المستند" className="num">{l.doc_number ?? `قيد ${l.entry_no}`}</td>
                   <td data-label="البيان">{l.memo}</td>
@@ -334,6 +344,27 @@ export function PartyDetail() {
                   <td data-label="دائن" className="n">{l.credit ? formatMoney(l.credit) : ''}</td>
                   <td data-label="الرصيد" className="n bold">{formatMoney(l.balance)}</td>
                 </tr>
+                {l.items?.length > 0 && (
+                  <tr className="st-items">
+                    <td colSpan={6}>
+                      <table className="st-items-t">
+                        <tbody>
+                          {l.items.map((x: any) => (
+                            <tr key={x.line_no}>
+                              <td className="muted num">{x.code}</td>
+                              <td>{x.name}</td>
+                              <td className="n num">{formatQty(x.qty)} {x.unit_name}</td>
+                              <td className="n num">× {formatMoney(x.price)}</td>
+                              <td className="n num muted">{x.discount ? `خصم ${formatMoney(x.discount)}` : ''}</td>
+                              <td className="n num bold">{formatMoney(x.total)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
             <tfoot>

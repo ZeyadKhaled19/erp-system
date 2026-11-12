@@ -60,6 +60,12 @@ export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | u
     [userId],
   );
   if (!u || !u.active) return undefined;
+  // الخزائن التي الموظف مسؤول عنها مسموحة له دائمًا حتى لو قُيّدت خزائنه
+  let cashboxIds: string[] | null = u.cashbox_ids ?? null;
+  if (cashboxIds) {
+    const own = await db.query<{ id: string }>(`select id from cashboxes where user_id = $1`, [u.id]);
+    cashboxIds = [...new Set([...cashboxIds, ...own.map((x) => x.id)])];
+  }
   return {
     id: u.id,
     username: u.username,
@@ -70,6 +76,6 @@ export async function loadAuthUser(db: Db, userId: string): Promise<AuthUser | u
     limits: u.limits ?? {},
     // مدير النظام (كل الصلاحيات) يعمل دائمًا على كل المخازن والخزائن
     warehouse_ids: (u.permissions ?? []).includes('*') ? null : (u.warehouse_ids ?? null),
-    cashbox_ids: (u.permissions ?? []).includes('*') ? null : (u.cashbox_ids ?? null),
+    cashbox_ids: (u.permissions ?? []).includes('*') ? null : cashboxIds,
   };
 }

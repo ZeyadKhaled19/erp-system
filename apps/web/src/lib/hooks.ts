@@ -79,3 +79,17 @@ export function useDebounced<T>(v: T, ms = 200) {
 export function useMap(table: 'items' | 'parties' | 'warehouses' | 'cashboxes' | 'accounts' | 'categories' | 'users') {
   return useLiveQuery(async () => new Map((await (db as any)[table].toArray()).map((r: any) => [r.id, r])), [table]) ?? new Map();
 }
+
+/**
+ * الخزائن المتاحة للمستخدم: المسموح بها له + الخزائن المسؤول عنها.
+ * خزنة الموظف نفسه أولًا (فتصبح الافتراضية)، ثم النقدية ثم البنوك أبجديًا.
+ */
+export async function userCashboxes(user: { id: string; cashbox_ids?: string[] | null }) {
+  return (await db.cashboxes.toArray())
+    .filter((c) => c.active !== false && (!user.cashbox_ids || user.cashbox_ids.includes(c.id) || c.user_id === user.id))
+    .sort(
+      (x, y) =>
+        Number(y.user_id === user.id) - Number(x.user_id === user.id) ||
+        (x.kind === y.kind ? String(x.name).localeCompare(String(y.name), 'ar') : x.kind === 'cash' ? -1 : 1),
+    );
+}

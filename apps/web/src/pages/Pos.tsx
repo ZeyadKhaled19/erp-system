@@ -10,7 +10,7 @@ import { CustomerFields } from '../components/CustomerFields';
 import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useSession, useSettings } from '../lib/hooks';
+import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 
@@ -556,9 +556,7 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
   const { session } = useSession();
   const boxes = useLiveQuery(
     async () =>
-      (await db.cashboxes.toArray())
-        .filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id)))
-        .sort((x, y) => (x.kind === y.kind ? String(x.name).localeCompare(String(y.name), 'ar') : x.kind === 'cash' ? -1 : 1)),
+      userCashboxes(session.user),
     [],
   ) ?? [];
   const [primary, setPrimary] = useState<string>(''); // id خزينة أو 'credit'

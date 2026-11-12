@@ -1408,3 +1408,14 @@ kbd { font-weight: 500; }
 /* الصنف الذي يُضاف بضغط Enter أثناء البحث */
 .pos-item.hl { border-color: var(--tint); box-shadow: 0 0 0 3px var(--tint-soft); }
 .pos-grid.as-list .pos-item.hl { background: var(--tint-soft); box-shadow: inset 3px 0 0 var(--tint); }
+
+/* ===================== كشف حساب بالأصناف ===================== */
+.table tr.st-items > td { padding: 0 12px 8px; background: var(--card-2); }
+.st-items-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.st-items-t td { padding: 3px 8px; border-bottom: 1px dashed var(--separator); }
+.st-items-t tr:last-child td { border-bottom: 0; }
+.st-items-t td.n { text-align: left; white-space: nowrap; }
+
+/* شريط النسبة في التحليلات */
+.share-bar { display: inline-block; width: 60px; height: 6px; border-radius: 3px; background: var(--separator); vertical-align: middle; overflow: hidden; margin-inline-end: 6px; }
+.share-bar > i { display: block; height: 100%; background: var(--tint); border-radius: 3px; }

@@ -1,7 +1,7 @@
 import { ACCOUNT_TYPE_LABEL, DOC_TYPES, formatMoney, formatQty, todayISO, type DocType } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Printer } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, exportCsv, Field, Picker, Segmented } from '../components/ui';
@@ -134,15 +134,18 @@ export function StockReport() {
     const cats = new Map((await db.categories.toArray()).map((c) => [c.id, c.name]));
     const rows = items.map((i: any) => {
       const b = bal.filter((x) => x.item_id === i.id && (!wh || x.warehouse_id === wh));
-      return { ...i, qty: b.reduce((s, x) => s + x.qty, 0), value: b.reduce((s, x) => s + x.value, 0), cat: cats.get(i.category_id) };
+      const qty = b.reduce((s, x) => s + x.qty, 0);
+      // قيمة بيع تقديرية (سعر البيع × الكمية الموجبة) — منفصلة تمامًا عن التكلفة والربح
+      return { ...i, qty, value: b.reduce((s, x) => s + x.value, 0), sale_value: qty > 0 ? Math.round((qty * (i.sale_price ?? 0)) / 1000) : 0, cat: cats.get(i.category_id) };
     });
     return rows.filter((r) => (!nonzero || r.qty !== 0) && (!cat || r.category_id === cat));
   }, [wh, nonzero, cat]) ?? [];
   const total = data.reduce((s, r) => s + r.value, 0);
+  const saleTotal = data.reduce((s, r) => s + r.sale_value, 0);
   return (
     <Shell
       title="تقرير بضاعة مخزن"
-      sub={`${data.length} صنف${can('costs.view') ? ` · القيمة بالتكلفة ${formatMoney(total)}` : ''}`}
+      sub={`${data.length} صنف${can('costs.view') ? ` · القيمة بالتكلفة ${formatMoney(total)}` : ''} · بسعر البيع (تقديري) ${formatMoney(saleTotal)}`}
       filters={
         <>
           <Field label="المخزن">
@@ -162,12 +165,12 @@ export function StockReport() {
           <Field label="العرض"><Segmented block value={nonzero ? '1' : '0'} onChange={(v) => setNonzero(v === '1')} options={[{ value: '1', label: 'الأصناف ذات الرصيد' }, { value: '0', label: 'كل الأصناف' }]} /></Field>
         </>
       }
-      actions={<button className="btn" onClick={() => exportCsv('بضاعة مخزن', ['الكود', 'الصنف', 'التصنيف', 'الوحدة', 'الكمية', ...(can('costs.view') ? ['متوسط التكلفة', 'القيمة'] : [])], data.map((r) => [r.code, r.name, r.cat, r.base_unit, formatQty(r.qty), ...(can('costs.view') ? [r.qty ? formatMoney(Math.round((r.value * 1000) / r.qty)) : '', formatMoney(r.value)] : [])]))}>تصدير</button>}
-      note="القيمة = مجموع تكلفة الكميات المتبقية بطريقة المتوسط المرجح لكل مخزن. الأرصدة حسب آخر مزامنة."
+      actions={<button className="btn" onClick={() => exportCsv('بضاعة مخزن', ['الكود', 'الصنف', 'التصنيف', 'الوحدة', 'الكمية', ...(can('costs.view') ? ['متوسط التكلفة', 'القيمة بالتكلفة'] : []), 'سعر البيع', 'القيمة بسعر البيع (تقديرية)'], data.map((r) => [r.code, r.name, r.cat, r.base_unit, formatQty(r.qty), ...(can('costs.view') ? [r.qty ? formatMoney(Math.round((r.value * 1000) / r.qty)) : '', formatMoney(r.value)] : []), formatMoney(r.sale_price ?? 0), formatMoney(r.sale_value)]))}>تصدير</button>}
+      note="القيمة بالتكلفة = الكمية المتبقية × متوسط تكلفة الشراء (المتوسط المرجح). القيمة بسعر البيع تقديرية فقط ولا تُستخدم كتكلفة أو ربح. الأرصدة حسب آخر مزامنة."
     >
       <div className="table-wrap">
         <table className="table responsive">
-          <thead><tr><th>الكود</th><th>الصنف</th><th>التصنيف</th><th>الوحدة</th><th className="n">الكمية</th>{can('costs.view') && <><th className="n">متوسط التكلفة</th><th className="n">القيمة</th></>}</tr></thead>
+          <thead><tr><th>الكود</th><th>الصنف</th><th>التصنيف</th><th>الوحدة</th><th className="n">الكمية</th>{can('costs.view') && <><th className="n">متوسط التكلفة</th><th className="n">القيمة بالتكلفة</th></>}<th className="n">بسعر البيع (تقديري)</th></tr></thead>
           <tbody>
             {data.map((r) => (
               <tr key={r.id} className="click" onClick={() => nav(`/reports/item?id=${r.id}`)}>
@@ -176,11 +179,12 @@ export function StockReport() {
                 <td data-label="التصنيف" className="muted">{r.cat ?? ''}</td>
                 <td data-label="الوحدة">{r.base_unit}</td>
                 <td data-label="الكمية" className={`n bold ${r.qty < 0 ? 'red' : ''}`}>{formatQty(r.qty)}</td>
-                {can('costs.view') && <><td data-label="متوسط التكلفة" className="n">{r.qty > 0 ? formatMoney(Math.round((r.value * 1000) / r.qty)) : ''}</td><td data-label="القيمة" className="n">{formatMoney(r.value)}</td></>}
+                {can('costs.view') && <><td data-label="متوسط التكلفة" className="n">{r.qty > 0 ? formatMoney(Math.round((r.value * 1000) / r.qty)) : ''}</td><td data-label="القيمة بالتكلفة" className="n">{formatMoney(r.value)}</td></>}
+                <td data-label="بسعر البيع" className="n muted">{r.sale_value ? formatMoney(r.sale_value) : ''}</td>
               </tr>
             ))}
           </tbody>
-          {can('costs.view') && <tfoot><tr><td colSpan={6}>الإجمالي</td><td className="n">{formatMoney(total)}</td></tr></tfoot>}
+          <tfoot><tr><td colSpan={can('costs.view') ? 6 : 5}>الإجمالي</td>{can('costs.view') && <td className="n">{formatMoney(total)}</td>}<td className="n">{formatMoney(saleTotal)}</td></tr></tfoot>
         </table>
       </div>
     </Shell>
@@ -702,6 +706,236 @@ export function ExpiryReport() {
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- تحليل المقبوضات والمصروفات
+const T_GROUPS: Record<string, string> = { item: 'البند', type: 'نوع المستند', party: 'الطرف', cashbox: 'الخزينة', user: 'المستخدم', day: 'اليوم', month: 'الشهر' };
+const tLabel = (group: string, label: string) => (group === 'item' || group === 'type' ? (label === 'jv' ? 'قيد يومية' : DOC_TYPES[label as DocType]?.label ?? label) : label);
+export function TreasuryAnalysisReport() {
+  const [sp] = useSearchParams();
+  const [dir, setDir] = useState<'in' | 'out'>(sp.get('dir') === 'out' ? 'out' : 'in');
+  useEffect(() => setDir(sp.get('dir') === 'out' ? 'out' : 'in'), [sp]);
+  const [group, setGroup] = useState('item');
+  const [box, setBox] = useState('');
+  const [user, setUser] = useState('');
+  const [internal, setInternal] = useState(false);
+  const [from, setFrom] = useState(monthStart());
+  const [to, setTo] = useState(todayISO());
+  const boxes = useLiveQuery(() => db.cashboxes.toArray(), []) ?? [];
+  const users = useLiveQuery(() => db.users.toArray(), []) ?? [];
+  const r = useRemote<any>(`/api/reports/treasury-analysis?dir=${dir}&group=${group}&from=${from}&to=${to}&cashbox_id=${box}&user_id=${user}&internal=${internal ? 1 : 0}`);
+  const title = dir === 'in' ? 'تحليل المقبوضات' : 'تحليل المصروفات والمدفوعات';
+  return (
+    <Shell
+      title={title}
+      sub={r.data ? `حسب ${T_GROUPS[group]} · الإجمالي ${formatMoney(r.data.total)}` : `حسب ${T_GROUPS[group]}`}
+      error={r.error}
+      loading={r.loading}
+      filters={
+        <>
+          <Field label="النوع"><Segmented block value={dir} onChange={setDir} options={[{ value: 'in', label: 'مقبوضات' }, { value: 'out', label: 'مدفوعات' }]} /></Field>
+          <Field label="التجميع حسب">
+            <select className="select" value={group} onChange={(e) => setGroup(e.target.value)}>
+              {Object.entries(T_GROUPS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
+          <Field label="الخزينة">
+            <select className="select" value={box} onChange={(e) => setBox(e.target.value)}>
+              <option value="">كل الخزائن والبنوك</option>
+              {boxes.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </Field>
+          <Field label="المستخدم">
+            <select className="select" value={user} onChange={(e) => setUser(e.target.value)}>
+              <option value="">كل المستخدمين</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            </select>
+          </Field>
+          <Field label="التحويلات بين الخزائن"><Segmented block value={internal ? '1' : '0'} onChange={(v) => setInternal(v === '1')} options={[{ value: '0', label: 'مستبعدة' }, { value: '1', label: 'مضمنة' }]} /></Field>
+        </>
+      }
+      actions={r.data && <button className="btn" onClick={() => exportCsv(title, [T_GROUPS[group], 'عدد الحركات', 'المبلغ', 'النسبة %'], r.data.rows.map((x: any) => [tLabel(group, x.label), x.count, formatMoney(x.amount), (x.share_bp / 100).toFixed(1)]))}>تصدير</button>}
+      note="محسوب من الحركة الفعلية على الخزائن والبنوك (نقدي)، وليس من الفواتير الآجلة. المستندات الملغاة مستبعدة. التحويل بين الخزائن نقل داخلي ولا يُحسب مقبوضًا أو مصروفًا إلا إذا اخترت تضمينه."
+    >
+      {r.data && (
+        <div className="table-wrap">
+          <table className="table responsive">
+            <thead><tr><th>{T_GROUPS[group]}</th><th className="n">الحركات</th><th className="n">المبلغ</th><th className="n">من الإجمالي %</th></tr></thead>
+            <tbody>
+              {r.data.rows.length === 0 && <tr><td colSpan={4} className="muted">لا توجد حركات في الفترة</td></tr>}
+              {r.data.rows.map((x: any) => (
+                <tr key={x.key}>
+                  <td data-label={T_GROUPS[group]} className="bold">{tLabel(group, x.label)}</td>
+                  <td data-label="الحركات" className="n">{x.count}</td>
+                  <td data-label="المبلغ" className={`n bold ${dir === 'in' ? 'green' : 'red'}`}>{formatMoney(x.amount)}</td>
+                  <td data-label="النسبة" className="n">
+                    <span className="share-bar"><i style={{ width: `${Math.min(100, x.share_bp / 100)}%` }} /></span> {(x.share_bp / 100).toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot><tr><td>الإجمالي</td><td /><td className="n">{formatMoney(r.data.total)}</td><td /></tr></tfoot>
+          </table>
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- الحركة اليومية
+export function DailyMovementReport() {
+  const nav = useNavigate();
+  const can = usePerm();
+  const [from, setFrom] = useState(todayISO());
+  const [to, setTo] = useState(todayISO());
+  const [user, setUser] = useState('');
+  const users = useLiveQuery(() => db.users.toArray(), []) ?? [];
+  const r = useRemote<any>(`/api/reports/daily?from=${from}&to=${to}&user_id=${user}`);
+  const d = r.data;
+  const sumIn = d?.cashboxes.reduce((s: number, b: any) => s + b.cash_in, 0) ?? 0;
+  const sumOut = d?.cashboxes.reduce((s: number, b: any) => s + b.cash_out, 0) ?? 0;
+  return (
+    <Shell
+      title="الحركة اليومية"
+      sub={from === to ? from : `${from} ← ${to}`}
+      error={r.error}
+      loading={r.loading}
+      filters={
+        <>
+          <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
+          <Field label="المستخدم">
+            <select className="select" value={user} onChange={(e) => setUser(e.target.value)}>
+              <option value="">كل المستخدمين</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            </select>
+          </Field>
+        </>
+      }
+      actions={d && <button className="btn" onClick={() => exportCsv(`الحركة اليومية ${from}`, ['الوقت', 'المستند', 'النوع', 'الطرف', 'المستخدم', 'الإجمالي', 'المدفوع', 'المتبقي'], d.docs.map((x: any) => [new Date(x.created_at).toLocaleString('ar-EG'), x.number ?? x.local_number, docLabel(x.doc_type), x.party_name ?? '', x.user_name ?? '', formatMoney(x.total), formatMoney(x.paid), ['sale_invoice', 'purchase_invoice'].includes(x.doc_type) ? formatMoney(x.total - x.paid) : '']))}>تصدير</button>}
+      note="المستندات المرحّلة وتحت المراجعة في الفترة (بدون عروض الأسعار والملغاة). حركة الخزائن من القيود الفعلية؛ الرصيد الختامي يشمل كل الحركات حتى لو اخترت مستخدمًا."
+    >
+      {d && (
+        <div className="stack">
+          <div className="table-wrap">
+            <table className="table responsive">
+              <thead><tr><th>نوع المستند</th><th className="n">العدد</th><th className="n">الإجمالي</th><th className="n">المدفوع/المحصّل</th><th className="n">المتبقي (آجل)</th></tr></thead>
+              <tbody>
+                {d.by_type.length === 0 && <tr><td colSpan={5} className="muted">لا توجد مستندات</td></tr>}
+                {d.by_type.map((t: any) => (
+                  <tr key={t.doc_type}>
+                    <td data-label="النوع" className="bold">{docLabel(t.doc_type)}</td>
+                    <td data-label="العدد" className="n">{t.count}</td>
+                    <td data-label="الإجمالي" className="n">{formatMoney(t.total)}</td>
+                    <td data-label="المدفوع" className="n">{formatMoney(t.paid)}</td>
+                    <td data-label="المتبقي" className={`n ${t.remaining ? 'orange' : 'muted'}`}>{t.remaining ? formatMoney(t.remaining) : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {can('treasury.view') && d.cashboxes.length > 0 && (
+            <div className="table-wrap">
+              <table className="table responsive">
+                <thead><tr><th>الخزينة</th><th className="n">رصيد أول الفترة</th><th className="n">مقبوضات</th><th className="n">مدفوعات</th><th className="n">الرصيد آخر الفترة</th></tr></thead>
+                <tbody>
+                  {d.cashboxes.map((b: any) => (
+                    <tr key={b.id}>
+                      <td data-label="الخزينة" className="bold">{b.name}</td>
+                      <td data-label="أول الفترة" className="n">{formatMoney(b.opening)}</td>
+                      <td data-label="مقبوضات" className="n green">{formatMoney(b.cash_in)}</td>
+                      <td data-label="مدفوعات" className="n red">{formatMoney(b.cash_out)}</td>
+                      <td data-label="آخر الفترة" className="n bold">{formatMoney(b.closing)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr><td>الإجمالي</td><td className="n">{formatMoney(d.cashboxes.reduce((s: number, b: any) => s + b.opening, 0))}</td><td className="n">{formatMoney(sumIn)}</td><td className="n">{formatMoney(sumOut)}</td><td className="n">{formatMoney(d.cashboxes.reduce((s: number, b: any) => s + b.closing, 0))}</td></tr></tfoot>
+              </table>
+            </div>
+          )}
+          <div className="section-title" style={{ margin: '6px 0 0' }}>المستندات ({d.docs.length})</div>
+          <div className="table-wrap">
+            <table className="table responsive">
+              <thead><tr><th>الوقت</th><th>المستند</th><th>النوع</th><th>الطرف</th><th>المستخدم</th><th className="n">الإجمالي</th><th className="n">المدفوع</th><th className="n">المتبقي</th></tr></thead>
+              <tbody>
+                {d.docs.map((x: any) => (
+                  <tr key={x.id} className="click" onClick={() => nav(`/docs/view/${x.id}`)}>
+                    <td data-label="الوقت" className="num">{new Date(x.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}{from !== to ? ` · ${x.date}` : ''}</td>
+                    <td data-label="المستند" className="num">{x.number ?? x.local_number} {x.status === 'pending_review' && <span className="badge orange">مراجعة</span>}</td>
+                    <td data-label="النوع">{docLabel(x.doc_type)}</td>
+                    <td data-label="الطرف">{x.party_name ?? ''}</td>
+                    <td data-label="المستخدم" className="muted">{x.user_name ?? ''}</td>
+                    <td data-label="الإجمالي" className="n">{formatMoney(x.total)}</td>
+                    <td data-label="المدفوع" className="n">{formatMoney(x.paid)}</td>
+                    <td data-label="المتبقي" className="n">{['sale_invoice', 'purchase_invoice'].includes(x.doc_type) && x.total - x.paid ? formatMoney(x.total - x.paid) : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- أرصدة سالبة تحتاج مراجعة
+/** الأصناف التي صار رصيدها سالبًا (بيع أوفلاين من أكثر من جهاز أو بيع بدون رصيد) — من آخر مزامنة */
+export function useNegativeStock() {
+  return (
+    useLiveQuery(async () => {
+      const neg = (await db.stock_balances.toArray()).filter((b) => b.qty < 0);
+      if (!neg.length) return [];
+      const items = new Map((await db.items.bulkGet([...new Set(neg.map((b) => b.item_id))])).filter(Boolean).map((i: any) => [i.id, i]));
+      const whs = new Map((await db.warehouses.toArray()).map((w) => [w.id, w.name]));
+      return neg
+        .map((b) => ({ ...b, item: items.get(b.item_id), warehouse_name: whs.get(b.warehouse_id) }))
+        .filter((b) => b.item && !b.item.is_service)
+        .sort((a, b) => a.qty - b.qty);
+    }, []) ?? []
+  );
+}
+
+export function NegativeStockReport() {
+  const nav = useNavigate();
+  const can = usePerm();
+  const rows = useNegativeStock();
+  return (
+    <Shell
+      title="أرصدة سالبة تحتاج مراجعة"
+      sub={rows.length ? `${rows.length} صنف/مخزن` : 'لا توجد أرصدة سالبة'}
+      actions={rows.length > 0 && <button className="btn" onClick={() => exportCsv('أرصدة سالبة', ['الكود', 'الصنف', 'المخزن', 'الرصيد', 'الوحدة'], rows.map((r: any) => [r.item.code, r.item.name, r.warehouse_name, formatQty(r.qty), r.item.base_unit]))}>تصدير</button>}
+      note="الفواتير لا تُسقط ولا تُعدّل: البيع يُسجّل كما هو، والرصيد السالب يظهر هنا حتى يُعالج بفاتورة شراء أو تحويل من مخزن آخر أو جرد وتسوية. افتح حركة الصنف لمعرفة الفواتير التي سببت العجز."
+    >
+      {rows.length === 0 ? (
+        <div className="card pad muted">كل الأرصدة سليمة — لا يوجد صنف رصيده أقل من صفر.</div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table responsive">
+            <thead><tr><th>الكود</th><th>الصنف</th><th>المخزن</th><th className="n">الرصيد</th><th className="no-print">معالجة</th></tr></thead>
+            <tbody>
+              {rows.map((r: any) => (
+                <tr key={`${r.item_id}-${r.warehouse_id}`}>
+                  <td data-label="الكود" className="num">{r.item.code}</td>
+                  <td data-label="الصنف" className="bold">{r.item.name}</td>
+                  <td data-label="المخزن">{r.warehouse_name}</td>
+                  <td data-label="الرصيد" className="n bold red">{formatQty(r.qty)} {r.item.base_unit}</td>
+                  <td data-label="معالجة" className="no-print">
+                    <div className="row wrap" style={{ gap: 6 }}>
+                      <button className="btn sm" onClick={() => nav(`/reports/item?id=${r.item_id}`)}>حركة الصنف</button>
+                      {can('purchases.create') && <button className="btn sm" onClick={() => nav('/docs/new/purchase_invoice')}>فاتورة شراء</button>}
+                      {can('inventory.create') && <button className="btn sm" onClick={() => nav('/docs/new/stock_transfer')}>تحويل</button>}
+                      {can('inventory.create') && <button className="btn sm" onClick={() => nav('/docs/new/stock_adjustment')}>جرد وتسوية</button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

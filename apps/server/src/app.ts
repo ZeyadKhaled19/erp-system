@@ -139,7 +139,7 @@ export async function buildApp(opts: AppOptions) {
   );
   app.get('/api/reports/income-statement', { preHandler: perm('reports.profit') }, async (req) => R.incomeStatement(db, range(req)));
   app.get('/api/reports/balance-sheet', { preHandler: perm('reports.financial') }, async (req) => R.balanceSheet(db, q(req).to || todayISO()));
-  app.get('/api/reports/party/:id', { preHandler: perm('parties.view') }, async (req) => R.partyStatement(db, (req.params as any).id, range(req)));
+  app.get('/api/reports/party/:id', { preHandler: perm('parties.view') }, async (req) => R.partyStatement(db, (req.params as any).id, { ...range(req), items: q(req).items === '1' }));
   app.get('/api/reports/cashbox/:id', { preHandler: perm('treasury.view') }, async (req) => R.cashboxMovement(db, (req.params as any).id, range(req)));
   app.get('/api/reports/item/:id', { preHandler: perm('inventory.view') }, async (req) => {
     const r = await R.itemMovement(db, (req.params as any).id, { ...range(req), warehouse_id: q(req).warehouse_id, doc_type: q(req).doc_type });
@@ -193,6 +193,14 @@ export async function buildApp(opts: AppOptions) {
   app.get('/api/reports/sales-analysis', { preHandler: perm('reports.view') }, async (req) => {
     const r = await R.salesAnalysis(db, { ...range(req), group: q(req).group ?? 'item', kind: q(req).kind === 'purchases' ? 'purchases' : 'sales' });
     if (!hasPermission(req.user!.permissions, 'reports.profit')) r.rows.forEach((x: any) => ((x.cost = null), (x.profit = null)));
+    return r;
+  });
+  app.get('/api/reports/treasury-analysis', { preHandler: perm('treasury.view') }, async (req) =>
+    R.treasuryAnalysis(db, { ...range(req), dir: q(req).dir === 'out' ? 'out' : 'in', group: q(req).group ?? 'item', cashbox_id: q(req).cashbox_id || undefined, user_id: q(req).user_id || undefined, internal: q(req).internal === '1' }),
+  );
+  app.get('/api/reports/daily', { preHandler: perm('reports.view') }, async (req) => {
+    const r = await R.dailyMovement(db, { ...range(req), user_id: q(req).user_id || undefined });
+    if (!hasPermission(req.user!.permissions, 'treasury.view')) r.cashboxes = [];
     return r;
   });
   app.get('/api/shifts/:id/expected', { preHandler: perm('treasury.shift') }, async (req) => {

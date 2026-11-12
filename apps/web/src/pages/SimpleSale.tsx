@@ -10,7 +10,7 @@ import { CategoryFilter } from '../components/Categories';
 import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportCsv, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useSession, useSettings } from '../lib/hooks';
+import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 import { searchItems } from '../lib/search';
@@ -215,9 +215,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   const priceLists = useLiveQuery(async () => (await db.price_lists.toArray()).filter((p) => p.active !== false).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), []) ?? [];
   const boxes = useLiveQuery(
     async () =>
-      (await db.cashboxes.toArray())
-        .filter((c) => c.active !== false && (!session.user.cashbox_ids || session.user.cashbox_ids.includes(c.id)))
-        .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'cash' ? -1 : 1)),
+      userCashboxes(session.user),
     [],
   ) ?? [];
   const myShift = useLiveQuery(async () => (await db.cashier_shifts.where('user_id').equals(uid).toArray()).find((s) => s.status === 'open' && !s._sync) ?? null, []);

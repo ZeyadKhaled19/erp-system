@@ -14,6 +14,7 @@ export function CashboxesPage() {
   const ui = useUi();
   const nav = useNavigate();
   const boxes = useLiveQuery(() => db.cashboxes.toArray(), []) ?? [];
+  const userName = new Map((useLiveQuery(() => db.users.toArray(), []) ?? []).map((u) => [u.id, u.full_name]));
   const [sel, setSel] = useState<string | null>(null);
   const [edit, setEdit] = useState<any | null>(null);
   const [from, setFrom] = useState(`${todayISO().slice(0, 7)}-01`);
@@ -38,6 +39,7 @@ export function CashboxesPage() {
               {can('treasury.manage') && <button className="btn sm plain" onClick={(e) => { e.stopPropagation(); setEdit(b); }}>تعديل</button>}
             </div>
             <div className="stat-value num">{formatMoney(b.balance ?? 0)}</div>
+            <div className="caption muted">{b.user_id ? `المسؤول: ${userName.get(b.user_id) ?? '—'}` : 'بدون مسؤول'}</div>
           </div>
         ))}
       </div>
@@ -90,9 +92,10 @@ export function CashboxesPage() {
 }
 
 function CashboxEditor({ box, onClose, onSave }: { box: any | null; onClose: () => void; onSave: (d: any) => void }) {
-  const [f, setF] = useState({ name: box?.name ?? '', kind: box?.kind ?? 'cash', active: box?.active ?? true, fee_pct: box?.fee_bp ? String(box.fee_bp / 100) : '0', fee_min: box?.fee_min ?? 0, fee_fixed: box?.fee_fixed ?? 0 });
+  const [f, setF] = useState({ name: box?.name ?? '', kind: box?.kind ?? 'cash', active: box?.active ?? true, fee_pct: box?.fee_bp ? String(box.fee_bp / 100) : '0', fee_min: box?.fee_min ?? 0, fee_fixed: box?.fee_fixed ?? 0, user_id: (box?.user_id ?? '') as string });
+  const users = useLiveQuery(async () => (await db.users.toArray()).filter((u) => u.active !== false).sort((a, b) => String(a.full_name).localeCompare(String(b.full_name), 'ar')), []) ?? [];
   return (
-    <Sheet title={box ? 'تعديل خزينة' : 'خزينة / حساب بنكي جديد'} onClose={onClose} footer={<><button className="btn" onClick={onClose}>إلغاء</button><button className="btn primary" disabled={!f.name.trim()} onClick={() => { const fee_bp = Math.round(Number(f.fee_pct || 0) * 100); onSave({ name: f.name, kind: f.kind, active: f.active, fee_bp: Number.isFinite(fee_bp) ? fee_bp : 0, fee_min: f.fee_min, fee_fixed: f.fee_fixed }); }}>حفظ</button></>}>
+    <Sheet title={box ? 'تعديل خزينة' : 'خزينة / حساب بنكي جديد'} onClose={onClose} footer={<><button className="btn" onClick={onClose}>إلغاء</button><button className="btn primary" disabled={!f.name.trim()} onClick={() => { const fee_bp = Math.round(Number(f.fee_pct || 0) * 100); onSave({ name: f.name, kind: f.kind, active: f.active, fee_bp: Number.isFinite(fee_bp) ? fee_bp : 0, fee_min: f.fee_min, fee_fixed: f.fee_fixed, user_id: f.user_id || null }); }}>حفظ</button></>}>
       <div className="stack">
         <Field label="الاسم"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         {!box && (
@@ -100,6 +103,12 @@ function CashboxEditor({ box, onClose, onSave }: { box: any | null; onClose: () 
             <Segmented block value={f.kind} onChange={(v) => setF({ ...f, kind: v })} options={[{ value: 'cash', label: 'خزينة نقدية' }, { value: 'bank', label: 'حساب بنكي' }]} />
           </Field>
         )}
+        <Field label="الموظف المسؤول" hint="تُسمح له تلقائيًا وتكون خزنته الافتراضية في البيع والتحصيل">
+          <select className="select" value={f.user_id} onChange={(e) => setF({ ...f, user_id: e.target.value })}>
+            <option value="">— بدون مسؤول —</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.username})</option>)}
+          </select>
+        </Field>
         <div className="bold">عمولة طريقة السداد (بطاقات / محافظ)</div>
         <div className="grid grid-3">
           <Field label="النسبة %"><input className="input num" inputMode="decimal" value={f.fee_pct} onChange={(e) => setF({ ...f, fee_pct: e.target.value })} /></Field>

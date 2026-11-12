@@ -39,7 +39,7 @@ import { SimpleSalePage } from './pages/SimpleSale';
 import { DocGuard, HomeRoute, HubGuard, NewDocGuard, RequirePerm } from './components/Guard';
 import { clearLanded } from './lib/home';
 import { CommissionsPage, YearEndPage } from './pages/YearEnd';
-import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
+import { DailyMovementReport, ExpiryReport, NegativeStockReport, SalesAnalysisReport, SerialSearchReport, TreasuryAnalysisReport } from './pages/Reports';
 
 export function App() {
   const [session, setSession] = useState<Session | null>(() => {
@@ -190,6 +190,9 @@ export function App() {
           <Route path="/deliveries" element={<RequirePerm any={['sales.view', 'sales.deliver']}><DeliveriesPage /></RequirePerm>} />
           <Route path="/lists" element={<ListsPage />} />
           <Route path="/reports/analysis" element={<RequirePerm any={['reports.view']}><SalesAnalysisReport /></RequirePerm>} />
+          <Route path="/reports/negative" element={<RequirePerm any={['inventory.view']}><NegativeStockReport /></RequirePerm>} />
+          <Route path="/reports/daily" element={<RequirePerm any={['reports.view']}><DailyMovementReport /></RequirePerm>} />
+          <Route path="/reports/treasury" element={<RequirePerm any={['treasury.view']}><TreasuryAnalysisReport /></RequirePerm>} />
           <Route path="/reports/serial" element={<RequirePerm any={['inventory.view']}><SerialSearchReport /></RequirePerm>} />
           <Route path="/reports/expiry" element={<RequirePerm any={['inventory.view']}><ExpiryReport /></RequirePerm>} />
           <Route path="/users" element={<RequirePerm any={['users.manage']}><UsersPage /></RequirePerm>} />

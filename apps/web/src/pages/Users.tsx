@@ -1,9 +1,10 @@
-import { BUILTIN_ROLE_HOME, canUseWorkspace, inferRoleHome, PERMISSION_GROUPS, WORKSPACES } from '@erp/shared';
+import { BUILTIN_ROLE_HOME, canUseWorkspace, inferRoleHome, PERMISSION_GROUPS, uuid, WORKSPACES } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '../components/Layout';
 import { Banner, Field, Sheet, Switch, useUi } from '../components/ui';
+import { saveMaster } from '../lib/actions';
 import { api } from '../lib/api';
 import { db } from '../lib/db';
 import { parseRoleHomes } from '../lib/home';
@@ -26,14 +27,18 @@ export function UsersPage() {
   const saveUser = async () => {
     setErr(null);
     try {
-      await api('/api/admin/users', {
+      const res = await api<{ id: string }>('/api/admin/users', {
         body: {
           id: u.id, username: u.username, full_name: u.full_name, role_id: u.role_id, active: u.active, password: u.password || undefined,
           warehouse_ids: u.role_id === 'role-admin' ? null : u.warehouse_ids ?? null,
           cashbox_ids: u.role_id === 'role-admin' ? null : u.cashbox_ids ?? null,
         },
       });
-      ui.toast('تم الحفظ');
+      // خزنة مستقلة للموظف الجديد باسمه ومسؤوليته
+      if (!u.id && u.own_cashbox && res?.id) {
+        await saveMaster('cashbox', uuid(), { name: `خزنة ${u.full_name.trim()}`, kind: 'cash', user_id: res.id, active: true, fee_bp: 0, fee_min: 0, fee_fixed: 0 }, null);
+      }
+      ui.toast(!u.id && u.own_cashbox ? 'تم إنشاء المستخدم وخزنته' : 'تم الحفظ');
       setU(null);
       void syncNow();
     } catch (e) {
@@ -58,7 +63,7 @@ export function UsersPage() {
   return (
     <div className="page narrow">
       <PageHeader title="المستخدمون والصلاحيات" sub="تحتاج هذه الشاشة اتصالًا بالخادم للحفظ." />
-      <div className="row"><div className="section-title" style={{ flex: 1, margin: 0 }}>المستخدمون</div><button className="btn sm primary" onClick={() => { setErr(null); setU({ username: '', full_name: '', role_id: 'role-cashier', active: true, password: '' }); }}><Plus /> مستخدم</button></div>
+      <div className="row"><div className="section-title" style={{ flex: 1, margin: 0 }}>المستخدمون</div><button className="btn sm primary" onClick={() => { setErr(null); setU({ username: '', full_name: '', role_id: 'role-cashier', active: true, password: '', own_cashbox: true }); }}><Plus /> مستخدم</button></div>
       <div className="list" style={{ marginTop: 10 }}>
         {users.map((x) => (
           <div key={x.id} className="list-row tappable" onClick={() => { setErr(null); setU({ ...x, password: '' }); }}>
@@ -94,6 +99,11 @@ export function UsersPage() {
               </select>
             </Field>
             <div className="row"><Switch checked={u.active} onChange={(v) => setU({ ...u, active: v })} /> {u.active ? 'نشط' : 'موقوف'}</div>
+            {!u.id && <div className="row"><Switch checked={!!u.own_cashbox} onChange={(v) => setU({ ...u, own_cashbox: v })} /> إنشاء خزنة نقدية مستقلة باسمه ومسؤوليته</div>}
+            {u.id && (() => {
+              const own = cashboxes.filter((c) => c.user_id === u.id);
+              return <div className="footnote">{own.length ? `خزنته: ${own.map((c) => c.name).join('، ')}` : 'ليس مسؤولًا عن أي خزنة — حدّد المسؤول من شاشة الخزائن.'}</div>;
+            })()}
             {u.role_id === 'role-admin' ? (
               <div className="footnote">مدير النظام يعمل على كل المخازن والخزائن (بما فيها أي خزينة أو بنك يُضاف لاحقًا).</div>
             ) : (

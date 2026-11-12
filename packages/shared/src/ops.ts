@@ -84,6 +84,8 @@ export const cashboxSchema = z.object({
   fee_bp: nonneg.max(10000).default(0),
   fee_min: nonneg.default(0),
   fee_fixed: nonneg.default(0),
+  /** الموظف المسؤول عن الخزينة (اختياري) */
+  user_id: z.string().min(1).nullish().transform((v) => v ?? null),
   active: z.boolean().default(true),
 });
 

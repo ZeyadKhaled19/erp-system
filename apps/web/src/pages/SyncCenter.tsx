@@ -9,6 +9,7 @@ import { resolveConflict } from '../lib/actions';
 import { db, type OutboxEntry } from '../lib/db';
 import { usePerm, useSyncCounts, useSyncState } from '../lib/hooks';
 import { getDeviceId } from '../lib/session';
+import { useNegativeStock } from './Reports';
 import { discardOutboxEntry, syncNow } from '../lib/sync';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -24,6 +25,7 @@ export function SyncCenter() {
   const can = usePerm();
   const ui = useUi();
   const nav = useNavigate();
+  const negative = useNegativeStock();
   const [tab, setTab] = useState<'queue' | 'problems' | 'conflicts' | 'done'>('queue');
   const [resolving, setResolving] = useState<any | null>(null);
 
@@ -54,6 +56,14 @@ export function SyncCenter() {
         <div className="card stat"><div className="stat-label">مرفوضة</div><div className={`stat-value num ${c.rejected ? 'red' : ''}`}>{c.rejected}</div></div>
         <div className="card stat"><div className="stat-label">تعارضات مفتوحة (للشركة)</div><div className={`stat-value num ${c.conflicts ? 'red' : ''}`}>{c.conflicts}</div></div>
       </div>
+      {negative.length > 0 && can('inventory.view') && (
+        <div style={{ marginTop: 12 }}>
+          <Banner kind="warn">
+            بعد المزامنة: {negative.length} صنف رصيده سالب (بيع أكثر من المتاح، غالبًا من أكثر من جهاز). الفواتير مسجلة كما هي ولم تُسقط.{' '}
+            <button className="btn sm" onClick={() => nav('/reports/negative')}>مراجعة الأرصدة السالبة</button>
+          </Banner>
+        </div>
+      )}
       {s.lastError && !reachable && <div style={{ marginTop: 12 }}><Banner kind="info">{s.lastError}. كل ما تسجله محفوظ على الجهاز وسيُرسل تلقائيًا عند عودة الاتصال.</Banner></div>}
 
       <div style={{ margin: '20px 0 12px' }}>
