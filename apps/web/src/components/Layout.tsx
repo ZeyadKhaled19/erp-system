@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronDown, CloudOff, Home, LayoutGrid, LogOut, Menu, Package, Palette, RefreshCw, Search, Users, Zap } from 'lucide-react';
+import { CloudOff, Home, LayoutGrid, LogOut, Menu, Moon, Package, Palette, PanelRightClose, PanelRightOpen, RefreshCw, Search, Sun, Users, X, Zap } from 'lucide-react';
+import { applyAppearance, loadAppearance, resolvedTheme, saveAppearance } from '../lib/theme';
 import { AppearanceSheet } from './Appearance';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -103,6 +104,23 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** تجميع الأقسام في القائمة الجانبية (عرض فقط، الروابط كما هي) */
+const HUB_GROUP: Record<string, string> = {
+  pos: 'العمليات اليومية',
+  invoices: 'العمليات اليومية',
+  sales: 'العمليات اليومية',
+  purchases: 'العمليات اليومية',
+  inventory: 'المخزون والأطراف',
+  customers: 'المخزون والأطراف',
+  suppliers: 'المخزون والأطراف',
+  treasury: 'المالية',
+  reports: 'المالية',
+  partners: 'المالية',
+  system: 'النظام',
+};
+
+const GROUP_ORDER = ['', 'العمليات اليومية', 'المخزون والأطراف', 'المالية', 'النظام'];
+
 export function Layout({ children }: { children: ReactNode }) {
   const { session, logout } = useSession();
   const can = usePerm();
@@ -114,7 +132,35 @@ export function Layout({ children }: { children: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [appearance, setAppearance] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('erp.sidebar.collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
   const contentRef = useRef<HTMLDivElement>(null);
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem('erp.sidebar.collapsed', c ? '0' : '1');
+      } catch {
+        /* ignore */
+      }
+      return !c;
+    });
+  // مظهر المستخدم الحالي (كل مستخدم له اختياراته)
+  useEffect(() => applyAppearance(), [session.user.id]);
+  const [dark, setDark] = useState(() => resolvedTheme() === 'dark');
+  useEffect(() => {
+    const h = () => setDark(resolvedTheme() === 'dark');
+    window.addEventListener('erp:appearance', h);
+    return () => window.removeEventListener('erp:appearance', h);
+  }, []);
+  const toggleTheme = () => {
+    const a = loadAppearance();
+    saveAppearance({ ...a, theme: resolvedTheme(a) === 'dark' ? 'light' : 'dark' });
+  };
 
   useEffect(() => {
     setOpen(false);
@@ -131,49 +177,73 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', h);
   }, []);
 
-  const hubs = HUBS.filter((h) => !h.perm || can(h.perm));
+  // ترتيب العرض حسب المجموعات (الروابط نفسها لا تتغير)
+  const hubs = HUBS.filter((h) => !h.perm || can(h.perm))
+    .map((h, i) => ({ h, i }))
+    .sort((x, y) => GROUP_ORDER.indexOf(HUB_GROUP[x.h.key] ?? '') - GROUP_ORDER.indexOf(HUB_GROUP[y.h.key] ?? '') || x.i - y.i)
+    .map((x) => x.h);
   const active = activeHubKey(loc.pathname);
   const problems = counts.rejected + counts.conflicts;
   const isPos = loc.pathname.startsWith('/pos');
 
   return (
-    <div className="app">
-      <aside className={`sidebar ${open ? 'open' : ''}`}>
+    <div className={`app ${collapsed ? 'sb-collapsed' : ''}`}>
+      {open && <div className="sb-scrim only-mobile" onClick={() => setOpen(false)} />}
+      <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="القائمة الرئيسية">
         <div className="sidebar-head">
-          <div className="row">
-            {settings.print_logo && <img src={settings.print_logo} alt="" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8 }} />}
-            <div className="sidebar-title" style={{ flex: 1 }}>{settings.company_name || 'الحسابات'}</div>
+          <div className="sb-brand">
+            {settings.print_logo ? (
+              <img className="sb-logo" src={settings.print_logo} alt="" />
+            ) : (
+              <span className="sb-logo">{(settings.company_name || 'ح').trim()[0]}</span>
+            )}
+            <div className="sb-brand-t">
+              <div className="sidebar-title">{settings.company_name || 'الحسابات'}</div>
+              <div className="sb-brand-s">{session.user.role_name}</div>
+            </div>
+            <button className="icon-btn hide-mobile sb-collapse" onClick={toggleCollapsed} title={collapsed ? 'توسيع القائمة' : 'طي القائمة'} aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}>
+              {collapsed ? <PanelRightOpen /> : <PanelRightClose />}
+            </button>
             <button className="icon-btn only-mobile" onClick={() => setOpen(false)} aria-label="إغلاق القائمة">
-              <ChevronDown style={{ transform: 'rotate(-90deg)' }} />
+              <X />
             </button>
           </div>
-          <button className="search" style={{ width: '100%', border: 0, cursor: 'pointer' }} onClick={() => setSearchOpen(true)}>
-            <Search />
-            <span className="muted" style={{ flex: 1 }}>بحث</span>
-            <kbd className="hide-mobile">Ctrl K</kbd>
-          </button>
         </div>
-        <nav className="sidebar-scroll" style={{ paddingTop: 10 }}>
-          {hubs.map((h) => (
-            <div key={h.key} className={`sb-item ${active === h.key ? 'active' : ''}`} onClick={() => nav(hubPath(h))} role="link">
-              <span className="sb-icon" style={{ background: h.grad }}>{h.icon}</span>
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
-                <span>{h.label}</span>
-                <span className="sb-sub">{h.sub}</span>
-              </span>
-              {h.key === 'system' && problems > 0 && <span className="badge solid-red">{problems}</span>}
-            </div>
-          ))}
+        <nav className="sidebar-scroll">
+          {hubs.map((h, i) => {
+            const g = HUB_GROUP[h.key];
+            const prev = i > 0 ? HUB_GROUP[hubs[i - 1].key] : undefined;
+            return (
+              <div key={h.key}>
+                {g && g !== prev && <div className="sb-section-title">{g}</div>}
+                <a
+                  href={hubPath(h)}
+                  className={`sb-item ${active === h.key ? 'active' : ''}`}
+                  aria-current={active === h.key ? 'page' : undefined}
+                  title={collapsed ? h.label : h.sub}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    nav(hubPath(h));
+                  }}
+                >
+                  <span className="sb-icon">{h.icon}</span>
+                  <span className="sb-label">{h.label}</span>
+                  {h.key === 'system' && problems > 0 && <span className="badge solid-red">{problems}</span>}
+                </a>
+              </div>
+            );
+          })}
         </nav>
-        <div className="sidebar-foot row">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="bold" style={{ fontSize: 15 }}>{session.user.full_name}</div>
-            <div className="caption">{session.user.role_name}</div>
+        <div className="sidebar-foot">
+          <span className="sb-avatar" aria-hidden="true">{(session.user.full_name || '؟').trim()[0]}</span>
+          <div className="sb-user">
+            <div className="sb-user-n">{session.user.full_name}</div>
+            <div className="sb-user-r">{session.user.username}</div>
           </div>
-          <button className="icon-btn" title="المظهر" onClick={() => setAppearance(true)}>
+          <button className="icon-btn" title="المظهر" aria-label="المظهر" onClick={() => setAppearance(true)}>
             <Palette />
           </button>
-          <button className="icon-btn" title="تسجيل الخروج" onClick={logout}>
+          <button className="icon-btn" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={logout}>
             <LogOut />
           </button>
         </div>
@@ -186,7 +256,15 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
           <div className="nav-title" id="nav-title-slot" />
           <div className="spacer" />
+          <button className="top-search hide-mobile" onClick={() => setSearchOpen(true)}>
+            <Search />
+            <span>ابحث عن فاتورة أو صنف أو عميل</span>
+            <kbd>Ctrl K</kbd>
+          </button>
           <SyncPill />
+          <button className="icon-btn" onClick={toggleTheme} title={dark ? 'الوضع الفاتح' : 'الوضع الغامق'} aria-label={dark ? 'الوضع الفاتح' : 'الوضع الغامق'}>
+            {dark ? <Sun /> : <Moon />}
+          </button>
           <button className="icon-btn only-mobile" onClick={() => setSearchOpen(true)} aria-label="بحث">
             <Search />
           </button>

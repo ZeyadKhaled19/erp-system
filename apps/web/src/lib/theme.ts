@@ -1,78 +1,107 @@
-/** المظهر لكل جهاز: الثيم واللون الأساسي والكثافة — يُطبق فورًا ويُحفظ محليًا */
+/**
+ * المظهر لكل مستخدم: الوضع (فاتح/غامق/حسب الجهاز) ولون التمييز والخط والكثافة.
+ * يُحفظ محليًا بمفتاح خاص بكل مستخدم، فلا تختلط اختيارات مستخدمين يتشاركون نفس الجهاز.
+ * لا يمس قاعدة البيانات.
+ */
 
-export type ThemeName = 'light' | 'dark' | 'glass' | 'warm' | 'auto';
-export type Accent = 'blue' | 'indigo' | 'purple' | 'pink' | 'orange' | 'green' | 'teal' | 'graphite';
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type Accent = 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
 export type Density = 'comfortable' | 'compact';
-export type FontName = 'readex' | 'plex' | 'cairo' | 'tajawal' | 'almarai' | 'system';
+export type FontName = 'plex' | 'readex' | 'cairo' | 'tajawal' | 'almarai' | 'system';
 export interface Appearance {
-  theme: ThemeName;
+  theme: ThemeMode;
   accent: Accent;
   density: Density;
   font: FontName;
 }
 
-const KEY = 'erp.appearance';
-const DEFAULT: Appearance = { theme: 'light', accent: 'blue', density: 'comfortable', font: 'readex' };
+const LEGACY_KEY = 'erp.appearance';
+const keyFor = (userId: string | null) => (userId ? `erp.appearance.${userId}` : 'erp.appearance.guest');
+export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'blue', density: 'comfortable', font: 'plex' };
 
 export const FONTS: { id: FontName; label: string; family: string }[] = [
-  { id: 'readex', label: 'Readex Pro — عصري وواضح', family: "'Readex Pro'" },
-  { id: 'plex', label: 'IBM Plex — رسمي', family: "'IBM Plex Sans Arabic'" },
+  { id: 'plex', label: 'IBM Plex Sans Arabic — رسمي وواضح (الافتراضي)', family: "'IBM Plex Sans Arabic'" },
+  { id: 'readex', label: 'Readex Pro — عصري', family: "'Readex Pro'" },
   { id: 'cairo', label: 'Cairo — ودود', family: "'Cairo'" },
   { id: 'tajawal', label: 'Tajawal — خفيف', family: "'Tajawal'" },
   { id: 'almarai', label: 'Almarai — هادئ', family: "'Almarai'" },
-  { id: 'system', label: 'خط الجهاز (SF على أجهزة أبل)', family: "-apple-system, 'Segoe UI'" },
+  { id: 'system', label: 'خط الجهاز', family: "-apple-system, 'Segoe UI'" },
 ];
 
-export const THEMES: { id: ThemeName; label: string; preview: string; bars: string[] }[] = [
-  { id: 'light', label: 'فاتح (آيباد)', preview: 'linear-gradient(135deg,#f2f2f7,#ffffff)', bars: ['#ffffff', '#ffffff'] },
-  { id: 'dark', label: 'داكن', preview: 'linear-gradient(135deg,#000,#1c1c1e)', bars: ['#1c1c1e', '#2c2c2e'] },
-  { id: 'glass', label: 'زجاجي ملون', preview: 'radial-gradient(circle at 80% 0%,#a0b8ff,transparent 60%),radial-gradient(circle at 0% 60%,#ffb3d6,transparent 60%),radial-gradient(circle at 60% 100%,#a6f0e0,transparent 60%),#eef0fb', bars: ['rgba(255,255,255,.65)', 'rgba(255,255,255,.5)'] },
-  { id: 'warm', label: 'دافئ', preview: 'linear-gradient(135deg,#f5efe6,#fffdf9)', bars: ['#fffdf9', '#fbf6ee'] },
-  { id: 'auto', label: 'تلقائي (حسب الجهاز)', preview: 'linear-gradient(90deg,#f2f2f7 50%,#1c1c1e 50%)', bars: ['#ffffff', '#2c2c2e'] },
+export const THEMES: { id: ThemeMode; label: string; desc: string }[] = [
+  { id: 'light', label: 'فاتح', desc: 'خلفية هادئة وأسطح بيضاء' },
+  { id: 'dark', label: 'غامق', desc: 'كحلي داكن مريح ليلًا' },
+  { id: 'system', label: 'حسب الجهاز', desc: 'يتبع إعداد ويندوز أو الموبايل' },
 ];
 
 export const ACCENTS: { id: Accent; color: string; label: string }[] = [
-  { id: 'blue', color: '#007AFF', label: 'أزرق' },
-  { id: 'indigo', color: '#5856D6', label: 'نيلي' },
-  { id: 'purple', color: '#AF52DE', label: 'بنفسجي' },
-  { id: 'pink', color: '#FF2D55', label: 'وردي' },
-  { id: 'orange', color: '#F57C00', label: 'برتقالي' },
-  { id: 'green', color: '#1FA84A', label: 'أخضر' },
-  { id: 'teal', color: '#0A9BB8', label: 'تركواز' },
-  { id: 'graphite', color: '#3A3A3C', label: 'جرافيت' },
+  { id: 'blue', color: '#2563EB', label: 'أزرق ملكي' },
+  { id: 'teal', color: '#0F8A80', label: 'فيروزي' },
+  { id: 'purple', color: '#7047E0', label: 'بنفسجي' },
+  { id: 'green', color: '#16803A', label: 'أخضر' },
+  { id: 'orange', color: '#D9530F', label: 'برتقالي' },
+  { id: 'pink', color: '#CC2E6E', label: 'وردي' },
 ];
 
-export function loadAppearance(): Appearance {
+function currentUserId(): string | null {
   try {
-    return { ...DEFAULT, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    const s = JSON.parse(localStorage.getItem('erp.session') ?? 'null');
+    return s?.user?.id ?? null;
   } catch {
-    return DEFAULT;
+    return null;
+  }
+}
+
+/** تحويل القيم القديمة (زجاجي، دافئ، تلقائي، نيلي، جرافيت) إلى الخيارات الحالية */
+function normalize(raw: any): Appearance {
+  const a = { ...DEFAULT_APPEARANCE, ...(raw ?? {}) };
+  if (a.theme === 'auto') a.theme = 'system';
+  if (!['light', 'dark', 'system'].includes(a.theme)) a.theme = 'light';
+  if (!ACCENTS.some((x) => x.id === a.accent)) a.accent = a.accent === 'indigo' ? 'purple' : 'blue';
+  if (!FONTS.some((x) => x.id === a.font)) a.font = 'plex';
+  if (a.density !== 'compact') a.density = 'comfortable';
+  return a;
+}
+
+export function loadAppearance(userId: string | null = currentUserId()): Appearance {
+  try {
+    const own = localStorage.getItem(keyFor(userId));
+    if (own) return normalize(JSON.parse(own));
+    // ترحيل الإعداد القديم المشترك للجهاز مرة واحدة لأول مستخدم يفتح
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    return normalize(legacy ? JSON.parse(legacy) : null);
+  } catch {
+    return DEFAULT_APPEARANCE;
   }
 }
 
 const media = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-color-scheme: dark)') : undefined;
 
+export function resolvedTheme(a: Appearance = loadAppearance()): 'light' | 'dark' {
+  return a.theme === 'system' ? (media?.matches ? 'dark' : 'light') : a.theme;
+}
+
 export function applyAppearance(a: Appearance = loadAppearance()) {
   const el = document.documentElement;
-  const theme = a.theme === 'auto' ? (media?.matches ? 'dark' : 'light') : a.theme;
+  const theme = resolvedTheme(a);
   el.dataset.theme = theme;
+  el.dataset.mode = a.theme;
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
   el.dataset.font = a.font;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  meta?.setAttribute('content', theme === 'dark' ? '#000000' : theme === 'warm' ? '#f5efe6' : '#f2f2f7');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : '#F4F6F9');
 }
 
 export function saveAppearance(a: Appearance) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(a));
+    localStorage.setItem(keyFor(currentUserId()), JSON.stringify(a));
   } catch {
-    /* ignore */
+    /* التخزين غير متاح: يُطبق للجلسة الحالية فقط */
   }
   applyAppearance(a);
   window.dispatchEvent(new CustomEvent('erp:appearance', { detail: a }));
 }
 
 media?.addEventListener?.('change', () => {
-  if (loadAppearance().theme === 'auto') applyAppearance();
+  if (loadAppearance().theme === 'system') applyAppearance();
 });

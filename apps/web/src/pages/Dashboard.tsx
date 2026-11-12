@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import {
   AlertTriangle, ArrowDownLeft, CalendarClock, ChevronLeft, Package, Receipt, ShoppingBag, ShoppingCart, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
@@ -22,6 +22,11 @@ function lastDays(n: number) {
 }
 
 export function Dashboard() {
+  useEffect(() => {
+    const slot = document.getElementById('nav-title-slot');
+    if (slot) slot.textContent = 'الرئيسية';
+    document.title = 'الرئيسية — الحسابات';
+  }, []);
   const nav = useNavigate();
   const can = usePerm();
   const { session } = useSession();
@@ -196,7 +201,7 @@ function Bars({ values, labels }: { values: number[]; labels: string[] }) {
         const h = Math.max(1.5, (Math.abs(v) / max) * 30);
         const last = i === values.length - 1;
         return (
-          <rect key={labels[i]} x={100 - (i + 1) * w + w * 0.18} y={34 - h} width={w * 0.64} height={h} rx={1.2} fill={last ? '#34C759' : v < 0 ? '#FF3B30' : 'rgba(52,199,89,.35)'}>
+          <rect key={labels[i]} x={100 - (i + 1) * w + w * 0.18} y={34 - h} width={w * 0.64} height={h} rx={1.2} fill={last ? 'var(--tint)' : v < 0 ? 'var(--red)' : 'var(--tint-soft)'} stroke={last || v < 0 ? 'none' : 'var(--tint-ring)'} strokeWidth={0.3}>
             <title>{`${labels[i]}: ${formatMoney(v)}`}</title>
           </rect>
         );

@@ -99,7 +99,7 @@ export function SettingsPage() {
 
       {can('settings.manage') && f && <PrintSettings f={f} setF={setF} />}
 
-      <div className="group-header">المظهر (لهذا الجهاز)</div>
+      <div className="group-header">المظهر (خاص بحسابك)</div>
       <div className="card pad"><AppearancePanel /></div>
 
       <div className="group-header">تغيير كلمة المرور</div>

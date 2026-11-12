@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { ACCENTS, FONTS, loadAppearance, saveAppearance, THEMES, type Appearance } from '../lib/theme';
+import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ACCENTS, FONTS, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
 import { Segmented, Sheet } from './ui';
 
 export function useAppearance(): [Appearance, (a: Appearance) => void] {
-  const [a, setA] = useState(loadAppearance);
+  const [a, setA] = useState(() => loadAppearance());
   useEffect(() => {
     const h = (e: Event) => setA((e as CustomEvent).detail);
     window.addEventListener('erp:appearance', h);
@@ -12,45 +13,61 @@ export function useAppearance(): [Appearance, (a: Appearance) => void] {
   return [a, saveAppearance];
 }
 
-/** لوحة اختيار المظهر: الثيم، اللون الأساسي، الكثافة — التغيير فوري */
+const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, dark: <Moon />, system: <Monitor /> };
+
+/** لوحة المظهر: الوضع، لون التمييز، الخط، الكثافة — التغيير فوري ويخص المستخدم الحالي فقط */
 export function AppearancePanel() {
   const [a, set] = useAppearance();
   return (
-    <div className="stack">
-      <div className="bold">الثيم</div>
-      <div className="theme-cards">
-        {THEMES.map((t) => (
-          <button key={t.id} className={`theme-card ${a.theme === t.id ? 'on' : ''}`} onClick={() => set({ ...a, theme: t.id })}>
-            <div className="tc-prev" style={{ background: t.preview }}>
-              <i style={{ top: 10, right: 10, width: 28, bottom: 10, background: t.bars[1] }} />
-              <i style={{ top: 10, right: 46, left: 10, height: 22, background: t.bars[0] }} />
-              <i style={{ top: 40, right: 46, left: 10, height: 26, background: t.bars[0] }} />
-            </div>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="bold" style={{ marginTop: 8 }}>اللون الأساسي</div>
-      <div className="accent-dots">
-        {ACCENTS.map((c) => (
-          <button key={c.id} title={c.label} aria-label={c.label} className={a.accent === c.id ? 'on' : ''} style={{ background: c.color }} onClick={() => set({ ...a, accent: c.id })} />
-        ))}
-      </div>
-      <div className="bold" style={{ marginTop: 8 }}>الخط</div>
-      <div className="list">
-        {FONTS.map((f) => (
-          <div key={f.id} className="list-row tappable" onClick={() => set({ ...a, font: f.id })} style={{ fontFamily: f.family }}>
-            <div className="title">
-              <div style={{ fontSize: 17, fontWeight: 600 }}>فاتورة بيع رقم ١٢٣ — الإجمالي 1,250.00</div>
-              <div className="sub">{f.label}</div>
-            </div>
-            {a.font === f.id && <span className="badge blue">مختار</span>}
-          </div>
-        ))}
-      </div>
-      <div className="bold" style={{ marginTop: 8 }}>كثافة العرض</div>
-      <Segmented value={a.density} onChange={(v) => set({ ...a, density: v })} options={[{ value: 'comfortable', label: 'مريح' }, { value: 'compact', label: 'مضغوط (بيانات أكثر)' }]} />
-      <div className="footnote">المظهر يُحفظ على هذا الجهاز فقط، ولكل مستخدم أن يختار ما يريحه.</div>
+    <div className="ap">
+      <section className="ap-sec">
+        <div className="ap-h">وضع الألوان</div>
+        <div className="ap-modes" role="radiogroup" aria-label="وضع الألوان">
+          {THEMES.map((t) => (
+            <button key={t.id} role="radio" aria-checked={a.theme === t.id} className={`ap-mode ${a.theme === t.id ? 'on' : ''}`} onClick={() => set({ ...a, theme: t.id })}>
+              <span className={`ap-prev ${t.id}`}><i /><b /></span>
+              <span className="ap-mode-t">{MODE_ICON[t.id]}{t.label}</span>
+              <span className="ap-mode-d">{t.desc}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="ap-sec">
+        <div className="ap-h">لون التمييز</div>
+        <div className="ap-accents" role="radiogroup" aria-label="لون التمييز">
+          {ACCENTS.map((c) => (
+            <button key={c.id} role="radio" aria-checked={a.accent === c.id} className={`ap-acc ${a.accent === c.id ? 'on' : ''}`} onClick={() => set({ ...a, accent: c.id })}>
+              <i style={{ background: c.color }}>{a.accent === c.id && <Check />}</i>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="ap-sample">
+          <button className="btn primary sm" type="button">زر أساسي</button>
+          <span className="badge blue">محدد</span>
+          <a href="#" onClick={(e) => e.preventDefault()}>رابط</a>
+          <span className="ap-focus">خانة نشطة</span>
+        </div>
+      </section>
+
+      <section className="ap-sec">
+        <div className="ap-h">الخط</div>
+        <div className="ap-fonts">
+          {FONTS.map((f) => (
+            <button key={f.id} className={`ap-font ${a.font === f.id ? 'on' : ''}`} onClick={() => set({ ...a, font: f.id })} style={{ fontFamily: f.family }}>
+              <span className="ap-font-s">فاتورة بيع ١٢٣ · 1,250.00</span>
+              <span className="ap-font-l">{f.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="ap-sec">
+        <div className="ap-h">كثافة العرض</div>
+        <Segmented value={a.density} onChange={(v) => set({ ...a, density: v })} options={[{ value: 'comfortable', label: 'مريح' }, { value: 'compact', label: 'مضغوط (صفوف أكثر)' }]} />
+      </section>
+      <div className="footnote">اختياراتك تُحفظ لحسابك على هذا الجهاز، ولا تغيّر شكل البرنامج عند باقي المستخدمين.</div>
     </div>
   );
 }

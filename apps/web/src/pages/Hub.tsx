@@ -22,7 +22,7 @@ export function HubPage() {
   return (
     <div className="page">
       <div className="hub-head">
-        <div className="hub-icon" style={{ background: hub.grad }}>{hub.icon}</div>
+        <div className="hub-icon">{hub.icon}</div>
         <div>
           <h1 className="large-title" style={{ margin: 0 }}>{hub.label}</h1>
           <div className="page-sub" style={{ margin: 0 }}>{hub.sub}</div>
@@ -47,9 +47,11 @@ export function HubPage() {
                 ))}
                 {rest.map((l) => (
                   <button key={l.to} className="tile" onClick={() => nav(l.to)}>
-                    <span className="ti" style={{ background: l.grad }}>{l.icon}</span>
-                    <span className="tt">{l.label}</span>
-                    {l.desc && <span className="td">{l.desc}</span>}
+                    <span className="ti">{l.icon}</span>
+                    <span className="tile-text">
+                      <span className="tt">{l.label}</span>
+                      {l.desc && <span className="td">{l.desc}</span>}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -57,7 +59,7 @@ export function HubPage() {
               <div className="list">
                 {rest.map((l) => (
                   <div key={l.to} className="list-row tappable with-icon" onClick={() => nav(l.to)}>
-                    <span className="sb-icon" style={{ background: l.grad, color: '#fff' }}>{l.icon}</span>
+                    <span className="sb-icon">{l.icon}</span>
                     <div className="title">{l.label}{l.desc && <div className="sub">{l.desc}</div>}</div>
                     <ChevronLeft style={{ width: 18, height: 18, color: 'var(--label-3)' }} />
                   </div>
