@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Banknote, Check, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Banner, DocStatusBadge, FloatingPop, Picker, Sheet, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, Picker, Sheet, useUi } from '../components/ui';
 import { CategoryFilter } from '../components/Categories';
 import { searchItems } from '../lib/search';
 import { CustomerFields } from '../components/CustomerFields';
@@ -190,7 +190,6 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
       /* ignore */
     }
   };
-  const [sugOpen, setSugOpen] = useState(false);
 
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
   const [whId, setWhId] = useState<string>('');
@@ -212,10 +211,15 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
     const avail = (i: any) => i.is_service || (stock.get(i.id) ?? 0) > 0;
     const pool = items.filter((i) => (cat === '__fav' ? fav.has(i.id) : !cat || i.category_id === cat) && (!view.inStock || avail(i)));
     // بحث ذكي بالكلام: أي جزء من الاسم أو الكود، أكثر من كلمة، مع توحيد الحروف العربية
-    if (q.trim()) return searchItems(pool, q);
+    // أثناء البحث: الأقرب للكلام أولًا، مع تقديم المتوفر على غير المتوفر
+    if (q.trim()) return searchItems(pool, q).sort((a, b) => Number(avail(b)) - Number(avail(a)));
     return [...pool].sort((a, b) => Number(fav.has(b.id)) - Number(fav.has(a.id)) || Number(avail(b)) - Number(avail(a)) || a.name.localeCompare(b.name, 'ar'));
   }, [items, q, cat, favs, view.inStock, stock]);
   const LIMIT = 240;
+  // التمرير إلى الصنف المحدد بالأسهم أثناء البحث
+  useEffect(() => {
+    document.querySelector('.pos-item.hl')?.scrollIntoView({ block: 'nearest' });
+  }, [sugHl]);
 
   const add = async (itemId: string, qty = 1000) => {
     const it = itemMap.get(itemId);
@@ -297,13 +301,11 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
               ref={searchRef}
               autoFocus
               value={q}
-              onChange={(e) => { setQ(e.target.value); setSugHl(0); setSugOpen(true); }}
-              onFocus={() => setSugOpen(true)}
-              onBlur={() => setTimeout(() => setSugOpen(false), 150)}
+              onChange={(e) => { setQ(e.target.value); setSugHl(0); }}
               onKeyDown={(e) => {
-                if (e.key === 'ArrowDown') { e.preventDefault(); setSugOpen(true); setSugHl((h) => Math.min(h + 1, Math.min(shown.length, 12) - 1)); }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); setSugHl((h) => Math.max(h - 1, 0)); }
-                else if (e.key === 'Escape') setSugOpen(false);
+                if (e.key === 'ArrowDown' && q.trim()) { e.preventDefault(); setSugHl((h) => Math.min(h + 1, Math.min(shown.length, LIMIT) - 1)); }
+                else if (e.key === 'ArrowUp' && q.trim()) { e.preventDefault(); setSugHl((h) => Math.max(h - 1, 0)); }
+                else if (e.key === 'Escape') setQ('');
                 else if (e.key === 'Enter') { e.preventDefault(); void onSearchEnter(); }
               }}
               placeholder="ابحث باسم الصنف أو جزء منه أو الكود، أو امسح الباركود (F2)"
@@ -318,23 +320,6 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             </select>
           )}
         </div>
-        {sugOpen && (q.trim().length >= 2 || /^\d+$/.test(q.trim())) && (
-          <FloatingPop anchor={searchBox} maxHeight={380} minWidth={420}>
-            {shown.length === 0 && <div className="picker-opt muted">لا يوجد صنف يطابق «{q}»</div>}
-            {shown.slice(0, 12).map((m, i) => (
-              <div
-                key={m.id}
-                className={`picker-opt ${i === sugHl ? 'hl' : ''}`}
-                onMouseEnter={() => setSugHl(i)}
-                onMouseDown={(e) => { e.preventDefault(); void add(m.id); setQ(''); }}
-              >
-                <span className="muted small num" style={{ minWidth: 44 }}>{m.code}</span>
-                <span style={{ flex: 1 }}>{m.name}</span>
-                <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
-              </div>
-            ))}
-          </FloatingPop>
-        )}
         <div className="pos-tools">
           <div className="pos-cats">
             <button className={cat !== '__fav' ? 'on' : ''} onClick={() => setCat('')}>كل الأصناف</button>
@@ -350,13 +335,13 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
         <div className={`pos-grid ${view.mode === 'list' ? 'as-list' : ''}`}>
           {shown.length === 0 && <div className="muted" style={{ padding: 20 }}>لا توجد أصناف{q ? ' مطابقة' : ''}. أضف الأصناف من قسم المخزون.</div>}
           {shown.length > 0 && favs.length === 0 && !q && <div className="footnote" style={{ gridColumn: '1 / -1' }}>اضغط ☆ على أي صنف تستخدمه كثيرًا ليظهر أولًا وفي تبويب «المفضلة».</div>}
-          {shown.slice(0, LIMIT).map((i) => {
+          {shown.slice(0, LIMIT).map((i, idx) => {
             const inCart = cart.find((l) => l.item_id === i.id);
             const have = stock.get(i.id) ?? 0;
             const out = !i.is_service && have <= 0;
             const isFav = favs.includes(i.id);
             return (
-              <button key={i.id} className={`pos-item ${out ? 'out' : ''} ${inCart ? 'in-cart' : ''}`} onClick={() => { hover.hide(); void add(i.id); }} {...costHover(i.id, i.base_unit)}>
+              <button key={i.id} className={`pos-item ${out ? 'out' : ''} ${inCart ? 'in-cart' : ''} ${q.trim() && idx === sugHl ? 'hl' : ''}`} onClick={() => { hover.hide(); void add(i.id); }} {...costHover(i.id, i.base_unit)}>
                 <span className="pi-top">
                   <span className="pi-name" title={i.name}>{i.name}</span>
                   <span

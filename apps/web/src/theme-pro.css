@@ -1405,3 +1405,6 @@ kbd { font-weight: 500; }
 .pos-grid.as-list .pi-badge { position: static; order: 4; }
 .pos-grid.as-list .pi-star { margin: 0; }
 @media (max-width: 760px) { .pos-count { display: none; } .pos-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+/* الصنف الذي يُضاف بضغط Enter أثناء البحث */
+.pos-item.hl { border-color: var(--tint); box-shadow: 0 0 0 3px var(--tint-soft); }
+.pos-grid.as-list .pos-item.hl { background: var(--tint-soft); box-shadow: inset 3px 0 0 var(--tint); }
