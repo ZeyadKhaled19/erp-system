@@ -1430,26 +1430,27 @@ kbd { font-weight: 500; }
 
 /* ===================== تبويبات الشاشات تحت شريط التنقل (بأسلوب تبويبات كروم) ===================== */
 /* شريط أغمق من الصفحة، والتبويب النشط بلون الصفحة نفسها فيبدو متصلًا بالمحتوى تحته بأطراف منحنية */
-.screen-tabs { --st-strip: color-mix(in srgb, var(--label) 10%, var(--bg)); --st-active: var(--bg); display: flex; align-items: flex-end; gap: 8px; padding: 6px 10px 0; background: var(--st-strip); flex-shrink: 0; min-height: 40px; }
+.screen-tabs { --st-strip: color-mix(in srgb, var(--tint) 30%, var(--bg)); --st-active: var(--bg); border-top: 1px solid color-mix(in srgb, var(--tint) 30%, transparent); display: flex; align-items: flex-end; gap: 8px; padding: 6px 10px 0; background: var(--st-strip); flex-shrink: 0; min-height: 40px; }
 .st-strip { display: flex; align-items: flex-end; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex: 1; min-width: 0; padding: 0 8px; }
 .st-strip::-webkit-scrollbar { display: none; }
-.st-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px 0 8px; flex: 0 1 220px; min-width: 96px; max-width: 220px; border-radius: 9px 9px 0 0; background: transparent; color: var(--label-2); font-size: 13px; cursor: pointer; user-select: none; transition: background .12s; }
+.st-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px 0 8px; flex: 0 1 220px; min-width: 96px; max-width: 220px; border-radius: 9px 9px 0 0; background: transparent; color: color-mix(in srgb, var(--tint) 70%, var(--label)); font-size: 13px; cursor: pointer; user-select: none; transition: background .12s; }
 .st-tab.home { flex: 0 0 auto; min-width: 0; padding: 0 12px; }
 /* فاصل رفيع بين التبويبات غير النشطة مثل كروم */
-.st-tab:not(.on) + .st-tab:not(.on)::before { content: ''; position: absolute; inset-inline-start: 0; top: 9px; bottom: 9px; width: 1px; background: color-mix(in srgb, var(--label) 22%, transparent); }
+.st-tab:not(.on) + .st-tab:not(.on)::before { content: ''; position: absolute; inset-inline-start: 0; top: 9px; bottom: 9px; width: 1px; background: color-mix(in srgb, var(--tint) 40%, transparent); }
 .st-tab:not(.on):hover { background: color-mix(in srgb, var(--st-active) 55%, transparent); }
 .st-tab:not(.on):hover::before, .st-tab:not(.on):hover + .st-tab::before { opacity: 0; }
 .st-tab.on { background: var(--st-active); color: var(--heading); font-weight: 600; z-index: 1; }
+.st-tab.on .st-x { color: var(--label-2); }
 /* الأطراف المنحنية للتبويب النشط */
 .st-tab.on::before, .st-tab.on::after { content: ''; position: absolute; bottom: 0; width: 9px; height: 9px; pointer-events: none; }
 .st-tab.on::before { right: -9px; background: radial-gradient(circle at 100% 0, transparent 9px, var(--st-active) 9.5px); }
 .st-tab.on::after { left: -9px; background: radial-gradient(circle at 0 0, transparent 9px, var(--st-active) 9.5px); }
 .st-tab .st-home { width: 16px; height: 16px; }
 .st-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.st-x { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 0; background: transparent; color: var(--label-2); padding: 0; flex-shrink: 0; cursor: pointer; }
+.st-x { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 0; background: transparent; color: inherit; padding: 0; flex-shrink: 0; cursor: pointer; }
 .st-x:hover { background: color-mix(in srgb, var(--label) 14%, transparent); color: var(--label); }
 .st-x svg { width: 13px; height: 13px; }
-.st-close-all { align-self: center; margin-bottom: 4px; flex-shrink: 0; height: 26px; padding: 0 10px; border-radius: 13px; border: 0; background: transparent; color: var(--label-2); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.st-close-all { align-self: center; margin-bottom: 4px; flex-shrink: 0; height: 26px; padding: 0 10px; border-radius: 13px; border: 0; background: transparent; color: color-mix(in srgb, var(--tint) 70%, var(--label)); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .st-close-all:hover { background: color-mix(in srgb, var(--label) 10%, transparent); color: var(--label); }
 /* البيع السريع يملأ مساحة المحتوى الفعلية (تتغير مع ظهور شريط التبويبات) */
 @media (min-width: 761px) { .pos-wrap { height: 100%; } }
