@@ -495,3 +495,29 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 .ap-prev.sky { background: #E3F2FC; border-color: #C9E3F3; } .ap-prev.sky b { background: #D6ECFA; border-inline-start: 1px solid #C9E3F3; }
 .ap-modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 760px) { .ap-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- وضع الأزرق السماوي: نسخة أقوى (قائمة زرقاء وخلفية زرقاء واضحة) ---------- */
+:root[data-theme="sky"] {
+  --bg: #CBE6F8; --bg-tertiary: #CBE6F8; --app-bg: #CBE6F8;
+  --card-2: #EEF7FD; --hover: #E3F2FC; --field: #F4FAFE;
+  --bar: #EAF5FD; --sidebar-bg: #0369A1;
+  --separator: #B4D9F0; --separator-opaque: #B4D9F0; --border-strong: #8FC4E6;
+  --input-border: #9FCDEA; --input-border-hover: #6FB3DE;
+  --tint: #0284C7; --tint-press: #0369A1;
+}
+:root[data-theme="sky"] .sidebar { border-inline-end-color: #035A8A; color: #FFFFFF; }
+:root[data-theme="sky"] .sidebar-title { color: #FFFFFF; }
+:root[data-theme="sky"] .sb-brand-s, :root[data-theme="sky"] .sb-user-r { color: rgba(255, 255, 255, 0.72); }
+:root[data-theme="sky"] .sb-logo { background: #FFFFFF; color: #0369A1; }
+:root[data-theme="sky"] .sb-section-title { color: rgba(255, 255, 255, 0.62); }
+:root[data-theme="sky"] .sb-item { color: rgba(255, 255, 255, 0.88); }
+:root[data-theme="sky"] .sb-item:hover { background: rgba(255, 255, 255, 0.14); color: #FFFFFF; }
+:root[data-theme="sky"] .sb-item.active { background: #FFFFFF; color: #0369A1; }
+:root[data-theme="sky"] .sidebar-foot { border-top-color: rgba(255, 255, 255, 0.18); }
+:root[data-theme="sky"] .sb-avatar { background: rgba(255, 255, 255, 0.18); color: #FFFFFF; }
+:root[data-theme="sky"] .sb-user-n { color: #FFFFFF; }
+:root[data-theme="sky"] .sidebar .icon-btn { color: rgba(255, 255, 255, 0.85); }
+:root[data-theme="sky"] .sidebar .icon-btn:hover { background: rgba(255, 255, 255, 0.14); color: #FFFFFF; }
+:root[data-theme="sky"] .app.sb-collapsed .sb-section-title::after { background: rgba(255, 255, 255, 0.2); }
+:root[data-theme="sky"] .nav-bar { border-bottom-color: #B4D9F0; }
+.ap-prev.sky { background: #CBE6F8; border-color: #B4D9F0; } .ap-prev.sky b { background: #0369A1; border-inline-start: 0; }

@@ -91,7 +91,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
   el.dataset.font = a.font;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'sky' ? '#E3F2FC' : '#F4F6F9');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'sky' ? '#0369A1' : '#F4F6F9');
 }
 
 export function saveAppearance(a: Appearance) {
