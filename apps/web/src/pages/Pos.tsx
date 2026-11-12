@@ -564,7 +564,6 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
   const anyBank = (!isCredit && primBox?.kind === 'bank' && paidPrimary > 0) || (remainder > 0 && restBox?.kind === 'bank');
   const autoGroup = credit > 0 ? 'آجل' : anyBank ? 'بنك' : 'نقدي';
 
-  const quick = [total, Math.ceil(total / 5000) * 5000, Math.ceil(total / 10000) * 10000, Math.ceil(total / 20000) * 20000].filter((v, i, a) => a.indexOf(v) === i).slice(0, 4);
   const choosePrimary = (id: string) => {
     setPrimary(id);
     setReceived('');
@@ -611,9 +610,6 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
           <div className="pay-amount">
             <label htmlFor="pay-recv">المبلغ المدفوع {primBox ? (primBox.kind === 'cash' ? 'نقدًا' : `بـ ${primBox.name}`) : ''}</label>
             <input id="pay-recv" ref={amountRef} className="input num" inputMode="decimal" placeholder={formatMoney(total)} value={received} onChange={(e) => { setReceived(e.target.value); setErr(null); }} autoFocus />
-            <div className="pay-quick">
-              {quick.map((v) => <button key={v} type="button" className="btn" onClick={() => setReceived(String(v / 100))}>{formatMoney(v)}</button>)}
-            </div>
           </div>
         )}
 
