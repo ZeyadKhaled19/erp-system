@@ -44,7 +44,7 @@ export function InstrumentsPage() {
       <div className="row wrap" style={{ marginBottom: 12 }}>
         <Segmented value={dir} onChange={setDir} options={[{ value: 'in', label: 'واردة (من العملاء)' }, { value: 'out', label: 'صادرة (للموردين)' }]} />
         <Segmented value={status} onChange={setStatus} options={[{ value: 'open', label: 'مفتوحة' }, { value: 'collected', label: 'محصلة' }, { value: 'bounced', label: 'مرتدة' }, { value: 'closed', label: 'مغلقة' }, { value: 'all', label: 'الكل' }]} />
-        <select className="select" style={{ width: 130 }} value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select className="select" style={{ width: 170 }} value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="">شيكات وأقساط</option>
           <option value="cheque">شيكات</option>
           <option value="installment">أقساط</option>

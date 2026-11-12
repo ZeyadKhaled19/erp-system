@@ -451,3 +451,8 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 .ws-row-s { font-weight: 400; color: var(--label-3); font-size: 12px; margin-inline-start: 6px; }
 .ws-empty { padding: 18px 16px; color: var(--label-3); font-size: 14px; }
 @media (max-width: 640px) { .ws-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws-kpi-v { font-size: 18px; } }
+
+/* أزرق سماوي (اللون الافتراضي) */
+:root[data-accent="sky"] { --tint: #0284C7; --tint-press: #0369A1; }
+:root[data-theme="dark"][data-accent="sky"] { --tint: #38BDF8; --tint-press: #7DD3FC; }
+:root[data-accent="sky"] .print-root { --tint: #0284C7; --tint-press: #0369A1; }

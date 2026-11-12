@@ -5,7 +5,7 @@
  */
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type Accent = 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
+export type Accent = 'sky' | 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
 export type Density = 'comfortable' | 'compact';
 export type FontName = 'plex' | 'readex' | 'cairo' | 'tajawal' | 'almarai' | 'system';
 export interface Appearance {
@@ -17,7 +17,7 @@ export interface Appearance {
 
 const LEGACY_KEY = 'erp.appearance';
 const keyFor = (userId: string | null) => (userId ? `erp.appearance.${userId}` : 'erp.appearance.guest');
-export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'blue', density: 'comfortable', font: 'plex' };
+export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'sky', density: 'comfortable', font: 'plex' };
 
 export const FONTS: { id: FontName; label: string; family: string }[] = [
   { id: 'plex', label: 'IBM Plex Sans Arabic — رسمي وواضح (الافتراضي)', family: "'IBM Plex Sans Arabic'" },
@@ -35,6 +35,7 @@ export const THEMES: { id: ThemeMode; label: string; desc: string }[] = [
 ];
 
 export const ACCENTS: { id: Accent; color: string; label: string }[] = [
+  { id: 'sky', color: '#0284C7', label: 'أزرق سماوي' },
   { id: 'blue', color: '#2563EB', label: 'أزرق ملكي' },
   { id: 'teal', color: '#0F8A80', label: 'فيروزي' },
   { id: 'purple', color: '#7047E0', label: 'بنفسجي' },
@@ -57,7 +58,7 @@ function normalize(raw: any): Appearance {
   const a = { ...DEFAULT_APPEARANCE, ...(raw ?? {}) };
   if (a.theme === 'auto') a.theme = 'system';
   if (!['light', 'dark', 'system'].includes(a.theme)) a.theme = 'light';
-  if (!ACCENTS.some((x) => x.id === a.accent)) a.accent = a.accent === 'indigo' ? 'purple' : 'blue';
+  if (!ACCENTS.some((x) => x.id === a.accent)) a.accent = a.accent === 'indigo' ? 'purple' : 'sky';
   if (!FONTS.some((x) => x.id === a.font)) a.font = 'plex';
   if (a.density !== 'compact') a.density = 'comfortable';
   return a;
