@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
@@ -6,7 +7,7 @@ import { ALL_PERMISSIONS, hasPermission, todayISO, WORKSPACE_IDS } from '@erp/sh
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser } from './auth';
-import { backupToFile, listBackups, restoreFromFile } from './backup';
+import { backupToFile, exportData, listBackups, restoreFromFile } from './backup';
 import type { Db } from './db';
 import { AppError } from './errors';
 import { applyOp, shiftExpected } from './ops';
@@ -19,6 +20,8 @@ export interface AppOptions {
   backupDir: string;
   webDist?: string;
   logger?: boolean;
+  /** خادم بلا قرص دائم (Vercel): لا تُحفظ نسخ على الخادم، والنسخة تُنزَّل مباشرة على جهاز المستخدم */
+  ephemeralBackups?: boolean;
 }
 
 declare module 'fastify' {
@@ -361,8 +364,19 @@ export async function buildApp(opts: AppOptions) {
     });
   });
 
-  app.get('/api/admin/backups', { preHandler: perm('backup.manage') }, async () => ({ files: await listBackups(opts.backupDir) }));
+  app.get('/api/admin/backups', { preHandler: perm('backup.manage') }, async () => ({ files: opts.ephemeralBackups ? [] : await listBackups(opts.backupDir), ephemeral: !!opts.ephemeralBackups }));
+  // نسخة كاملة تُنزَّل مباشرة على جهاز المستخدم (تعمل على أي خادم، والوحيدة المتاحة على Vercel)؛ مضغوطة لتقليل الحجم
+  app.get('/api/admin/backup-download', { preHandler: perm('backup.manage') }, async (req, reply: FastifyReply) => {
+    const data = await exportData(db, 'download');
+    const name = `erp-backup-${new Date().toISOString().replace(/[:.]/g, '-')}-download.json`;
+    await db.query(`insert into audit_log (user_id, device_id, action, details) values ($1,$2,'backup.download',$3)`, [req.user!.id, req.deviceId, JSON.stringify({ file: name })]);
+    reply.header('content-type', 'application/json; charset=utf-8');
+    reply.header('content-encoding', 'gzip');
+    reply.header('content-disposition', `attachment; filename="${name}"`);
+    return reply.send(gzipSync(Buffer.from(JSON.stringify(data))));
+  });
   app.post('/api/admin/backups', { preHandler: perm('backup.manage') }, async (req) => {
+    if (opts.ephemeralBackups) throw new AppError('هذا الخادم لا يحفظ نسخًا عليه؛ استخدم «تنزيل نسخة على جهازي»', 'state');
     const file = await backupToFile(db, opts.backupDir, 'manual');
     await db.query(`insert into audit_log (user_id, device_id, action, details) values ($1,$2,'backup.create',$3)`, [req.user!.id, req.deviceId, JSON.stringify({ file: path.basename(file) })]);
     return { file: path.basename(file) };

@@ -1,4 +1,3 @@
-import { PGlite } from '@electric-sql/pglite';
 import pg from 'pg';
 
 /**
@@ -56,6 +55,8 @@ function makeDb(
 
 export async function openPglite(dataDir?: string): Promise<Db> {
   const parsers = { [INT8]: (v: string) => Number(v), [DATE]: (v: string) => v };
+  // تحميل PGlite عند الحاجة فقط (الخادم على Vercel يستخدم PostgreSQL ولا يحتاجها)
+  const { PGlite } = await import('@electric-sql/pglite');
   const pgl = dataDir ? new PGlite(dataDir, { parsers }) : new PGlite({ parsers });
   await pgl.waitReady;
   let chain: Promise<unknown> = Promise.resolve();
@@ -100,10 +101,10 @@ export async function openPglite(dataDir?: string): Promise<Db> {
   return root;
 }
 
-export async function openPostgres(url: string): Promise<Db> {
+export async function openPostgres(url: string, opts: { max?: number } = {}): Promise<Db> {
   pg.types.setTypeParser(INT8, (v) => Number(v));
   pg.types.setTypeParser(DATE, (v) => v);
-  const pool = new pg.Pool({ connectionString: url, max: 10 });
+  const pool = new pg.Pool({ connectionString: url, max: opts.max ?? 10 });
   await pool.query('select 1');
   const root: Db = makeDb(
     pool,
@@ -141,7 +142,7 @@ export async function openPostgres(url: string): Promise<Db> {
   return root;
 }
 
-export async function openDb(opts: { url?: string; dataDir?: string; memory?: boolean } = {}): Promise<Db> {
-  if (opts.url) return openPostgres(opts.url);
+export async function openDb(opts: { url?: string; dataDir?: string; memory?: boolean; maxConnections?: number } = {}): Promise<Db> {
+  if (opts.url) return openPostgres(opts.url, { max: opts.maxConnections });
   return openPglite(opts.memory ? undefined : opts.dataDir);
 }

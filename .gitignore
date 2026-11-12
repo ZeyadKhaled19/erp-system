@@ -10,3 +10,4 @@ coverage/
 .vite/
 dev-dist/
 logs/
+.vercel/

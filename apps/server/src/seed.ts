@@ -76,6 +76,8 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
 
 export async function seed(db: Db, opts: { adminPassword?: string } = {}) {
   await db.tx(async (t) => {
+    // قفل حتى لا يزرع خادمان البيانات الأولية معًا
+    await t.query(`select pg_advisory_xact_lock(7341)`);
     const existing = await t.one(`select count(*)::int as n from roles`);
     if (existing && existing.n > 0) return;
 

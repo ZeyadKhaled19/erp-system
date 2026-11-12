@@ -8,7 +8,7 @@ import { loadSession, getDeviceId } from '../lib/session';
 
 export function BackupsPage() {
   const ui = useUi();
-  const r = useRemote<{ files: string[] }>('/api/admin/backups');
+  const r = useRemote<{ files: string[]; ephemeral?: boolean }>('/api/admin/backups');
   const [busy, setBusy] = useState(false);
 
   const download = async (file: string) => {
@@ -22,13 +22,37 @@ export function BackupsPage() {
     a.click();
   };
 
+  // نسخة كاملة على جهاز المستخدم (الطريقة الوحيدة على الخادم السحابي)
+  const downloadNow = async () => {
+    setBusy(true);
+    try {
+      const s = loadSession();
+      const res = await fetch('/api/admin/backup-download', { headers: { authorization: `Bearer ${s?.token}`, 'x-device-id': getDeviceId() } });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? 'تعذر التنزيل');
+      const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? 'erp-backup.json';
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      ui.toast(`تم تنزيل ${name}`);
+    } catch (e) {
+      ui.toast((e as Error).message, 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="page narrow">
       <PageHeader
         title="النسخ الاحتياطي"
-        sub="تُحفظ النسخ على الخادم. تُؤخذ نسخة تلقائيًا قبل أي تحديث لقاعدة البيانات وقبل أي استعادة."
+        sub={r.data?.ephemeral ? 'الخادم سحابي: نزّل نسخة على جهازك دوريًا، ومزود قاعدة البيانات يحتفظ بنسخ تلقائية أيضًا.' : 'تُحفظ النسخ على الخادم. تُؤخذ نسخة تلقائيًا قبل أي تحديث لقاعدة البيانات وقبل أي استعادة.'}
         actions={
-          <button
+          <>
+          <button className="btn" disabled={busy} onClick={() => void downloadNow()}><Download /> تنزيل نسخة على جهازي</button>
+          {!r.data?.ephemeral && <button
             className="btn primary"
             disabled={busy}
             onClick={async () => {
@@ -45,7 +69,8 @@ export function BackupsPage() {
             }}
           >
             <HardDriveDownload /> نسخة الآن
-          </button>
+          </button>}
+          </>
         }
       />
       {r.error && <Banner kind="warn">{r.error}</Banner>}

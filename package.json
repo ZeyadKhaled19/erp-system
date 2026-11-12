@@ -15,7 +15,8 @@
     "typecheck": "npm run typecheck -w @erp/shared && npm run typecheck -w @erp/server && npm run typecheck -w @erp/web",
     "migrate": "npm run migrate -w @erp/server",
     "backup": "npm run backup -w @erp/server",
-    "restore": "npm run restore -w @erp/server --"
+    "restore": "npm run restore -w @erp/server --",
+    "build:vercel": "node scripts/gen-migrations.mjs && npm run build && node scripts/build-vercel.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
