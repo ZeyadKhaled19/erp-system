@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { PrintPage } from './pages/Print';
 import { Layout } from './components/Layout';
@@ -36,6 +36,8 @@ import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
 import { InvoicesPage } from './pages/Invoices';
 import { SimpleSalePage } from './pages/SimpleSale';
+import { DocGuard, HomeRoute, HubGuard, NewDocGuard, RequirePerm } from './components/Guard';
+import { clearLanded } from './lib/home';
 import { CommissionsPage, YearEndPage } from './pages/YearEnd';
 import { ExpiryReport, SalesAnalysisReport, SerialSearchReport } from './pages/Reports';
 
@@ -58,19 +60,37 @@ export function App() {
   }, [session]);
 
   // تحديث صلاحيات المستخدم من الخادم عند توفر الاتصال (قد تكون تغيرت منذ آخر دخول)
+  // ويُعاد التحقق عند الرجوع للنافذة أو عودة الاتصال وكل 5 دقائق، فتُطبق تغييرات الصلاحيات دون إعادة دخول
   useEffect(() => {
     if (!session) return;
-    api<{ user: Session['user'] }>('/api/auth/me')
-      .then((r) => {
-        if (JSON.stringify(r.user) !== JSON.stringify(session.user)) {
-          const next = { ...session, user: r.user };
-          saveSession(next);
-          setSession(next);
-        }
-      })
-      .catch(() => {
-        /* دون اتصال: نستخدم الصلاحيات المحفوظة */
-      });
+    let alive = true;
+    const refresh = () =>
+      api<{ user: Session['user'] }>('/api/auth/me')
+        .then((r) => {
+          if (!alive) return;
+          setSession((cur) => {
+            if (!cur || cur.token !== session.token || JSON.stringify(r.user) === JSON.stringify(cur.user)) return cur;
+            const next = { ...cur, user: r.user };
+            saveSession(next);
+            return next;
+          });
+        })
+        .catch(() => {
+          /* دون اتصال: نستخدم الصلاحيات المحفوظة */
+        });
+    void refresh();
+    const onFocus = () => document.visibilityState === 'visible' && void refresh();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    const t = window.setInterval(refresh, 5 * 60 * 1000);
+    return () => {
+      alive = false;
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      window.clearInterval(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.token]);
 
@@ -85,6 +105,7 @@ export function App() {
     saveSession(null);
     setToken(null);
     setSession(null);
+    clearLanded();
   }, [ui]);
 
   useEffect(() => {
@@ -114,6 +135,7 @@ export function App() {
     return (
       <Login
         onLogin={(s) => {
+          clearLanded();
           saveSession(s);
           setToken(s.token);
           setSession(s);
@@ -134,46 +156,46 @@ export function App() {
     <SessionContext.Provider value={ctx}>
       <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/hub/:key" element={<HubPage />} />
-          <Route path="/pos" element={<PosPage />} />
-          <Route path="/invoices" element={<InvoicesPage />} />
-          <Route path="/reports/commissions" element={<CommissionsPage />} />
-          <Route path="/year-end" element={<YearEndPage />} />
-          <Route path="/items" element={<ItemsPage />} />
-          <Route path="/items/inquiry" element={<ItemInquiry />} />
-          <Route path="/warehouses" element={<WarehousesPage />} />
-          <Route path="/parties/:kind" element={<PartiesPage />} />
-          <Route path="/parties/:kind/:id" element={<PartyDetail />} />
-          <Route path="/cashboxes" element={<CashboxesPage />} />
-          <Route path="/accounts" element={<AccountsPage />} />
-          <Route path="/docs/new/:type" element={<NewDocRoute />} />
-          <Route path="/docs/edit/:id" element={<DocumentEditor />} />
-          <Route path="/docs/view/:id" element={<DocumentView />} />
-          <Route path="/docs/list/:module" element={<DocumentsList />} />
-          <Route path="/reports/item" element={<ItemMovementReport />} />
-          <Route path="/reports/stock" element={<StockReport />} />
-          <Route path="/reports/warehouse-movement" element={<WarehouseMovementReport />} />
-          <Route path="/reports/reorder" element={<ReorderReport />} />
-          <Route path="/reports/trial-balance" element={<TrialBalanceReport />} />
-          <Route path="/reports/ledger" element={<LedgerReport />} />
-          <Route path="/reports/income" element={<IncomeReport />} />
-          <Route path="/reports/balance-sheet" element={<BalanceSheetReport />} />
-          <Route path="/reports/documents" element={<DocumentsReport />} />
+          <Route path="/" element={<HomeRoute><Dashboard /></HomeRoute>} />
+          <Route path="/hub/:key" element={<HubGuard><HubPage /></HubGuard>} />
+          <Route path="/pos" element={<RequirePerm any={['sales.create']}><PosPage /></RequirePerm>} />
+          <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage /></RequirePerm>} />
+          <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
+          <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
+          <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
+          <Route path="/items/inquiry" element={<RequirePerm any={['items.view']}><ItemInquiry /></RequirePerm>} />
+          <Route path="/warehouses" element={<RequirePerm any={['inventory.view']}><WarehousesPage /></RequirePerm>} />
+          <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage /></RequirePerm>} />
+          <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail /></RequirePerm>} />
+          <Route path="/cashboxes" element={<RequirePerm any={['treasury.view']}><CashboxesPage /></RequirePerm>} />
+          <Route path="/accounts" element={<RequirePerm any={['accounts.view']}><AccountsPage /></RequirePerm>} />
+          <Route path="/docs/new/:type" element={<NewDocGuard><NewDocRoute /></NewDocGuard>} />
+          <Route path="/docs/edit/:id" element={<DocGuard><DocumentEditor /></DocGuard>} />
+          <Route path="/docs/view/:id" element={<DocGuard><DocumentView /></DocGuard>} />
+          <Route path="/docs/list/:module" element={<ModuleListGuard><DocumentsList /></ModuleListGuard>} />
+          <Route path="/reports/item" element={<RequirePerm any={['inventory.view']}><ItemMovementReport /></RequirePerm>} />
+          <Route path="/reports/stock" element={<RequirePerm any={['inventory.view']}><StockReport /></RequirePerm>} />
+          <Route path="/reports/warehouse-movement" element={<RequirePerm any={['inventory.view']}><WarehouseMovementReport /></RequirePerm>} />
+          <Route path="/reports/reorder" element={<RequirePerm any={['inventory.view']}><ReorderReport /></RequirePerm>} />
+          <Route path="/reports/trial-balance" element={<RequirePerm any={['reports.financial']}><TrialBalanceReport /></RequirePerm>} />
+          <Route path="/reports/ledger" element={<RequirePerm any={['reports.financial']}><LedgerReport /></RequirePerm>} />
+          <Route path="/reports/income" element={<RequirePerm any={['reports.profit']}><IncomeReport /></RequirePerm>} />
+          <Route path="/reports/balance-sheet" element={<RequirePerm any={['reports.financial']}><BalanceSheetReport /></RequirePerm>} />
+          <Route path="/reports/documents" element={<RequirePerm any={['reports.view']}><DocumentsReport /></RequirePerm>} />
           <Route path="/sync" element={<SyncCenter />} />
-          <Route path="/instruments" element={<InstrumentsPage />} />
-          <Route path="/receivables" element={<CreditInvoicesPage />} />
-          <Route path="/partners" element={<PartnersPage />} />
-          <Route path="/shift" element={<ShiftPage />} />
-          <Route path="/deliveries" element={<DeliveriesPage />} />
+          <Route path="/instruments" element={<RequirePerm any={['treasury.view', 'treasury.instruments']}><InstrumentsPage /></RequirePerm>} />
+          <Route path="/receivables" element={<RequirePerm any={['sales.view', 'purchases.view']}><CreditInvoicesPage /></RequirePerm>} />
+          <Route path="/partners" element={<RequirePerm any={['partners.view']}><PartnersPage /></RequirePerm>} />
+          <Route path="/shift" element={<RequirePerm any={['treasury.shift']}><ShiftPage /></RequirePerm>} />
+          <Route path="/deliveries" element={<RequirePerm any={['sales.view', 'sales.deliver']}><DeliveriesPage /></RequirePerm>} />
           <Route path="/lists" element={<ListsPage />} />
-          <Route path="/reports/analysis" element={<SalesAnalysisReport />} />
-          <Route path="/reports/serial" element={<SerialSearchReport />} />
-          <Route path="/reports/expiry" element={<ExpiryReport />} />
-          <Route path="/users" element={<UsersPage />} />
+          <Route path="/reports/analysis" element={<RequirePerm any={['reports.view']}><SalesAnalysisReport /></RequirePerm>} />
+          <Route path="/reports/serial" element={<RequirePerm any={['inventory.view']}><SerialSearchReport /></RequirePerm>} />
+          <Route path="/reports/expiry" element={<RequirePerm any={['inventory.view']}><ExpiryReport /></RequirePerm>} />
+          <Route path="/users" element={<RequirePerm any={['users.manage']}><UsersPage /></RequirePerm>} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/backups" element={<BackupsPage />} />
-          <Route path="/audit" element={<AuditPage />} />
+          <Route path="/backups" element={<RequirePerm any={['backup.manage']}><BackupsPage /></RequirePerm>} />
+          <Route path="/audit" element={<RequirePerm any={['audit.view']}><AuditPage /></RequirePerm>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
@@ -187,4 +209,10 @@ function NewDocRoute() {
   const [sp] = useSearchParams();
   if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage />;
   return <DocumentEditor key={type} />;
+}
+
+/** سجل مستندات وحدة: يحتاج صلاحية مشاهدة الوحدة */
+function ModuleListGuard({ children }: { children: ReactNode }) {
+  const { module = '' } = useParams();
+  return <RequirePerm any={[`${module}.view`]}>{children}</RequirePerm>;
 }

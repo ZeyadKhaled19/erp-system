@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
-import { hasPermission, todayISO } from '@erp/shared';
+import { hasPermission, todayISO, WORKSPACE_IDS } from '@erp/shared';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser } from './auth';
@@ -123,7 +123,14 @@ export async function buildApp(opts: AppOptions) {
   // ---------------- التقارير ----------------
   app.get('/api/reports/dashboard', { preHandler: auth }, async (req) => {
     const d = await R.dashboard(db, q(req).today || todayISO());
-    if (!hasPermission(req.user!.permissions, 'reports.profit')) d.month_gross_profit = null as any;
+    // لا تُعرض أرقام لا يملك المستخدم صلاحية رؤيتها (الشكل نفسه، والقيمة null)
+    const can = (k: string) => hasPermission(req.user!.permissions, k);
+    if (!can('reports.profit')) d.month_gross_profit = null as any;
+    if (!can('sales.view')) Object.assign(d, { today_sales: null, today_count: null, month_net_sales: null });
+    if (!can('treasury.view')) d.cashboxes = [] as any;
+    if (!can('parties.view')) Object.assign(d, { receivables: null, payables: null });
+    if (!can('costs.view')) d.stock_value = null as any;
+    if (!can('inventory.view')) d.reorder_count = null as any;
     return d;
   });
   app.get('/api/reports/trial-balance', { preHandler: perm('reports.financial') }, async (req) => R.trialBalance(db, range(req)));
@@ -255,6 +262,22 @@ export async function buildApp(opts: AppOptions) {
     });
   });
 
+  // صفحة البداية الافتراضية لكل دور (تُحفظ في الإعدادات وتصل للأجهزة بالمزامنة)
+  app.post('/api/admin/role-home', { preHandler: perm('users.manage') }, async (req) => {
+    const b = z.object({ role_id: z.string().min(1).max(100), workspace: z.enum(WORKSPACE_IDS as [string, ...string[]]).nullable() }).parse(req.body);
+    return db.tx(async (t) => {
+      await t.query(`select pg_advisory_xact_lock(7331)`);
+      const role = await t.one(`select id from roles where id = $1`, [b.role_id]);
+      if (!role) throw new AppError('الدور غير موجود');
+      const cur = (await t.one(`select value from settings where key = 'role_home_pages'`))?.value;
+      const map: Record<string, string> = { ...(typeof cur === 'string' ? JSON.parse(cur) : cur ?? {}) };
+      if (b.workspace) map[b.role_id] = b.workspace;
+      else delete map[b.role_id];
+      await t.query(`insert into settings (key, value) values ('role_home_pages', $1) on conflict (key) do update set value = excluded.value`, [JSON.stringify(map)]);
+      await t.query(`insert into audit_log (user_id, device_id, action, entity, entity_id, details) values ($1,$2,'role.home','role',$3,$4)`, [req.user!.id, req.deviceId, b.role_id, JSON.stringify(b)]);
+      return { ok: true, role_home_pages: map };
+    });
+  });
   app.post('/api/admin/roles', { preHandler: perm('users.manage') }, async (req) => {
     const b = z
       .object({

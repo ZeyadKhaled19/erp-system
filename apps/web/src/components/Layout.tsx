@@ -2,6 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { CloudOff, Home, LayoutGrid, LogOut, Menu, Moon, Package, Palette, PanelRightClose, PanelRightOpen, RefreshCw, Search, Sun, Users, X, Zap } from 'lucide-react';
 import { applyAppearance, loadAppearance, resolvedTheme, saveAppearance } from '../lib/theme';
 import { AppearanceSheet } from './Appearance';
+import { NewMenu } from './NewMenu';
+import { QUICK_ACTIONS } from '../lib/quickActions';
+import { hasPermission, WORKSPACES, canUseWorkspace } from '@erp/shared';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DOC_TYPES } from '@erp/shared';
@@ -38,29 +41,33 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState('');
   const nav = useNavigate();
   const can = usePerm();
+  const { session } = useSession();
   const pages = useMemo(
     () => [
       ...HUBS.filter((h) => !h.perm || can(h.perm)).map((h) => ({ to: hubPath(h), label: h.label })),
       ...HUBS.flatMap((h) => h.groups.flatMap((g) => g.links)).filter((l) => !l.perm || can(l.perm)),
+      ...WORKSPACES.filter((w) => canUseWorkspace(w.id, session.user.permissions)).map((w) => ({ to: w.path, label: w.label })),
+      ...QUICK_ACTIONS.filter((a) => hasPermission(session.user.permissions, a.perm)).map((a) => ({ to: a.to, label: a.label })),
     ],
-    [can],
+    [can, session.user.permissions],
   );
   const results = useLiveQuery(async () => {
     const s = q.trim().toLowerCase();
     if (!s) return [];
     const match = (...v: (string | undefined | null)[]) => v.some((x) => x?.toLowerCase().includes(s));
-    const items = (await db.items.filter((i) => match(i.name, i.code, i.barcode)).limit(8).toArray()).map((i) => ({
+    // نتائج البحث لا تعرض إلا ما يملك المستخدم صلاحية مشاهدته
+    const items = (can('items.view') ? await db.items.filter((i) => match(i.name, i.code, i.barcode)).limit(8).toArray() : []).map((i) => ({
       key: 'i' + i.id, label: i.name, sub: `صنف · ${i.code}`, to: `/items/inquiry?id=${i.id}`,
     }));
-    const parties = (await db.parties.filter((p) => match(p.name, p.code, p.phone)).limit(8).toArray()).map((p) => ({
+    const parties = (can('parties.view') ? await db.parties.filter((p) => match(p.name, p.code, p.phone)).limit(8).toArray() : []).map((p) => ({
       key: 'p' + p.id, label: p.name, sub: p.kind === 'customer' ? 'عميل' : 'مورد', to: `/parties/${p.kind}/${p.id}`,
     }));
-    const docs = (await db.documents.filter((d) => match(d.number, d.local_number)).limit(8).toArray()).map((d) => ({
+    const docs = (await db.documents.filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && can(`${m}.view`) && match(d.number, d.local_number); }).limit(8).toArray()).map((d) => ({
       key: 'd' + d.id, label: d.number ?? d.local_number, sub: DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.label, to: `/docs/view/${d.id}`,
     }));
     const pg = pages.filter((n) => n.label.includes(q.trim())).slice(0, 6).map((n) => ({ key: 'n' + n.to, label: n.label, sub: 'صفحة', to: n.to }));
     return [...pg, ...items, ...parties, ...docs];
-  }, [q, pages]) ?? [];
+  }, [q, pages, session.user.permissions.join(',')]) ?? [];
   const [hl, setHl] = useState(0);
   const go = (to: string) => {
     nav(to);
@@ -240,7 +247,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="sb-user-n">{session.user.full_name}</div>
             <div className="sb-user-r">{session.user.username}</div>
           </div>
-          <button className="icon-btn" title="المظهر" aria-label="المظهر" onClick={() => setAppearance(true)}>
+          <button className="icon-btn" title="تفضيلاتي" aria-label="تفضيلاتي" onClick={() => setAppearance(true)}>
             <Palette />
           </button>
           <button className="icon-btn" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={logout}>
@@ -261,6 +268,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <span>ابحث عن فاتورة أو صنف أو عميل</span>
             <kbd>Ctrl K</kbd>
           </button>
+          <NewMenu />
           <SyncPill />
           <button className="icon-btn" onClick={toggleTheme} title={dark ? 'الوضع الفاتح' : 'الوضع الغامق'} aria-label={dark ? 'الوضع الفاتح' : 'الوضع الغامق'}>
             {dark ? <Sun /> : <Moon />}

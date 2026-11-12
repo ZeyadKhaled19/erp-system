@@ -1,4 +1,4 @@
-import { DOC_TYPES, formatMoney, todayISO } from '@erp/shared';
+import { DOC_TYPES, formatMoney, hasPermission, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   AlertTriangle, ArrowDownLeft, CalendarClock, ChevronLeft, Package, Receipt, ShoppingBag, ShoppingCart, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
@@ -7,6 +7,7 @@ import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
+import { useQuickActions } from '../lib/quickActions';
 import { usePerm, useSession, useSyncCounts } from '../lib/hooks';
 
 const dayKey = (d: Date) => todayISO(d);
@@ -34,6 +35,7 @@ export function Dashboard() {
   const today = todayISO();
   const days = useMemo(() => lastDays(14), []);
 
+  const perms = session.user.permissions;
   const data = useLiveQuery(async () => {
     const docs = await db.documents.where('date').between(days[0], today, true, true).toArray();
     const salesBy = new Map<string, number>(days.map((d) => [d, 0]));
@@ -62,11 +64,12 @@ export function Dashboard() {
     week.setDate(week.getDate() + 7);
     const dueSoon = (await db.instruments.where('status').equals('open').toArray()).filter((x) => x.due_date <= todayISO(week)).length;
     const review = await db.documents.where('status').equals('pending_review').count();
-    const recent = (await db.documents.orderBy('date').reverse().limit(80).toArray())
+    const recent = (await db.documents.orderBy('date').reverse().limit(200).toArray())
+      .filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && hasPermission(perms, `${m}.view`); })
       .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
       .slice(0, 6);
     return { series, todayCount, cashboxes, receivables, payables, stockValue, reorder, overdue, pendingDelivery, dueSoon, review, recent };
-  }, [today, days]);
+  }, [today, days, perms.join(',')]);
 
   const s = data?.series ?? [];
   const todaySales = s[s.length - 1] ?? 0;
@@ -83,12 +86,9 @@ export function Dashboard() {
     { show: (data?.pendingDelivery ?? 0) > 0 && can('sales.view'), n: data?.pendingDelivery ?? 0, label: 'فواتير بانتظار التسليم', to: '/deliveries', icon: <Truck />, grad: 'var(--grad-brown)' },
   ].filter((a) => a.show);
 
-  const actions = [
-    { to: '/docs/new/purchase_invoice', label: 'فاتورة شراء', icon: <ShoppingBag />, grad: 'var(--grad-purple)', perm: 'purchases.create' },
-    { to: '/docs/new/receipt', label: 'قبض من عميل', icon: <ArrowDownLeft />, grad: 'var(--grad-teal)', perm: 'treasury.create' },
-    { to: '/docs/new/expense', label: 'مصروف', icon: <Receipt />, grad: 'var(--grad-orange)', perm: 'treasury.create' },
-    { to: '/items', label: 'الأصناف', icon: <Package />, grad: 'var(--grad-blue)', perm: 'items.view' },
-  ].filter((a) => can(a.perm));
+  // الإجراءات المسموحة للمستخدم، الأكثر استخدامًا أولًا (بيع سريع له بطاقته الكبيرة)
+  const qa = useQuickActions('dashboard');
+  const actions = qa.actions.filter((a) => a.key !== 'pos').slice(0, 4);
 
   const hour = new Date().getHours();
   return (
@@ -102,7 +102,7 @@ export function Dashboard() {
 
       <div className="tiles" style={{ marginBottom: 18 }}>
         {can('sales.create') && (
-          <button className="tile hero green" onClick={() => nav('/pos')}>
+          <button className="tile hero green" onClick={() => { const p = qa.actions.find((x) => x.key === 'pos'); if (p) qa.use(p); nav('/pos'); }}>
             <span className="ti"><Zap /></span>
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <span className="tt">بيع سريع</span>
@@ -111,15 +111,15 @@ export function Dashboard() {
           </button>
         )}
         {actions.map((a) => (
-          <button key={a.to} className="tile" onClick={() => nav(a.to)}>
-            <span className="ti" style={{ background: a.grad }}>{a.icon}</span>
+          <button key={a.key} className="tile" onClick={() => { qa.use(a); nav(a.to); }}>
+            <span className="ti">{a.icon}</span>
             <span className="tt">{a.label}</span>
           </button>
         ))}
       </div>
 
       <div className="grid grid-3 dash-stats">
-        <div className="card stat" style={{ gridColumn: 'span 2' }}>
+        {can('sales.view') && <div className="card stat" style={{ gridColumn: 'span 2' }}>
           <div className="row">
             <span className="stat-icon" style={{ background: 'var(--grad-green)' }}><TrendingUp /></span>
             <span className="stat-label" style={{ flex: 1 }}>مبيعات اليوم · {data?.todayCount ?? 0} فاتورة</span>
@@ -132,7 +132,7 @@ export function Dashboard() {
           <div className="stat-value num">{formatMoney(todaySales)}</div>
           <Bars values={s} labels={days} />
           <div className="caption">آخر 14 يومًا: <span className="num">{formatMoney(total14)}</span></div>
-        </div>
+        </div>}
         {can('treasury.view') && <Stat label="النقدية بالخزائن" value={cash} icon={<Wallet />} grad="var(--grad-blue)" onClick={() => nav('/cashboxes')} />}
         {can('parties.view') && <Stat label="مستحق من العملاء" value={data?.receivables ?? 0} icon={<Users />} grad="var(--grad-indigo)" onClick={() => nav('/parties/customer')} />}
         {can('parties.view') && <Stat label="مستحق للموردين" value={data?.payables ?? 0} icon={<ShoppingBag />} grad="var(--grad-purple)" onClick={() => nav('/parties/supplier')} />}

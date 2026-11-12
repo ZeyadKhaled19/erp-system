@@ -1,4 +1,4 @@
-import { PERMISSION_GROUPS } from '@erp/shared';
+import { BUILTIN_ROLE_HOME, canUseWorkspace, inferRoleHome, PERMISSION_GROUPS, WORKSPACES } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -6,7 +6,8 @@ import { PageHeader } from '../components/Layout';
 import { Banner, Field, Sheet, Switch, useUi } from '../components/ui';
 import { api } from '../lib/api';
 import { db } from '../lib/db';
-import { useSession } from '../lib/hooks';
+import { parseRoleHomes } from '../lib/home';
+import { useSession, useSettings } from '../lib/hooks';
 import { syncNow } from '../lib/sync';
 
 /** إدارة المستخدمين والأدوار تتم مباشرة على الخادم (تحتاج اتصالًا) لأنها تمس الأمان */
@@ -75,6 +76,8 @@ export function UsersPage() {
           </div>
         ))}
       </div>
+
+      <RoleHomes roles={roles} />
 
       {u && (
         <Sheet title={u.id ? 'تعديل مستخدم' : 'مستخدم جديد'} onClose={() => setU(null)} footer={<><button className="btn" onClick={() => setU(null)}>إلغاء</button><button className="btn primary" onClick={saveUser}>حفظ</button></>}>
@@ -155,5 +158,55 @@ function ScopePicker({ label, all, value, onChange }: { label: string; all: any[
         </div>
       )}
     </div>
+  );
+}
+
+/** صفحة البداية لكل دور: المدير يختار من المساحات التي يسمح بها الدور نفسه */
+function RoleHomes({ roles }: { roles: any[] }) {
+  const ui = useUi();
+  const settings = useSettings();
+  const map = parseRoleHomes(settings.role_home_pages);
+  const [busy, setBusy] = useState<string | null>(null);
+  const save = async (roleId: string, workspace: string | null) => {
+    setBusy(roleId);
+    try {
+      await api('/api/admin/role-home', { body: { role_id: roleId, workspace } });
+      await syncNow();
+      ui.toast('تم حفظ صفحة البداية للدور');
+    } catch (e) {
+      ui.toast((e as Error).message, 'err');
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <>
+      <div className="section-title" style={{ marginTop: 26 }}>صفحة البداية لكل دور</div>
+      <div className="list">
+        {roles.map((r) => {
+          const perms: string[] = r.permissions ?? [];
+          const options = WORKSPACES.filter((w) => canUseWorkspace(w.id, perms));
+          const builtin = WORKSPACES.find((w) => w.id === (BUILTIN_ROLE_HOME[r.id] ?? inferRoleHome(perms)));
+          const fallbackLabel = builtin && canUseWorkspace(builtin.id, perms) ? builtin.label : options[0]?.label;
+          return (
+            <div key={r.id} className="list-row">
+              <div className="title">{r.name}<div className="sub">يفتح عليها مستخدمو الدور ما لم يختر المستخدم صفحة أخرى</div></div>
+              <select
+                className="select"
+                style={{ width: 220 }}
+                aria-label={`صفحة البداية لدور ${r.name}`}
+                disabled={busy === r.id}
+                value={map[r.id] && options.some((o) => o.id === map[r.id]) ? map[r.id] : ''}
+                onChange={(e) => void save(r.id, e.target.value || null)}
+              >
+                <option value="">تلقائي ({fallbackLabel})</option>
+                {options.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+      <div className="footnote" style={{ marginTop: 6 }}>صفحة البداية لا تمنح أي صلاحية؛ تظهر فقط المساحات التي يملك الدور صلاحية فتحها.</div>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { ChevronLeft } from 'lucide-react';
 import { useEffect } from 'react';
+import { HUB_WORKSPACE, WorkspaceSummary } from '../components/WorkspaceSummary';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { HUBS } from '../components/nav';
 import { usePerm } from '../lib/hooks';
@@ -28,6 +29,7 @@ export function HubPage() {
           <div className="page-sub" style={{ margin: 0 }}>{hub.sub}</div>
         </div>
       </div>
+      {HUB_WORKSPACE[hub.key] && <WorkspaceSummary ws={HUB_WORKSPACE[hub.key]} />}
       {groups.map((g, gi) => {
         const heroes = gi === 0 ? g.links.filter((l) => l.hero) : [];
         const rest = g.links.filter((l) => !heroes.includes(l));

@@ -1,4 +1,5 @@
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Home, Monitor, Moon, Sun } from 'lucide-react';
+import { useHome } from '../lib/home';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ACCENTS, FONTS, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
 import { Segmented, Sheet } from './ui';
@@ -16,10 +17,35 @@ export function useAppearance(): [Appearance, (a: Appearance) => void] {
 const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, dark: <Moon />, system: <Monitor /> };
 
 /** لوحة المظهر: الوضع، لون التمييز، الخط، الكثافة — التغيير فوري ويخص المستخدم الحالي فقط */
+/** صفحة البداية الشخصية: من المساحات المسموحة فقط، و«حسب الدور» يتبع إعداد المدير */
+export function StartPagePicker() {
+  const { pref, setPref, available, roleDefault, home } = useHome();
+  if (available.length < 2) return null;
+  return (
+    <section className="ap-sec">
+      <div className="ap-h">صفحة البداية</div>
+      <div className="ap-start" role="radiogroup" aria-label="صفحة البداية">
+        <button role="radio" aria-checked={!pref || !available.some((w) => w.id === pref)} className={`ap-font ${!pref || !available.some((w) => w.id === pref) ? 'on' : ''}`} onClick={() => setPref(null)}>
+          <span className="ap-font-s"><Home /> حسب الدور</span>
+          <span className="ap-font-l">الآن: {roleDefault.label}</span>
+        </button>
+        {available.map((w) => (
+          <button key={w.id} role="radio" aria-checked={pref === w.id} className={`ap-font ${pref === w.id ? 'on' : ''}`} onClick={() => setPref(w.id)}>
+            <span className="ap-font-s">{w.label}</span>
+            <span className="ap-font-l">{w.desc}</span>
+          </button>
+        ))}
+      </div>
+      <div className="footnote">تفتح عليها بعد تسجيل الدخول أو فتح البرنامج. صفحة البداية الحالية: {home.label}.</div>
+    </section>
+  );
+}
+
 export function AppearancePanel() {
   const [a, set] = useAppearance();
   return (
     <div className="ap">
+      <StartPagePicker />
       <section className="ap-sec">
         <div className="ap-h">وضع الألوان</div>
         <div className="ap-modes" role="radiogroup" aria-label="وضع الألوان">
@@ -74,7 +100,7 @@ export function AppearancePanel() {
 
 export function AppearanceSheet({ onClose }: { onClose: () => void }) {
   return (
-    <Sheet title="المظهر" onClose={onClose}>
+    <Sheet title="تفضيلاتي" onClose={onClose}>
       <AppearancePanel />
     </Sheet>
   );

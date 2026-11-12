@@ -1,9 +1,9 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, CreditCard, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, Check, CreditCard, History, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Banner, Picker, Sheet, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, Picker, Sheet, useUi } from '../components/ui';
 import { CustomerFields } from '../components/CustomerFields';
 import { QuickPartySheet } from '../components/QuickParty';
 import { priceFor, saveDocument } from '../lib/actions';
@@ -49,6 +49,7 @@ export function PosPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [partyId, setPartyId] = useState('party-cash-customer');
   const [pickParty, setPickParty] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState(false);
   const [pay, setPay] = useState(false);
   const [done, setDone] = useState<{ id: string; total: number; change: number } | null>(null);
@@ -204,6 +205,7 @@ export function PosPage() {
         <div className="pos-cart-head">
           <ShoppingCart style={{ color: 'var(--tint)' }} />
           <div className="bold" style={{ flex: 1, fontSize: 17 }}>السلة {count > 0 && <span className="muted small">({formatQty(count * 1000)} قطعة)</span>}</div>
+          {can('sales.view') && <button className="btn sm plain" onClick={() => setRecentOpen(true)} title="آخر المبيعات"><History /> <span className="hide-mobile">آخر المبيعات</span></button>}
           {cart.length > 0 && <button className="btn sm plain danger" onClick={() => setCart([])}><Trash2 /> تفريغ</button>}
         </div>
         <div style={{ padding: '0 18px 8px' }}>
@@ -316,6 +318,7 @@ export function PosPage() {
           }}
         />
       )}
+      {recentOpen && <RecentSales onClose={() => setRecentOpen(false)} />}
       {newCustomer && <QuickPartySheet onClose={() => setNewCustomer(false)} onSaved={(id) => setPartyId(id)} />}
       {done && (
         <Sheet title="تم البيع" onClose={newSale}>
@@ -440,6 +443,48 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty, onNew
         )}
         {method === 'credit' && <div className="footnote">{isCashCustomer ? 'اختر العميل أعلاه.' : `سيُسجل المبلغ دينًا على ${party.name} (الرصيد الحالي ${formatMoney(party.balance ?? 0)}).`}</div>}
         <button className="btn success primary xl block" disabled={busy} onClick={confirm}><Check /> تأكيد البيع</button>
+      </div>
+    </Sheet>
+  );
+}
+
+/** آخر المبيعات للكاشير: فتح الفاتورة أو إعادة طباعتها بدون مغادرة البيع السريع */
+function RecentSales({ onClose }: { onClose: () => void }) {
+  const nav = useNavigate();
+  const { session } = useSession();
+  const can = (k: string) => hasPermission(session.user.permissions, k);
+  const [mine, setMine] = useState(true);
+  const rows = useLiveQuery(async () => {
+    const docs = await db.documents.where('doc_type').equals('sale_invoice').toArray();
+    const parties = new Map((await db.parties.toArray()).map((p) => [p.id, p.name]));
+    return docs
+      .filter((d) => !mine || !d.created_by || d.created_by === session.user.id)
+      .sort((a, b) => String(b.created_at ?? b.date).localeCompare(String(a.created_at ?? a.date)))
+      .slice(0, 15)
+      .map((d) => ({ ...d, party: parties.get(d.party_id) ?? '' }) as any);
+  }, [mine, session.user.id]);
+  return (
+    <Sheet title="آخر المبيعات" onClose={onClose}>
+      <div className="stack">
+        <div className="segmented block">
+          <button className={mine ? 'on' : ''} onClick={() => setMine(true)}>مبيعاتي</button>
+          <button className={!mine ? 'on' : ''} onClick={() => setMine(false)}>كل المبيعات</button>
+        </div>
+        {rows && rows.length === 0 && <div className="muted" style={{ padding: 12 }}>لا توجد مبيعات بعد.</div>}
+        <div className="list">
+          {rows?.map((d) => (
+            <div key={d.id} className="list-row">
+              <div className="title">
+                <span className="num">{d.number ?? d.local_number}</span> · {d.party}
+                <div className="sub num">{d.date}</div>
+              </div>
+              <DocStatusBadge status={d.status} sync={d._sync} />
+              <b className="num">{formatMoney(d.total)}</b>
+              <button className="btn sm" onClick={() => { onClose(); nav(`/docs/view/${d.id}`); }}>عرض</button>
+              {can('sales.print') && <button className="icon-btn" title="طباعة" aria-label="طباعة" onClick={() => window.open(`/print/${d.id}`, '_blank')}><Printer /></button>}
+            </div>
+          ))}
+        </div>
       </div>
     </Sheet>
   );

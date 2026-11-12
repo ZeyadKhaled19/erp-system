@@ -1,8 +1,8 @@
 import { DOC_TYPES, formatMoney, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Pencil, Plus, Users } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DocStatusBadge, Empty, exportCsv, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
@@ -24,6 +24,15 @@ export function PartiesPage() {
   const groups = useLiveQuery(async () => (await db.party_groups.where('kind').equals(kind).toArray()).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), [kind]) ?? [];
   const groupName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const [editing, setEditing] = useState<any | null>(null);
+  const [sp, setSp] = useSearchParams();
+  useEffect(() => {
+    if (sp.get('new') === '1') {
+      if (can('parties.create')) setEditing({ kind });
+      sp.delete('new');
+      setSp(sp, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp, kind]);
   const dq = useDebounced(q);
   const L = KIND_LABEL[kind];
   const parties = useLiveQuery(() => db.parties.where('kind').equals(kind).sortBy('code'), [kind]) ?? [];

@@ -13,3 +13,4 @@ export function todayISO(d = new Date()): string {
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
 }
 export * from './tafqeet';
+export * from './workspaces';

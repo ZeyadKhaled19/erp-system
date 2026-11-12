@@ -2,7 +2,7 @@ import { bpToPercent, formatMoney, formatQty, parsePercentBp, uuid } from '@erp/
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Package, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, Empty, exportCsv, Field, MoneyInput, QtyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
@@ -17,7 +17,16 @@ export function ItemsPage() {
   const [cat, setCat] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [quick, setQuick] = useState(false);
+  const [sp, setSp] = useSearchParams();
+  const [quick, setQuick] = useState(() => sp.get('new') === '1' && can('items.create'));
+  useEffect(() => {
+    if (sp.get('new') === '1') {
+      if (can('items.create')) setQuick(true);
+      sp.delete('new');
+      setSp(sp, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp]);
   const [importing, setImporting] = useState(false);
   const dq = useDebounced(q);
 
