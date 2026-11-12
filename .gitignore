@@ -9,3 +9,4 @@ backups/
 coverage/
 .vite/
 dev-dist/
+logs/
