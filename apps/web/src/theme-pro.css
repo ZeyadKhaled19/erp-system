@@ -1114,3 +1114,138 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 .hc-sub { font-size: 11px; color: var(--label-3); margin: -2px 0 4px; }
 .hc-empty { font-size: 13px; color: var(--label-2); }
 .hc-target { cursor: default; }
+
+/* ===================== فاتورة البيع: التصميم المعتمد ===================== */
+.si-meta-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.si-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--separator); border-radius: 10px; background: var(--card); font-size: 13px; }
+.si-meta > span { color: var(--label-3); }
+.si-meta b { font-weight: 600; color: var(--label-2); }
+.si-meta .sep { color: var(--separator); }
+.si-date, .si-wh { border: 0; background: transparent; color: var(--label); font: inherit; outline: none; }
+.si-time { color: var(--label-2); font-weight: 600; }
+.si-navs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--separator); border-radius: 10px; background: var(--card); }
+.si-navs button { width: 36px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--label-2); display: grid; place-items: center; cursor: pointer; }
+.si-navs button:hover:not(:disabled) { background: var(--hover); color: var(--label); }
+.si-navs button:disabled { opacity: .35; cursor: default; }
+.si-search { display: flex; gap: 6px; }
+.si-search .btn { height: 44px; }
+.si-main { display: grid; grid-template-columns: 74px minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+.si-keys { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 8px; }
+.si-keys > button { height: 64px; border: 1px solid var(--separator); border-radius: 12px; background: var(--card); color: var(--label-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.si-keys > button:hover:not(:disabled) { background: var(--hover); color: var(--label); }
+.si-keys > button:disabled { opacity: .4; cursor: default; }
+.si-keys > button.del { color: var(--red-text); }
+.si-keys kbd { font-size: 10px; }
+.si-ud { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.si-ud button { height: 38px; border: 1px solid var(--separator); border-radius: 10px; background: var(--card); color: var(--label-2); display: grid; place-items: center; cursor: pointer; }
+.si-ud button:disabled { opacity: .4; }
+.si-grid { padding: 0; overflow: hidden; min-height: 320px; display: flex; flex-direction: column; }
+.si-tw { overflow-x: auto; flex: 1; }
+.si-table { table-layout: fixed; width: max-content; min-width: 100%; }
+.si-table th { position: relative; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.si-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.si-table td.code { color: var(--label-3); }
+.si-table tbody tr { cursor: pointer; }
+.si-table tbody tr.sel td { background: var(--tint-soft); }
+.si-table tbody tr.sel td:first-child { box-shadow: inset -3px 0 0 var(--tint); }
+.si-table .input, .si-table .select { height: 36px; font-size: 15px; width: 100%; }
+.col-grip { position: absolute; top: 0; bottom: 0; left: -4px; width: 9px; cursor: col-resize; z-index: 2; display: flex; justify-content: center; touch-action: none; }
+.col-grip::after { content: ""; width: 2px; height: 60%; margin: auto 0; border-radius: 2px; background: var(--border-strong); transition: background .15s; }
+.col-grip:hover::after { background: var(--tint); }
+body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none; }
+.si-grid-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-top: 1px solid var(--separator); }
+.si-grid-foot .muted { flex: 1; min-width: 220px; }
+.ss-pay button { position: relative; }
+.si-pin { position: absolute; top: 3px; left: 6px; color: var(--tint); }
+.si-pin svg { width: 12px; height: 12px; }
+.si-rest { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 10px; border: 1px dashed var(--border-strong); border-radius: 12px; }
+.si-rest-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.si-rest-opts button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--label); font-weight: 600; font-size: 13px; cursor: pointer; }
+.si-rest-opts button svg { width: 14px; height: 14px; }
+.si-rest-opts button.on { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+.si-adj { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 12px 14px; }
+.si-adj-g { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.si-adj-g > label { font-size: 13px; font-weight: 600; color: var(--label-field); }
+.si-adj-row { display: flex; gap: 6px; align-items: center; }
+.si-adj-row .segmented { flex-shrink: 0; }
+.si-switch { display: inline-flex; align-items: center; gap: 8px; height: 40px; font-weight: 500; cursor: pointer; }
+.si-bar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bar); border: 1px solid var(--separator); border-radius: 14px; box-shadow: var(--shadow-lift); }
+.si-bar kbd, .si-meta kbd, .field label kbd { margin-inline-start: 4px; }
+.si-inq { border: 1px solid var(--separator); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.si-inq-h { font-size: 13px; font-weight: 700; color: var(--tint); margin-bottom: 4px; }
+.si-inq-row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--label-2); padding: 3px 0; border-bottom: 1px dashed var(--separator); }
+.si-inq-row:last-child { border-bottom: 0; }
+.si-inq-row b { color: var(--heading); }
+@media (max-width: 1500px) {
+  .si-main { grid-template-columns: 64px minmax(0, 1fr); }
+  .si-main > .ss-side { grid-column: 1 / -1; position: static; }
+  .si-keys { position: static; }
+  .si-main > .ss-side > .card { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+}
+@media (max-width: 1200px) {
+  .si-adj { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .si-main { grid-template-columns: 1fr; }
+  .si-keys { position: static; flex-direction: row; overflow-x: auto; }
+  .si-keys > button { flex: 0 0 74px; height: 56px; }
+  .si-ud { display: flex; flex: 0 0 auto; }
+  .si-ud button { width: 44px; height: 56px; }
+  .si-adj { grid-template-columns: 1fr; }
+  .si-bar { position: static; }
+}
+
+/* ===================== كثافة أخف للنظام كله: أحجام أصغر، أوزان أهدأ، مسافات أقل ===================== */
+:root { --h-sm: 30px; --h-control: 38px; --h-lg: 44px; --h-xl: 52px; --fs-16: 14.5px; --fs-17: 15px; --fs-15: 14px; }
+body { font-size: 14.5px; }
+.btn { height: 36px; padding: 0 14px; font-weight: 500; }
+.btn.sm { height: 30px; padding: 0 10px; }
+.input, .select { height: 38px; font-size: 14.5px; }
+.table th { padding: 8px 10px; font-size: 12px; font-weight: 600; }
+.table td { padding: 7px 10px; }
+.card.pad { padding: 14px; }
+.field > label { font-size: 12.5px; font-weight: 500; }
+kbd { font-weight: 500; }
+
+/* فاتورة البيع: كل شيء أمام العين في شاشة واحدة */
+.si { gap: 10px; }
+.si .ss-top { gap: 10px; }
+.si .ss-entry { padding: 10px 12px; gap: 10px; }
+.si .ss-step { gap: 4px; }
+.si .ss-step > label { font-size: 12px; font-weight: 500; }
+.si .ss-step .input, .si .si-search .btn { height: 38px; font-size: 14.5px; }
+.si .ss-avail-v { height: 38px; font-size: 15px; font-weight: 600; }
+.si .ss-add { width: 48px; height: 38px; }
+.si .ss-add svg { width: 20px; height: 20px; }
+.si .ss-total { padding: 10px 16px; min-width: 200px; }
+.si .ss-total-label { font-size: 12.5px; font-weight: 500; }
+.si .ss-total-v { font-size: 28px; font-weight: 700; }
+.si .ss-total-sub { font-size: 12px; }
+.si-main { grid-template-columns: 60px minmax(0, 1fr) 300px; gap: 10px; }
+.si-keys { gap: 6px; }
+.si-keys > button { height: 52px; border-radius: 10px; font-weight: 500; font-size: 11.5px; }
+.si-keys > button svg { width: 16px; height: 16px; }
+.si-ud button { height: 32px; }
+.si-table th, .si-table td { padding: 6px 8px; }
+.si-table td { font-size: 14px; }
+.si-table td.bold, .si-table .bold { font-weight: 500; }
+.si-table .input, .si-table .select { height: 32px; font-size: 14px; }
+.si-table tfoot td { font-weight: 600; padding: 8px; }
+.si-grid { min-height: 260px; }
+.si-grid-foot { padding: 6px 10px; }
+.si .ss-side .card.pad { gap: 10px !important; }
+.si .ss-pay { gap: 6px; }
+.si .ss-pay button { height: 36px; font-size: 13.5px; }
+.si .ss-pay button svg { width: 16px; height: 16px; }
+.si .ss-sum .row { font-size: 13.5px; }
+.si .ss-sum .row.big { font-size: 17px; }
+.si-meta { height: 34px; font-size: 12.5px; }
+.si-navs button { width: 32px; height: 28px; }
+.si-navs button svg { width: 16px; height: 16px; }
+.si-adj { padding: 10px 12px; gap: 12px; }
+.si-adj-g > label { font-size: 12px; font-weight: 500; }
+.si-switch { height: 38px; }
+.si-bar { padding: 8px 10px; gap: 6px; border-radius: 12px; }
+.si-bar .btn { height: 34px; font-size: 13.5px; }
+.si-bar kbd { font-size: 10px; padding: 0 4px; }
+@media (max-width: 1500px) { .si-main { grid-template-columns: 56px minmax(0, 1fr); } }

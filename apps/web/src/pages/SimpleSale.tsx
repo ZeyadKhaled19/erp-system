@@ -1,13 +1,13 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, mulDiv, parseMoney, todayISO, toBaseQty, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, Clock3, CreditCard, Plus, Printer, Settings2, Trash2, UserPlus, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Banknote, Check, ChevronDown, ChevronRight, ChevronUp, ChevronsRight, Clock3, CreditCard, FileSpreadsheet, Hash, Info, Minus, Percent, Pin, PinOff, Plus, Printer, Search, Settings2, Share2, Tag, Trash2, UserPlus, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
 import { CategoryFilter } from '../components/Categories';
-import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, useUi } from '../components/ui';
+import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportCsv, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession } from '../lib/hooks';
@@ -157,16 +157,51 @@ export function SimpleSalePage() {
   );
 }
 
+/** إعدادات افتراضية مثبتة لكل مستخدم (طريقة الدفع وقائمة الأسعار) */
+const defaultsKey = (uid: string) => `erp.sale.defaults.${uid}`;
+function loadDefaults(uid: string): { method?: string; priceList?: string } {
+  try {
+    return JSON.parse(localStorage.getItem(defaultsKey(uid)) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** عرض أعمدة جدول الفاتورة لكل مستخدم (سحب حافة العنوان، دبل كليك للملاءمة) */
+const COLS = ['code', 'name', 'unit', 'avail', 'qty', 'price', 'gross', 'disc', 'net', 'del'] as const;
+const DEFAULT_W: Record<string, number> = { code: 70, name: 220, unit: 84, avail: 74, qty: 96, price: 104, gross: 100, disc: 96, net: 104, del: 44 };
+function useColWidths(uid: string) {
+  const key = `erp.sale.cols.${uid}`;
+  const [w, setW] = useState<Record<string, number>>(() => {
+    try {
+      return { ...DEFAULT_W, ...(JSON.parse(localStorage.getItem(key) ?? '{}') ?? {}) };
+    } catch {
+      return { ...DEFAULT_W };
+    }
+  });
+  const save = (n: Record<string, number>) => {
+    setW(n);
+    try {
+      localStorage.setItem(key, JSON.stringify(n));
+    } catch {
+      /* ignore */
+    }
+  };
+  return { w, set: (c: string, v: number) => save({ ...w, [c]: Math.max(44, Math.min(700, Math.round(v))) }), reset: () => save({ ...DEFAULT_W }) };
+}
+
 function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active: boolean; onSummary: (s: TabSummary) => void; onSaved: () => boolean }) {
   const ui = useUi();
   const nav = useNavigate();
   const { session } = useSession();
+  const uid = session.user.id;
   const can = (k: string) => hasPermission(session.user.permissions, k);
 
   const items = useLiveQuery(async () => (await db.items.toArray()).filter((i) => i.active !== false), []) ?? [];
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
   const customers = useLiveQuery(async () => (await db.parties.where('kind').equals('customer').toArray()).filter((p) => p.active !== false), []) ?? [];
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
+  const priceLists = useLiveQuery(async () => (await db.price_lists.toArray()).filter((p) => p.active !== false).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), []) ?? [];
   const boxes = useLiveQuery(
     async () =>
       (await db.cashboxes.toArray())
@@ -174,7 +209,7 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'cash' ? -1 : 1)),
     [],
   ) ?? [];
-  const myShift = useLiveQuery(async () => (await db.cashier_shifts.where('user_id').equals(session.user.id).toArray()).find((s) => s.status === 'open' && !s._sync) ?? null, []);
+  const myShift = useLiveQuery(async () => (await db.cashier_shifts.where('user_id').equals(uid).toArray()).find((s) => s.status === 'open' && !s._sync) ?? null, []);
 
   const [whId, setWhId] = useState('');
   const wh = whId || warehouses[0]?.id;
@@ -186,19 +221,35 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   const costHover = (id: string, unit?: string) => (showCost ? hover.bind(<CostCard c={costs.get(id)} unit={unit} />) : {});
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
-  const [draft] = useState(() => loadDraft(tabId));
+  const defaults = useMemo(() => loadDefaults(uid), [uid]);
+  const [draft] = useState(() => loadDraft(tabId) as any);
   const [date, setDate] = useState(draft.date ?? todayISO());
   const [partyId, setPartyId] = useState(draft.partyId ?? 'party-cash-customer');
   const [notes, setNotes] = useState(draft.notes ?? '');
   const [lines, setLines] = useState<Line[]>(draft.lines ?? []);
-  const [discount, setDiscount] = useState(draft.discount ?? 0);
-  const [method, setMethod] = useState<string>(draft.method ?? ''); // id خزينة أو 'credit'
+  const [discMode, setDiscMode] = useState<'amt' | 'pct'>(draft.discMode ?? 'amt');
+  const [discount, setDiscount] = useState<number>(draft.discount ?? 0); // مبلغ
+  const [discPct, setDiscPct] = useState<string>(draft.discPct ?? '');
+  const [addName, setAddName] = useState<string>(draft.addName ?? '');
+  const [addAmt, setAddAmt] = useState<number>(draft.addAmt ?? 0);
+  const [roundOn, setRoundOn] = useState<boolean>(draft.roundOn ?? false);
+  const [plOverride, setPlOverride] = useState<string | null>(draft.plOverride ?? defaults.priceList ?? null);
+  const [method, setMethod] = useState<string>(draft.method ?? defaults.method ?? ''); // id خزينة أو 'credit'
   const [paidText, setPaidText] = useState<string>(draft.paidText ?? '');
+  const [restMethod, setRestMethod] = useState<string>(draft.restMethod ?? '');
   const [printAfter, setPrintAfter] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
+  const [inquiry, setInquiry] = useState<string | null>(null);
+  const [sel, setSel] = useState(0);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const cols = useColWidths(uid);
 
   // سطر الإدخال
   const [q, setQ] = useState('');
@@ -210,12 +261,15 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
   const searchRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLDivElement>(null);
   const priceRef = useRef<HTMLDivElement>(null);
+  const paidRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const party = customers.find((p) => p.id === partyId);
-  const priceList = party?.price_list_id ?? 'pl-retail';
+  const priceList = plOverride ?? party?.price_list_id ?? 'pl-retail';
   const box = method && method !== 'credit' ? method : '';
   useEffect(() => {
-    if (!method && boxes.length) setMethod(myShift?.cashbox_id && boxes.some((b) => b.id === myShift.cashbox_id) ? myShift.cashbox_id : boxes[0].id);
+    if ((!method || (method !== 'credit' && boxes.length && !boxes.some((b) => b.id === method))) && boxes.length)
+      setMethod(myShift?.cashbox_id && boxes.some((b) => b.id === myShift.cashbox_id) ? myShift.cashbox_id : boxes[0].id);
   }, [boxes, method, myShift]);
 
   const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
@@ -235,11 +289,14 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
       .slice(0, 300);
   }, [q, items, catFilter, catNames, entryItem]);
 
+  const unitOf = (it: any, unitName?: string) => {
+    const u = unitName ? units.find((x) => x.item_id === it.id && x.name === unitName) : null;
+    return u ? { name: u.name, factor: u.factor, sale_price: u.sale_price, wholesale_price: u.wholesale_price } : { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price };
+  };
   const pick = async (itemId: string, unitName?: string) => {
     const it = itemMap.get(itemId);
     if (!it) return;
-    const u = unitName ? units.find((x) => x.item_id === itemId && x.name === unitName) : null;
-    const unit = u ? { name: u.name, factor: u.factor, sale_price: u.sale_price, wholesale_price: u.wholesale_price } : { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price };
+    const unit = unitOf(it, unitName);
     setEntryItem(itemId);
     setListOpen(false);
     setQ(it.name);
@@ -252,11 +309,17 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     const it = entryItem ? itemMap.get(entryItem) : null;
     if (!it || entryQty <= 0) return;
     const unit = entryUnit ?? { name: it.base_unit, factor: 1000 };
+    let idx = -1;
     setLines((ls) => {
-      const same = ls.find((l) => l.item_id === it.id && l.unit_name === unit.name && l.price === entryPrice);
-      if (same) return ls.map((l) => (l === same ? { ...l, qty: l.qty + entryQty } : l));
+      const same = ls.findIndex((l) => l.item_id === it.id && l.unit_name === unit.name && l.price === entryPrice);
+      if (same >= 0) {
+        idx = same;
+        return ls.map((l, i) => (i === same ? { ...l, qty: l.qty + entryQty } : l));
+      }
+      idx = ls.length;
       return [...ls, { id: uuid(), item_id: it.id, unit_name: unit.name, unit_factor: unit.factor, qty: entryQty, price: entryPrice, discount: 0, tax_rate_bp: it.tax_rate_bp ?? 0 }];
     });
+    setTimeout(() => setSel(Math.max(0, idx)), 0);
     setEntryItem(null);
     setEntryUnit(null);
     setQ('');
@@ -288,14 +351,37 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     }
   };
 
-  const calc = useMemo(() => {
+  // ---------- الحساب: خصم بالمبلغ أو النسبة، إضافة، وخصم الفكة ----------
+  const compute = (disc: number) => {
     try {
-      return computeDocument(lines.map((l) => ({ qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp })), discount);
+      return computeDocument(lines.map((l) => ({ qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp })), disc);
     } catch (e) {
       return { error: (e as Error).message, total: 0, gross: 0, tax: 0, discount: 0, lines: [] } as any;
     }
-  }, [lines, discount]);
-  const total = calc.total ?? 0;
+  };
+  const lineDisc = lines.reduce((s, l) => s + (l.discount ?? 0), 0);
+  const base = compute(0);
+  let pct = 0;
+  try {
+    pct = discPct.trim() ? Math.max(0, Math.min(100, parseFloat(discPct.replace(',', '.')) || 0)) : 0;
+  } catch {
+    pct = 0;
+  }
+  const docDisc = discMode === 'pct' ? Math.round(((base.gross ?? 0) - lineDisc) * pct / 100) : discount;
+  const addOn = addName && addAmt > 0 ? addAmt : 0;
+  let finalDisc = docDisc;
+  let calc = compute(finalDisc);
+  let roundOff = 0;
+  if (roundOn && !calc.error) {
+    for (let k = 0; k < 3; k++) {
+      const r = (calc.total + addOn) % 100;
+      if (r <= 0) break;
+      roundOff += r;
+      finalDisc = docDisc + roundOff;
+      calc = compute(finalDisc);
+    }
+  }
+  const total = (calc.total ?? 0) + addOn;
   let paid = total;
   if (method === 'credit') paid = 0;
   else if (paidText.trim()) {
@@ -305,38 +391,87 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
       paid = total;
     }
   }
-  const remaining = total - paid;
+  const remainder = total - paid;
+  const restBox = boxes.find((b) => b.id === restMethod && b.id !== box);
+  const credit = method === 'credit' ? total : remainder > 0 && !restBox ? remainder : 0;
   const isCash = partyId === 'party-cash-customer';
   const partyName = partyId === 'party-cash-customer' ? null : party?.name ?? null;
   useEffect(() => {
-    storeSet(draftKey(tabId), lines.length || partyId !== 'party-cash-customer' || notes ? { date, partyId, notes, lines, discount, method, paidText } : null);
+    storeSet(
+      draftKey(tabId),
+      lines.length || partyId !== 'party-cash-customer' || notes
+        ? { date, partyId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod }
+        : null,
+    );
     onSummary({ count: lines.length, total, party: partyName });
-  }, [date, partyId, notes, lines, discount, method, paidText, total, partyName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, partyId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod, total, partyName]);
   useEffect(() => {
     if (active) setTimeout(() => searchRef.current?.focus(), 30);
   }, [active]);
+  useEffect(() => {
+    if (sel > lines.length - 1) setSel(Math.max(0, lines.length - 1));
+  }, [lines.length, sel]);
   const entryAvail = entryItem ? mulDiv(stock.get(entryItem) ?? 0, 1000, entryUnit?.factor ?? 1000) : null;
 
   const reset = () => {
     setLines([]);
     setDiscount(0);
+    setDiscPct('');
+    setAddName('');
+    setAddAmt(0);
+    setRoundOn(false);
     setNotes('');
     setPaidText('');
+    setRestMethod('');
     setPartyId('party-cash-customer');
-    setMethod(boxes[0]?.id ?? '');
+    setPlOverride(loadDefaults(uid).priceList ?? null);
+    setMethod(loadDefaults(uid).method ?? boxes[0]?.id ?? '');
     setErr(null);
+    setSel(0);
     setTimeout(() => searchRef.current?.focus(), 30);
   };
 
-  const save = async (andNew: boolean) => {
+  // ---------- تثبيت الافتراضيات لكل مستخدم ----------
+  const pinned = loadDefaults(uid);
+  const pin = (k: 'method' | 'priceList', v: string | null) => {
+    const d = { ...loadDefaults(uid) };
+    if (v && d[k] !== v) d[k] = v;
+    else delete d[k];
+    storeSet(defaultsKey(uid), d);
+    ui.toast(d[k] ? 'تم التثبيت كافتراضي لك' : 'أُلغي التثبيت');
+    setNow(new Date());
+  };
+
+  // تغيير قائمة الأسعار يعيد تسعير السطور
+  const changePriceList = async (pl: string | null) => {
+    setPlOverride(pl);
+    const target = pl ?? party?.price_list_id ?? 'pl-retail';
+    const next = await Promise.all(
+      lines.map(async (l) => {
+        const it = itemMap.get(l.item_id);
+        if (!it) return l;
+        const u = l.unit_name === it.base_unit ? { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price } : unitOf(it, l.unit_name);
+        return { ...l, price: await priceFor(it, u, target) };
+      }),
+    );
+    setLines(next);
+  };
+
+  const save = async (mode: 'new' | 'view' | 'print') => {
     setErr(null);
     if (!lines.length) return setErr('أضف صنفًا واحدًا على الأقل');
     if (calc.error) return setErr(calc.error);
-    if (remaining > 0 && isCash) return setErr('المبلغ المتبقي آجل: اختر العميل الذي سيُسجل عليه (أو أضف عميلًا جديدًا)');
+    if (credit > 0 && isCash) return setErr('الجزء الآجل يُسجل على عميل: اختر العميل (أو أضف عميلًا جديدًا)');
+    if (credit > 0 && !can('sales.credit')) return setErr('لا تملك صلاحية البيع الآجل؛ اختر طريقة لدفع الباقي');
     if (method !== 'credit' && !box) return setErr('اختر طريقة الدفع');
     setBusy(true);
     try {
       const id = uuid();
+      const payments = [
+        ...(paid > 0 && box ? [{ id: uuid(), cashbox_id: box, amount: paid }] : []),
+        ...(remainder > 0 && restBox && method !== 'credit' ? [{ id: uuid(), cashbox_id: restBox.id, amount: remainder }] : []),
+      ];
       const doc: DocInput = {
         id,
         doc_type: 'sale_invoice',
@@ -345,28 +480,28 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         warehouse_id: wh,
         cashbox_id: box || null,
         price_list_id: priceList,
-        payment_type: remaining > 0 ? 'credit' : 'cash',
-        payments: paid > 0 && box ? [{ id: uuid(), cashbox_id: box, amount: paid }] : [],
+        payment_type: credit > 0 ? 'credit' : 'cash',
+        payments,
         instruments: [],
-        charges: [],
-        shift_id: myShift && box === myShift.cashbox_id ? myShift.id : null,
+        charges: addOn > 0 ? [{ id: uuid(), name: addName, mode: 'add', amount: addOn }] : [],
+        shift_id: myShift && payments.some((p) => p.cashbox_id === myShift.cashbox_id) ? myShift.id : null,
         lines: lines.map((l) => ({ ...l, serials: [], expiry: null, ref_line_id: null, notes: null })),
         journal_lines: [],
         paid: 0,
         amount: 0,
-        discount,
+        discount: finalDisc,
         notes: notes || null,
         reserve: false,
         deliver_later: false,
         retained_bp: 0,
       } as DocInput;
       await saveDocument(doc, 'post', null);
-      ui.toast(`تم حفظ الفاتورة${remaining > 0 ? ` — آجل ${formatMoney(remaining)} على ${party?.name}` : ''}`);
-      if (printAfter) window.open(`/print/${id}?auto=1`, '_blank');
-      if (andNew) {
-        if (!onSaved()) reset();
-      }
-      else nav(`/docs/view/${id}`);
+      ui.toast(`تم حفظ الفاتورة${credit > 0 ? ` — آجل ${formatMoney(credit)} على ${party?.name}` : ''}`);
+      if (printAfter || mode === 'print') window.open(`/print/${id}?auto=1`, '_blank');
+      // الفاتورة اتحفظت: امسح المسودة دائمًا حتى لا تعود أصنافها عند الرجوع للشاشة
+      if (!onSaved()) reset();
+      storeSet(draftKey(tabId), null);
+      if (mode === 'view') nav(`/docs/view/${id}`);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -374,18 +509,84 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     }
   };
 
+  // ---------- أوامر السطر المحدد ----------
+  const focusCell = (field: 'qty' | 'price' | 'disc') => {
+    const l = lines[sel];
+    if (!l) return;
+    const el = gridRef.current?.querySelector<HTMLInputElement>(`[data-cell="${l.id}-${field}"] input`);
+    el?.focus();
+    el?.select();
+  };
+  const deleteSel = async () => {
+    const l = lines[sel];
+    if (!l) return;
+    const ok = await ui.confirm({ title: 'حذف السطر؟', message: `سيُحذف «${itemMap.get(l.item_id)?.name ?? ''}» من الفاتورة.`, confirmLabel: 'حذف', destructive: true });
+    if (!ok) return;
+    setLines((ls) => ls.filter((x) => x.id !== l.id));
+  };
+  const newInvoice = async () => {
+    if (lines.length && !(await ui.confirm({ title: 'فاتورة جديدة؟', message: 'الأصناف الحالية لم تُحفظ وستُمسح من هذه الفاتورة.', confirmLabel: 'فاتورة جديدة', destructive: true }))) return;
+    reset();
+  };
+  const exportLines = () =>
+    exportCsv(
+      'فاتورة بيع',
+      ['الكود', 'الصنف', 'الوحدة', 'الكمية', 'السعر', 'الإجمالي', 'الخصم', 'النهائي'],
+      lines.map((l, i) => {
+        const it = itemMap.get(l.item_id);
+        const g = mulDiv(l.qty, l.price, 1000);
+        return [it?.code, it?.name, l.unit_name, formatQty(l.qty), formatMoney(l.price), formatMoney(g), formatMoney(l.discount), formatMoney(calc.lines?.[i]?.total ?? g - l.discount)];
+      }),
+    );
+  const shareInvoice = async () => {
+    const text = [`فاتورة بيع — ${partyName ?? 'عميل نقدي'} — ${date}`, ...lines.map((l) => `${itemMap.get(l.item_id)?.name} × ${formatQty(l.qty)} = ${formatMoney(mulDiv(l.qty, l.price, 1000) - l.discount)}`), `الإجمالي: ${formatMoney(total)}`].join('\n');
+    try {
+      if (navigator.share) await navigator.share({ title: 'فاتورة بيع', text });
+      else {
+        await navigator.clipboard.writeText(text);
+        ui.toast('نُسخ ملخص الفاتورة');
+      }
+    } catch {
+      /* ألغى المستخدم المشاركة */
+    }
+  };
+  const lastSales = useLiveQuery(async () => {
+    const all = (await db.documents.where('doc_type').equals('sale_invoice').toArray()).filter((d) => d.status !== 'draft');
+    all.sort((a, b) => String(a.date + (a.created_at ?? '')).localeCompare(String(b.date + (b.created_at ?? ''))));
+    return { first: all[0]?.id ?? null, last: all[all.length - 1]?.id ?? null };
+  }, []);
+
   useEffect(() => {
     if (!active) return;
     const k = (e: KeyboardEvent) => {
-      if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
+      const t = e.target as HTMLElement;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
+      if (document.querySelector('.overlay')) return; // نافذة مفتوحة
+      const keyMap: Record<string, () => void> = {
+        F2: () => setInquiry(lines[sel]?.item_id ?? entryItem ?? null),
+        F4: () => void save('print'),
+        F5: () => focusCell('qty'),
+        F6: () => focusCell('price'),
+        F7: () => focusCell('disc'),
+        F8: () => void deleteSel(),
+        F9: () => void save('view'),
+        F10: () => void newInvoice(),
+        F11: () => { paidRef.current?.focus(); paidRef.current?.select(); },
+        F12: () => void save('new'),
+      };
+      if (keyMap[e.key]) {
         e.preventDefault();
-        void save(true);
-      } else if (e.key === 'F9') {
+        keyMap[e.key]();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        void save(false);
-      } else if (e.key === 'F2') {
+        void save('new');
+        return;
+      }
+      if (!typing && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && lines.length) {
         e.preventDefault();
-        searchRef.current?.focus();
+        setSel((s) => Math.max(0, Math.min(lines.length - 1, s + (e.key === 'ArrowDown' ? 1 : -1))));
       }
     };
     window.addEventListener('keydown', k);
@@ -397,56 +598,128 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
     return [{ name: it.base_unit, factor: 1000 }, ...units.filter((u) => u.item_id === itemId && u.active !== false)];
   };
   const priceLocked = !can('sales.price_change');
+  const canDisc = can('sales.discount');
+  const sum = lines.reduce(
+    (a, l, i) => {
+      const g = mulDiv(l.qty, l.price, 1000);
+      return { qty: a.qty + l.qty, gross: a.gross + g, disc: a.disc + (l.discount ?? 0), net: a.net + (calc.lines?.[i]?.total ?? g - (l.discount ?? 0)) };
+    },
+    { qty: 0, gross: 0, disc: 0, net: 0 },
+  );
+
+  // ---------- تغيير عرض الأعمدة ----------
+  const startResize = (c: string) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = cols.w[c];
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    document.body.classList.add('col-resizing');
+    const move = (ev: PointerEvent) => cols.set(c, startW + (startX - ev.clientX));
+    const up = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      document.body.classList.remove('col-resizing');
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  };
+  const fitColumn = (c: string, idx: number) => {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:inherit;font-weight:700;font-size:15px';
+    document.body.appendChild(probe);
+    let max = 60;
+    gridRef.current?.querySelectorAll('tr').forEach((tr) => {
+      const cell = tr.children[idx] as HTMLElement | undefined;
+      if (!cell || (cell as HTMLTableCellElement).colSpan > 1) return;
+      const input = cell.querySelector('input, select') as HTMLInputElement | null;
+      probe.textContent = input ? input.value : cell.textContent ?? '';
+      max = Math.max(max, probe.offsetWidth + (input ? 46 : 34));
+    });
+    probe.remove();
+    cols.set(c, max);
+  };
+  const H = ({ c, idx, children, n }: { c: string; idx: number; children?: ReactNode; n?: boolean }) => (
+    <th className={n ? 'n' : undefined}>
+      {children}
+      {c !== 'del' && <span className="col-grip" title="اسحب لتغيير العرض · دبل كليك للملاءمة" onPointerDown={startResize(c)} onDoubleClick={() => fitColumn(c, idx)} />}
+    </th>
+  );
 
   return (
-    <div className="ss" style={active ? undefined : { display: 'none' }}>
-      {/* ======= الشريط العلوي: الإدخال + الإجمالي ======= */}
-      <CategoryFilter value={catFilter} onChange={(id) => { setCatFilter(id); setHl(0); searchRef.current?.focus(); }} />
+    <div className="ss si" style={active ? undefined : { display: 'none' }}>
+      {/* ======= رقم الفاتورة والتاريخ والوقت + التنقل ======= */}
+      <div className="si-meta-row">
+        <div className="si-meta">
+          <span>رقم الفاتورة</span>
+          <b>يصدر عند الحفظ</b>
+          <span className="sep">·</span>
+          <input type="date" className="si-date" aria-label="التاريخ" value={date} onChange={(e) => setDate(e.target.value)} />
+          <span className="num si-time">{now.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' })}</span>
+          {warehouses.length > 1 && (
+            <select className="si-wh" aria-label="المخزن" value={wh} onChange={(e) => setWhId(e.target.value)}>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          )}
+        </div>
+        <div className="si-navs" aria-label="التنقل بين الفواتير">
+          <button title="بحث في فواتير البيع" aria-label="بحث في فواتير البيع" onClick={() => nav('/invoices?k=sales')}><Search /></button>
+          <button title="أول فاتورة" aria-label="أول فاتورة" disabled={!lastSales?.first} onClick={() => lastSales?.first && nav(`/docs/view/${lastSales.first}`)}><ChevronsRight /></button>
+          <button title="آخر فاتورة محفوظة" aria-label="آخر فاتورة محفوظة" disabled={!lastSales?.last} onClick={() => lastSales?.last && nav(`/docs/view/${lastSales.last}`)}><ChevronRight /></button>
+        </div>
+      </div>
+
+      {/* ======= سطر الإدخال + الإجمالي ======= */}
       <div className="ss-top">
         <div className="ss-entry">
           <div className="ss-step" style={{ flex: 3 }}>
             <label><b>1</b> ابحث عن الصنف</label>
-            <div className="picker">
-              <input
-                ref={searchRef}
-                className="input"
-                autoFocus
-                value={q}
-                placeholder="الاسم أو الكود أو امسح الباركود (F2)"
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  setHl(0);
-                  setEntryItem(null);
-                  setListOpen(true);
-                }}
-                onFocus={(e) => {
-                  setListOpen(true);
-                  e.target.select();
-                }}
-                onBlur={() => setTimeout(() => setListOpen(false), 150)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setListOpen(false);
-                  else void onSearchKey(e);
-                }}
-              />
-              {listOpen && (!entryItem || !q) && (
-                <FloatingPop anchor={searchRef} maxHeight={460} minWidth={440}>
-                  <GroupChips groups={groups} value={catNames.get(catFilter) ?? ''} onChange={(g) => { setCatFilter(cats.find((c) => c.name === g)?.id ?? ''); setHl(0); }} />
-                  {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
-                  {matches.map((m, i) => (
-                    <div
-                      key={m.id}
-                      className={`picker-opt ${i === hl ? 'hl' : ''}`}
-                      onMouseDown={(e) => { e.preventDefault(); hover.hide(); void pick(m.id); }}
-                      onMouseEnter={(e) => { setHl(i); (costHover(m.id, m.base_unit) as any).onMouseEnter?.(e); }}
-                      onMouseLeave={() => hover.hide()}
-                    >
-                      <span style={{ flex: 1 }}>{m.name}</span>
-                      <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
-                    </div>
-                  ))}
-                </FloatingPop>
-              )}
+            <div className="si-search">
+              <div className="picker" style={{ flex: 1 }}>
+                <input
+                  ref={searchRef}
+                  className="input"
+                  autoFocus
+                  value={q}
+                  placeholder="الاسم أو الكود أو امسح الباركود"
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    setHl(0);
+                    setEntryItem(null);
+                    setListOpen(true);
+                  }}
+                  onFocus={(e) => {
+                    setListOpen(true);
+                    e.target.select();
+                  }}
+                  onBlur={() => setTimeout(() => setListOpen(false), 150)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setListOpen(false);
+                    else void onSearchKey(e);
+                  }}
+                />
+                {listOpen && (!entryItem || !q) && (
+                  <FloatingPop anchor={searchRef} maxHeight={460} minWidth={440}>
+                    <GroupChips groups={groups} value={catNames.get(catFilter) ?? ''} onChange={(g) => { setCatFilter(cats.find((c) => c.name === g)?.id ?? ''); setHl(0); }} />
+                    {matches.length === 0 && <div className="picker-opt muted">لا توجد أصناف مطابقة</div>}
+                    {matches.map((m, i) => (
+                      <div
+                        key={m.id}
+                        className={`picker-opt ${i === hl ? 'hl' : ''}`}
+                        onMouseDown={(e) => { e.preventDefault(); hover.hide(); void pick(m.id); }}
+                        onMouseEnter={(e) => { setHl(i); (costHover(m.id, m.base_unit) as any).onMouseEnter?.(e); }}
+                        onMouseLeave={() => hover.hide()}
+                      >
+                        <span className="muted small num" style={{ minWidth: 44 }}>{m.code}</span>
+                        <span style={{ flex: 1 }}>{m.name}</span>
+                        <span className="muted small num">{m.is_service ? 'خدمة' : `متاح ${formatQty(stock.get(m.id) ?? 0)}`} · {formatMoney(m.sale_price)}</span>
+                      </div>
+                    ))}
+                  </FloatingPop>
+                )}
+              </div>
+              <button className="btn" title="استعلام عن الصنف (F2)" onClick={() => setInquiry(entryItem ?? lines[sel]?.item_id ?? null)} disabled={!entryItem && !lines[sel]}><Info /> استعلام</button>
             </div>
           </div>
           <div className="ss-step ss-avail">
@@ -469,60 +742,107 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
         <div className="ss-total">
           <div className="ss-total-label">الإجمالي</div>
           <div className="ss-total-v num">{formatMoney(total)}</div>
-          <div className="ss-total-sub">{lines.length} صنف{calc.tax ? ` · ضريبة ${formatMoney(calc.tax)}` : ''}</div>
+          <div className="ss-total-sub">{lines.length} صنف{finalDisc ? ` · خصم ${formatMoney(finalDisc)}` : ''}{roundOff ? ` (فكة ${formatMoney(roundOff)})` : ''}</div>
         </div>
       </div>
 
-      <div className="ss-body">
-        {/* ======= جدول الأصناف ======= */}
-        <div className="ss-grid card">
-          <table className="table">
-            <thead>
-              <tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>المتاح</th><th className="n">الكمية</th><th className="n">السعر</th>{can('sales.discount') && <th className="n">الخصم</th>}<th className="n">الإجمالي</th><th /></tr>
-            </thead>
-            <tbody>
-              {lines.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 50 }} className="muted">ابدأ بالبحث عن صنف بالاسم أو بالكود أو امسح الباركود</td></tr>
-              )}
-              {lines.map((l, i) => {
-                const it = itemMap.get(l.item_id);
-                const avail = mulDiv(stock.get(l.item_id) ?? 0, 1000, l.unit_factor);
-                const short = it && !it.is_service && toBaseQty(l.qty, l.unit_factor) > (stock.get(l.item_id) ?? 0);
-                const upd = (p: Partial<Line>) => setLines((ls) => ls.map((x) => (x.id === l.id ? { ...x, ...p } : x)));
-                const uopts = unitOptions(l.item_id);
-                return (
-                  <tr key={l.id}>
-                    <td className="muted">{i + 1}</td>
-                    <td className="bold"><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span></td>
-                    <td>
-                      {uopts.length > 1 ? (
-                        <select className="select" style={{ height: 36, minWidth: 90 }} value={l.unit_name} onChange={async (e) => {
-                          const u: any = uopts.find((x: any) => x.name === e.target.value);
-                          upd({ unit_name: u.name, unit_factor: u.factor, price: await priceFor(it!, u.name === it!.base_unit ? { name: u.name, factor: 1000, sale_price: it!.sale_price, wholesale_price: it!.wholesale_price } : u, priceList) });
-                        }}>
-                          {uopts.map((u: any) => <option key={u.name} value={u.name}>{u.name}</option>)}
-                        </select>
-                      ) : l.unit_name}
-                    </td>
-                    <td>{it?.is_service ? <span className="muted small">خدمة</span> : <span className={`stock-chip ${avail <= 0 ? 'out' : short ? 'low' : ''}`} style={{ marginTop: 0 }}>{formatQty(avail)}</span>}</td>
-                    <td className="n" style={{ width: 110 }}><QtyInput value={l.qty} onChange={(v) => upd({ qty: v })} /></td>
-                    <td className="n" style={{ width: 120 }}><MoneyInput value={l.price} onChange={(v) => upd({ price: v })} disabled={priceLocked} /></td>
-                    {can('sales.discount') && <td className="n" style={{ width: 110 }}><MoneyInput value={l.discount} onChange={(v) => upd({ discount: v })} /></td>}
-                    <td className="n bold">{formatMoney(calc.lines?.[i]?.total ?? 0)}</td>
-                    <td><button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => setLines((ls) => ls.filter((x) => x.id !== l.id))} aria-label="حذف"><Trash2 /></button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {can('items.create') && <button className="btn plain" style={{ margin: 10 }} onClick={() => setNewItem(true)}><Plus /> صنف جديد غير موجود</button>}
+      <CategoryFilter value={catFilter} onChange={(id) => { setCatFilter(id); setHl(0); searchRef.current?.focus(); }} />
+
+      <div className="si-main">
+        {/* ======= أوامر السطر المحدد ======= */}
+        <div className="si-keys" aria-label="أوامر السطر المحدد">
+          <button onClick={() => focusCell('qty')} disabled={!lines[sel]}><Hash />الكمية<kbd>F5</kbd></button>
+          <button onClick={() => focusCell('price')} disabled={!lines[sel] || priceLocked}><Tag />السعر<kbd>F6</kbd></button>
+          <button onClick={() => focusCell('disc')} disabled={!lines[sel] || !canDisc}><Percent />الخصم<kbd>F7</kbd></button>
+          <button className="del" onClick={() => void deleteSel()} disabled={!lines[sel]}><Minus />حذف<kbd>F8</kbd></button>
+          <div className="si-ud">
+            <button title="السطر السابق" aria-label="السطر السابق" onClick={() => setSel((s) => Math.max(0, s - 1))} disabled={sel <= 0}><ChevronUp /></button>
+            <button title="السطر التالي" aria-label="السطر التالي" onClick={() => setSel((s) => Math.min(lines.length - 1, s + 1))} disabled={sel >= lines.length - 1}><ChevronDown /></button>
+          </div>
         </div>
 
-        {/* ======= العميل والدفع والحفظ ======= */}
+        {/* ======= جدول الأصناف ======= */}
+        <div className="ss-grid card si-grid" ref={gridRef}>
+          <div className="si-tw">
+            <table className="table si-table">
+              <colgroup>{COLS.map((c) => (c === 'disc' && !canDisc ? null : <col key={c} style={{ width: cols.w[c] }} />))}</colgroup>
+              <thead>
+                <tr>
+                  <H c="code" idx={0}>الكود</H>
+                  <H c="name" idx={1}>الصنف</H>
+                  <H c="unit" idx={2}>الوحدة</H>
+                  <H c="avail" idx={3}>المتاح</H>
+                  <H c="qty" idx={4} n>الكمية</H>
+                  <H c="price" idx={5} n>السعر</H>
+                  <H c="gross" idx={6} n>الإجمالي</H>
+                  {canDisc && <H c="disc" idx={7} n>الخصم</H>}
+                  <H c="net" idx={canDisc ? 8 : 7} n>النهائي</H>
+                  <H c="del" idx={canDisc ? 9 : 8} />
+                </tr>
+              </thead>
+              <tbody>
+                {lines.length === 0 && (
+                  <tr><td colSpan={10} style={{ textAlign: 'center', padding: 50 }} className="muted">ابدأ بالبحث عن صنف بالاسم أو بالكود أو امسح الباركود</td></tr>
+                )}
+                {lines.map((l, i) => {
+                  const it = itemMap.get(l.item_id);
+                  const avail = mulDiv(stock.get(l.item_id) ?? 0, 1000, l.unit_factor);
+                  const short = it && !it.is_service && toBaseQty(l.qty, l.unit_factor) > (stock.get(l.item_id) ?? 0);
+                  const upd = (p: Partial<Line>) => setLines((ls) => ls.map((x) => (x.id === l.id ? { ...x, ...p } : x)));
+                  const uopts = unitOptions(l.item_id);
+                  const g = mulDiv(l.qty, l.price, 1000);
+                  return (
+                    <tr key={l.id} className={i === sel ? 'sel' : undefined} onClick={() => setSel(i)} onFocusCapture={() => setSel(i)}>
+                      <td className="code num">{it?.code}</td>
+                      <td className="bold si-name" title={it?.name}><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span></td>
+                      <td>
+                        {uopts.length > 1 ? (
+                          <select className="select" style={{ height: 36, width: '100%' }} value={l.unit_name} onChange={async (e) => {
+                            const u: any = uopts.find((x: any) => x.name === e.target.value);
+                            upd({ unit_name: u.name, unit_factor: u.factor, price: await priceFor(it!, u.name === it!.base_unit ? { name: u.name, factor: 1000, sale_price: it!.sale_price, wholesale_price: it!.wholesale_price } : u, priceList) });
+                          }}>
+                            {uopts.map((u: any) => <option key={u.name} value={u.name}>{u.name}</option>)}
+                          </select>
+                        ) : l.unit_name}
+                      </td>
+                      <td>{it?.is_service ? <span className="muted small">خدمة</span> : <span className={`stock-chip ${avail <= 0 ? 'out' : short ? 'low' : ''}`} style={{ marginTop: 0 }}>{formatQty(avail)}</span>}</td>
+                      <td className="n" data-cell={`${l.id}-qty`}><QtyInput value={l.qty} onChange={(v) => upd({ qty: v })} /></td>
+                      <td className="n" data-cell={`${l.id}-price`}><MoneyInput value={l.price} onChange={(v) => upd({ price: v })} disabled={priceLocked} /></td>
+                      <td className="n num">{formatMoney(g)}</td>
+                      {canDisc && <td className="n" data-cell={`${l.id}-disc`}><MoneyInput value={l.discount} onChange={(v) => upd({ discount: v })} /></td>}
+                      <td className="n bold num">{formatMoney(calc.lines?.[i]?.total ?? g - l.discount)}</td>
+                      <td><button className="icon-btn" style={{ color: 'var(--red)' }} onClick={(e) => { e.stopPropagation(); setLines((ls) => ls.filter((x) => x.id !== l.id)); }} aria-label="حذف"><Trash2 /></button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {lines.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={4}>الإجماليات <span className="muted small">({lines.length} صنف)</span></td>
+                    <td className="n num">{formatQty(sum.qty)}</td>
+                    <td />
+                    <td className="n num">{formatMoney(sum.gross)}</td>
+                    {canDisc && <td className="n num">{formatMoney(sum.disc)}</td>}
+                    <td className="n num">{formatMoney(sum.net)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+          <div className="si-grid-foot">
+            {can('items.create') && <button className="btn plain sm" onClick={() => setNewItem(true)}><Plus /> صنف جديد غير موجود</button>}
+            <span className="muted small">اختر سطرًا بالأسهم ↑↓ أو بالضغط عليه، ثم F5 الكمية · F6 السعر · F7 الخصم · F8 حذف. اسحب حافة عنوان أي عمود لتغيير عرضه.</span>
+            <button className="btn plain sm" onClick={cols.reset}>المقاسات الأصلية</button>
+          </div>
+        </div>
+
+        {/* ======= العميل والدفع ======= */}
         <div className="ss-side">
           <div className="card pad stack" style={{ gap: 12 }}>
             <div>
-              <CustomerFields partyId={partyId} onChange={setPartyId} />
+              <CustomerFields partyId={partyId} onChange={setPartyId} autoGroupName={credit > 0 ? 'آجل' : (boxes.find((b) => b.id === box)?.kind === 'bank' || restBox?.kind === 'bank') ? 'بنك' : 'نقدي'} />
               {!isCash && party && <div className="caption" style={{ marginTop: 6 }}>رصيده الحالي <span className="num">{formatMoney(party.balance ?? 0)}</span> — الفاتورة تُحفظ في سجله</div>}
             </div>
 
@@ -530,71 +850,186 @@ function SaleTab({ tabId, active, onSummary, onSaved }: { tabId: string; active:
               <label>طريقة الدفع</label>
               <div className="ss-pay">
                 {boxes.map((b) => (
-                  <button key={b.id} className={method === b.id ? 'on' : ''} onClick={() => { setMethod(b.id); setPaidText(''); }}>
+                  <button key={b.id} className={method === b.id ? 'on' : ''} onClick={() => { setMethod(b.id); setPaidText(''); setRestMethod(''); }}>
                     {b.kind === 'bank' ? <CreditCard /> : <Banknote />}<span>{b.name}</span>
+                    {pinned.method === b.id && <span className="si-pin" title="مثبتة كافتراضي"><Pin /></span>}
                   </button>
                 ))}
                 {can('sales.credit') && (
-                  <button className={`credit ${method === 'credit' ? 'on' : ''}`} onClick={() => setMethod('credit')}><Clock3 /><span>آجل</span></button>
+                  <button className={`credit ${method === 'credit' ? 'on' : ''}`} onClick={() => setMethod('credit')}>
+                    <Clock3 /><span>آجل</span>
+                    {pinned.method === 'credit' && <span className="si-pin" title="مثبتة كافتراضي"><Pin /></span>}
+                  </button>
                 )}
               </div>
+              <button className="btn plain sm" style={{ alignSelf: 'flex-start' }} onClick={() => pin('method', method)}>
+                {pinned.method === method ? <PinOff /> : <Pin />} {pinned.method === method ? 'إلغاء تثبيت طريقة الدفع' : 'ثبّت هذه الطريقة كافتراضي'}
+              </button>
             </div>
 
-            {method !== 'credit' && can('sales.credit') && (
+            {method !== 'credit' && (
               <div className="field">
-                <label>المدفوع الآن</label>
-                <input className="input num" inputMode="decimal" placeholder={formatMoney(total)} value={paidText} onChange={(e) => setPaidText(e.target.value)} />
-                <div className="caption">اتركه فارغًا لو الدفع كامل. لو أقل، الباقي يُسجل آجل على العميل.</div>
+                <label htmlFor={`paid-${tabId}`}>المدفوع {box ? `بـ ${boxes.find((b) => b.id === box)?.kind === 'cash' ? 'نقدًا' : boxes.find((b) => b.id === box)?.name}` : ''} <kbd>F11</kbd></label>
+                <input id={`paid-${tabId}`} ref={paidRef} className="input num" inputMode="decimal" placeholder={formatMoney(total)} value={paidText} onChange={(e) => setPaidText(e.target.value)} />
+                {remainder > 0 && (
+                  <div className="si-rest">
+                    <div className="pay-line warn"><span>الباقي</span><b className="num">{formatMoney(remainder)}</b></div>
+                    <div className="caption">يُدفع الباقي بـ:</div>
+                    <div className="si-rest-opts">
+                      {boxes.filter((b) => b.id !== box).map((b) => (
+                        <button key={b.id} className={restMethod === b.id ? 'on' : ''} onClick={() => setRestMethod(b.id)}>{b.kind === 'bank' ? <CreditCard /> : <Banknote />}{b.name}</button>
+                      ))}
+                      {can('sales.credit') && <button className={!restBox ? 'on' : ''} onClick={() => setRestMethod('')}><Clock3 />آجل</button>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {(method === 'credit' || remaining > 0) && isCash && (
+            {credit > 0 && isCash && (
               <Banner kind="warn">
-                البيع الآجل يُسجل على عميل. اختر العميل من الأعلى أو{' '}
+                الجزء الآجل يُسجل على عميل. اختر العميل من الأعلى أو{' '}
                 <button className="btn sm" onClick={() => setNewParty(true)}><UserPlus /> أضف عميل جديد</button>
               </Banner>
             )}
 
             <div className="ss-sum">
               <div className="row"><span>الإجمالي قبل الخصم</span><b className="num">{formatMoney(calc.gross ?? 0)}</b></div>
-              {can('sales.discount') && (
-                <div className="row"><span>خصم على الفاتورة</span><div style={{ width: 120 }}><MoneyInput value={discount} onChange={setDiscount} /></div></div>
-              )}
+              {(lineDisc > 0 || finalDisc > 0) && <div className="row"><span>الخصومات</span><b className="num">{formatMoney(lineDisc + finalDisc)}</b></div>}
               {calc.tax > 0 && <div className="row"><span>الضريبة</span><b className="num">{formatMoney(calc.tax)}</b></div>}
+              {addOn > 0 && <div className="row"><span>{addName}</span><b className="num">{formatMoney(addOn)}</b></div>}
               <div className="row big"><span>الإجمالي</span><b className="num">{formatMoney(total)}</b></div>
-              <div className="row"><span>المدفوع</span><b className="num green">{formatMoney(paid)}</b></div>
-              {remaining > 0 && <div className="row"><span>آجل على العميل</span><b className="num orange">{formatMoney(remaining)}</b></div>}
+              <div className="row"><span>المدفوع</span><b className="num green">{formatMoney(method === 'credit' ? 0 : total - credit)}</b></div>
+              {credit > 0 && <div className="row"><span>آجل على العميل</span><b className="num orange">{formatMoney(credit)}</b></div>}
             </div>
-
             {err && <Banner kind="err">{err}</Banner>}
-            <button className="btn primary xl block" disabled={busy || !lines.length} onClick={() => save(true)}><Check /> حفظ وفاتورة جديدة <small style={{ opacity: .8 }}>F12</small></button>
-            <div className="row" style={{ gap: 8 }}>
-              <button className="btn block" disabled={busy || !lines.length} onClick={() => save(false)}>حفظ وعرض <small className="muted">F9</small></button>
-              <label className="btn" style={{ gap: 6, cursor: 'pointer' }}>
-                <input type="checkbox" checked={printAfter} onChange={(e) => setPrintAfter(e.target.checked)} /> <Printer /> طباعة
-              </label>
-            </div>
-            {lines.length > 0 && <button className="btn plain danger" onClick={reset}><X /> تفريغ الفاتورة</button>}
-          </div>
-
-          <div className="card pad stack" style={{ gap: 10 }}>
-            <div className="grid grid-2">
-              <div className="field"><label>التاريخ</label><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-              {warehouses.length > 1 ? (
-                <div className="field"><label>المخزن</label>
-                  <select className="select" value={wh} onChange={(e) => setWhId(e.target.value)}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
-                </div>
-              ) : <div />}
-            </div>
             <div className="field"><label>ملاحظات</label><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-            <button className="btn plain" onClick={() => nav('/docs/new/sale_invoice?advanced=1')}><Settings2 /> فاتورة متقدمة (أقساط، شيكات، تسليم لاحق، مندوب…)</button>
           </div>
         </div>
       </div>
 
+      {/* ======= شريط التعديلات ======= */}
+      <div className="card si-adj">
+        <div className="si-adj-g">
+          <label>قائمة الأسعار</label>
+          <div className="si-adj-row">
+            <select className="select" value={plOverride ?? ''} onChange={(e) => void changePriceList(e.target.value || null)}>
+              <option value="">حسب العميل ({priceLists.find((p) => p.id === (party?.price_list_id ?? 'pl-retail'))?.name ?? 'قطاعي'})</option>
+              {priceLists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <button className={`icon-btn ${pinned.priceList && pinned.priceList === plOverride ? 'pinned' : ''}`} title="تثبيت قائمة الأسعار كافتراضي" aria-label="تثبيت قائمة الأسعار" disabled={!plOverride} onClick={() => pin('priceList', plOverride)}><Pin /></button>
+          </div>
+        </div>
+        {canDisc && (
+          <div className="si-adj-g">
+            <label>خصم على الفاتورة</label>
+            <div className="si-adj-row">
+              <div className="segmented">
+                <button className={discMode === 'pct' ? 'on' : ''} onClick={() => setDiscMode('pct')}>%</button>
+                <button className={discMode === 'amt' ? 'on' : ''} onClick={() => setDiscMode('amt')}>مبلغ</button>
+              </div>
+              {discMode === 'pct' ? (
+                <input className="input num" inputMode="decimal" aria-label="نسبة الخصم" placeholder="0" value={discPct} onChange={(e) => setDiscPct(e.target.value)} />
+              ) : (
+                <MoneyInput value={discount} onChange={setDiscount} />
+              )}
+            </div>
+          </div>
+        )}
+        <div className="si-adj-g">
+          <label>إضافة على الفاتورة</label>
+          <div className="si-adj-row">
+            <select className="select" style={{ maxWidth: 150 }} value={addName} onChange={(e) => setAddName(e.target.value)}>
+              <option value="">بدون</option>
+              <option value="رسوم توصيل">رسوم توصيل</option>
+              <option value="رسوم خدمة">رسوم خدمة</option>
+              <option value="تغليف">تغليف</option>
+            </select>
+            <MoneyInput value={addAmt} onChange={setAddAmt} disabled={!addName} />
+          </div>
+        </div>
+        {canDisc && (
+          <div className="si-adj-g">
+            <label>خصم الفكة</label>
+            <div className="si-switch">
+              <Switch checked={roundOn} onChange={setRoundOn} />
+              <span onClick={() => setRoundOn(!roundOn)}>تقريب الإجمالي لأقرب جنيه{roundOff ? <span className="num muted"> (−{formatMoney(roundOff)})</span> : null}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ======= شريط الأزرار ======= */}
+      <div className="si-bar">
+        <button className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ وفاتورة جديدة <kbd>F12</kbd></button>
+        <button className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
+        <button className="btn" disabled={busy || !lines.length} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
+        <button className="btn" onClick={() => void newInvoice()}><Plus /> جديد <kbd>F10</kbd></button>
+        <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
+        <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
+        <label className="btn" style={{ gap: 6, cursor: 'pointer' }}><input type="checkbox" checked={printAfter} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
+        <span className="spacer" />
+        <button className="btn plain" onClick={() => nav('/docs/new/sale_invoice?advanced=1')}><Settings2 /> فاتورة متقدمة</button>
+        {lines.length > 0 && <button className="btn plain danger" onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
+      </div>
+
+      {inquiry && <InquirySheet itemId={inquiry} partyId={partyId} showCost={showCost} cost={costs.get(inquiry)} onClose={() => setInquiry(null)} />}
       {active && hover.node}
       {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void pick(id), 80)} />}
       {newParty && <QuickPartySheet onClose={() => setNewParty(false)} onSaved={(id) => setPartyId(id)} />}
     </div>
+  );
+}
+
+/** استعلام سريع عن صنف: الرصيد في كل مخزن، أسعار البيع، آخر سعر لهذا العميل، وسعر الشراء لمن يملك الصلاحية */
+function InquirySheet({ itemId, partyId, showCost, cost, onClose }: { itemId: string; partyId: string; showCost: boolean; cost: any; onClose: () => void }) {
+  const data = useLiveQuery(async () => {
+    const item = await db.items.get(itemId);
+    const whs = new Map((await db.warehouses.toArray()).map((w) => [w.id, w.name]));
+    const stock = (await db.stock_balances.where('item_id').equals(itemId).toArray()).map((b) => ({ name: whs.get(b.warehouse_id) ?? '', qty: b.qty }));
+    const lists = new Map((await db.price_lists.toArray()).map((p) => [p.id, p.name]));
+    const prices = (await db.item_prices.where('item_id').equals(itemId).toArray()).filter((p) => p.unit_name === item?.base_unit).map((p) => ({ name: lists.get(p.price_list_id) ?? p.price_list_id, price: p.price }));
+    let lastSale: { price: number; date: string } | null = null;
+    if (partyId && partyId !== 'party-cash-customer') {
+      const docs = (await db.documents.where('party_id').equals(partyId).toArray()).filter((d) => d.doc_type === 'sale_invoice' && d.status === 'posted');
+      docs.sort((a, b) => String(b.date + (b.created_at ?? '')).localeCompare(String(a.date + (a.created_at ?? ''))));
+      for (const d of docs) {
+        const l = (await db.document_lines.where('document_id').equals(d.id).toArray()).find((x) => x.item_id === itemId);
+        if (l) {
+          lastSale = { price: l.unit_factor ? Math.round((l.price * 1000) / l.unit_factor) : l.price, date: d.date };
+          break;
+        }
+      }
+    }
+    return { item, stock, prices, lastSale };
+  }, [itemId, partyId]);
+  const it = data?.item;
+  return (
+    <Sheet title={`استعلام: ${it?.name ?? ''}`} onClose={onClose}>
+      {!data ? (
+        <div className="muted">جارٍ التحميل…</div>
+      ) : (
+        <div className="stack">
+          <div className="si-inq">
+            <div className="si-inq-h">الرصيد في المخازن</div>
+            {data.stock.length === 0 && <div className="muted small">لا يوجد رصيد مسجل</div>}
+            {data.stock.map((s) => <div key={s.name} className="si-inq-row"><span>{s.name}</span><b className="num">{formatQty(s.qty)} {it?.base_unit}</b></div>)}
+          </div>
+          <div className="si-inq">
+            <div className="si-inq-h">أسعار البيع (لكل {it?.base_unit})</div>
+            <div className="si-inq-row"><span>السعر الأساسي</span><b className="num">{formatMoney(it?.sale_price ?? 0)}</b></div>
+            {(it?.wholesale_price ?? 0) > 0 && <div className="si-inq-row"><span>الجملة</span><b className="num">{formatMoney(it!.wholesale_price)}</b></div>}
+            {data.prices.map((p) => <div key={p.name} className="si-inq-row"><span>{p.name}</span><b className="num">{formatMoney(p.price)}</b></div>)}
+            {data.lastSale && <div className="si-inq-row"><span>آخر سعر لهذا العميل</span><b className="num">{formatMoney(data.lastSale.price)} <span className="muted small">({data.lastSale.date})</span></b></div>}
+          </div>
+          {showCost && (
+            <div className="si-inq">
+              <div className="si-inq-h">سعر الشراء</div>
+              <CostCard c={cost} unit={it?.base_unit} />
+            </div>
+          )}
+        </div>
+      )}
+    </Sheet>
   );
 }

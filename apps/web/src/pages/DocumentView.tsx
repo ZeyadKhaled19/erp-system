@@ -274,6 +274,9 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
               <div><span>الإجمالي قبل الخصم</span><b className="num">{formatMoney(doc.gross)}</b></div>
               <div><span>الخصومات</span><b className="num">{formatMoney(doc.discount)}</b></div>
               <div><span>الضريبة</span><b className="num">{formatMoney(doc.tax)}</b></div>
+              {charges.filter((c) => c.mode === 'add').map((c) => (
+                <div key={c.id}><span>{c.name}</span><b className="num">{formatMoney(c.amount)}</b></div>
+              ))}
               <div className="grand"><span>الإجمالي</span><b className="num">{formatMoney(doc.total)}</b></div>
             </div>
           )}
