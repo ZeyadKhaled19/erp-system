@@ -116,7 +116,7 @@ export function Dashboard() {
     {
       title: 'الفواتير',
       cards: [
-        { label: 'بيع سريع', to: '/pos', icon: <Zap />, color: 'green', perm: 'sales.create', sub: 'كاشير بالباركود', size: 'l' },
+        { label: 'بيع سريع', to: '/pos', icon: <Zap />, color: 'green', perm: 'sales.create', sub: 'كاشير بالباركود', size: 'm' },
         { label: 'بيع', to: '/docs/new/sale_invoice', icon: <ShoppingCart />, color: 'blue', perm: 'sales.create', badge: can('sales.view') ? data?.todayCount ?? 0 : undefined, sub: 'فواتير اليوم', size: 'm' },
         { label: 'شراء', to: '/docs/new/purchase_invoice', icon: <Store />, color: 'red', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchases ?? 0 : undefined, sub: 'فواتير اليوم', size: 'm' },
         { label: 'مرتجع بيع', to: '/docs/new/sale_return', icon: <Undo2 />, color: 'purple', perm: 'sales.create', badge: can('sales.view') ? c?.saleReturns ?? 0 : undefined },

@@ -25,10 +25,9 @@ interface Layout {
   size: Record<string, Size>;
 }
 const EMPTY: Layout = { groups: [], hidden: [], size: {} };
-const SIZE_LABEL: Record<Size, string> = { s: 'صغير', m: 'عريض', l: 'كبير' };
-const NEXT_SIZE: Record<Size, Size> = { s: 'm', m: 'l', l: 's' };
-/** مساحة كل حجم بالمربعات: صغير 1×1، عريض 2×1، كبير 2×2 */
-const AREA: Record<Size, { w: number; h: number }> = { s: { w: 1, h: 1 }, m: { w: 2, h: 1 }, l: { w: 2, h: 2 } };
+const SIZE_LABEL: Record<Size, string> = { s: 'عادي', m: 'عريض', l: 'عريض' };
+// حجمان فقط (عادي/عريض) حتى تبقى الصفوف متراصة بلا فراغات؛ «كبير» القديم يُعامل كعريض
+const NEXT_SIZE: Record<Size, Size> = { s: 'm', m: 's', l: 's' };
 
 // v2: لوحة المربعات الجديدة (ترتيب وأحجام مختلفة عن البطاقات القديمة)
 const keyFor = (uid: string) => `erp.shortcuts.v2.${uid}`;
@@ -88,12 +87,9 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
   const arranged = useMemo(() => arrange(defaults, layout), [defaults, layout]);
   const hidden = new Set(layout.hidden);
   const defaultSize = useMemo(() => new Map(defaults.flatMap((g) => g.cards.map((c) => [c.to, c.size ?? 's'] as const))), [defaults]);
-  const sizeOf = (id: string): Size => layout.size[id] ?? defaultSize.get(id) ?? 's';
-  /** عدد أعمدة المجموعة حسب مساحة مربعاتها (2 إلى 4) حتى تتجاور المجموعات وتملأ الشاشة */
-  const colsFor = (cards: BoardCard[]) => {
-    const cells = cards.reduce((n, c) => n + AREA[sizeOf(c.to)].w * AREA[sizeOf(c.to)].h, 0);
-    const widest = Math.max(1, ...cards.map((c) => AREA[sizeOf(c.to)].w));
-    return Math.min(4, Math.max(2, widest, Math.ceil(cells / 2)));
+  const sizeOf = (id: string): Size => {
+    const z = layout.size[id] ?? defaultSize.get(id) ?? 's';
+    return z === 'l' ? 'm' : z;
   };
 
   const commit = (groups: BoardGroup[], h = layout.hidden, size = layout.size) => {
@@ -168,7 +164,7 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
       <div className="sb-board-bar">
         {editing ? (
           <>
-            <span className="sb-board-hint">اسحب المربعات لترتيبها أو انقلها لمجموعة أخرى. اضغط على المربع لتغيير حجمه (صغير ← عريض ← كبير)، و<EyeOff style={{ width: 14, height: 14, verticalAlign: -2 }} /> لإخفائه.</span>
+            <span className="sb-board-hint">اسحب المربعات لترتيبها أو انقلها لمجموعة أخرى. اضغط على المربع لتغيير حجمه (عادي ↔ عريض)، و<EyeOff style={{ width: 14, height: 14, verticalAlign: -2 }} /> لإخفائه.</span>
             <button type="button" className="btn sm plain" onClick={() => void reset()}><RotateCcw /> الافتراضي</button>
             <button type="button" className="btn sm primary" onClick={() => setEditing(false)}><Check /> تم</button>
           </>
@@ -179,7 +175,7 @@ export function ShortcutBoard({ groups: defaults, onOpen }: { groups: BoardGroup
 
       <div className="sc-board-flow">
       {visibleGroups.map((g, vi) => (
-        <section key={g.title} className="sc-group" style={{ ['--cols' as any]: colsFor(g.cards) }}>
+        <section key={g.title} className="sc-group">
           <div className="sc-title-row">
             <h2 className="sc-title">{g.title}</h2>
             {editing && (

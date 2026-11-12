@@ -1539,3 +1539,68 @@ kbd { font-weight: 500; }
   .sb-board .sc-wrap.sz-s > .sc { padding-top: 26px; gap: 2px; }
   .sb-board .sc-wrap.sz-s .sc-icon svg { width: 24px; height: 24px; }
 }
+
+/* ===================== الرئيسية (ب): مربعات باستيل هادئة في صفوف متراصة ===================== */
+/* كل مجموعة صف كامل بعرض الشاشة، والمربعات متساوية (عادي أو عريض) فلا فراغات */
+.sb-board { --tile-h: 104px; --tile-min: 132px; }
+.sc-board-flow { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 18px; }
+.sb-board .sc-group { width: 100%; }
+.sb-board .sc-title { font-size: 13.5px; font-weight: 600; color: var(--label-2); margin: 0 2px 8px; }
+.sb-board .sc-grid { grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); grid-auto-rows: var(--tile-h); gap: 10px; grid-auto-flow: row dense; }
+.sb-board .sc-wrap, .sb-board .sc-wrap.sz-l { grid-row: span 1; }
+.sb-board .sc-wrap.sz-m, .sb-board .sc-wrap.sz-l { grid-column: span 2; }
+/* الألوان: خلفية فاتحة + أيقونة ونص بدرجة غامقة من نفس اللون */
+.sc-blue   { --sc-soft: #E6F1FB; --sc-ink: #0C447C; --sc-icon: #185FA5; }
+.sc-purple { --sc-soft: #EEEDFE; --sc-ink: #3C3489; --sc-icon: #534AB7; }
+.sc-teal   { --sc-soft: #E1F5EE; --sc-ink: #085041; --sc-icon: #0F6E56; }
+.sc-orange { --sc-soft: #FAEEDA; --sc-ink: #633806; --sc-icon: #854F0B; }
+.sc-red    { --sc-soft: #FCEBEB; --sc-ink: #791F1F; --sc-icon: #A32D2D; }
+.sc-yellow { --sc-soft: #FBF3D5; --sc-ink: #5C4708; --sc-icon: #8A6B0C; }
+.sc-pink   { --sc-soft: #FBEAF0; --sc-ink: #72243E; --sc-icon: #993556; }
+.sc-indigo { --sc-soft: #E9ECFB; --sc-ink: #2B3A8C; --sc-icon: #4253B8; }
+.sc-green  { --sc-soft: #EAF3DE; --sc-ink: #27500A; --sc-icon: #3B6D11; }
+.sc-slate  { --sc-soft: #EEF1F5; --sc-ink: #2E3A4B; --sc-icon: #4F5D73; }
+:root[data-theme="dark"] .sc-blue   { --sc-soft: #102A44; --sc-ink: #CFE3F7; --sc-icon: #85B7EB; }
+:root[data-theme="dark"] .sc-purple { --sc-soft: #24204F; --sc-ink: #DEDBFA; --sc-icon: #AFA9EC; }
+:root[data-theme="dark"] .sc-teal   { --sc-soft: #0B3329; --sc-ink: #C6EEDF; --sc-icon: #5DCAA5; }
+:root[data-theme="dark"] .sc-orange { --sc-soft: #3A2508; --sc-ink: #F8DDB3; --sc-icon: #EF9F27; }
+:root[data-theme="dark"] .sc-red    { --sc-soft: #3D1515; --sc-ink: #F9D2D2; --sc-icon: #F09595; }
+:root[data-theme="dark"] .sc-yellow { --sc-soft: #3A2F08; --sc-ink: #F5E7B0; --sc-icon: #E5C14A; }
+:root[data-theme="dark"] .sc-pink   { --sc-soft: #3F1626; --sc-ink: #F8D3E0; --sc-icon: #ED93B1; }
+:root[data-theme="dark"] .sc-indigo { --sc-soft: #1A2250; --sc-ink: #D5DBF9; --sc-icon: #8E9CEB; }
+:root[data-theme="dark"] .sc-green  { --sc-soft: #1A300A; --sc-ink: #D6EABA; --sc-icon: #97C459; }
+:root[data-theme="dark"] .sc-slate  { --sc-soft: #222A36; --sc-ink: #DCE2EA; --sc-icon: #A3B0C2; }
+.sb-board .sc-wrap > .sc {
+  background: var(--sc-soft); color: var(--sc-ink); border: 1px solid color-mix(in srgb, var(--sc-icon) 14%, transparent);
+  border-radius: 14px; box-shadow: none; padding: 12px 10px; gap: 8px; filter: none;
+  transition: transform .16s var(--ease), box-shadow .16s var(--ease), border-color .16s;
+}
+.sb-board .sc-wrap > .sc:hover { transform: translateY(-2px); filter: none; border-color: color-mix(in srgb, var(--sc-icon) 35%, transparent); box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--sc-icon) 55%, transparent); }
+.sb-board .sc-wrap > .sc:active { transform: translateY(0) scale(.98); }
+.sb-board .sc-icon svg { width: 28px; height: 28px; stroke-width: 1.9; color: var(--sc-icon); }
+.sb-board .sc-label { font-size: 14px; font-weight: 600; color: var(--sc-ink); text-shadow: none; }
+.sb-board .sc-sub { color: var(--sc-ink); opacity: .75; font-size: 11.5px; }
+/* الرقم/المبلغ: شارة هادئة بنفس لون المربع بدل الفقاعة الحمراء */
+.sb-board .sc-badge { top: 8px; left: 8px; right: auto; height: 20px; min-width: 20px; padding: 0 7px; border-radius: 10px; font-size: 11px; font-weight: 600; background: color-mix(in srgb, var(--sc-icon) 14%, transparent); color: var(--sc-ink); box-shadow: none; }
+/* العريض: الأيقونة بجانب الاسم */
+.sb-board .sc-wrap.sz-m > .sc { flex-direction: row; justify-content: flex-start; padding: 12px 18px; gap: 14px; }
+.sb-board .sc-wrap.sz-m .sc-icon svg { width: 34px; height: 34px; }
+.sb-board .sc-wrap.sz-m .sc-label { font-size: 16px; }
+.sb-board.editing .sc { outline: 2px dashed color-mix(in srgb, var(--sc-icon) 45%, transparent); outline-offset: -5px; }
+.sb-board .sc-tool { background: var(--card); color: var(--label); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+@media (max-width: 640px) {
+  .sb-board { --tile-h: 88px; --tile-min: 0px; }
+  .sb-board .sc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .sb-board .sc-wrap.sz-m, .sb-board .sc-wrap.sz-l { grid-column: span 2; }
+  .sb-board .sc-wrap.sz-s > .sc { padding: 22px 4px 6px; }
+  .sb-board .sc-icon svg { width: 24px; height: 24px; }
+  .sb-board .sc-wrap.sz-m .sc-icon svg { width: 28px; height: 28px; }
+  .sb-board .sc-label { font-size: 12.5px; }
+  .sb-board .sc-wrap.sz-m .sc-label { font-size: 14px; }
+}
+/* عدد أعمدة ثابت لكل عرض شاشة: المربعات تكبر وتملأ الصف بدل أعمدة فارغة كثيرة */
+.sb-board { --cols: 6; }
+.sb-board .sc-grid { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+@media (max-width: 1250px) { .sb-board { --cols: 5; } }
+@media (max-width: 980px) { .sb-board { --cols: 4; } }
+@media (max-width: 640px) { .sb-board { --cols: 3; } .sb-board .sc-grid { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); } }
