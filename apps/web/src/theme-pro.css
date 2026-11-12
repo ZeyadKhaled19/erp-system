@@ -407,3 +407,10 @@ kbd { font-family: var(--font); font-size: 11px; border: 1px solid var(--separat
 :root[data-accent="green"] .print-root { --tint: #16803A; --tint-press: #11692F; }
 :root[data-accent="orange"] .print-root { --tint: #D9530F; --tint-press: #B9450B; }
 :root[data-accent="pink"] .print-root { --tint: #CC2E6E; --tint-press: #AE2459; }
+
+/* الدخول */
+.login-card { width: min(400px, 100%); padding: 28px 24px; gap: 14px; }
+.login-card .app-icon { width: 52px; height: 52px; margin: 0 auto; border-radius: 12px; }
+.login-title { text-align: center; margin-bottom: 4px; }
+.login-title h1 { font-size: 20px; font-weight: 700; margin: 0 0 2px; color: var(--heading); }
+.login-title .muted { font-size: 13px; }

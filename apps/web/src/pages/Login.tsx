@@ -42,18 +42,18 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     <div className="login-wrap">
       <form className="login-card stack" onSubmit={submit}>
         <img className="app-icon" src="/icon.svg" alt="" />
-        <div style={{ textAlign: 'center', marginBottom: 6 }}>
-          <h1 style={{ fontSize: 28, margin: '0 0 4px', fontWeight: 700 }}>تسجيل الدخول</h1>
-          <div className="muted" style={{ fontSize: 15 }}>نظام الحسابات والمخازن</div>
+        <div className="login-title">
+          <h1>تسجيل الدخول</h1>
+          <div className="muted">نظام الحسابات والمخازن</div>
         </div>
         {error && <Banner kind="err">{error}</Banner>}
-        <div className="list" style={{ background: 'var(--bg)' }}>
-          <div className="list-row" style={{ background: 'transparent' }}>
-            <input className="input" style={{ background: 'transparent', padding: 0 }} placeholder="اسم المستخدم" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus required />
-          </div>
-          <div className="list-row" style={{ background: 'transparent' }}>
-            <input className="input" style={{ background: 'transparent', padding: 0 }} placeholder="كلمة المرور" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </div>
+        <div className="field">
+          <label htmlFor="login-user">اسم المستخدم</label>
+          <input id="login-user" className="input" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus required />
+        </div>
+        <div className="field">
+          <label htmlFor="login-pass">كلمة المرور</label>
+          <input id="login-pass" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
         <button className="btn primary lg block" disabled={busy || !username || !password}>
           {busy ? 'جارٍ الدخول…' : 'دخول'}
