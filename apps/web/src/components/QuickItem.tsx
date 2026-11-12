@@ -107,6 +107,7 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced }: { onClose: () =
         <Field label="اسم الصنف" required>
           <input ref={nameRef} className="input" style={{ fontSize: 17, height: 52 }} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus placeholder="مثال: شاي العروسة 250 جم" />
         </Field>
+        <CategoryField value={f.cat} onChange={(id) => setF({ ...f, cat: id })} />
         <div className="grid grid-3">
           <Field label="سعر البيع" required><MoneyInput value={f.price} onChange={(v) => setF({ ...f, price: v })} /></Field>
           {canStock && <Field label="الكمية الموجودة الآن" hint="اختياري"><QtyInput value={f.qty} onChange={(v) => setF({ ...f, qty: v })} /></Field>}
@@ -124,7 +125,6 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced }: { onClose: () =
           ) : <div />}
         </div>
         <datalist id="unit-presets">{['قطعة', 'كرتونة', 'علبة', 'كيلو', 'جرام', 'لتر', 'متر', 'دستة', 'عبوة'].map((u) => <option key={u} value={u} />)}</datalist>
-        <CategoryField value={f.cat} onChange={(id) => setF({ ...f, cat: id })} />
         <div className="footnote">اضغط Enter للحفظ وإضافة الصنف التالي مباشرة. الكود يُولّد تلقائيًا.</div>
         {added.length > 0 && (
           <div className="list" style={{ background: 'var(--card-2)' }}>
@@ -143,7 +143,7 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced }: { onClose: () =
   );
 }
 
-/** استيراد أصناف بلصق جدول من Excel: الاسم | سعر البيع | التكلفة | الكمية | الباركود | الوحدة */
+/** استيراد أصناف بلصق جدول من Excel: الاسم | سعر البيع | التكلفة | الكمية | الباركود | الوحدة | التصنيف */
 export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
   const ui = useUi();
   const can = usePerm();
@@ -156,9 +156,11 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [wh, setWh] = useState('');
   const [busy, setBusy] = useState(false);
+  const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
+  const [defCat, setDefCat] = useState('cat-general');
 
   const rows = useMemo(() => {
-    const out: { name: string; price: number; cost: number; qty: number; barcode: string; unit: string; error?: string }[] = [];
+    const out: { name: string; price: number; cost: number; qty: number; barcode: string; unit: string; cat: string; error?: string }[] = [];
     const seen = new Set<string>();
     for (const raw of text.split(/\r?\n/)) {
       if (!raw.trim()) continue;
@@ -178,7 +180,7 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
       if (existing?.names.has(name) || seen.has(name)) error = 'الاسم مكرر';
       else if (barcode && existing?.barcodes.has(barcode)) error = 'الباركود مستخدم';
       seen.add(name);
-      out.push({ name, price, cost, qty, barcode, unit: c[5] || 'قطعة', error });
+      out.push({ name, price, cost, qty, barcode, unit: c[5] || 'قطعة', cat: c[6] ?? '', error });
     }
     return out;
   }, [text, existing]);
@@ -188,10 +190,23 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
     setBusy(true);
     const opening: { item_id: string; unit: string; qty: number; cost: number }[] = [];
     let n = 0;
+    // التصنيف بالاسم: يُستخدم الموجود أو يُنشأ تصنيف جديد مرة واحدة
+    const catIds = new Map(cats.map((c) => [c.name.trim(), c.id]));
+    const catFor = async (name: string) => {
+      const k = name.trim();
+      if (!k) return defCat || 'cat-general';
+      let id = catIds.get(k);
+      if (!id) {
+        id = uuid();
+        await saveMaster('category', id, { name: k, active: true });
+        catIds.set(k, id);
+      }
+      return id;
+    };
     for (const r of ok) {
       const id = uuid();
       await saveMaster('item', id, {
-        code: await nextCode(), name: r.name, barcode: r.barcode || null, category_id: 'cat-general', base_unit: r.unit, sale_price: r.price, wholesale_price: 0,
+        code: await nextCode(), name: r.name, barcode: r.barcode || null, category_id: await catFor(r.cat), base_unit: r.unit, sale_price: r.price, wholesale_price: 0,
         reorder_level: 0, tax_rate_bp: settings.default_tax_rate_bp ?? 0, active: true, notes: null, units: [], prices: [],
       });
       if (r.qty > 0 && can('inventory.create')) opening.push({ item_id: id, unit: r.unit, qty: r.qty, cost: r.cost });
@@ -218,9 +233,14 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
     >
       <div className="stack">
         <Banner kind="info">
-          في Excel رتّب الأعمدة: <b>الاسم · سعر البيع · التكلفة · الكمية · الباركود · الوحدة</b> (الاسم فقط إلزامي)، حدد الصفوف وانسخها ثم الصقها هنا.
+          في Excel رتّب الأعمدة: <b>الاسم · سعر البيع · التكلفة · الكمية · الباركود · الوحدة · التصنيف</b> (الاسم فقط إلزامي؛ التصنيف غير الموجود يُنشأ تلقائيًا)، حدد الصفوف وانسخها ثم الصقها هنا.
         </Banner>
         <textarea className="textarea num" style={{ minHeight: 160, direction: 'rtl' }} value={text} onChange={(e) => setText(e.target.value)} placeholder={'شاي العروسة 250 جم\t15\t10\t100\t6221234567890\tقطعة\nسكر الأسرة 1 كيلو\t32\t28\t50'} autoFocus />
+        <Field label="تصنيف الأصناف التي ليس لها تصنيف في الجدول">
+          <select className="select" value={defCat} onChange={(e) => setDefCat(e.target.value)}>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
         {warehouses.length > 1 && rows.some((r) => r.qty > 0) && (
           <Field label="الكميات تُضاف إلى مخزن">
             <select className="select" value={wh || warehouses[0]?.id} onChange={(e) => setWh(e.target.value)}>
@@ -231,7 +251,7 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
         {rows.length > 0 && (
           <div className="table-wrap" style={{ maxHeight: 300, overflowY: 'auto' }}>
             <table className="table">
-              <thead><tr><th>الاسم</th><th className="n">سعر البيع</th><th className="n">التكلفة</th><th className="n">الكمية</th><th>الباركود</th><th>الوحدة</th><th /></tr></thead>
+              <thead><tr><th>الاسم</th><th className="n">سعر البيع</th><th className="n">التكلفة</th><th className="n">الكمية</th><th>الباركود</th><th>الوحدة</th><th>التصنيف</th><th /></tr></thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i} style={r.error ? { opacity: 0.6 } : undefined}>
@@ -241,6 +261,7 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
                     <td className="n">{formatQty(r.qty)}</td>
                     <td className="num">{r.barcode}</td>
                     <td>{r.unit}</td>
+                    <td>{r.cat || <span className="muted">{cats.find((c) => c.id === defCat)?.name}</span>}</td>
                     <td>{r.error ? <span className="badge red">{r.error}</span> : <span className="badge green"><ClipboardPaste style={{ width: 12, height: 12 }} /> جاهز</span>}</td>
                   </tr>
                 ))}
