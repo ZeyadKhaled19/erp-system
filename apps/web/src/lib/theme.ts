@@ -4,8 +4,11 @@
  * لا يمس قاعدة البيانات.
  */
 
-export type ThemeMode = 'light' | 'olive' | 'dark' | 'system';
-export type Accent = 'olive' | 'sky' | 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
+export type ThemeMode = 'light' | 'navy' | 'amber' | 'teal' | 'paprika' | 'dark' | 'system';
+/** أوضاع البالتات: كل ألوان النظام فيها من البالتة فقط، ولون التمييز يتبعها */
+export const PALETTE_MODES = ['navy', 'amber', 'teal', 'paprika'] as const;
+export const isPaletteMode = (m: string) => (PALETTE_MODES as readonly string[]).includes(m);
+export type Accent = 'sky' | 'blue' | 'teal' | 'purple' | 'green' | 'orange' | 'pink';
 export type Density = 'comfortable' | 'compact';
 export type FontName = 'plex' | 'readex' | 'cairo' | 'tajawal' | 'almarai' | 'system';
 export interface Appearance {
@@ -17,7 +20,7 @@ export interface Appearance {
 
 const LEGACY_KEY = 'erp.appearance';
 const keyFor = (userId: string | null) => (userId ? `erp.appearance.${userId}` : 'erp.appearance.guest');
-export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'olive', density: 'comfortable', font: 'plex' };
+export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'sky', density: 'comfortable', font: 'plex' };
 
 export const FONTS: { id: FontName; label: string; family: string }[] = [
   { id: 'plex', label: 'IBM Plex Sans Arabic — رسمي وواضح (الافتراضي)', family: "'IBM Plex Sans Arabic'" },
@@ -30,13 +33,15 @@ export const FONTS: { id: FontName; label: string; family: string }[] = [
 
 export const THEMES: { id: ThemeMode; label: string; desc: string }[] = [
   { id: 'light', label: 'فاتح', desc: 'خلفية هادئة وأسطح بيضاء' },
-  { id: 'olive', label: 'زيتي', desc: 'قائمة زيتية وخلفية زيتي فاتح' },
+  { id: 'navy', label: 'كحلي عاجي', desc: 'كحلي وأزرق رمادي على خلفية عاجية' },
+  { id: 'amber', label: 'بروسي برتقالي', desc: 'أزرق بروسي وبرتقالي على رمادي فاتح' },
+  { id: 'teal', label: 'تركوازي غروب', desc: 'تركواز وذهبي وخوخي' },
+  { id: 'paprika', label: 'فحمي بابريكا', desc: 'فحمي ورملي وبرتقالي بابريكا' },
   { id: 'dark', label: 'غامق', desc: 'كحلي داكن مريح ليلًا' },
   { id: 'system', label: 'حسب الجهاز', desc: 'يتبع إعداد ويندوز أو الموبايل' },
 ];
 
 export const ACCENTS: { id: Accent; color: string; label: string }[] = [
-  { id: 'olive', color: '#5E7031', label: 'زيتي' },
   { id: 'sky', color: '#0284C7', label: 'أزرق سماوي' },
   { id: 'blue', color: '#2563EB', label: 'أزرق ملكي' },
   { id: 'teal', color: '#0F8A80', label: 'فيروزي' },
@@ -59,9 +64,9 @@ function currentUserId(): string | null {
 function normalize(raw: any): Appearance {
   const a = { ...DEFAULT_APPEARANCE, ...(raw ?? {}) };
   if (a.theme === 'auto') a.theme = 'system';
-  if (a.theme === 'sky') a.theme = 'olive';
-  if (!['light', 'olive', 'dark', 'system'].includes(a.theme)) a.theme = 'light';
-  if (!ACCENTS.some((x) => x.id === a.accent)) a.accent = a.accent === 'indigo' ? 'purple' : 'olive';
+  if (a.theme === 'sky' || a.theme === 'olive') a.theme = 'light';
+  if (!['light', 'dark', 'system', ...PALETTE_MODES].includes(a.theme)) a.theme = 'light';
+  if (!ACCENTS.some((x) => x.id === a.accent)) a.accent = a.accent === 'indigo' ? 'purple' : 'sky';
   if (!FONTS.some((x) => x.id === a.font)) a.font = 'plex';
   if (a.density !== 'compact') a.density = 'comfortable';
   return a;
@@ -81,7 +86,7 @@ export function loadAppearance(userId: string | null = currentUserId()): Appeara
 
 const media = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-color-scheme: dark)') : undefined;
 
-export function resolvedTheme(a: Appearance = loadAppearance()): 'light' | 'olive' | 'dark' {
+export function resolvedTheme(a: Appearance = loadAppearance()): Exclude<ThemeMode, 'system'> {
   return a.theme === 'system' ? (media?.matches ? 'dark' : 'light') : a.theme;
 }
 
@@ -93,7 +98,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
   el.dataset.font = a.font;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'olive' ? '#4F5D2F' : '#F4F6F9');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'navy' ? '#1D2D44' : theme === 'amber' ? '#14213D' : theme === 'teal' ? '#264653' : theme === 'paprika' ? '#252422' : '#F4F6F9');
 }
 
 export function saveAppearance(a: Appearance) {

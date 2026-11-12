@@ -1,7 +1,7 @@
-import { Check, Home, Leaf, Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Home, Palette, Monitor, Moon, Sun } from 'lucide-react';
 import { useHome } from '../lib/home';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ACCENTS, FONTS, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
+import { ACCENTS, FONTS, isPaletteMode, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
 import { Segmented, Sheet } from './ui';
 
 export function useAppearance(): [Appearance, (a: Appearance) => void] {
@@ -14,7 +14,7 @@ export function useAppearance(): [Appearance, (a: Appearance) => void] {
   return [a, saveAppearance];
 }
 
-const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, olive: <Leaf />, dark: <Moon />, system: <Monitor /> };
+const MODE_ICON: Record<ThemeMode, ReactNode> = { light: <Sun />, navy: <Palette />, amber: <Palette />, teal: <Palette />, paprika: <Palette />, dark: <Moon />, system: <Monitor /> };
 
 /** لوحة المظهر: الوضع، لون التمييز، الخط، الكثافة — التغيير فوري ويخص المستخدم الحالي فقط */
 /** صفحة البداية الشخصية: من المساحات المسموحة فقط، و«حسب الدور» يتبع إعداد المدير */
@@ -61,6 +61,7 @@ export function AppearancePanel() {
 
       <section className="ap-sec">
         <div className="ap-h">لون التمييز</div>
+        {isPaletteMode(a.theme) && <div className="footnote">وضع «{THEMES.find((t) => t.id === a.theme)?.label}» له ألوانه الخاصة، ولون التمييز يتبع البالتة. اختيارك هنا يُطبق في الأوضاع العادية.</div>}
         <div className="ap-accents" role="radiogroup" aria-label="لون التمييز">
           {ACCENTS.map((c) => (
             <button key={c.id} role="radio" aria-checked={a.accent === c.id} className={`ap-acc ${a.accent === c.id ? 'on' : ''}`} onClick={() => set({ ...a, accent: c.id })}>

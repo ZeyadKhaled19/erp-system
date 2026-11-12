@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CloudOff, Home, LayoutGrid, LogOut, Menu, Moon, Package, Palette, PanelRightClose, PanelRightOpen, RefreshCw, Search, Sun, Users, X, Zap } from 'lucide-react';
-import { applyAppearance, loadAppearance, resolvedTheme, saveAppearance } from '../lib/theme';
+import { applyAppearance, isPaletteMode, loadAppearance, resolvedTheme, saveAppearance, type ThemeMode } from '../lib/theme';
 import { AppearanceSheet } from './Appearance';
 import { NewMenu } from './NewMenu';
 import { QUICK_ACTIONS } from '../lib/quickActions';
@@ -168,9 +168,10 @@ export function Layout({ children }: { children: ReactNode }) {
     const a = loadAppearance();
     // الرجوع من الغامق إلى آخر وضع فاتح استخدمه المستخدم (فاتح أو سماوي)
     if (resolvedTheme(a) === 'dark') {
-      let back: 'light' | 'olive' = 'light';
+      let back: ThemeMode = 'light';
       try {
-        back = localStorage.getItem(`erp.lastLight.${session.user.id}`) === 'olive' ? 'olive' : 'light';
+        const last = localStorage.getItem(`erp.lastLight.${session.user.id}`) ?? 'light';
+        back = isPaletteMode(last) ? (last as ThemeMode) : 'light';
       } catch {
         /* ignore */
       }
