@@ -54,7 +54,11 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
 
   // الطباعة شاشة مستقلة لا تُفتح كتبويب
   const skip = loc.pathname.startsWith('/print/');
-  const key = loc.pathname;
+  const locationParams = new URLSearchParams(loc.search);
+  const invoiceTab = locationParams.get('saleTab') ?? locationParams.get('purchaseTab');
+  const key = invoiceTab && /^\/docs\/new\/(sale|purchase)_invoice$/.test(loc.pathname)
+    ? `${loc.pathname}?${locationParams.has('saleTab') ? 'saleTab' : 'purchaseTab'}=${encodeURIComponent(invoiceTab)}`
+    : loc.pathname;
   const url = loc.pathname + loc.search;
 
   // فتح/تفعيل تبويب مع كل تنقل
@@ -146,6 +150,21 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
 
   const close = (k: string) => {
     if (k === '/') return;
+    const tab = state.tabs.find((t) => t.key === k);
+    if (tab) {
+      try {
+        const u = new URL(tab.url, window.location.origin);
+        if (/^\/docs\/new\/(sale|purchase)_invoice$/.test(u.pathname)) {
+          const id = u.searchParams.get('saleTab') ?? u.searchParams.get('purchaseTab') ?? 'default';
+          const draftKey = `sale-draft-${id}`;
+          const hasDraft = Boolean(localStorage.getItem(draftKey));
+          if (hasDraft && !window.confirm('هذه الفاتورة تحتوي على مسودة غير محفوظة. هل تريد إغلاق التبويب وحذف المسودة؟')) return;
+          if (hasDraft) localStorage.removeItem(draftKey);
+        }
+      } catch {
+        /* إغلاق التبويب لا يتوقف إذا تعذر فحص المسودة */
+      }
+    }
     const i = state.tabs.findIndex((t) => t.key === k);
     const tabs = state.tabs.filter((t) => t.key !== k);
     setState({ tabs, active: state.active === k ? '' : state.active });

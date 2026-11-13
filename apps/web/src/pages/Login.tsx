@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Banner } from '../components/ui';
 import { api, ApiError } from '../lib/api';
-import { db, getMeta, setMeta } from '../lib/db';
+import { setLocalIdentity } from '../lib/db';
 import { getDeviceId, getDeviceName, type Session } from '../lib/session';
 
 export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
@@ -18,17 +18,8 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
       const r = await api<{ token: string; user: Session['user'] }>('/api/auth/login', {
         body: { username, password, device_id: getDeviceId(), device_name: getDeviceName() },
       });
-      // إذا دخل مستخدم مختلف على نفس الجهاز، تُحفظ عملياته المعلقة كما هي (تحمل هوية من أنشأها عند الرفع التالي)
-      const last = await getMeta<string | null>('last_user_id', null);
-      if (last && last !== r.user.id) {
-        const pending = await db.outbox.where('status').equals('pending').count();
-        if (pending) {
-          setError(`يوجد ${pending} عملية للمستخدم السابق لم تُرفع بعد. سجّل الدخول بحسابه أولًا لرفعها عند توفر الاتصال.`);
-          setBusy(false);
-          return;
-        }
-      }
-      await setMeta('last_user_id', r.user.id);
+      // كل حساب يفتح قاعدة بياناته وطابوره المحليين؛ عمليات الحسابات الأخرى تبقى معزولة.
+      setLocalIdentity(r.user.id);
       onLogin({ token: r.token, user: r.user, server_user_id: r.user.id });
     } catch (err) {
       const e2 = err as ApiError;

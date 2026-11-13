@@ -299,21 +299,24 @@ export async function warehouseMovement(db: Db, warehouseId: string, r: Range & 
 }
 
 /** الأصناف التي وصلت لحد إعادة الطلب أو أقل منه فقط */
-export async function reorderReport(db: Db) {
+export async function reorderReport(db: Db, warehouseIds?: string[] | null) {
+  const params: unknown[] = [];
+  const stockScope = warehouseIds ? ` and b.warehouse_id = any($1)` : '';
+  if (warehouseIds) params.push(warehouseIds);
   const rows = await db.query(
     `select i.id, i.code, i.name, i.base_unit, i.reorder_level, coalesce(sum(b.qty), 0)::bigint as qty
-       from items i left join stock_balances b on b.item_id = i.id
+       from items i left join stock_balances b on b.item_id = i.id ${stockScope}
       where i.active and i.reorder_level > 0
       group by i.id having coalesce(sum(b.qty), 0) <= i.reorder_level order by i.code`,
+    params,
   );
   return { rows };
 }
-
 /** تقرير المستندات (مبيعات/مشتريات/...) مع الإجماليات، والربح للمبيعات */
-export async function documentsReport(db: Db, r: Range & { doc_types?: string[]; party_id?: string; user_id?: string; status?: string; warehouse_id?: string }) {
+export async function documentsReport(db: Db, r: Range & { doc_types?: string[]; party_id?: string; user_id?: string; status?: string; warehouse_id?: string; warehouse_ids?: string[] | null; cashbox_ids?: string[] | null }) {
   const params: unknown[] = [];
   const conds = [dateCond('d.date', r, params)];
-  if (r.doc_types?.length) {
+  if (r.doc_types) {
     params.push(r.doc_types);
     conds.push(`d.doc_type = any($${params.length})`);
   }
@@ -327,6 +330,17 @@ export async function documentsReport(db: Db, r: Range & { doc_types?: string[];
       params.push(v);
       conds.push(`${col} = $${params.length}`);
     }
+  }
+  if (r.warehouse_ids) {
+    params.push(r.warehouse_ids);
+    conds.push(`(d.warehouse_id is null or d.warehouse_id = any($${params.length}))`);
+  }
+  if (r.cashbox_ids) {
+    params.push(r.cashbox_ids);
+    const n = `$${params.length}`;
+    conds.push(`(d.cashbox_id is null or d.cashbox_id = any(${n}))`);
+    conds.push(`(coalesce(d.data->>'to_cashbox_id', '') = '' or d.data->>'to_cashbox_id' = any(${n}))`);
+    conds.push(`not exists (select 1 from jsonb_array_elements(coalesce(d.data->'payments', '[]'::jsonb)) pay where not (pay->>'cashbox_id' = any(${n})))`);
   }
   const rows = await db.query(
     `select d.id, d.number, d.local_number, d.doc_type, d.status, d.date, d.total, d.paid, d.tax, d.discount, d.cost, d.gross,
@@ -449,24 +463,29 @@ export async function partnersReport(db: Db, r: Range) {
   };
 }
 
-export async function serialSearch(db: Db, q: string) {
+export async function serialSearch(db: Db, q: string, warehouseIds?: string[] | null) {
   if (!q.trim()) return { rows: [] };
+  const params: unknown[] = [`%${q.trim()}%`];
+  const scope = warehouseIds ? (params.push(warehouseIds), ` and s.warehouse_id = any($${params.length})`) : '';
   const rows = await db.query(
     `select s.serial, s.status, i.name as item_name, i.code, w.name as warehouse_name, m.direction, m.reversal, m.created_at, d.id as document_id, d.number, d.doc_type, d.date, p.name as party_name
        from serials s join items i on i.id = s.item_id left join warehouses w on w.id = s.warehouse_id
        left join serial_moves m on m.serial_id = s.id left join documents d on d.id = m.document_id left join parties p on p.id = d.party_id
-      where s.serial ilike $1 order by s.serial, m.id`,
-    [`%${q.trim()}%`],
+      where s.serial ilike $1 ${scope} order by s.serial, m.id`,
+    params,
   );
   return { rows };
 }
-
-export async function expiryReport(db: Db, f: { warehouse_id?: string; until?: string }) {
+export async function expiryReport(db: Db, f: { warehouse_id?: string; warehouse_ids?: string[] | null; until?: string }) {
   const params: unknown[] = [];
   const conds = ['l.qty > 0'];
   if (f.warehouse_id) {
     params.push(f.warehouse_id);
     conds.push(`l.warehouse_id = $${params.length}`);
+  }
+  if (f.warehouse_ids) {
+    params.push(f.warehouse_ids);
+    conds.push(`l.warehouse_id = any($${params.length})`);
   }
   if (f.until) {
     params.push(f.until);
@@ -483,7 +502,7 @@ export async function expiryReport(db: Db, f: { warehouse_id?: string; until?: s
 }
 
 /** تحليل المبيعات/المشتريات بالتجميع (صنف، عميل، مندوب، مستخدم، مخزن، تصنيف، يوم، شهر، ساعة، يوم الأسبوع) */
-export async function salesAnalysis(db: Db, r: Range & { group: string; kind: 'sales' | 'purchases' }) {
+export async function salesAnalysis(db: Db, r: Range & { group: string; kind: 'sales' | 'purchases'; warehouse_ids?: string[] | null }) {
   const groups: Record<string, { key: string; label: string; join?: string; line?: boolean }> = {
     item: { key: `i.id`, label: `i.code || ' — ' || i.name`, line: true },
     category: { key: `coalesce(c.id, '-')`, label: `coalesce(c.name, 'بدون تصنيف')`, line: true },
@@ -499,7 +518,11 @@ export async function salesAnalysis(db: Db, r: Range & { group: string; kind: 's
   const g = groups[r.group] ?? groups.item;
   const types = r.kind === 'sales' ? ['sale_invoice', 'sale_return'] : ['purchase_invoice', 'purchase_return'];
   const params: unknown[] = [types];
-  const cond = dateCond('d.date', r, params);
+  const conds = [dateCond('d.date', r, params)];
+  if (r.warehouse_ids) {
+    params.push(r.warehouse_ids);
+    conds.push(`d.warehouse_id = any($${params.length})`);
+  }
   const sign = `case when d.doc_type like '%_return' then -1 else 1 end`;
   const rows = await db.query(
     `select ${g.key} as key, ${g.label} as label,
@@ -511,7 +534,7 @@ export async function salesAnalysis(db: Db, r: Range & { group: string; kind: 's
        from documents d join document_lines l on l.document_id = d.id join items i on i.id = l.item_id
        left join categories c on c.id = i.category_id left join parties p on p.id = d.party_id
        left join sales_reps sr on sr.id = d.sales_rep_id left join users u on u.id = d.created_by left join warehouses w on w.id = d.warehouse_id
-      where d.doc_type = any($1) and d.status = 'posted' and ${cond}
+      where d.doc_type = any($1) and d.status = 'posted' and ${conds.join(' and ')}
       group by 1, 2 order by net desc`,
     params,
   );
@@ -582,7 +605,7 @@ const CASH_LINES = `
   left join users u on u.id = d.created_by`;
 
 /** تحليل المقبوضات أو المصروفات حسب البند/الطرف/الخزينة/المستخدم/النوع/اليوم/الشهر */
-export async function treasuryAnalysis(db: Db, r: Range & { dir: 'in' | 'out'; group: string; cashbox_id?: string; user_id?: string; internal?: boolean }) {
+export async function treasuryAnalysis(db: Db, r: Range & { dir: 'in' | 'out'; group: string; cashbox_id?: string; cashbox_ids?: string[] | null; user_id?: string; internal?: boolean }) {
   const groups: Record<string, { key: string; label: string }> = {
     // البند: حساب المصروف/الإيراد إن وُجد، وإلا نوع المستند
     item: { key: `coalesce(da.id, d.doc_type, 'jv')`, label: `coalesce(da.name, d.doc_type, 'jv')` },
@@ -603,6 +626,10 @@ export async function treasuryAnalysis(db: Db, r: Range & { dir: 'in' | 'out'; g
     params.push(r.cashbox_id);
     conds.push(`cb.id = $${params.length}`);
   }
+  if (r.cashbox_ids) {
+    params.push(r.cashbox_ids);
+    conds.push(`cb.id = any($${params.length})`);
+  }
   if (r.user_id) {
     params.push(r.user_id);
     conds.push(`d.created_by = $${params.length}`);
@@ -619,10 +646,24 @@ export async function treasuryAnalysis(db: Db, r: Range & { dir: 'in' | 'out'; g
 }
 
 /** الحركة اليومية: ملخص المستندات بأنواعها + حركة كل خزينة + قائمة المستندات للفترة (افتراضيًا يوم واحد) */
-export async function dailyMovement(db: Db, r: Range & { user_id?: string }) {
+export async function dailyMovement(db: Db, r: Range & { user_id?: string; doc_types?: string[]; warehouse_ids?: string[] | null; cashbox_ids?: string[] | null }) {
   const params: unknown[] = [];
   const conds = [dateCond('d.date', r, params), `d.status in ('posted','pending_review')`, `d.doc_type not in ('quotation','year_closing')`];
-  if (r.user_id) {
+  if (r.doc_types) {
+    params.push(r.doc_types);
+    conds.push(`d.doc_type = any($${params.length})`);
+  }
+  if (r.warehouse_ids) {
+    params.push(r.warehouse_ids);
+    conds.push(`(d.warehouse_id is null or d.warehouse_id = any($${params.length}))`);
+  }
+  if (r.cashbox_ids) {
+    params.push(r.cashbox_ids);
+    const n = `$${params.length}`;
+    conds.push(`(d.cashbox_id is null or d.cashbox_id = any(${n}))`);
+    conds.push(`(coalesce(d.data->>'to_cashbox_id', '') = '' or d.data->>'to_cashbox_id' = any(${n}))`);
+    conds.push(`not exists (select 1 from jsonb_array_elements(coalesce(d.data->'payments', '[]'::jsonb)) pay where not (pay->>'cashbox_id' = any(${n})))`);
+  }  if (r.user_id) {
     params.push(r.user_id);
     conds.push(`d.created_by = $${params.length}`);
   }

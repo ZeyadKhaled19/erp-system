@@ -117,7 +117,7 @@ async function waitFor(expr, ms = 20000) {
   return false;
 }
 const idb = (store, op = 'getAll') => `
-  const db = await new Promise((r, j) => { const q = indexedDB.open('erp-local'); q.onsuccess = () => r(q.result); q.onerror = j; });
+  const db = await new Promise((r, j) => { const q = indexedDB.open('erp-local:' + encodeURIComponent(JSON.parse(localStorage.getItem('erp.session') || '{}').user?.id || 'anonymous')); q.onsuccess = () => r(q.result); q.onerror = j; });
   const out = await new Promise((r) => { const q = db.transaction('${store}').objectStore('${store}').${op}(); q.onsuccess = () => r(q.result); });
   db.close();`;
 

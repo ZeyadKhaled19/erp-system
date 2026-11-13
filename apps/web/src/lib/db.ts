@@ -23,6 +23,7 @@ export interface Row {
 export interface OutboxEntry {
   seq?: number;
   op_id: string;
+  owner_user_id?: string;
   created_at: string;
   op: Op;
   status: 'pending' | OpStatus;
@@ -101,7 +102,68 @@ class LocalDb extends Dexie {
   }
 }
 
-export const db = new LocalDb();
+let localIdentity = 'anonymous';
+const localDatabases = new Map<string, LocalDb>();
+function activeLocalDb() {
+  let instance = localDatabases.get(localIdentity);
+  if (!instance) {
+    instance = new LocalDb(`erp-local:${localIdentity}`);
+    localDatabases.set(localIdentity, instance);
+  }
+  return instance;
+}
+
+/** Select a separate offline database and outbox for each signed-in employee. */
+export function setLocalIdentity(userId: string | null | undefined) {
+  localIdentity = userId ? encodeURIComponent(userId) : 'anonymous';
+  activeLocalDb();
+  if (userId) void migrateLegacyOutbox(userId);
+}
+
+/**
+ * ترحيل لمرة واحدة من قاعدة الجهاز القديمة المشتركة («erp-local»):
+ * العمليات التي لم تُرفع بعد كانت لآخر مستخدم دخل على الجهاز (النظام القديم كان يمنع غيره من الدخول قبل رفعها)،
+ * فتُنقل إلى طابور ذلك المستخدم الجديد حتى تُرفع ولا تضيع. تُحذف من القديمة فقط بعد نسخها بنجاح.
+ */
+const legacyChecked = new Set<string>();
+async function migrateLegacyOutbox(userId: string) {
+  if (legacyChecked.has(userId)) return;
+  legacyChecked.add(userId);
+  try {
+    if (!(await Dexie.exists('erp-local'))) return;
+    const legacy = new LocalDb('erp-local');
+    try {
+      const pending = await legacy.outbox.where('status').equals('pending').toArray();
+      if (!pending.length) return;
+      const owner = (await legacy.meta.get('last_user_id'))?.value ?? null;
+      if (owner !== userId) return;
+      const target = activeLocalDb();
+      const known = new Set((await target.outbox.toArray()).map((e) => e.op_id));
+      const moving = pending.filter((e) => !known.has(e.op_id));
+      await target.outbox.bulkAdd(moving.map(({ seq: _seq, ...e }) => ({ ...e, owner_user_id: userId })) as OutboxEntry[]);
+      await legacy.outbox.bulkDelete(pending.map((e) => e.seq!).filter((s) => s !== undefined));
+      console.info(`نُقلت ${moving.length} عملية غير مرفوعة من قاعدة الجهاز القديمة`);
+    } finally {
+      legacy.close();
+    }
+  } catch (e) {
+    legacyChecked.delete(userId);
+    console.warn('تعذر نقل العمليات القديمة غير المرفوعة', e);
+  }
+}
+
+export function getLocalIdentity() {
+  return localIdentity === 'anonymous' ? null : decodeURIComponent(localIdentity);
+}
+
+// Keep the existing `db.table` call sites intact while routing them to the active employee DB.
+export const db = new Proxy(new LocalDb('erp-local:anonymous'), {
+  get(_target, property) {
+    const instance = activeLocalDb() as any;
+    const value = instance[property];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+}) as LocalDb;
 
 export async function getMeta<T = any>(key: string, def?: T): Promise<T> {
   const r = await db.meta.get(key);

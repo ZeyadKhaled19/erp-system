@@ -3,7 +3,7 @@ import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
-import { ALL_PERMISSIONS, hasPermission, todayISO, WORKSPACE_IDS } from '@erp/shared';
+import { ALL_PERMISSIONS, DOC_TYPES, hasPermission, todayISO, WORKSPACE_IDS } from '@erp/shared';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser } from './auth';
@@ -68,6 +68,12 @@ export async function buildApp(opts: AppOptions) {
   };
   const q = (req: FastifyRequest) => req.query as Record<string, string | undefined>;
   const range = (req: FastifyRequest) => ({ from: q(req).from || undefined, to: q(req).to || undefined });
+  const assertWarehouseScope = (req: FastifyRequest, id: string | null | undefined) => {
+    if (id && req.user!.warehouse_ids && !req.user!.warehouse_ids.includes(id)) throw new AppError('غير مسموح لك بالعمل على هذا المخزن', 'forbidden');
+  };
+  const assertCashboxScope = (req: FastifyRequest, id: string | null | undefined) => {
+    if (id && req.user!.cashbox_ids && !req.user!.cashbox_ids.includes(id)) throw new AppError('غير مسموح لك بالعمل على هذه الخزينة', 'forbidden');
+  };
 
   // ---------------- عام ----------------
   app.get('/api/health', async () => {
@@ -141,7 +147,7 @@ export async function buildApp(opts: AppOptions) {
 
   app.get('/api/sync/pull', { preHandler: auth }, async (req) => {
     const cursor = Number(q(req).cursor ?? 0) || 0;
-    return pull(db, cursor);
+    return pull(db, cursor, req.user!);
   });
 
   // ---------------- التقارير ----------------
@@ -165,13 +171,21 @@ export async function buildApp(opts: AppOptions) {
   app.get('/api/reports/cash-result', { preHandler: perm('reports.profit') }, async (req) => R.cashResult(db, range(req)));
   app.get('/api/reports/balance-sheet', { preHandler: perm('reports.financial') }, async (req) => R.balanceSheet(db, q(req).to || todayISO()));
   app.get('/api/reports/party/:id', { preHandler: perm('parties.view') }, async (req) => R.partyStatement(db, (req.params as any).id, { ...range(req), items: q(req).items === '1' }));
-  app.get('/api/reports/cashbox/:id', { preHandler: perm('treasury.view') }, async (req) => R.cashboxMovement(db, (req.params as any).id, range(req)));
+  app.get('/api/reports/cashbox/:id', { preHandler: perm('treasury.view') }, async (req) => {
+    const id = (req.params as any).id;
+    assertCashboxScope(req, id);
+    return R.cashboxMovement(db, id, range(req));
+  });
   app.get('/api/reports/item/:id', { preHandler: perm('inventory.view') }, async (req) => {
+    assertWarehouseScope(req, q(req).warehouse_id);
+    if (!q(req).warehouse_id && req.user!.warehouse_ids !== null) throw new AppError('حدد مخزنًا من المخازن المسموح بها', 'forbidden');
     const r = await R.itemMovement(db, (req.params as any).id, { ...range(req), warehouse_id: q(req).warehouse_id, doc_type: q(req).doc_type });
     if (!hasPermission(req.user!.permissions, 'costs.view')) r.moves.forEach((m: any) => (m.value = null));
     return r;
   });
   app.get('/api/reports/warehouse-stock', { preHandler: perm('inventory.view') }, async (req) => {
+    assertWarehouseScope(req, q(req).warehouse_id);
+    if (!q(req).warehouse_id && req.user!.warehouse_ids !== null) throw new AppError('حدد مخزنًا من المخازن المسموح بها', 'forbidden');
     const r = await R.warehouseStock(db, q(req).warehouse_id || undefined, { onlyNonZero: q(req).nonzero === '1' });
     if (!hasPermission(req.user!.permissions, 'costs.view')) {
       r.rows.forEach((x: any) => (x.value = null));
@@ -179,18 +193,29 @@ export async function buildApp(opts: AppOptions) {
     }
     return r;
   });
-  app.get('/api/reports/warehouse-movement/:id', { preHandler: perm('inventory.view') }, async (req) =>
-    R.warehouseMovement(db, (req.params as any).id, { ...range(req), item_id: q(req).item_id }),
-  );
-  app.get('/api/reports/reorder', { preHandler: perm('inventory.view') }, async () => R.reorderReport(db));
+  app.get('/api/reports/warehouse-movement/:id', { preHandler: perm('inventory.view') }, async (req) => {
+    assertWarehouseScope(req, (req.params as any).id);
+    const result = await R.warehouseMovement(db, (req.params as any).id, { ...range(req), item_id: q(req).item_id });
+    if (!hasPermission(req.user!.permissions, 'costs.view')) result.moves.forEach((m: any) => (m.value = null));
+    return result;
+  });
+  app.get('/api/reports/reorder', { preHandler: perm('inventory.view') }, async (req) => R.reorderReport(db, req.user!.warehouse_ids));
   app.get('/api/reports/documents', { preHandler: perm('reports.view') }, async (req) => {
+    const accessibleTypes = Object.entries(DOC_TYPES)
+      .filter(([, info]) => hasPermission(req.user!.permissions, info.module === 'accounts' ? 'accounts.view' : `${info.module}.view`))
+      .map(([type]) => type);
+    const requestedTypes = q(req).types?.split(',').filter(Boolean);
+    const docTypes = requestedTypes ? requestedTypes.filter((type) => accessibleTypes.includes(type)) : accessibleTypes;
+    assertWarehouseScope(req, q(req).warehouse_id);
     const r = await R.documentsReport(db, {
       ...range(req),
-      doc_types: q(req).types?.split(',').filter(Boolean),
+      doc_types: docTypes,
       party_id: q(req).party_id,
       user_id: q(req).user_id,
       status: q(req).status,
       warehouse_id: q(req).warehouse_id,
+      warehouse_ids: req.user!.warehouse_ids,
+      cashbox_ids: req.user!.cashbox_ids,
     });
     if (!hasPermission(req.user!.permissions, 'reports.profit')) {
       r.rows.forEach((x: any) => (x.cost = null));
@@ -200,31 +225,64 @@ export async function buildApp(opts: AppOptions) {
     return r;
   });
   app.get('/api/documents/:id', { preHandler: auth }, async (req) => {
-    const r = await R.documentDetail(db, (req.params as any).id);
+    const id = (req.params as any).id;
+    const target = await db.one(`select id, doc_type, warehouse_id, to_warehouse_id, cashbox_id, data from documents where id = $1`, [id]);
+    if (!target) throw new AppError('المستند غير موجود', 'not_found');
+    const module = DOC_TYPES[target.doc_type as keyof typeof DOC_TYPES]?.module;
+    const permission = module === 'accounts' ? 'accounts.view' : module ? `${module}.view` : '';
+    if (!permission || !hasPermission(req.user!.permissions, permission)) throw new AppError('ليس لديك صلاحية عرض هذا المستند', 'forbidden');
+    assertWarehouseScope(req, target.warehouse_id);
+    assertWarehouseScope(req, target.to_warehouse_id);
+    assertCashboxScope(req, target.cashbox_id);
+    const data = typeof target.data === 'string' ? JSON.parse(target.data || '{}') : target.data ?? {};
+    for (const payment of data.payments ?? []) assertCashboxScope(req, payment.cashbox_id);
+    const r = await R.documentDetail(db, id);
     if (!hasPermission(req.user!.permissions, 'costs.view')) {
       (r.doc as any).cost = null;
       r.lines.forEach((l: any) => (l.cost = null));
     }
+    if (!hasPermission(req.user!.permissions, 'accounts.view')) r.entries = [];
+    if (!hasPermission(req.user!.permissions, 'audit.view')) r.audit = [];
+    const relatedRows = await db.query(`select id, doc_type, warehouse_id, to_warehouse_id, cashbox_id, data from documents where ref_doc_id = $1`, [id]);
+    const allowedRelated = new Set(relatedRows.filter((row: any) => {
+      const relatedModule = DOC_TYPES[row.doc_type as keyof typeof DOC_TYPES]?.module;
+      const relatedPermission = relatedModule === 'accounts' ? 'accounts.view' : relatedModule ? `${relatedModule}.view` : '';
+      if (!relatedPermission || !hasPermission(req.user!.permissions, relatedPermission)) return false;
+      if ((row.warehouse_id && req.user!.warehouse_ids && !req.user!.warehouse_ids.includes(row.warehouse_id)) || (row.to_warehouse_id && req.user!.warehouse_ids && !req.user!.warehouse_ids.includes(row.to_warehouse_id))) return false;
+      if (row.cashbox_id && req.user!.cashbox_ids && !req.user!.cashbox_ids.includes(row.cashbox_id)) return false;
+      const relatedData = typeof row.data === 'string' ? JSON.parse(row.data || '{}') : row.data ?? {};
+      return (relatedData.payments ?? []).every((payment: any) => !req.user!.cashbox_ids || req.user!.cashbox_ids.includes(payment.cashbox_id));
+    }).map((row: any) => row.id));
+    r.related = r.related.filter((row: any) => allowedRelated.has(row.id));
     return r;
   });
 
   app.get('/api/reports/commissions', { preHandler: perm('reports.view') }, async (req) => R.commissionsReport(db, range(req)));
   app.get('/api/reports/closing-preview', { preHandler: perm('reports.financial') }, async (req) => R.closingPreview(db, q(req).to || todayISO()));
   app.get('/api/reports/partners', { preHandler: perm('partners.view') }, async (req) => R.partnersReport(db, range(req)));
-  app.get('/api/reports/serial', { preHandler: perm('inventory.view') }, async (req) => R.serialSearch(db, q(req).q ?? ''));
-  app.get('/api/reports/expiry', { preHandler: perm('inventory.view') }, async (req) =>
-    R.expiryReport(db, { warehouse_id: q(req).warehouse_id, until: q(req).until }),
-  );
+  app.get('/api/reports/serial', { preHandler: perm('inventory.view') }, async (req) => R.serialSearch(db, q(req).q ?? '', req.user!.warehouse_ids));
+  app.get('/api/reports/expiry', { preHandler: perm('inventory.view') }, async (req) => {
+    assertWarehouseScope(req, q(req).warehouse_id);
+    const r = await R.expiryReport(db, { warehouse_id: q(req).warehouse_id, warehouse_ids: req.user!.warehouse_ids, until: q(req).until });
+    if (!hasPermission(req.user!.permissions, 'costs.view')) r.rows.forEach((x: any) => (x.avg_cost = null));
+    return r;
+  });
   app.get('/api/reports/sales-analysis', { preHandler: perm('reports.view') }, async (req) => {
-    const r = await R.salesAnalysis(db, { ...range(req), group: q(req).group ?? 'item', kind: q(req).kind === 'purchases' ? 'purchases' : 'sales' });
+    const kind = q(req).kind === 'purchases' ? 'purchases' : 'sales';
+    if (!hasPermission(req.user!.permissions, `${kind}.view`)) throw new AppError('ليس لديك صلاحية عرض هذا التقرير', 'forbidden');
+    const r = await R.salesAnalysis(db, { ...range(req), group: q(req).group ?? 'item', kind, warehouse_ids: req.user!.warehouse_ids });
     if (!hasPermission(req.user!.permissions, 'reports.profit')) r.rows.forEach((x: any) => ((x.cost = null), (x.profit = null)));
     return r;
   });
-  app.get('/api/reports/treasury-analysis', { preHandler: perm('treasury.view') }, async (req) =>
-    R.treasuryAnalysis(db, { ...range(req), dir: q(req).dir === 'out' ? 'out' : 'in', group: q(req).group ?? 'item', cashbox_id: q(req).cashbox_id || undefined, user_id: q(req).user_id || undefined, internal: q(req).internal === '1' }),
-  );
+  app.get('/api/reports/treasury-analysis', { preHandler: perm('treasury.view') }, async (req) => {
+    assertCashboxScope(req, q(req).cashbox_id);
+    return R.treasuryAnalysis(db, { ...range(req), dir: q(req).dir === 'out' ? 'out' : 'in', group: q(req).group ?? 'item', cashbox_id: q(req).cashbox_id || undefined, cashbox_ids: req.user!.cashbox_ids, user_id: q(req).user_id || undefined, internal: q(req).internal === '1' });
+  });
   app.get('/api/reports/daily', { preHandler: perm('reports.view') }, async (req) => {
-    const r = await R.dailyMovement(db, { ...range(req), user_id: q(req).user_id || undefined });
+    const doc_types = Object.entries(DOC_TYPES)
+      .filter(([, info]) => hasPermission(req.user!.permissions, info.module === 'accounts' ? 'accounts.view' : `${info.module}.view`))
+      .map(([type]) => type);
+    const r = await R.dailyMovement(db, { ...range(req), doc_types, warehouse_ids: req.user!.warehouse_ids, cashbox_ids: req.user!.cashbox_ids, user_id: q(req).user_id || undefined });
     if (!hasPermission(req.user!.permissions, 'treasury.view')) r.cashboxes = [];
     return r;
   });

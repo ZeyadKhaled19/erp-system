@@ -4,7 +4,7 @@ import { PrintPage } from './pages/Print';
 import { Layout } from './components/Layout';
 import { useUi } from './components/ui';
 import { api, setToken, setUnauthorizedHandler } from './lib/api';
-import { setMeta } from './lib/db';
+import { setLocalIdentity, setMeta } from './lib/db';
 import { SessionContext } from './lib/hooks';
 import { getDeviceId, loadSession, saveSession, type Session } from './lib/session';
 import { startSync, stopSync } from './lib/sync';
@@ -45,6 +45,7 @@ export function App() {
   const [session, setSession] = useState<Session | null>(() => {
     // الرمز يُجهز قبل أول رسم حتى لا تُرسل الشاشات طلبات بدون رمز
     const s = loadSession();
+    setLocalIdentity(s?.user.id ?? null);
     setToken(s?.token ?? null);
     return s;
   });
@@ -53,6 +54,7 @@ export function App() {
 
   useEffect(() => {
     if (!session) return;
+    setLocalIdentity(session.user.id);
     setToken(session.token);
     void setMeta('device_short', getDeviceId().slice(0, 4).toUpperCase());
     startSync();
@@ -97,12 +99,13 @@ export function App() {
   const logout = useCallback(async () => {
     const ok = await ui.confirm({
       title: 'تسجيل الخروج؟',
-      message: 'البيانات المحفوظة على الجهاز والعمليات التي لم تُرفع بعد ستبقى محفوظة وتُرفع عند الدخول مرة أخرى.',
+      message: 'البيانات والعمليات غير المرفوعة تظل مرتبطة بحسابك، وتُرفع عند دخولك بالحساب نفسه مع توفر الاتصال.',
       confirmLabel: 'خروج',
       destructive: true,
     });
     if (!ok) return;
     saveSession(null);
+    setLocalIdentity(null);
     setToken(null);
     setSession(null);
     clearLanded();
@@ -112,6 +115,7 @@ export function App() {
     setUnauthorizedHandler(() => {
       // الجلسة انتهت على الخادم: نطلب الدخول مرة أخرى دون حذف البيانات المحلية
       saveSession(null);
+    setLocalIdentity(null);
       setToken(null);
       setSession(null);
       ui.toast('انتهت الجلسة، سجّل الدخول مرة أخرى', 'warn');

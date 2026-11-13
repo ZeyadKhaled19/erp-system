@@ -203,6 +203,9 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
       if (!input.cashbox_id) throw new AppError('اختر الخزينة');
       payments = [{ id: crypto.randomUUID(), cashbox_id: input.cashbox_id, amount: input.paid }];
     }
+    if (new Set(payments.map((p) => p.id)).size !== payments.length) {
+      throw new AppError('معرف دفعة مكرر في المستند');
+    }
     for (const p of payments) {
       await mustGet(t, 'cashboxes', p.cashbox_id, 'الخزينة');
       if (!allowed(ctx.user.cashbox_ids, p.cashbox_id)) throw new AppError('غير مسموح لك بالعمل على هذه الخزينة', 'forbidden');
@@ -464,6 +467,14 @@ async function reverseAllocations(t: Db, sourceId: string) {
 export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpts = {}) {
   const doc = await t.one(`select * from documents where id = $1 for update`, [docId]);
   if (!doc) throw new AppError('المستند غير موجود', 'not_found');
+  if (!allowed(ctx.user.warehouse_ids, doc.warehouse_id) || !allowed(ctx.user.warehouse_ids, doc.to_warehouse_id)) {
+    throw new AppError('غير مسموح لك بالعمل على هذا المخزن', 'forbidden');
+  }
+  const scopeData = typeof doc.data === 'string' ? JSON.parse(doc.data || '{}') : doc.data ?? {};
+  const cashboxIds = [doc.cashbox_id, scopeData.to_cashbox_id, ...(scopeData.payments ?? []).map((p: any) => p.cashbox_id)].filter(Boolean);
+  if (cashboxIds.some((id: string) => !allowed(ctx.user.cashbox_ids, id))) {
+    throw new AppError('غير مسموح لك بالعمل على هذه الخزينة', 'forbidden');
+  }
   if (doc.status === 'posted') throw new AppError('المستند مُرحّل بالفعل', 'state');
   if (doc.status === 'cancelled') throw new AppError('المستند ملغي', 'state');
   await assertPeriodOpen(t, doc.date);
@@ -505,6 +516,12 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
   const instruments: any[] = data.instruments ?? [];
   const itemOf = async (id: string) => t.one(`select * from items where id = $1`, [id]);
 
+  // معرف الدفع فريد على مستوى كل المستندات؛ لا تتجاهل تعارضه بعد تسجيل القيد.
+  for (const p of payments) {
+    const existingPayment = await t.one(`select document_id from document_payments where id = $1`, [p.id]);
+    if (existingPayment) throw new AppError('معرف الدفعة مستخدم في مستند آخر', 'state');
+  }
+
   /** السداد المتعدد: قيد لكل خزينة + عمولة الطريقة */
   const postPayments = async (direction: 'in' | 'out', counterAcc: string, label: string) => {
     for (const p of payments) {
@@ -522,7 +539,7 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
         jl.push({ account_id: await acc('payment_fees'), debit: fee, credit: 0, memo: `عمولة ${cb.name} — ${memo}` });
         jl.push({ account_id: cash, debit: 0, credit: fee, memo: `عمولة ${cb.name} — ${memo}` });
       }
-      await t.query(`insert into document_payments (id, document_id, cashbox_id, amount, fee) values ($1,$2,$3,$4,$5) on conflict (id) do nothing`, [p.id, docId, p.cashbox_id, p.amount, fee]);
+      await t.query(`insert into document_payments (id, document_id, cashbox_id, amount, fee) values ($1,$2,$3,$4,$5)`, [p.id, docId, p.cashbox_id, p.amount, fee]);
     }
   };
   const createInstruments = async (direction: 'in' | 'out') => {

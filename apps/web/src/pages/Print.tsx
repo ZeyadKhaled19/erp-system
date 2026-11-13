@@ -1,10 +1,10 @@
-import { DOC_TYPES, formatMoney, formatQty, tafqeetEGP, type DocType } from '@erp/shared';
+import { DOC_TYPES, formatMoney, formatQty, hasPermission, tafqeetEGP, type DocType } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { payMethodLabel } from '../lib/payMethod';
 import { db } from '../lib/db';
-import { useSettings } from '../lib/hooks';
+import { useSession, useSettings } from '../lib/hooks';
 
 /**
  * قوالب الطباعة (تعمل دون اتصال من البيانات المحلية):
@@ -58,9 +58,14 @@ export function PrintPage() {
   const [sp] = useSearchParams();
   const nav = useNavigate();
   const settings = useSettings();
+  const { session } = useSession();
   const doc = useLiveQuery(() => db.documents.get(id), [id]);
+  const docModule = doc ? DOC_TYPES[doc.doc_type as DocType]?.module : null;
+  const permissionDenied = docModule === 'sales'
+    ? !hasPermission(session.user.permissions, 'sales.print')
+    : docModule === 'purchases' && !hasPermission(session.user.permissions, 'purchases.print');
   const data = useLiveQuery(async () => {
-    if (!doc) return null;
+    if (!doc || permissionDenied) return null;
     const lines = await db.document_lines.where('document_id').equals(id).sortBy('line_no');
     const items = new Map((await db.items.bulkGet(lines.map((l) => l.item_id))).filter(Boolean).map((i) => [i!.id, i!]));
     const party = doc.party_id ? await db.parties.get(doc.party_id) : undefined;
@@ -73,7 +78,7 @@ export function PrintPage() {
     const user = doc.created_by ? await db.users.get(doc.created_by) : undefined;
     const rep = doc.sales_rep_id ? await db.sales_reps.get(doc.sales_rep_id) : undefined;
     return { lines, items, party, wh, wh2, cbs, acc, partner, insts, user, rep };
-  }, [doc, id]);
+  }, [doc, id, permissionDenied]);
 
   const tpl = (sp.get('t') as PrintTemplate) || (doc ? defaultTemplate(doc, settings) : 'a4');
   const auto = sp.get('auto') === '1';
@@ -82,7 +87,7 @@ export function PrintPage() {
     document.title = doc ? `${DOC_TYPES[doc.doc_type as DocType]?.label} ${doc.number ?? doc.local_number}` : 'طباعة';
   }, [doc]);
   useEffect(() => {
-    if (!auto || !doc || !data) return;
+    if (!auto || !doc || !data || permissionDenied) return;
     // ننتظر تحميل الخطوط ثم نفتح نافذة الطباعة
     let done = false;
     void document.fonts.ready.then(() => {
@@ -91,8 +96,9 @@ export function PrintPage() {
     return () => {
       done = true;
     };
-  }, [auto, doc, data]);
+  }, [auto, doc, data, permissionDenied]);
 
+  if (doc && permissionDenied) return <div role="alert" style={{ padding: 30 }}>لا تملك صلاحية طباعة هذا المستند</div>;
   if (doc === undefined || (doc && !data)) return <div style={{ padding: 30 }}>جارٍ التحضير…</div>;
   if (!doc) return <div style={{ padding: 30 }}>المستند غير موجود على هذا الجهاز</div>;
   const thermal = tpl === 'thermal80' || tpl === 'thermal58';

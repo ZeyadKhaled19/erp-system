@@ -37,6 +37,14 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        app: 'index.html',
+        designPreview: 'design-preview.html',
+      },
+    },
+  },
   server: {
     port: 5173,
     host: true,

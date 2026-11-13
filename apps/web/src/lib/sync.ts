@@ -1,6 +1,6 @@
 import { SYNC_TABLES, uuid, type Op, type OpResult } from '@erp/shared';
 import { api, ApiError } from './api';
-import { db, getMeta, setMeta, SYNCED_TABLE_NAMES, type OutboxEntry } from './db';
+import { db, getLocalIdentity, getMeta, setMeta, SYNCED_TABLE_NAMES, type OutboxEntry } from './db';
 
 /**
  * محرك المزامنة:
@@ -41,6 +41,7 @@ export const syncStore = {
 
 let enabled = false;
 let running: Promise<void> | null = null;
+let runningOwner: string | null = null;
 let again = false;
 let seqCounter = 0;
 
@@ -57,6 +58,7 @@ export interface EnqueueOpts {
 export async function enqueue(op: Op, o: EnqueueOpts): Promise<OutboxEntry> {
   const entry: OutboxEntry = {
     op_id: uuid(),
+    owner_user_id: getLocalIdentity() ?? undefined,
     created_at: new Date().toISOString(),
     op,
     status: 'pending',
@@ -130,15 +132,19 @@ async function markEntity(entry: OutboxEntry, r: OpResult) {
   await table.update(entry.entity_id, patch);
 }
 
-async function pushOutbox(): Promise<void> {
+async function pushOutbox(owner: string): Promise<void> {
   for (;;) {
-    const batch = await db.outbox.where('status').equals('pending').sortBy('seq');
+    if (getLocalIdentity() !== owner) return;
+    const batch = await db.outbox.where('status').equals('pending').filter((entry) => entry.owner_user_id === owner).sortBy('seq');
+    if (getLocalIdentity() !== owner) return;
     if (!batch.length) return;
     const slice = batch.slice(0, 50);
     const payload = slice.map((e) => ({ op_id: e.op_id, seq: e.seq ?? seqCounter++, created_at: e.created_at, op: e.op }));
     await db.outbox.bulkUpdate(slice.map((e) => ({ key: e.seq!, changes: { attempts: e.attempts + 1, sent_at: new Date().toISOString() } })));
+    if (getLocalIdentity() !== owner) return;
     // إذا انقطع الاتصال هنا تبقى العمليات pending وتُرسل بنفس op_id لاحقًا دون تكرار
     const res = await api<{ results: OpResult[] }>('/api/sync/push', { body: { ops: payload }, timeoutMs: 60000 });
+    if (getLocalIdentity() !== owner) return;
     let stop = false;
     for (const r of res.results) {
       const entry = slice.find((e) => e.op_id === r.op_id);
@@ -164,8 +170,10 @@ async function pendingIds(): Promise<Set<string>> {
   return new Set(p.map((e) => e.entity_id));
 }
 
-export async function applyChanges(changes: Record<string, any[]>) {
+export async function applyChanges(changes: Record<string, any[]>, owner?: string) {
+  if (owner && getLocalIdentity() !== owner) return;
   const pending = await pendingIds();
+  if (owner && getLocalIdentity() !== owner) return;
   await db.transaction('rw', db.tables, async () => {
     for (const table of SYNC_TABLES) {
       const rows = changes[table];
@@ -196,13 +204,15 @@ export async function applyChanges(changes: Record<string, any[]>) {
   });
 }
 
-async function pullChanges(): Promise<void> {
+async function pullChanges(owner: string): Promise<void> {
   let cursor = await getMeta<number>('cursor', 0);
   const localEpoch = await getMeta<string | null>('epoch', null);
   for (;;) {
+    if (getLocalIdentity() !== owner) return;
     const r = await api<{ cursor: number; more: boolean; epoch: string; changes: Record<string, any[]> }>(`/api/sync/pull?cursor=${cursor}`, {
       timeoutMs: 60000,
     });
+    if (getLocalIdentity() !== owner) return;
     if (localEpoch && r.epoch && localEpoch !== r.epoch && cursor !== 0) {
       // تمت استعادة نسخة احتياطية على الخادم: نعيد بناء النسخة المحلية بالكامل مع الإبقاء على العمليات غير المرسلة
       await db.transaction('rw', db.tables, async () => {
@@ -213,7 +223,7 @@ async function pullChanges(): Promise<void> {
       cursor = 0;
       continue;
     }
-    await applyChanges(r.changes);
+    await applyChanges(r.changes, owner);
     cursor = r.cursor;
     await setMeta('cursor', cursor);
     if (r.epoch) await setMeta('epoch', r.epoch);
@@ -225,31 +235,40 @@ async function pullChanges(): Promise<void> {
 
 export async function syncNow(): Promise<void> {
   if (!enabled) return;
+  const owner = getLocalIdentity();
+  if (!owner) return;
   if (running) {
-    again = true;
+    if (runningOwner === owner) again = true;
     return running;
   }
+  runningOwner = owner;
   running = (async () => {
     setState({ syncing: true });
     try {
       do {
         again = false;
-        await pushOutbox();
-        await pullChanges();
-      } while (again);
-      setState({ lastSyncAt: new Date().toISOString(), lastError: null, serverReachable: true, online: true });
-      await setMeta('last_sync_at', new Date().toISOString());
+        if (getLocalIdentity() !== owner) break;
+        await pushOutbox(owner);
+        await pullChanges(owner);
+      } while (again && getLocalIdentity() === owner);
+      if (getLocalIdentity() === owner) {
+        setState({ lastSyncAt: new Date().toISOString(), lastError: null, serverReachable: true, online: true });
+        await setMeta('last_sync_at', new Date().toISOString());
+      }
     } catch (e) {
-      const err = e as ApiError;
-      setState({ lastError: err.message, serverReachable: !err.network, online: navigator.onLine && !err.network ? true : navigator.onLine });
+      if (getLocalIdentity() === owner) {
+        const err = e as ApiError;
+        setState({ lastError: err.message, serverReachable: !err.network, online: navigator.onLine && !err.network ? true : navigator.onLine });
+      }
     } finally {
       setState({ syncing: false });
       running = null;
+      runningOwner = null;
+      if (enabled && getLocalIdentity() && getLocalIdentity() !== owner) void syncNow();
     }
   })();
   return running;
 }
-
 let timer: ReturnType<typeof setInterval> | null = null;
 export function startSync() {
   if (enabled) return;

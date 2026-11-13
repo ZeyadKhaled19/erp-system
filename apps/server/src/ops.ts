@@ -307,6 +307,7 @@ async function handleResolve(t: Db, ctx: Ctx, op: Extract<Op, { type: 'conflict.
     if (op.resolution === 'apply_client') {
       const existing = await t.one(`select * from documents where id = $1 for update`, [c.entity_id]);
       if (existing.status !== 'draft' && existing.status !== 'pending_review') throw new AppError('المستند لم يعد مسودة', 'state');
+            need(ctx.user, docPerm(existing.doc_type, 'edit'));
       await saveDocument(t, ctx, c.client_data, existing);
     } else if (op.resolution !== 'keep_server') throw new AppError('اختيار غير مناسب لهذا التعارض');
   } else if (c.kind === 'stock_shortage' || c.kind === 'credit_limit') {
