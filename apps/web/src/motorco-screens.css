@@ -119,3 +119,62 @@
   .sc .sc-sub { display: none; }
   .table th, .table td { padding: 10px 12px; }
 }
+
+/* ===================== المرحلة 2: فاتورة البيع والشراء ===================== */
+.ss.si { max-width: 1880px; }
+.si-page-heading h1 { font-size: clamp(22px, 1.8vw, 28px); font-weight: 800; }
+/* بيانات الفاتورة: كل خانة كارت مستقل (العميل، المخزن، التاريخ) */
+.si .si-meta { background: transparent; border: 0; box-shadow: none; padding: 0; gap: 12px; flex: 1 1 auto; align-items: stretch; }
+.si .si-meta-field { background: var(--mc-surface); border: 1px solid var(--mc-line); border-radius: 16px; box-shadow: var(--mc-shadow); padding: 8px 14px; min-height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.si .si-meta-field > span, .si .si-meta-field > label { font-size: 12.5px; font-weight: 700; color: var(--label-2); }
+.si .si-meta-field b { font-size: 14px; font-weight: 700; color: var(--heading); }
+.si .si-date, .si .si-wh { background: transparent; border: 0; padding: 0; font-weight: 700; color: var(--heading); font-size: 14.5px; }
+.si .si-meta-party { flex: 1 1 320px; }
+/* البحث والجدول */
+.si .ss-entry { border-radius: 18px; border: 1px solid var(--mc-line); box-shadow: var(--mc-shadow); background: var(--mc-surface); }
+.si .si-grid { border-radius: 18px; border: 1px solid var(--mc-line); box-shadow: var(--mc-shadow); background: var(--mc-surface); overflow: hidden; }
+.si-table th { background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); color: var(--heading); font-weight: 800; }
+.si-table td.c-name { font-weight: 700; color: var(--heading); }
+/* الملخص: صفوف هادئة ثم «الإجمالي النهائي» كبسولة زرقا */
+.si .ss-side > .card { border-radius: 20px; border: 1px solid var(--mc-line); box-shadow: var(--mc-shadow-lg); }
+.si-summary-title { font-size: 18px; font-weight: 800; color: var(--heading); }
+.si .ss-sum { background: transparent; border: 0; padding: 0 2px; gap: 10px; }
+.si .ss-sum .row, .si-pay-sum .row { display: flex; justify-content: space-between; align-items: center; font-size: 14.5px; color: var(--label-2); }
+.si .ss-sum .row b, .si-pay-sum .row b { color: var(--heading); font-weight: 800; }
+.si-pay-sum { display: flex; flex-direction: column; gap: 10px; padding: 12px 2px 2px; border-top: 1px solid var(--separator); }
+.si-pay-sum .row b.green { color: var(--green-text); } .si-pay-sum .row b.orange { color: var(--orange-text); }
+.si-grand { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-radius: 16px; background: var(--mc-active); color: #fff; box-shadow: var(--mc-active-shadow); }
+.si-grand span { font-size: 15.5px; font-weight: 800; }
+.si-grand b { font-size: clamp(22px, 1.9vw, 30px); font-weight: 800; letter-spacing: .2px; }
+.si .ss-pay button { border-radius: 12px; font-weight: 700; }
+.si .ss-pay button.on { border-color: var(--tint); color: var(--tint); background: color-mix(in srgb, var(--tint) 8%, var(--mc-surface)); box-shadow: inset 0 0 0 1px var(--tint); }
+/* أزرار الحفظ: حفظ وحفظ وطباعة أزرق، فاتورة جديدة أبيض */
+.si .si-bar { background: transparent; border: 0; box-shadow: none; padding: 4px 0 0; position: static; }
+.si .si-bar .btn { min-height: 44px; border-radius: 12px; }
+.si .si-bar .btn.primary { min-width: 120px; }
+/* ترتيب كارت الملخص: العنوان، الصفوف، الإجمالي النهائي، طريقة الدفع، المدفوع، المدفوع/المتبقي، ثم الأزرار */
+.si .ss-side .card > .si-summary-title { order: 1; }
+.si .ss-side .card > .ss-sum { order: 2; display: flex; flex-direction: column; gap: 10px; padding: 0 2px; border: 0; background: transparent; }
+.si .ss-side .card > .si-grand { order: 3; }
+.si .ss-side .card > .field:not(.si-paid-field) { order: 4; }
+.si .ss-side .card > .si-paid-field { order: 5; }
+.si .ss-side .card > .si-pay-sum { order: 6; }
+.si .ss-side .card > .banner { order: 7; }
+.si .ss-side .card > .si-more-panel { order: 8; }
+.si .ss-side .card > .si-bar { order: 9; }
+.si .ss-side .card > .ss-sum .row { font-size: 14.5px; }
+/* عرض أعمدة الجدول: اسم الصنف أعرض عمود، والمبالغ مساحتها تكفي الأرقام الكبيرة */
+.si-table th.si-col.code { width: 7%; } .si-table th.si-col.name { width: 20%; } .si-table th.si-col.unit { width: 7%; }
+.si-table th.si-col.avail { width: 7%; } .si-table th.si-col.qty { width: 9%; } .si-table th.si-col.price { width: 10%; }
+.si-table th.si-col.gross { width: 12%; } .si-table th.si-col.disc { width: 9%; } .si-table th.si-col.net { width: 12%; } .si-table th.si-col.del { width: 5%; }
+.si-table td { overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 1101px) { .si-main { grid-template-columns: minmax(0, 1fr) clamp(320px, 30%, 440px); } }
+@media (max-width: 760px) {
+  .si-table tbody td, .si-table tbody tr:hover td { background: transparent !important; }
+  .si-table tbody tr.sel { background: color-mix(in srgb, var(--tint) 5%, var(--mc-surface)); }
+  .si-grand { padding: 12px 14px; align-self: stretch; width: 100%; }
+  .si-grand span { white-space: nowrap; font-size: 14.5px; }
+  .si-grand b { font-size: 22px; }
+  .si .si-bar .btn.primary { min-width: 0; }
+  .si .si-bar .btn { padding: 0 8px; font-size: 13px; }
+}

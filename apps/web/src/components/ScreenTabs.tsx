@@ -164,7 +164,7 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
       try {
         const u = new URL(tab.url, window.location.origin);
         if (/^\/docs\/new\/(sale|purchase)_invoice$/.test(u.pathname)) {
-          const id = u.searchParams.get('saleTab') ?? u.searchParams.get('purchaseTab') ?? 'default';
+          const id = u.searchParams.get('saleTab') ?? u.searchParams.get('purchaseTab') ?? (u.pathname.includes('purchase') ? 'p-default' : 'default');
           const draftKey = `sale-draft-${id}`;
           const hasDraft = Boolean(localStorage.getItem(draftKey));
           if (hasDraft && !window.confirm('هذه الفاتورة تحتوي على مسودة غير محفوظة. هل تريد إغلاق التبويب وحذف المسودة؟')) return;

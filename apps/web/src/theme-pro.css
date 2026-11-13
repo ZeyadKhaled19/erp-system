@@ -1672,3 +1672,340 @@ kbd { font-weight: 500; }
   .sticky-actions { margin-inline: -12px; padding-inline: 12px; }
 }
 @media (max-width: 640px) { .sb-board .sc-wrap.sz-s > .sc { padding-top: 28px; gap: 4px; } .sb-board .sc-badge { top: 6px; left: 6px; height: 18px; font-size: 10.5px; padding: 0 6px; } }
+
+/* فاتورة البيع: توزيع واضح ومتوازن عبر مقاسات الشاشة */
+.ss.si {
+  width: min(100%, 1780px);
+  max-width: 1780px;
+  margin-inline: auto;
+  padding: 12px clamp(14px, 1.8vw, 28px) 30px;
+  gap: 14px;
+  overflow-x: clip;
+  font-size: 15px;
+}
+.si-page-heading { display: flex; align-items: center; min-width: 0; }
+.si-page-heading h1 { margin: 0; color: var(--heading); font-size: clamp(22px, 1.8vw, 28px); line-height: 1.25; font-weight: 700; }
+.si-page-heading span { display: block; margin-top: 4px; color: var(--label-2); font-size: 14px; }
+.si-meta-row { align-items: center; gap: 10px; }
+.si-meta { min-height: 44px; height: auto; gap: 10px; padding: 6px 12px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow-card); font-size: 14px; }
+.si-date, .si-wh { min-height: 32px; padding: 4px 8px; border-radius: 8px; background: var(--fill-3); }
+.si-navs { border-radius: 12px; }
+.si-navs button { width: 40px; height: 38px; }
+.si .ss-top { grid-template-columns: minmax(0, 1fr) minmax(220px, 270px); gap: 14px; align-items: stretch; }
+.si .ss-entry { min-width: 0; flex-wrap: wrap; align-items: end; padding: 14px; gap: 12px; border-radius: 20px; }
+.si .ss-step { min-width: 104px; gap: 6px; }
+.si .ss-step:first-child { flex: 3 1 330px !important; }
+.si .ss-step > label { min-height: 20px; font-size: 14px; font-weight: 600; }
+.si .ss-step > label b { width: 22px; height: 22px; font-size: 13px; }
+.si .ss-step .input, .si .si-search .btn { height: 44px; font-size: 15px; }
+.si .si-search { min-width: 0; gap: 8px; }
+.si .si-search .picker { min-width: 0; }
+.si .ss-avail { flex: 0 1 104px; }
+.si .ss-avail-v { height: 44px; font-size: 16px; }
+.si .ss-add { width: 52px; height: 44px; }
+.si .ss-total { min-width: 0; padding: 16px 18px; border-radius: 20px; }
+.si .ss-total-label { font-size: 14px; }
+.si .ss-total-v { font-size: clamp(25px, 2vw, 32px); }
+.si .ss-total-sub { font-size: 13px; }
+.si-main { grid-template-columns: 56px minmax(0, 1fr) minmax(290px, 330px); gap: 14px; align-items: start; }
+.si-keys { gap: 8px; }
+.si-keys > button { height: 58px; border-radius: 14px; font-size: 13px; }
+.si-keys > button svg { width: 18px; height: 18px; }
+.si-keys kbd { font-size: 11px; }
+.si-grid { min-width: 0; min-height: 250px; border-radius: 18px; }
+.si-tw { min-width: 0; max-height: clamp(250px, 42vh, 480px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.si-table { font-size: 14.5px; }
+.si-table th { padding: 10px 9px; font-size: 13px; }
+.si-table td { padding: 8px 9px; font-size: 14.5px; }
+.si-table .input, .si-table .select { height: 40px; font-size: 14.5px; }
+.si-grid-foot { padding: 10px 12px; }
+.si-grid-foot .muted { font-size: 13px; }
+.si-main > .ss-side { min-width: 0; position: static; }
+.si .ss-side > .card { border-radius: 18px; padding: 16px; gap: 14px !important; }
+.si .ss-pay { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.si .ss-pay button { min-width: 0; height: 42px; padding: 0 10px; font-size: 14px; }
+.si .ss-pay button svg { width: 18px; height: 18px; }
+.si .ss-sum { padding: 14px; border-radius: 16px; gap: 8px; }
+.si .ss-sum .row { font-size: 14.5px; }
+.si .ss-sum .row.big { font-size: 19px; }
+.si-adj { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; padding: 14px 16px; border-radius: 18px; }
+.si-adj-g > label { font-size: 14px; font-weight: 600; }
+.si-adj-row .select, .si-adj-row .input { min-width: 0; height: 42px; font-size: 14px; }
+.si-bar { position: sticky; bottom: 8px; gap: 8px; padding: 10px; border-radius: 16px; }
+.si-bar .btn { min-height: 40px; height: auto; font-size: 14px; }
+.si-bar .btn.primary { min-height: 44px; }
+.si-bar kbd { font-size: 11px; }
+@media (max-width: 1100px) {
+  .si .ss-top { grid-template-columns: minmax(0, 1fr); }
+  .si .ss-total { min-height: 92px; }
+  .si-main { grid-template-columns: 52px minmax(0, 1fr); }
+  .si-main > .ss-side { grid-column: 1 / -1; }
+  .si-main > .ss-side > .card { display: flex; flex-direction: column; }
+  .si-tw { max-height: min(44vh, 420px); }
+}
+@media (max-width: 760px) {
+  .ss.si { padding: 12px 12px 88px; gap: 12px; }
+  .si-page-heading h1 { font-size: 22px; }
+  .si-page-heading span { font-size: 13px; }
+  .si-meta { width: 100%; gap: 6px; font-size: 13px; }
+  .si-meta-row { align-items: stretch; }
+  .si-navs { align-self: flex-start; }
+  .si .ss-entry { padding: 12px; }
+  .si-main { grid-template-columns: minmax(0, 1fr) !important; }
+  .si-keys { display: none !important; }
+  .si-grid { min-height: 0; }
+  .si-tw { max-height: none; overflow: visible; }
+  .si-table { font-size: 14px; }
+  .si-table tbody td.c-name { font-size: 15px; }
+  .si-adj { grid-template-columns: 1fr; }
+  .si-bar { position: static; }
+  .si-bar .spacer { display: none; }
+}
+
+/* فاتورة البيع: شاشة عمل ثابتة بلا تمرير، بتوزيع قريب من المرجع */
+.content:has(.ss.si) { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.content:has(.ss.si) > .ss-tabs { flex: 0 0 auto; max-width: 100%; overflow-x: auto; }
+.ss.si {
+  width: min(100%, 1880px);
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 8px clamp(12px, 1.6vw, 24px) 10px;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+}
+.si-page-heading { min-height: 34px; justify-content: space-between; }
+.si-page-heading h1 { font-size: clamp(20px, 1.55vw, 25px); }
+.si-page-heading span { display: none; }
+.si-meta-row { display: flex; min-width: 0; align-items: stretch; gap: 8px; }
+.si-meta {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  grid-template-columns: minmax(118px, .75fr) minmax(135px, .8fr) minmax(250px, 1.75fr) minmax(150px, .8fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 15px;
+}
+.si-meta-field { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 3px; }
+.si-meta-field > span, .si-meta-field > label { color: var(--label-2); font-size: 12px; line-height: 1.15; }
+.si-meta-field > b { color: var(--heading); font-size: 14px; }
+.si-meta-field .si-date, .si-meta-field .si-wh { width: 100%; min-width: 0; height: 34px; min-height: 34px; padding: 3px 8px; font-size: 14px; }
+.si-meta-party .grid { grid-template-columns: 1fr 1.25fr; gap: 6px !important; }
+.si-meta-party .field { min-width: 0; gap: 3px; }
+.si-meta-party .field > label, .si-meta-party .grp-pins { display: none; }
+.si-meta-party .select, .si-meta-party .picker .input { height: 34px; min-height: 34px; font-size: 13.5px; }
+.si-meta-party .icon-btn { width: 34px; height: 34px; flex: 0 0 34px; }
+.si-navs { flex: 0 0 auto; align-self: center; }
+.si-navs button { width: 36px; height: 34px; }
+.si .ss-top { display: block; min-width: 0; }
+.si .ss-total { display: none; }
+.si .ss-entry { display: grid; grid-template-columns: minmax(0, 1fr) 46px; align-items: end; min-width: 0; padding: 8px 10px; gap: 8px; border-radius: 15px; }
+.si .ss-entry > .ss-step { min-width: 0; }
+.si .ss-entry > .ss-step:first-child { grid-column: 1; flex: initial !important; }
+.si .ss-entry > .ss-step:nth-child(2), .si .ss-entry > .ss-step:nth-child(3), .si .ss-entry > .ss-step:nth-child(4) { display: none; }
+.si .ss-entry > .ss-step:last-child { grid-column: 2; grid-row: 1; }
+.si .ss-entry > .ss-step:last-child > label { display: none; }
+.si .ss-step > label { font-size: 13px; }
+.si .ss-step .input, .si .si-search .btn { height: 40px; font-size: 14px; }
+.si .si-search { min-width: 0; }
+.si .si-search .picker { min-width: 0; }
+.si .si-search .cat-select { max-width: 150px; }
+.si .si-add { width: 46px; height: 40px; }
+.si-main { grid-template-columns: minmax(0, 1fr) minmax(320px, 35%); grid-template-rows: minmax(0, 1fr); gap: 10px; min-height: 0; height: 100%; }
+.si-keys { display: none !important; }
+.si-grid { min-width: 0; min-height: 0; height: 100%; border-radius: 16px; }
+.si-tw { min-width: 0; min-height: 0; max-height: none; flex: 1 1 auto; overflow: hidden; }
+.si-table { width: 100% !important; min-width: 0 !important; table-layout: fixed; }
+.si-table colgroup col { width: auto !important; }
+.si-table th { padding: 8px 5px; font-size: 12px; }
+.si-table td { padding: 6px 5px; font-size: 13.5px; }
+.si-table th, .si-table td { overflow: hidden; text-overflow: ellipsis; }
+.si-table .input, .si-table .select { height: 34px; padding-inline: 5px; font-size: 13px; }
+.si-grid-foot { flex: 0 0 auto; gap: 5px; padding: 6px 8px; }
+.si-grid-foot .muted { display: none; }
+.si-main > .ss-side { min-width: 0; min-height: 0; height: 100%; }
+.si-main > .ss-side > .card { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 8px !important; padding: 10px; overflow: visible; border-radius: 16px; }
+.si .ss-side .field > label { font-size: 13px; }
+.si .ss-pay { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.si .ss-pay button { justify-content: center; height: 36px; padding: 0 6px; font-size: 12.5px; }
+.si .ss-pay button svg { width: 16px; height: 16px; }
+.si .ss-side .card > .field > .btn { display: none; }
+.si .si-paid-field { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.si .si-paid-field > label { flex: 0 0 auto; margin: 0; }
+.si .si-paid-field > input { flex: 1 1 auto; min-width: 80px; height: 36px; }
+.si .si-paid-field .si-rest { position: absolute; inset-inline: 10px; bottom: 110px; z-index: 10; padding: 8px; background: var(--card); box-shadow: var(--shadow-pop); }
+.si .ss-sum { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; padding: 8px 10px; border-radius: 12px; }
+.si .ss-sum .row { min-width: 0; font-size: 12.5px; }
+.si .ss-sum .row.big { grid-column: 1 / -1; padding-top: 5px; font-size: 17px; }
+.si .ss-sum .row.big b { font-size: 22px; }
+.si .ss-sum .row:nth-last-child(-n+2) { font-size: 12.5px; }
+.si .ss-side .card > .banner { padding: 6px 8px; font-size: 12px; }
+.si-more-panel { position: relative; flex: 0 0 auto; }
+.si-more-panel > summary { width: max-content; max-width: 100%; padding: 5px 8px; border-radius: 9px; background: var(--fill-3); color: var(--label-2); font-size: 12px; cursor: pointer; list-style: none; }
+.si-more-panel > summary::-webkit-details-marker { display: none; }
+.si-more-panel[open] > .si-more-panel-content { position: absolute; z-index: 30; inset-inline-end: 0; bottom: calc(100% + 6px); width: min(560px, calc(100vw - 24px)); max-height: min(72vh, 520px); overflow: auto; padding: 12px; border: 1px solid var(--separator); border-radius: 16px; background: var(--card); box-shadow: var(--shadow-pop); }
+.si-more-panel-content { display: grid; grid-template-columns: minmax(160px, .7fr) minmax(0, 1.3fr); gap: 10px; align-items: start; }
+.si-more-panel-content .field { min-width: 0; }
+.si-adj { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; border-radius: 12px; }
+.si-adj-g { min-width: 0; gap: 4px; }
+.si-adj-g > label { font-size: 12px; }
+.si-adj-row .select, .si-adj-row .input { height: 34px; font-size: 13px; }
+.si-switch { height: 34px; font-size: 12px; }
+.si-bar { position: static; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; flex: 0 0 auto; gap: 6px; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.si-bar .btn { min-width: 0; height: 38px; min-height: 38px; padding: 0 7px; font-size: 12.5px; white-space: nowrap; }
+.si-bar .btn svg { width: 16px; height: 16px; }
+.si-bar kbd { display: none; }
+.si-more-actions { position: relative; align-self: center; }
+.si-more-actions > summary { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--fill-3); color: var(--label-2); font-weight: 600; font-size: 12px; cursor: pointer; list-style: none; }
+.si-more-actions > summary::-webkit-details-marker { display: none; }
+.si-more-actions[open] { position: absolute; inset-inline-end: 10px; bottom: 54px; z-index: 35; width: min(360px, calc(100vw - 24px)); padding: 10px; border: 1px solid var(--separator); border-radius: 14px; background: var(--card); box-shadow: var(--shadow-pop); }
+.si-more-actions[open] > summary { display: none; }
+.si-more-actions[open] .btn { display: flex; width: 100%; justify-content: flex-start; margin-top: 5px; }
+@media (max-width: 1100px) {
+  .si-meta { grid-template-columns: minmax(110px, .6fr) minmax(125px, .7fr) minmax(300px, 1.7fr); }
+  .si-meta-field:last-child { grid-column: 1 / -1; }
+  .si-meta-party .grid { grid-template-columns: 1fr 1.2fr; }
+  .si-main { grid-template-columns: minmax(0, 1fr) minmax(300px, 36%); }
+  .si-table th.code, .si-table td.c-code, .si-table th.avail, .si-table td.c-avail, .si-table th.gross, .si-table td.c-gross { display: none; }
+  .si-table th.name { width: 28% !important; }
+  .si-table th.unit, .si-table th.qty, .si-table th.price, .si-table th.disc, .si-table th.net, .si-table th.del { width: 12% !important; }
+  .si-more-panel-content { grid-template-columns: 1fr; }
+}
+@media (max-height: 680px) and (min-width: 761px) {
+  .ss.si { padding-block: 4px; gap: 5px; }
+  .si-page-heading { min-height: 28px; }
+  .si .ss-entry { padding-block: 5px; }
+  .si-meta { padding-block: 4px; }
+  .si .ss-side > .card { gap: 5px !important; padding: 7px; }
+  .si .ss-pay button { height: 32px; }
+  .si .ss-sum { padding-block: 5px; }
+  .si-bar .btn { height: 34px; min-height: 34px; }
+}
+@media (max-width: 760px) {
+  .ss.si { padding: 6px 8px; gap: 6px; grid-template-rows:auto auto auto minmax(0, 1fr); }
+  .si-page-heading { min-height: 28px; }
+  .si-page-heading h1 { font-size: 19px; }
+  .si-meta-row { min-width: 0; }
+  .si-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 6px; }
+  .si-meta-party { grid-column: 1 / -1; }
+  .si-meta-field:last-child { grid-column: auto; }
+  .si-meta-party .grid { grid-template-columns: 1fr 1.2fr; }
+  .si-navs { display: none; }
+  .si-main { grid-template-columns: minmax(0, 1fr); grid-template-rows:minmax(120px, 1fr) auto; gap: 6px; }
+  .si-grid { min-height: 0; }
+  .si-main > .ss-side { height: auto; min-height: 0; }
+  .si-main > .ss-side > .card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; gap: 6px !important; padding: 7px; }
+  .si-main > .ss-side > .card > .field, .si .ss-sum { grid-column: 1 / -1; }
+  .si .ss-pay { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .si .ss-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .si-more-panel { grid-column: 1; }
+  .si-bar { grid-column: 1 / -1; }
+  .si-bar .btn { font-size: 11.5px; }
+}
+
+/* Keep the production invoice metadata on one row at browser zoom widths. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .si .si-meta {
+    grid-template-columns: minmax(92px, .62fr) minmax(108px, .72fr) minmax(190px, 1.35fr) minmax(120px, .78fr);
+    gap: 5px;
+  }
+  .si .si-meta-field:last-child { grid-column: auto; }
+  .si .si-meta-party .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+}
+@media (min-width: 761px) and (max-height: 680px) {
+  .si .si-meta { padding-block: 3px; }
+  .si .si-meta-field .si-date, .si .si-meta-field .si-wh,
+  .si .si-meta-party .select, .si .si-meta-party .picker .input { height: 30px; min-height: 30px; }
+  .si .ss-entry { padding-block: 4px; }
+  .si .ss-entry .input, .si .si-search .btn { height: 34px; }
+  .si .si-add { height: 34px; }
+  .si .si-main > .ss-side > .card { gap: 4px !important; padding: 6px; }
+  .si .ss-pay button { height: 29px; }
+  .si .ss-sum .row { font-size: 11.5px; }
+  .si .ss-sum .row.big { padding-top: 2px; }
+  .si .ss-sum .row.big b { font-size: 19px; }
+  .si .si-bar .btn { height: 31px; min-height: 31px; }
+}
+
+/* Sales workspace: keep the shared app navigation intact and place search/table right,
+   with one continuous summary and payment card on the left. */
+.content:has(.ss.si) > .ss-tabs { display: none !important; }
+.ss.si {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 9px;
+  padding: 9px clamp(14px, 1.8vw, 26px) 12px;
+}
+.si-page-heading { min-height: 40px; gap: 14px; }
+.si-page-heading h1 { font-size: clamp(23px, 1.8vw, 29px); }
+.si-heading-actions { display: flex; align-items: center; gap: 9px; }
+.si-connect { display: inline-flex; align-items: center; gap: 6px; color: var(--label-2); font-size: 13px; white-space: nowrap; }
+.si-connect i { width: 8px; height: 8px; border-radius: 50%; background: var(--green, #258764); }
+.si-connect.offline i { background: var(--orange, #c78028); }
+.si-new-tab { min-height: 36px; padding-inline: 12px; border-radius: 11px; white-space: nowrap; }
+.si-new-tab svg { width: 17px; height: 17px; }
+.si-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(350px, 37%);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px 12px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+.si-main > .ss-top { grid-column: 1; grid-row: 1; display: block; min-width: 0; }
+.si-main > .si-keys { display: none !important; }
+.si-main > .si-grid { grid-column: 1; grid-row: 2; }
+.si-main > .ss-side { grid-column: 2; grid-row: 1 / 3; min-width: 0; min-height: 0; height: 100%; }
+.si .ss-top .ss-entry { min-height: 74px; padding: 11px 13px; border: 1px solid var(--separator); border-radius: 17px; background: var(--card); box-shadow: var(--shadow-card); }
+.si .ss-top .ss-step > label { margin-bottom: 5px; font-size: 14px; }
+.si .ss-top .ss-step > label b { display: inline-grid; place-items: center; width: 21px; height: 21px; margin-inline-end: 5px; border-radius: 7px; background: var(--tint-soft); color: var(--tint); font-size: 12px; }
+.si .ss-top .si-search .input { height: 42px; font-size: 15px; }
+.si .ss-top .si-search .btn { height: 42px; }
+.si .ss-top .si-add { width: 46px; height: 42px; border-radius: 12px; }
+.si .ss-grid { min-height: 0; }
+.si .si-tw { overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+.si .si-table th { padding-block: 10px; font-size: 13px; }
+.si .si-table td { padding-block: 8px; font-size: 14px; }
+.si .si-table .input,.si .si-table .select { height: 38px; font-size: 14px; }
+.si .ss-side > .card { gap: 8px !important; padding: 13px; overflow: visible; }
+.si-summary-title { order: 1; color: var(--heading); font-size: 16px; line-height: 1.3; font-weight: 700; }
+.si .ss-side .card > .field:not(.si-paid-field) { order: 3; }
+.si .ss-side .card > .si-paid-field { order: 4; }
+.si .ss-side .card > .banner { order: 5; }
+.si .ss-side .card > .ss-sum { order: 2; padding: 9px 11px; border: 1px solid var(--separator); border-radius: 13px; background: var(--card-2); }
+.si .ss-side .card > .si-more-panel { order: 6; }
+.si .ss-side .card > .si-bar { order: 7; }
+.si .ss-side .card > .field { min-width: 0; }
+.si .ss-pay button { min-width: 0; height: 39px; font-size: 13px; }
+.si .si-paid-field > input { height: 40px; font-size: 15px; }
+.si .ss-sum .row { font-size: 13px; }
+.si .ss-sum .row.big b { font-size: 24px; }
+.si .si-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.si .si-bar > .btn { height: 42px; min-height: 42px; font-size: 13px; }
+@media (min-width: 761px) and (max-width: 1100px) {
+  .si-main { grid-template-columns: minmax(0, 1fr) minmax(310px, 39%); }
+  .si .ss-top .ss-entry { padding: 8px; }
+  .si .ss-top .ss-step > label { font-size: 12px; }
+  .si .ss-top .si-search .input { height: 38px; font-size: 14px; }
+  .si .ss-top .si-search .btn { height: 38px; }
+  .si .ss-top .si-add { height: 38px; }
+  .si .ss-side > .card { padding: 9px; }
+  .si .ss-pay button { height: 34px; font-size: 12px; }
+  .si .si-bar > .btn { padding-inline: 5px; font-size: 11.5px; }
+}
+@media (max-width: 760px) {
+  .ss.si { grid-template-rows: auto auto minmax(0, 1fr); overflow: auto; }
+  .si-page-heading { flex-wrap: wrap; }
+  .si-heading-actions { gap: 5px; }
+  .si-new-tab { min-height: 32px; font-size: 12px; }
+  .si-main { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(180px, 1fr) auto; }
+  .si-main > .ss-top,.si-main > .si-grid,.si-main > .ss-side { grid-column: 1; }
+  .si-main > .ss-top { grid-row: 1; }
+  .si-main > .si-grid { grid-row: 2; }
+  .si-main > .ss-side { grid-row: 3; height: auto; }
+}

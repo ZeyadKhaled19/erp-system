@@ -1,8 +1,8 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, mulDiv, parseMoney, todayISO, toBaseQty, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, ChevronDown, ChevronRight, ChevronUp, ChevronsRight, Clock3, CreditCard, FileSpreadsheet, Hash, Info, Minus, Percent, Pin, PinOff, Plus, Printer, Search, Settings2, Share2, Tag, Trash2, UserPlus, X } from 'lucide-react';
+import { Banknote, Check, ChevronDown, ChevronRight, ChevronUp, ChevronsRight, Clock3, CreditCard, FileSpreadsheet, Hash, Info, Minus, Percent, Pin, PinOff, Plus, Printer, Search, Settings2, Share2, Tag, Trash2, UserPlus, Wifi, WifiOff, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
@@ -34,16 +34,19 @@ interface Line {
 interface Draft {
   date?: string;
   partyId?: string;
+  whId?: string;
   notes?: string;
   lines?: Line[];
   discount?: number;
+  discMode?: 'amt' | 'pct';
+  discPct?: string;
+  addName?: string;
+  addAmt?: number;
+  roundOn?: boolean;
+  plOverride?: string | null;
   method?: string;
   paidText?: string;
-}
-interface TabSummary {
-  count: number;
-  total: number;
-  party: string | null;
+  restMethod?: string;
 }
 const draftKey = (id: string) => `sale-draft-${id}`;
 function loadDraft(id: string): Draft {
@@ -67,99 +70,42 @@ function storeSet(k: string, v: unknown) {
  * (لا تضيع عند التنقل أو إعادة التحميل) حتى تُحفظ.
  */
 export function SimpleSalePage({ kind = 'sale' }: { kind?: 'sale' | 'purchase' }) {
-  const ui = useUi();
+  const nav = useNavigate();
+  const loc = useLocation();
   const P = kind === 'purchase';
-  const tabsKey = P ? 'purchase-tabs' : 'sale-tabs';
   const title = P ? 'فاتورة شراء' : 'فاتورة بيع';
-  const newId = () => (P ? 'p-' : '') + uuid();
-  const [tabs, setTabs] = useState<string[]>(() => {
+  const tabParam = P ? 'purchaseTab' : 'saleTab';
+  // فاتورة الشراء لها مسودتها المستقلة (لا تختلط بمسودة البيع)
+  const defaultId = P ? 'p-default' : 'default';
+  const tabId = new URLSearchParams(loc.search).get(tabParam) || defaultId;
+  // ترحيل لمرة واحدة: مسودة من نظام التبويبات القديم داخل الصفحة تنتقل للتبويب الافتراضي
+  useState(() => {
+    const legacyKey = P ? 'purchase-tabs' : 'sale-tabs';
     try {
-      const t = JSON.parse(localStorage.getItem(tabsKey) ?? '[]');
-      if (Array.isArray(t) && t.length) return t;
+      const legacy = JSON.parse(localStorage.getItem(legacyKey) ?? '[]');
+      if (Array.isArray(legacy) && !localStorage.getItem(draftKey(defaultId))) {
+        const withDraft = legacy.find((id) => typeof id === 'string' && localStorage.getItem(draftKey(id)));
+        if (withDraft) {
+          localStorage.setItem(draftKey(defaultId), localStorage.getItem(draftKey(withDraft))!);
+          localStorage.removeItem(draftKey(withDraft));
+        }
+      }
+      localStorage.removeItem(legacyKey);
     } catch {
-      /* ignore */
+      /* التخزين غير متاح */
     }
-    return [newId()];
+    return null;
   });
-  const [active, setActive] = useState(tabs[0]);
-  const [sums, setSums] = useState<Record<string, TabSummary>>({});
-  useEffect(() => storeSet(tabsKey, tabs), [tabs, tabsKey]);
-  const cur = tabs.includes(active) ? active : tabs[0];
-
-  const newTab = () => {
-    if (tabs.length >= 12) return ui.toast('الحد الأقصى 12 فاتورة مفتوحة', 'err');
-    const id = newId();
-    setTabs((t) => [...t, id]);
-    setActive(id);
-  };
-  const closeTab = async (id: string, ask = true) => {
-    if (ask && (sums[id]?.count ?? 0) > 0) {
-      const ok = await ui.confirm({ title: 'إغلاق الفاتورة؟', message: 'الفاتورة فيها أصناف لم تُحفظ وستُحذف.', confirmLabel: 'إغلاق', destructive: true });
-      if (!ok) return;
-    }
-    storeSet(draftKey(id), null);
-    setTabs((t) => {
-      const i = t.indexOf(id);
-      const n = t.filter((x) => x !== id);
-      if (!n.length) n.push(newId());
-      if (id === cur) setActive(n[Math.max(0, i - 1)] ?? n[0]);
-      return n;
-    });
-  };
+  const newTab = () => nav(`${loc.pathname}?${tabParam}=${encodeURIComponent(uuid())}`);
 
   useEffect(() => {
-    document.title = `${title} — الحسابات`;
+    document.title = `${title}${tabId === defaultId ? '' : ` · ${tabId.slice(-4)}`} — الحسابات`;
     const slot = document.getElementById('nav-title-slot');
     if (slot) slot.textContent = title;
-  }, [title]);
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => {
-      if (e.key === 'F3' || (e.altKey && (e.key === 'n' || e.key === 'ى'))) {
-        e.preventDefault();
-        newTab();
-      } else if (e.ctrlKey && e.key === 'Tab') {
-        e.preventDefault();
-        const i = tabs.indexOf(cur);
-        setActive(tabs[(i + (e.shiftKey ? tabs.length - 1 : 1)) % tabs.length]);
-      }
-    };
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
-  });
+  }, [title, tabId]);
 
   return (
-    <>
-      <div className="ss-tabs">
-        {tabs.map((id, i) => {
-          const s = sums[id];
-          return (
-            <div key={id} className={`ss-tab ${id === cur ? 'on' : ''}`} onClick={() => setActive(id)} role="tab" aria-selected={id === cur}>
-              <span className="ss-tab-n">{i + 1}</span>
-              <span className="ss-tab-t">{s?.party ?? 'فاتورة جديدة'}</span>
-              {s && s.count > 0 && <span className="ss-tab-v num">{formatMoney(s.total)}</span>}
-              <button className="ss-tab-x" title="إغلاق" onClick={(e) => { e.stopPropagation(); void closeTab(id); }}><X /></button>
-            </div>
-          );
-        })}
-        <button className="ss-tab-add" title="فاتورة جديدة (F3)" onClick={newTab}><Plus /> فاتورة أخرى</button>
-      </div>
-      {tabs.map((id) => (
-        <SaleTab
-          kind={kind}
-          key={id}
-          tabId={id}
-          active={id === cur}
-          onSummary={(s) => setSums((m) => (m[id]?.count === s.count && m[id]?.total === s.total && m[id]?.party === s.party ? m : { ...m, [id]: s }))}
-          onSaved={() => {
-            if (tabs.length > 1) {
-              void closeTab(id, false);
-              return true;
-            }
-            return false;
-          }}
-        />
-      ))}
-    </>
+    <SaleTab kind={kind} key={tabId} tabId={tabId} active onNewTab={newTab} />
   );
 }
 
@@ -175,7 +121,7 @@ function loadDefaults(uid: string): { method?: string; priceList?: string } {
 
 /** عرض أعمدة جدول الفاتورة لكل مستخدم (سحب حافة العنوان، دبل كليك للملاءمة) */
 const COLS = ['code', 'name', 'unit', 'avail', 'qty', 'price', 'gross', 'disc', 'net', 'del'] as const;
-const DEFAULT_W: Record<string, number> = { code: 70, name: 220, unit: 84, avail: 74, qty: 96, price: 104, gross: 100, disc: 96, net: 104, del: 44 };
+const DEFAULT_W: Record<string, number> = { code: 70, name: 260, unit: 84, avail: 74, qty: 96, price: 104, gross: 100, disc: 96, net: 104, del: 44 };
 function useColWidths(uid: string) {
   const key = `erp.sale.cols.${uid}`;
   const [w, setW] = useState<Record<string, number>>(() => {
@@ -196,7 +142,7 @@ function useColWidths(uid: string) {
   return { w, set: (c: string, v: number) => save({ ...w, [c]: Math.max(44, Math.min(700, Math.round(v))) }), reset: () => save({ ...DEFAULT_W }) };
 }
 
-function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | 'purchase'; tabId: string; active: boolean; onSummary: (s: TabSummary) => void; onSaved: () => boolean }) {
+function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase'; tabId: string; active: boolean; onNewTab: () => void }) {
   const P = kind === 'purchase';
   const title = P ? 'فاتورة شراء' : 'فاتورة بيع';
   const ui = useUi();
@@ -207,6 +153,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   const dk = P ? `p.${uid}` : uid; // إعدادات الشراء منفصلة عن البيع
   const canCredit = P || can('sales.credit');
   const settings = useSettings();
+  const [draft] = useState(() => loadDraft(tabId) as Draft);
 
   const items = useLiveQuery(async () => (await db.items.toArray()).filter((i) => i.active !== false), []) ?? [];
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
@@ -220,7 +167,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   ) ?? [];
   const myShift = useLiveQuery(async () => (await db.cashier_shifts.where('user_id').equals(uid).toArray()).find((s) => s.status === 'open' && !s._sync) ?? null, []);
 
-  const [whId, setWhId] = useState('');
+  const [whId, setWhId] = useState<string>(draft.whId ?? '');
   const wh = whId || warehouses[0]?.id;
   const stock = useLiveQuery(async () => (wh ? new Map((await db.stock_balances.where('warehouse_id').equals(wh).toArray()).map((b) => [b.item_id, b.qty])) : new Map()), [wh]) ?? new Map();
   // سعر الشراء عند الإشارة للصنف (لمن لديه صلاحية رؤية التكلفة فقط)
@@ -229,9 +176,21 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   const hover = useHoverCard();
   const costHover = (id: string, unit?: string) => (showCost ? hover.bind(<CostCard c={costs.get(id)} unit={unit} />) : {});
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+  useEffect(() => {
+    setLines((current) => {
+      let changed = false;
+      const next = current.map((line) => {
+        if (itemMap.get(line.item_id)?.is_service && line.discount !== 0) {
+          changed = true;
+          return { ...line, discount: 0 };
+        }
+        return line;
+      });
+      return changed ? next : current;
+    });
+  }, [itemMap]);
 
   const defaults = useMemo(() => loadDefaults(dk), [dk]);
-  const [draft] = useState(() => loadDraft(tabId) as any);
   const [date, setDate] = useState(draft.date ?? todayISO());
   const [partyId, setPartyId] = useState<string>(draft.partyId ?? (P ? '' : 'party-cash-customer'));
   const [notes, setNotes] = useState(draft.notes ?? '');
@@ -239,7 +198,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   const [discMode, setDiscMode] = useState<'amt' | 'pct'>(draft.discMode ?? 'amt');
   const [discount, setDiscount] = useState<number>(draft.discount ?? 0); // مبلغ
   const [discPct, setDiscPct] = useState<string>(draft.discPct ?? '');
-  const [addName, setAddName] = useState<string>(draft.addName ?? '');
+  const [addName, setAddName] = useState<string>(draft.addName === 'مصنعية' || draft.addName === 'رسوم خدمة' ? '' : (draft.addName ?? ''));
   const [addAmt, setAddAmt] = useState<number>(draft.addAmt ?? 0);
   const [roundOn, setRoundOn] = useState<boolean>(draft.roundOn ?? false);
   const [plOverride, setPlOverride] = useState<string | null>(draft.plOverride ?? defaults.priceList ?? null);
@@ -254,9 +213,17 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   const [inquiry, setInquiry] = useState<string | null>(null);
   const [sel, setSel] = useState(0);
   const [now, setNow] = useState(() => new Date());
+  const [online, setOnline] = useState(() => navigator.onLine);
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
   const cols = useColWidths(dk);
 
@@ -373,9 +340,30 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   };
 
   // ---------- الحساب: خصم بالمبلغ أو النسبة، إضافة، وخصم الفكة ----------
+  const hasServiceLine = lines.some((line) => itemMap.get(line.item_id)?.is_service);
+  const merchandiseNet = lines.reduce((sum, line) => {
+    if (itemMap.get(line.item_id)?.is_service) return sum;
+    return sum + Math.max(0, mulDiv(line.qty, line.price, 1000) - (line.discount ?? 0));
+  }, 0);
+  const allocatedLineDiscounts = (docDiscount: number) => {
+    const out = lines.map((line) => line.discount ?? 0);
+    if (!hasServiceLine || docDiscount <= 0) return out;
+    if (docDiscount > merchandiseNet) throw new Error('خصم الفاتورة أكبر من صافي الأصناف المخزنية');
+    const eligible = lines.map((line, index) => ({ line, index })).filter(({ line }) => !itemMap.get(line.item_id)?.is_service);
+    const last = eligible[eligible.length - 1]?.index ?? -1;
+    let remaining = docDiscount;
+    for (const { line, index } of eligible) {
+      const net = Math.max(0, mulDiv(line.qty, line.price, 1000) - (line.discount ?? 0));
+      const share = index === last ? remaining : Math.min(mulDiv(docDiscount, net, merchandiseNet), net, remaining);
+      out[index] += share;
+      remaining -= share;
+    }
+    return out;
+  };
   const compute = (disc: number) => {
     try {
-      return computeDocument(lines.map((l) => ({ qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp })), disc);
+      const discounts = allocatedLineDiscounts(disc);
+      return computeDocument(lines.map((l, index) => ({ qty: l.qty, price: l.price, discount: discounts[index], tax_rate_bp: l.tax_rate_bp })), hasServiceLine ? 0 : disc);
     } catch (e) {
       return { error: (e as Error).message, total: 0, gross: 0, tax: 0, discount: 0, lines: [] } as any;
     }
@@ -388,7 +376,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   } catch {
     pct = 0;
   }
-  const docDisc = discMode === 'pct' ? Math.round(((base.gross ?? 0) - lineDisc) * pct / 100) : discount;
+  const docDisc = discMode === 'pct' ? Math.round(Math.max(0, merchandiseNet) * pct / 100) : discount;
   const addOn = addName && addAmt > 0 ? addAmt : 0;
   let finalDisc = docDisc;
   let calc = compute(finalDisc);
@@ -420,13 +408,12 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   useEffect(() => {
     storeSet(
       draftKey(tabId),
-      lines.length || (partyId && partyId !== 'party-cash-customer') || notes
-        ? { date, partyId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod }
+      lines.length || (partyId && partyId !== 'party-cash-customer') || notes || whId
+        ? { date, partyId, whId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod }
         : null,
     );
-    onSummary({ count: lines.length, total, party: partyName });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, partyId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod, total, partyName]);
+  }, [date, partyId, whId, notes, lines, discount, discMode, discPct, addName, addAmt, roundOn, plOverride, method, paidText, restMethod]);
   useEffect(() => {
     if (active) setTimeout(() => searchRef.current?.focus(), 30);
   }, [active]);
@@ -481,6 +468,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
 
   const save = async (mode: 'new' | 'view' | 'print') => {
     setErr(null);
+    if ((mode === 'print' || printAfter) && !can(P ? 'purchases.print' : 'sales.print')) return setErr('لا تملك صلاحية طباعة الفاتورة');
     if (!lines.length) return setErr('أضف صنفًا واحدًا على الأقل');
     if (calc.error) return setErr(calc.error);
     if (!P && !settings.allow_negative_stock) {
@@ -496,6 +484,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
     setBusy(true);
     try {
       const id = uuid();
+      const savedLineDiscounts = allocatedLineDiscounts(finalDisc);
       const payments = [
         ...(paid > 0 && box ? [{ id: uuid(), cashbox_id: box, amount: paid }] : []),
         ...(remainder > 0 && restBox && method !== 'credit' ? [{ id: uuid(), cashbox_id: restBox.id, amount: remainder }] : []),
@@ -513,11 +502,11 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
         instruments: [],
         charges: addOn > 0 ? [{ id: uuid(), name: addName, mode: 'add', amount: addOn }] : [],
         shift_id: !P && myShift && payments.some((p) => p.cashbox_id === myShift.cashbox_id) ? myShift.id : null,
-        lines: lines.map((l) => ({ ...l, serials: [], expiry: null, ref_line_id: null, notes: null })),
+        lines: lines.map((l, i) => ({ ...l, discount: savedLineDiscounts[i], serials: [], expiry: null, ref_line_id: null, notes: null })),
         journal_lines: [],
         paid: 0,
         amount: 0,
-        discount: finalDisc,
+        discount: hasServiceLine ? 0 : finalDisc,
         notes: notes || null,
         reserve: false,
         deliver_later: false,
@@ -527,7 +516,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
       ui.toast(`تم حفظ الفاتورة${credit > 0 ? ` — آجل ${formatMoney(credit)} على ${party?.name}` : ''}`);
       if (printAfter || mode === 'print') window.open(`/print/${id}?auto=1`, '_blank');
       // الفاتورة اتحفظت: امسح المسودة دائمًا حتى لا تعود أصنافها عند الرجوع للشاشة
-      if (!onSaved()) reset();
+      reset();
       storeSet(draftKey(tabId), null);
       if (mode === 'view') nav(`/docs/view/${id}`);
     } catch (e) {
@@ -591,6 +580,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
       const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
       if (document.querySelector('.overlay')) return; // نافذة مفتوحة
       const keyMap: Record<string, () => void> = {
+        F3: onNewTab,
         F2: () => setInquiry(lines[sel]?.item_id ?? entryItem ?? null),
         F4: () => void save('print'),
         F5: () => focusCell('qty'),
@@ -598,7 +588,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
         F7: () => focusCell('disc'),
         F8: () => void deleteSel(),
         F9: () => void save('view'),
-        F10: () => void newInvoice(),
+        F10: onNewTab,
         F11: () => { paidRef.current?.focus(); paidRef.current?.select(); },
         F12: () => void save('new'),
       };
@@ -669,7 +659,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
     cols.set(c, max);
   };
   const H = ({ c, idx, children, n }: { c: string; idx: number; children?: ReactNode; n?: boolean }) => (
-    <th className={n ? 'n' : undefined}>
+    <th className={`si-col ${c}${n ? ' n' : ''}`}>
       {children}
       {c !== 'del' && <span className="col-grip" title="اسحب لتغيير العرض · دبل كليك للملاءمة" onPointerDown={startResize(c)} onDoubleClick={() => fitColumn(c, idx)} />}
     </th>
@@ -678,18 +668,31 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
   return (
     <div className="ss si" style={active ? undefined : { display: 'none' }}>
       {/* ======= رقم الفاتورة والتاريخ والوقت + التنقل ======= */}
+      <div className="si-page-heading">
+        <div>
+          <h1>{P ? 'فاتورة شراء جديدة' : 'فاتورة بيع جديدة'}</h1>
+          <span>مسودة · تصدر بيانات الفاتورة عند الحفظ</span>
+        </div>
+        <div className="si-heading-actions">
+          <span className={`si-connect ${online ? 'online' : 'offline'}`}><i />{online ? 'متصل' : 'أوفلاين'}</span>
+          <button className="btn plain si-new-tab" onClick={onNewTab} title="فتح فاتورة في تبويب مستقل"><Plus /> {P ? 'فاتورة شراء جديدة' : 'فاتورة بيع جديدة'}</button>
+        </div>
+      </div>
       <div className="si-meta-row">
         <div className="si-meta">
-          <span>رقم الفاتورة</span>
-          <b>يصدر عند الحفظ</b>
-          <span className="sep">·</span>
-          <input type="date" className="si-date" aria-label="التاريخ" value={date} onChange={(e) => setDate(e.target.value)} />
-          <span className="num si-time">{now.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' })}</span>
-          {warehouses.length > 1 && (
-            <select className="si-wh" aria-label="المخزن" value={wh} onChange={(e) => setWhId(e.target.value)}>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-          )}
+          <div className="si-meta-field si-meta-number"><label>رقم الفاتورة</label><b>يصدر عند الحفظ</b></div>
+          <label className="si-meta-field"><span>التاريخ</span><input type="date" className="si-date" aria-label="التاريخ" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <div className="si-meta-field si-meta-party">
+            <span>{P ? 'المورد' : 'العميل'}</span>
+            {P ? (
+              <Picker value={partyId || null} options={customers.map((c) => ({ id: c.id, label: c.name, sub: c.phone ?? c.code, search: `${c.name} ${c.code} ${c.phone ?? ''}` }))} onChange={(id) => setPartyId(id ?? '')} placeholder="ابحث عن المورد بالاسم أو الكود" />
+            ) : (
+              <CustomerFields partyId={partyId} onChange={setPartyId} layout="row" autoGroupName={credit > 0 ? 'آجل' : (boxes.find((b) => b.id === box)?.kind === 'bank' || restBox?.kind === 'bank') ? 'بنك' : 'نقدي'} />
+            )}
+          </div>
+          <label className="si-meta-field"><span>المخزن</span><select className="si-wh" aria-label="المخزن" value={wh} onChange={(e) => setWhId(e.target.value)} disabled={warehouses.length < 2}>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select></label>
         </div>
         <div className="si-navs" aria-label="التنقل بين الفواتير">
           <button title="بحث في الفواتير" aria-label="بحث في الفواتير" onClick={() => nav(`/invoices?k=${P ? 'purchases' : 'sales'}`)}><Search /></button>
@@ -698,7 +701,8 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
         </div>
       </div>
 
-      {/* ======= سطر الإدخال + الإجمالي ======= */}
+      <div className="si-main">
+      {/* ======= بحث الأصناف وجدول البنود في الجهة اليمنى ======= */}
       <div className="ss-top">
         <div className="ss-entry">
           <div className="ss-step" style={{ flex: 3 }}>
@@ -761,7 +765,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
           </div>
           <div className="ss-step ss-avail">
             <label>المتاح</label>
-            <div className={`ss-avail-v num ${entryAvail !== null && entryAvail <= 0 ? 'red' : ''}`} {...(entryItem ? costHover(entryItem, itemMap.get(entryItem)?.base_unit) : {})}>{entryAvail === null ? '—' : itemMap.get(entryItem!)?.is_service ? 'خدمة' : formatQty(entryAvail)}</div>
+            <div className={`ss-avail-v num ${entryAvail !== null && entryAvail <= 0 ? 'red' : ''}`} {...(entryItem ? costHover(entryItem, itemMap.get(entryItem)?.base_unit) : {})}>{entryAvail === null ? '—' : itemMap.get(entryItem!)?.is_service ? 'خدمي · بلا مخزون' : formatQty(entryAvail)}</div>
           </div>
           <div className="ss-step" ref={qtyRef} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), priceLocked ? addEntry() : (priceRef.current?.querySelector('input')?.focus(), priceRef.current?.querySelector('input')?.select()))}>
             <label><b>2</b> الكمية</label>
@@ -782,9 +786,6 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
           <div className="ss-total-sub">{lines.length} صنف{finalDisc ? ` · خصم ${formatMoney(finalDisc)}` : ''}{roundOff ? ` (فكة ${formatMoney(roundOff)})` : ''}</div>
         </div>
       </div>
-
-
-      <div className="si-main">
         {/* ======= أوامر السطر المحدد ======= */}
         <div className="si-keys" aria-label="أوامر السطر المحدد">
           <button onClick={() => focusCell('qty')} disabled={!lines[sel]}><Hash />الكمية<kbd>F5</kbd></button>
@@ -841,11 +842,11 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
                           </select>
                         ) : l.unit_name}
                       </td>
-                      <td className="c-avail" data-label="المتاح">{it?.is_service ? <span className="muted small">خدمة</span> : <span className={`stock-chip ${avail <= 0 ? 'out' : short ? 'low' : ''}`} style={{ marginTop: 0 }}>{formatQty(avail)}</span>}</td>
+                      <td className="c-avail" data-label="المتاح">{it?.is_service ? <span className="muted small" title="صنف خدمي بلا رصيد مخزني">—</span> : <span className={`stock-chip ${avail <= 0 ? 'out' : short ? 'low' : ''}`} style={{ marginTop: 0 }}>{formatQty(avail)}</span>}</td>
                       <td className="n c-qty" data-label="الكمية" data-cell={`${l.id}-qty`}><QtyInput value={l.qty} onChange={(v) => upd({ qty: v })} /></td>
                       <td className="n c-price" data-label="السعر" data-cell={`${l.id}-price`}><MoneyInput value={l.price} onChange={(v) => upd({ price: v })} disabled={priceLocked} /></td>
                       <td className="n num c-gross">{formatMoney(g)}</td>
-                      {canDisc && <td className="n c-disc" data-label="الخصم" data-cell={`${l.id}-disc`}><MoneyInput value={l.discount} onChange={(v) => upd({ discount: v })} /></td>}
+                      {canDisc && <td className="n c-disc" data-label="الخصم" data-cell={`${l.id}-disc`}>{it?.is_service ? <span className="muted small">غير مطبق</span> : <MoneyInput value={l.discount} onChange={(v) => upd({ discount: v })} />}</td>}
                       <td className="n bold num c-net" data-label="الصافي">{formatMoney(calc.lines?.[i]?.total ?? g - l.discount)}</td>
                       <td className="c-del"><button className="icon-btn" style={{ color: 'var(--red)' }} onClick={(e) => { e.stopPropagation(); setLines((ls) => ls.filter((x) => x.id !== l.id)); }} aria-label="حذف"><Trash2 /></button></td>
                     </tr>
@@ -877,23 +878,14 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
         {/* ======= العميل والدفع ======= */}
         <div className="ss-side">
           <div className="card pad stack" style={{ gap: 12 }}>
-            <div>
-              {P ? (
-                <div className="field">
-                  <label>المورد</label>
-                  <div className="row" style={{ gap: 6 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Picker value={partyId || null} options={customers.map((c) => ({ id: c.id, label: c.name, sub: c.phone ?? c.code, search: `${c.name} ${c.code} ${c.phone ?? ''}` }))} onChange={(id) => setPartyId(id ?? '')} placeholder="ابحث عن المورد بالاسم أو الكود" />
-                    </div>
-                    <button className="icon-btn" title="مورد جديد" aria-label="مورد جديد" onClick={() => setNewParty(true)}><UserPlus /></button>
-                  </div>
-                </div>
-              ) : (
-                <CustomerFields partyId={partyId} onChange={setPartyId} autoGroupName={credit > 0 ? 'آجل' : (boxes.find((b) => b.id === box)?.kind === 'bank' || restBox?.kind === 'bank') ? 'بنك' : 'نقدي'} />
-              )}
-              {!isCash && party && <div className="caption" style={{ marginTop: 6 }}>رصيده الحالي <span className="num">{formatMoney(party.balance ?? 0)}</span> — الفاتورة تُحفظ في سجله</div>}
+            <div className="si-summary-title">ملخص الفاتورة</div>
+            <div className="ss-sum">
+              <div className="row"><span>إجمالي الأصناف</span><b className="num">{formatMoney(calc.gross ?? 0)}</b></div>
+              <div className="row"><span>الخصم</span><b className="num">{formatMoney(lineDisc + finalDisc)}</b></div>
+              <div className="row"><span>الضريبة</span><b className="num">{formatMoney(calc.tax ?? 0)}</b></div>
+              {addOn > 0 && <div className="row"><span>{addName}</span><b className="num">{formatMoney(addOn)}</b></div>}
             </div>
-
+            <div className="si-grand"><span>الإجمالي النهائي</span><b className="num">{formatMoney(total)}</b></div>
             <div className="field">
               <label>طريقة الدفع</label>
               <div className="ss-pay">
@@ -916,7 +908,7 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
             </div>
 
             {method !== 'credit' && (
-              <div className="field">
+              <div className="field si-paid-field">
                 <label htmlFor={`paid-${tabId}`}>المدفوع {box ? `بـ ${boxes.find((b) => b.id === box)?.kind === 'cash' ? 'نقدًا' : boxes.find((b) => b.id === box)?.name}` : ''} <kbd>F11</kbd></label>
                 <input id={`paid-${tabId}`} ref={paidRef} className="input num" inputMode="decimal" placeholder={formatMoney(total)} value={paidText} onChange={(e) => setPaidText(e.target.value)} />
                 {remainder > 0 && (
@@ -941,84 +933,56 @@ function SaleTab({ kind, tabId, active, onSummary, onSaved }: { kind: 'sale' | '
               </Banner>
             )}
 
-            <div className="ss-sum">
-              <div className="row"><span>الإجمالي قبل الخصم</span><b className="num">{formatMoney(calc.gross ?? 0)}</b></div>
-              {(lineDisc > 0 || finalDisc > 0) && <div className="row"><span>الخصومات</span><b className="num">{formatMoney(lineDisc + finalDisc)}</b></div>}
-              {calc.tax > 0 && <div className="row"><span>الضريبة</span><b className="num">{formatMoney(calc.tax)}</b></div>}
-              {addOn > 0 && <div className="row"><span>{addName}</span><b className="num">{formatMoney(addOn)}</b></div>}
-              <div className="row big"><span>الإجمالي</span><b className="num">{formatMoney(total)}</b></div>
+            <div className="si-pay-sum">
               <div className="row"><span>المدفوع</span><b className="num green">{formatMoney(method === 'credit' ? 0 : total - credit)}</b></div>
-              {credit > 0 && <div className="row"><span>{P ? 'آجل للمورد' : 'آجل على العميل'}</span><b className="num orange">{formatMoney(credit)}</b></div>}
+              <div className="row"><span>{credit > 0 ? (P ? 'المتبقي (آجل للمورد)' : 'المتبقي (آجل على العميل)') : 'المتبقي'}</span><b className={`num ${credit > 0 ? 'orange' : ''}`}>{formatMoney(credit)}</b></div>
             </div>
             {err && <Banner kind="err">{err}</Banner>}
-            <div className="field"><label>ملاحظات</label><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-          </div>
-        </div>
-      </div>
-
-      {/* ======= شريط التعديلات ======= */}
-      <div className="card si-adj">
-        <div className="si-adj-g" style={P ? { display: 'none' } : undefined}>
-          <label>قائمة الأسعار</label>
-          <div className="si-adj-row">
-            <select className="select" value={plOverride ?? ''} onChange={(e) => void changePriceList(e.target.value || null)}>
-              <option value="">حسب العميل ({priceLists.find((p) => p.id === (party?.price_list_id ?? 'pl-retail'))?.name ?? 'قطاعي'})</option>
-              {priceLists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <button className={`icon-btn ${pinned.priceList && pinned.priceList === plOverride ? 'pinned' : ''}`} title="تثبيت قائمة الأسعار كافتراضي" aria-label="تثبيت قائمة الأسعار" disabled={!plOverride} onClick={() => pin('priceList', plOverride)}><Pin /></button>
-          </div>
-        </div>
-        {canDisc && (
-          <div className="si-adj-g">
-            <label>خصم على الفاتورة</label>
-            <div className="si-adj-row">
-              <div className="segmented">
-                <button className={discMode === 'pct' ? 'on' : ''} onClick={() => setDiscMode('pct')}>%</button>
-                <button className={discMode === 'amt' ? 'on' : ''} onClick={() => setDiscMode('amt')}>مبلغ</button>
+            <details className="si-more-panel">
+              <summary>خصم وإضافات وملاحظات</summary>
+              <div className="si-more-panel-content">
+                <div className="field"><label>ملاحظات</label><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+                <div className="card si-adj">
+              <div className="si-adj-g" style={P ? { display: 'none' } : undefined}>
+                <label>قائمة الأسعار</label>
+                <div className="si-adj-row">
+                  <select className="select" value={plOverride ?? ''} onChange={(e) => void changePriceList(e.target.value || null)}>
+                    <option value="">حسب العميل ({priceLists.find((p) => p.id === (party?.price_list_id ?? 'pl-retail'))?.name ?? 'قطاعي'})</option>
+                    {priceLists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <button className={`icon-btn ${pinned.priceList && pinned.priceList === plOverride ? 'pinned' : ''}`} title="تثبيت قائمة الأسعار كافتراضي" aria-label="تثبيت قائمة الأسعار" disabled={!plOverride} onClick={() => pin('priceList', plOverride)}><Pin /></button>
+                </div>
               </div>
-              {discMode === 'pct' ? (
-                <input className="input num" inputMode="decimal" aria-label="نسبة الخصم" placeholder="0" value={discPct} onChange={(e) => setDiscPct(e.target.value)} />
-              ) : (
-                <MoneyInput value={discount} onChange={setDiscount} />
-              )}
+              {canDisc && <div className="si-adj-g">
+                <label>خصم على الفاتورة</label>
+                <div className="si-adj-row">
+                  <div className="segmented"><button className={discMode === 'pct' ? 'on' : ''} onClick={() => setDiscMode('pct')}>%</button><button className={discMode === 'amt' ? 'on' : ''} onClick={() => setDiscMode('amt')}>مبلغ</button></div>
+                  {discMode === 'pct' ? <input className="input num" inputMode="decimal" aria-label="نسبة الخصم" placeholder="0" value={discPct} onChange={(e) => setDiscPct(e.target.value)} /> : <MoneyInput value={discount} onChange={setDiscount} />}
+                </div>
+              </div>}
+              <div className="si-adj-g">
+                <label>إضافة على الفاتورة</label>
+                <div className="si-adj-row"><select className="select" style={{ maxWidth: 150 }} value={addName} onChange={(e) => setAddName(e.target.value)}><option value="">بدون</option><option value="رسوم توصيل">رسوم توصيل</option><option value="تغليف">تغليف</option></select><MoneyInput value={addAmt} onChange={setAddAmt} disabled={!addName} /></div>
+              </div>
+              {canDisc && <div className="si-adj-g"><label>خصم الفكة</label><div className="si-switch"><Switch checked={roundOn} onChange={setRoundOn} /><span onClick={() => setRoundOn(!roundOn)}>تقريب لأقرب جنيه{roundOff ? <span className="num muted"> (−{formatMoney(roundOff)})</span> : null}</span></div></div>}
+                </div>
+              </div>
+            </details>
+            <div className="si-bar">
+              <button className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ <kbd>F12</kbd></button>
+              <button className="btn primary" disabled={busy || !lines.length || !can(P ? 'purchases.print' : 'sales.print')} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
+              <button className="btn" onClick={onNewTab}><Plus /> فاتورة جديدة <kbd>F10</kbd></button>
+              <details className="si-more-actions"><summary>المزيد</summary>
+                <button className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
+                <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
+                <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
+                <label className="btn"><input type="checkbox" checked={printAfter} disabled={!can(P ? 'purchases.print' : 'sales.print')} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
+                <button className="btn" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`)}><Settings2 /> فاتورة متقدمة</button>
+                {lines.length > 0 && <button className="btn danger" onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
+              </details>
             </div>
-          </div>
-        )}
-        <div className="si-adj-g">
-          <label>إضافة على الفاتورة</label>
-          <div className="si-adj-row">
-            <select className="select" style={{ maxWidth: 150 }} value={addName} onChange={(e) => setAddName(e.target.value)}>
-              <option value="">بدون</option>
-              <option value="رسوم توصيل">رسوم توصيل</option>
-              <option value="رسوم خدمة">رسوم خدمة</option>
-              <option value="تغليف">تغليف</option>
-            </select>
-            <MoneyInput value={addAmt} onChange={setAddAmt} disabled={!addName} />
           </div>
         </div>
-        {canDisc && (
-          <div className="si-adj-g">
-            <label>خصم الفكة</label>
-            <div className="si-switch">
-              <Switch checked={roundOn} onChange={setRoundOn} />
-              <span onClick={() => setRoundOn(!roundOn)}>تقريب الإجمالي لأقرب جنيه{roundOff ? <span className="num muted"> (−{formatMoney(roundOff)})</span> : null}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ======= شريط الأزرار ======= */}
-      <div className="si-bar">
-        <button className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ وفاتورة جديدة <kbd>F12</kbd></button>
-        <button className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
-        <button className="btn" disabled={busy || !lines.length} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
-        <button className="btn" onClick={() => void newInvoice()}><Plus /> جديد <kbd>F10</kbd></button>
-        <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
-        <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
-        <label className="btn" style={{ gap: 6, cursor: 'pointer' }}><input type="checkbox" checked={printAfter} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
-        <span className="spacer" />
-        <button className="btn plain" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`)}><Settings2 /> فاتورة متقدمة</button>
-        {lines.length > 0 && <button className="btn plain danger" onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
       </div>
 
       {inquiry && <InquirySheet purchase={P} itemId={inquiry} partyId={partyId} showCost={showCost} cost={costs.get(inquiry)} onClose={() => setInquiry(null)} />}
