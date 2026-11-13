@@ -4,6 +4,7 @@ import { Landmark, Plus, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { ActiveBadge, PageTabs, RowActions, TREASURY_TABS } from '../components/ListParts';
 import { Banner, Field, MoneyInput, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
@@ -24,24 +25,31 @@ export function CashboxesPage() {
 
   return (
     <div className="page">
+      <PageTabs tabs={TREASURY_TABS} />
       <PageHeader
         title="الخزائن والبنوك"
         sub={`الإجمالي ${formatMoney(boxes.reduce((s, b) => s + (b.balance ?? 0), 0))}`}
         actions={can('treasury.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> خزينة/بنك</button>}
       />
-      <div className="grid grid-3">
-        {boxes.map((b) => (
-          <div key={b.id} className="card stat" style={{ cursor: 'pointer', outline: current?.id === b.id ? '2px solid var(--tint)' : undefined }} onClick={() => setSel(b.id)}>
-            <div className="row">
-              <span className="stat-icon" style={{ background: b.kind === 'bank' ? '#5856D6' : '#34C759' }}>{b.kind === 'bank' ? <Landmark /> : <Wallet />}</span>
-              <span className="stat-label" style={{ flex: 1 }}>{b.name} {b.active === false && <span className="badge">موقوفة</span>}</span>
-              <SyncBadge sync={b._sync} error={b._error} />
-              {can('treasury.manage') && <button className="btn sm plain" onClick={(e) => { e.stopPropagation(); setEdit(b); }}>تعديل</button>}
-            </div>
-            <div className="stat-value num">{formatMoney(b.balance ?? 0)}</div>
-            <div className="caption muted">{b.user_id ? `المسؤول: ${userName.get(b.user_id) ?? '—'}` : 'بدون مسؤول'}</div>
-          </div>
-        ))}
+      <div className="table-wrap" style={{ marginBottom: 6 }}>
+        <table className="table responsive">
+          <thead><tr><th>الخزنة / البنك</th><th>المسؤول</th><th>الحالة</th><th className="n">الرصيد الحالي</th><th /></tr></thead>
+          <tbody>
+            {boxes.map((b) => (
+              <tr key={b.id} className={`click ${current?.id === b.id ? 'lp-sel' : ''}`} onClick={() => setSel(b.id)} aria-selected={current?.id === b.id}>
+                <td data-label="الخزنة" className="bold"><span className="lp-kind">{b.kind === 'bank' ? <Landmark /> : <Wallet />}{b.name}</span></td>
+                <td data-label="المسؤول" className="muted">{b.user_id ? userName.get(b.user_id) ?? '—' : 'بدون مسؤول'}</td>
+                <td data-label="الحالة"><ActiveBadge active={b.active !== false} off="موقوفة" /></td>
+                <td data-label="الرصيد الحالي" className="n bold">{formatMoney(b.balance ?? 0)}</td>
+                <td data-label="" className="lp-act-cell">
+                  <RowActions openLabel="عرض الحركة" onOpen={() => setSel(b.id)} onEdit={can('treasury.manage') ? () => setEdit(b) : undefined}>
+                    <SyncBadge sync={b._sync} error={b._error} />
+                  </RowActions>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {current && (

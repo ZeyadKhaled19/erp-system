@@ -4,6 +4,7 @@ import { ArrowDownLeft, ArrowUpRight, PieChart, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { ActiveBadge, Avatar, InlineTabs, RowActions, TotalCards } from '../components/ListParts';
 import { Banner, DocStatusBadge, Empty, Field, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
@@ -18,13 +19,17 @@ export function PartnersPage() {
   const rep = useRemote<any>(can('partners.view') ? '/api/reports/partners' : null, [partners.length, dists.length]);
   const [edit, setEdit] = useState<any | null>(null);
   const [dist, setDist] = useState(false);
+  const [tab, setTab] = useState<'partners' | 'dists'>('partners');
   const active = partners.filter((p) => p.active !== false);
   const sumOwn = active.reduce((s, p) => s + p.ownership_bp, 0);
   const sumProfit = active.reduce((s, p) => s + p.profit_bp, 0);
   const balances = new Map<string, any>((rep.data?.partners ?? []).map((p: any) => [p.id, p]));
 
+  const totals = (rep.data?.partners ?? []).reduce((t: any, p: any) => ({ capital: t.capital + (p.capital ?? 0), current: t.current + (p.current ?? 0), withdrawals: t.withdrawals + (p.withdrawals ?? 0) }), { capital: 0, current: 0, withdrawals: 0 });
+
   return (
     <div className="page">
+      <InlineTabs value={tab} onChange={setTab} options={[{ value: 'partners', label: 'الشركاء' }, { value: 'dists', label: `توزيعات الأرباح${dists.length ? ` (${dists.length})` : ''}` }]} />
       <PageHeader
         title="الشركاء"
         sub="نسبة الملكية ونسبة توزيع الأرباح منفصلتان"
@@ -45,36 +50,58 @@ export function PartnersPage() {
           </Banner>
         </div>
       )}
+      {tab === 'partners' && (
+        <>
       {rep.error && <div style={{ marginBottom: 12 }}><Banner kind="info">الأرصدة تظهر عند الاتصال بالخادم.</Banner></div>}
       {partners.length === 0 ? (
         <div className="card"><Empty title="لا يوجد شركاء بعد" /></div>
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
-            <thead><tr><th>الشريك</th><th className="n">نسبة الملكية</th><th className="n">نسبة الأرباح</th><th className="n">رأس المال</th><th className="n">الحساب الجاري (له)</th><th className="n">مسحوبات الفترة</th><th /></tr></thead>
+            <thead><tr><th>الشريك</th><th className="n">نسبة الملكية</th><th className="n">نسبة الأرباح</th><th className="n">رأس المال</th><th className="n">الحساب الجاري (له)</th><th className="n">مسحوبات الفترة</th><th>الحالة</th><th /></tr></thead>
             <tbody>
               {partners.map((p) => {
                 const b = balances.get(p.id);
                 return (
                   <tr key={p.id} className={can('partners.manage') ? 'click' : ''} onClick={() => can('partners.manage') && setEdit(p)}>
-                    <td data-label="الشريك" className="bold">{p.name} {p.active === false && <span className="badge">موقوف</span>} <SyncBadge sync={p._sync} error={p._error} /></td>
+                    <td data-label="الشريك" className="bold"><span className="lp-name"><Avatar name={p.name} />{p.name}</span></td>
                     <td data-label="الملكية" className="n">{bpToPercent(p.ownership_bp)}%</td>
                     <td data-label="الأرباح" className="n">{bpToPercent(p.profit_bp)}%</td>
                     <td data-label="رأس المال" className="n">{b ? formatMoney(b.capital) : '—'}</td>
                     <td data-label="الجاري" className={`n bold ${b && b.current < 0 ? 'red' : ''}`}>{b ? formatMoney(b.current) : '—'}</td>
                     <td data-label="المسحوبات" className="n">{b ? formatMoney(b.withdrawals) : '—'}</td>
-                    <td data-label="">{can('reports.financial') && <button className="btn sm plain" onClick={(e) => { e.stopPropagation(); nav(`/reports/ledger?account=${p.current_account_id}`); }}>كشف الجاري</button>}</td>
+                    <td data-label="الحالة"><ActiveBadge active={p.active !== false} /></td>
+                    <td data-label="" className="lp-act-cell">
+                      <RowActions
+                        openLabel="كشف الحساب الجاري"
+                        onOpen={can('reports.financial') ? () => nav(`/reports/ledger?account=${p.current_account_id}`) : undefined}
+                        onEdit={can('partners.manage') ? () => setEdit(p) : undefined}
+                      >
+                        <SyncBadge sync={p._sync} error={p._error} />
+                      </RowActions>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot><tr><td>الإجمالي (النشطون)</td><td className="n">{bpToPercent(sumOwn)}%</td><td className="n">{bpToPercent(sumProfit)}%</td><td colSpan={4} /></tr></tfoot>
+            <tfoot><tr><td>الإجمالي (النشطون)</td><td className="n">{bpToPercent(sumOwn)}%</td><td className="n">{bpToPercent(sumProfit)}%</td><td colSpan={5} /></tr></tfoot>
           </table>
         </div>
       )}
       <div className="footnote" style={{ marginTop: 8 }}>الحساب الجاري الموجب = مستحق للشريك من أرباح موزعة لم تُسحب. المسحوبات تُخصم من الحساب الجاري. رأس المال لا يُعتبر ربحًا.</div>
 
-      <div className="section-title">توزيعات الأرباح</div>
+          {rep.data && (
+            <TotalCards items={[
+              { label: 'إجمالي رأس المال', value: formatMoney(totals.capital), tone: 'blue' },
+              { label: 'الحساب الجاري للشركاء', value: formatMoney(totals.current), tone: 'green' },
+              { label: 'مسحوبات الفترة', value: formatMoney(totals.withdrawals), tone: 'red' },
+            ]} />
+          )}
+        </>
+      )}
+
+      {tab === 'dists' && (
+        <>
       {dists.length === 0 ? (
         <div className="card pad muted">لا توجد توزيعات</div>
       ) : (
@@ -90,6 +117,9 @@ export function PartnersPage() {
             </div>
           ))}
         </div>
+      )}
+
+        </>
       )}
 
       {edit && (

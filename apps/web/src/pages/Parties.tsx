@@ -8,6 +8,7 @@ import { Banner, DocStatusBadge, Empty, exportExcel, savePdf, Field, MoneyInput,
 import { saveMaster } from '../lib/actions';
 import { PartyInsights } from '../components/Insights';
 import { PartyGroupSheet } from '../components/CustomerFields';
+import { ActiveBadge, PageTabs, RowActions } from '../components/ListParts';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useRemote } from '../lib/hooks';
 
@@ -44,6 +45,7 @@ export function PartiesPage() {
 
   return (
     <div className="page">
+      <PageTabs tabs={[{ to: '/parties/customer', label: 'العملاء' }, { to: '/parties/supplier', label: 'الموردون' }]} />
       <PageHeader
         title={L.many}
         sub={`${list.length} · إجمالي ${L.bal}: ${formatMoney(total)}`}
@@ -93,6 +95,7 @@ export function PartiesPage() {
                 <th>الهاتف</th>
                 {kind === 'customer' && <th>النوع</th>}
                 <th className="n">{L.bal}</th>
+                <th>الحالة</th>
                 <th />
               </tr>
             </thead>
@@ -101,13 +104,20 @@ export function PartiesPage() {
                 <tr key={p.id} className="click" onClick={() => nav(`/parties/${kind}/${p.id}`)}>
                   <td data-label="الكود" className="num">{p.code}</td>
                   <td data-label="الاسم" className="bold">
-                    {p.name} {p.active === false && <span className="badge">موقوف</span>}
+                    {p.name}
                   </td>
                   <td data-label="الهاتف" className="num muted">{p.phone ?? '—'}</td>
                   {kind === 'customer' && <td data-label="النوع">{p.group_id ? <span className="badge">{groupName.get(p.group_id) ?? '—'}</span> : <span className="muted">—</span>}</td>}
                   <td data-label={L.bal} className={`n bold ${(p.balance ?? 0) < 0 ? 'red' : ''}`}>{formatMoney(p.balance ?? 0)}</td>
-                  <td data-label="">
-                    <SyncBadge sync={p._sync} error={p._error} />
+                  <td data-label="الحالة"><ActiveBadge active={p.active !== false} /></td>
+                  <td data-label="" className="lp-act-cell">
+                    <RowActions
+                      openLabel="كشف الحساب"
+                      onOpen={() => nav(`/parties/${kind}/${p.id}`)}
+                      onEdit={can('parties.edit') ? () => setEditing(p) : undefined}
+                    >
+                      <SyncBadge sync={p._sync} error={p._error} />
+                    </RowActions>
                   </td>
                 </tr>
               ))}

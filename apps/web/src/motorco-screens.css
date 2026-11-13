@@ -178,3 +178,38 @@
   .si .si-bar .btn.primary { min-width: 0; }
   .si .si-bar .btn { padding: 0 8px; font-size: 13px; }
 }
+
+/* ===================== المرحلة 3: صفحات القوائم ===================== */
+/* تبويبات أعلى القائمة: خط سفلي أزرق تحت النشط */
+.lp-tabs { display: flex; gap: 4px; margin: 0 0 16px; border-bottom: 1px solid var(--mc-line); overflow-x: auto; scrollbar-width: none; }
+.lp-tabs::-webkit-scrollbar { display: none; }
+.lp-tabs button { position: relative; flex-shrink: 0; height: 44px; padding: 0 20px; border: 0; background: transparent; color: var(--label-2); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; border-radius: 10px 10px 0 0; }
+.lp-tabs button:hover { color: var(--heading); background: var(--fill-3); }
+.lp-tabs button.on { color: var(--tint); font-weight: 800; }
+.lp-tabs button.on::after { content: ""; position: absolute; inset-inline: 10px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--tint); }
+/* أزرار آخر السطر */
+.lp-actions { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.lp-act { width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow-card); }
+.lp-act:hover { color: var(--tint); border-color: color-mix(in srgb, var(--tint) 40%, transparent); }
+.lp-act svg { width: 16px; height: 16px; }
+.table td.lp-act-cell { width: 1%; white-space: nowrap; }
+/* الصورة الرمزية */
+.lp-avatar { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--tint) 12%, var(--mc-surface)); color: var(--tint); font-weight: 800; font-size: 14px; vertical-align: middle; margin-inline-end: 10px; flex-shrink: 0; }
+.lp-name { display: inline-flex; align-items: center; }
+/* كروت الإجماليات الملونة */
+.lp-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 16px 0; }
+.lp-total { --t: var(--tint); display: flex; flex-direction: column; gap: 6px; padding: 16px 20px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--t) 22%, transparent); background: color-mix(in srgb, var(--t) 7%, var(--mc-surface)); box-shadow: var(--mc-shadow); }
+.lp-total-l { font-size: 14px; font-weight: 700; color: var(--heading); }
+.lp-total-v { font-size: clamp(20px, 1.8vw, 26px); font-weight: 800; color: var(--t); }
+.lp-total.blue { --t: #2563EB; } .lp-total.green { --t: #16A34A; } .lp-total.red { --t: #DC2626; } .lp-total.orange { --t: #D97706; } .lp-total.purple { --t: #7C3AED; }
+:root[data-theme="dark"] .lp-total.blue { --t: #60A5FA; } :root[data-theme="dark"] .lp-total.green { --t: #4ADE80; } :root[data-theme="dark"] .lp-total.red { --t: #F87171; }
+:root[data-theme="dark"] .lp-total.orange { --t: #FBBF24; } :root[data-theme="dark"] .lp-total.purple { --t: #A78BFA; }
+/* السطر المختار في جدول (مثل الخزنة المعروضة حركتها) */
+.table tbody tr.lp-sel td { background: color-mix(in srgb, var(--tint) 8%, var(--mc-surface)); }
+.table tbody tr.lp-sel td:first-child { box-shadow: inset -3px 0 0 var(--tint); }
+.lp-kind { display: inline-flex; align-items: center; gap: 8px; }
+.lp-kind svg { width: 18px; height: 18px; color: var(--tint); }
+@media (max-width: 760px) {
+  .lp-tabs button { padding: 0 14px; font-size: 14px; }
+  .lp-totals { grid-template-columns: 1fr; gap: 10px; }
+}

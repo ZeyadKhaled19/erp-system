@@ -4,6 +4,7 @@ import { ChevronDown, Lock, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { PageTabs, TREASURY_TABS } from '../components/ListParts';
 import { Banner, Field, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
@@ -42,6 +43,7 @@ export function AccountsPage() {
 
   return (
     <div className="page">
+      <PageTabs tabs={TREASURY_TABS} />
       <PageHeader
         title="دليل الحسابات"
         sub="الحسابات الرئيسية تجمع أرصدة فروعها. الحسابات المقفلة يعتمد عليها الترحيل الآلي."

@@ -4,6 +4,7 @@ import { Package, Plus, Trash2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { ActiveBadge, RowActions } from '../components/ListParts';
 import { Banner, Empty, exportExcel, Field, MoneyInput, QtyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { ImportItemsSheet, QuickItemSheet } from '../components/QuickItem';
@@ -132,9 +133,11 @@ export function ItemsPage() {
                 <th>الكود</th>
                 <th>الاسم</th>
                 <th>التصنيف</th>
+                <th>النوع</th>
                 <th>الوحدة</th>
                 <th className="n">سعر البيع</th>
                 <th className="n">الرصيد</th>
+                <th>الحالة</th>
                 <th />
               </tr>
             </thead>
@@ -147,20 +150,24 @@ export function ItemsPage() {
                   <Fragment key={i.id}>
                   {head && (
                     <tr className="group-row">
-                      <td colSpan={7}>{catName.get(i.category_id) ?? 'بدون تصنيف'} <span className="muted small num">{catCounts.get(i.category_id ?? '') ?? 0} صنف</span></td>
+                      <td colSpan={9}>{catName.get(i.category_id) ?? 'بدون تصنيف'} <span className="muted small num">{catCounts.get(i.category_id ?? '') ?? 0} صنف</span></td>
                     </tr>
                   )}
                   <tr className="click" onClick={() => (can('items.edit') ? setEditing(i) : nav(`/items/inquiry?id=${i.id}`))}>
                     <td data-label="الكود" className="num">{i.code}</td>
                     <td data-label="الاسم">
-                      <span className="bold">{i.name}</span> {i.active === false && <span className="badge">موقوف</span>}
+                      <span className="bold">{i.name}</span>
                     </td>
                     <td data-label="التصنيف" className="muted">{catName.get(i.category_id) ?? '—'}</td>
+                    <td data-label="النوع">{i.is_service ? <span className="badge orange">خدمة</span> : <span className="badge green">مخزني</span>}</td>
                     <td data-label="الوحدة">{i.base_unit}</td>
                     <td data-label="سعر البيع" className="n">{formatMoney(i.sale_price)}</td>
-                    <td data-label="الرصيد" className={`n ${low ? 'red bold' : ''}`}>{formatQty(qty)}</td>
-                    <td data-label="">
-                      <SyncBadge sync={i._sync} error={i._error} />
+                    <td data-label="الرصيد" className={`n ${low ? 'red bold' : ''}`}>{i.is_service ? '—' : formatQty(qty)}</td>
+                    <td data-label="الحالة"><ActiveBadge active={i.active !== false} /></td>
+                    <td data-label="" className="lp-act-cell">
+                      <RowActions openLabel="استعلام عن الصنف" onOpen={() => nav(`/items/inquiry?id=${i.id}`)} onEdit={can('items.edit') ? () => setEditing(i) : undefined}>
+                        <SyncBadge sync={i._sync} error={i._error} />
+                      </RowActions>
                     </td>
                   </tr>
                   </Fragment>

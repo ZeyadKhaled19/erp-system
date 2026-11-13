@@ -4,6 +4,7 @@ import { FileText, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { PageTabs, TREASURY_TABS } from '../components/ListParts';
 import { DocStatusBadge, Empty, exportExcel, SearchBox, Segmented } from '../components/ui';
 import { db } from '../lib/db';
 import { useDebounced, useMap, usePerm } from '../lib/hooks';
@@ -41,6 +42,7 @@ export function DocumentsList() {
 
   return (
     <div className="page">
+      {module === 'treasury' && <PageTabs tabs={TREASURY_TABS} />}
       <PageHeader
         title={MODULE_LABEL[module] ?? 'المستندات'}
         sub={`${list.length} مستند · صافي المرحّل ${formatMoney(total)}`}
