@@ -1,5 +1,8 @@
 import { bpToPercent, parsePercentBp } from '@erp/shared';
-import { useEffect, useState } from 'react';
+import { Building2, ChevronLeft, HardDriveDownload, KeyRound, ListTree, MonitorSmartphone, Palette, Printer, RefreshCw, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Wallet, Warehouse } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ShortcutCard, type ShortcutColor } from '../components/ShortcutCard';
 import { PageHeader } from '../components/Layout';
 import { AppearancePanel } from '../components/Appearance';
 import { Banner, Field, Switch, useUi } from '../components/ui';
@@ -16,6 +19,8 @@ export function SettingsPage() {
   const [pw, setPw] = useState({ current: '', next: '' });
   const [err, setErr] = useState<string | null>(null);
   const [storage, setStorage] = useState<string | null>(null);
+  const nav = useNavigate();
+  const [sp, setSp] = useSearchParams();
   useEffect(() => {
     if (!f && s.company_name !== undefined) setF({ ...s, tax_pct: bpToPercent(s.default_tax_rate_bp ?? 0) });
   }, [s, f]);
@@ -52,13 +57,70 @@ export function SettingsPage() {
     }
   };
 
+  const manage = can('settings.manage') && !!f;
+  const saveBtn = <button className="btn primary lg stg-save" onClick={save}>حفظ الإعدادات</button>;
+  type Sec = 'general' | 'company' | 'rules' | 'print' | 'appearance' | 'password' | 'device';
+  const secs: { id: Sec; label: string; icon: ReactNode; show: boolean }[] = [
+    { id: 'general', label: 'عام', icon: <Settings />, show: true },
+    { id: 'company', label: 'بيانات الشركة', icon: <Building2 />, show: manage },
+    { id: 'rules', label: 'قواعد العمل', icon: <SlidersHorizontal />, show: manage },
+    { id: 'print', label: 'الطباعة', icon: <Printer />, show: manage },
+    { id: 'appearance', label: 'المظهر', icon: <Palette />, show: true },
+    { id: 'password', label: 'كلمة المرور', icon: <KeyRound />, show: true },
+    { id: 'device', label: 'هذا الجهاز', icon: <MonitorSmartphone />, show: true },
+  ];
+  const links = [
+    { to: '/users', label: 'المستخدمون والصلاحيات', icon: <ShieldCheck />, perm: 'users.manage' },
+    { to: '/warehouses', label: 'المخازن والتصنيفات', icon: <Warehouse />, perm: 'items.view' },
+    { to: '/accounts', label: 'دليل الحسابات', icon: <ListTree />, perm: 'accounts.view' },
+    { to: '/sync', label: 'المزامنة', icon: <RefreshCw /> },
+    { to: '/backups', label: 'النسخ الاحتياطي', icon: <HardDriveDownload />, perm: 'backup.manage' },
+    { to: '/audit', label: 'سجل التدقيق', icon: <ScrollText />, perm: 'audit.view' },
+  ].filter((l) => !l.perm || can(l.perm));
+  const raw = sp.get('sec') as Sec | null;
+  const sec: Sec = raw && secs.some((x) => x.id === raw && x.show) ? raw : 'general';
+  const go = (id: Sec) => setSp(id === 'general' ? {} : { sec: id }, { replace: true });
+  const cards: { label: string; icon: ReactNode; color: ShortcutColor; onClick: () => void; show: boolean }[] = [
+    { label: 'بيانات الشركة', icon: <Building2 />, color: 'orange', onClick: () => go('company'), show: manage },
+    { label: 'المخازن والتصنيفات', icon: <Warehouse />, color: 'red', onClick: () => nav('/warehouses'), show: can('items.view') },
+    { label: 'الخزائن والبنوك', icon: <Wallet />, color: 'blue', onClick: () => nav('/cashboxes'), show: can('treasury.view') },
+    { label: 'دليل الحسابات', icon: <ListTree />, color: 'yellow', onClick: () => nav('/accounts'), show: can('accounts.view') },
+    { label: 'المستخدمون والصلاحيات', icon: <ShieldCheck />, color: 'indigo', onClick: () => nav('/users'), show: can('users.manage') },
+    { label: 'إعدادات النظام', icon: <SlidersHorizontal />, color: 'blue', onClick: () => go('rules'), show: manage },
+    { label: 'الطباعة', icon: <Printer />, color: 'teal', onClick: () => go('print'), show: manage },
+    { label: 'المظهر', icon: <Palette />, color: 'purple', onClick: () => go('appearance'), show: true },
+  ];
+
   return (
-    <div className="page narrow">
+    <div className="page">
       <PageHeader title="الإعدادات" />
       {err && <Banner kind="err">{err}</Banner>}
-      {can('settings.manage') && f && (
-        <>
-          <div className="group-header">بيانات الشركة (تظهر في الطباعة)</div>
+      <div className="stg-layout">
+        <nav className="stg-menu" aria-label="أقسام الإعدادات">
+          {secs.filter((x) => x.show).map((x) => (
+            <button key={x.id} type="button" className={sec === x.id ? 'on' : ''} aria-current={sec === x.id ? 'page' : undefined} onClick={() => go(x.id)}>
+              <span className="stg-menu-ic">{x.icon}</span>{x.label}
+            </button>
+          ))}
+          {links.length > 0 && <div className="stg-menu-sep">صفحات الإعدادات</div>}
+          {links.map((l) => (
+            <button key={l.to} type="button" onClick={() => nav(l.to)}>
+              <span className="stg-menu-ic">{l.icon}</span>{l.label}<ChevronLeft className="stg-menu-go" />
+            </button>
+          ))}
+        </nav>
+        <div className="stg-body">
+          {sec === 'general' && (
+            <>
+              <div className="stg-title">البيانات الأساسية</div>
+              <div className="sc-grid stg-cards">
+                {cards.filter((c) => c.show).map((c) => <ShortcutCard key={c.label} label={c.label} icon={c.icon} color={c.color} onClick={c.onClick} />)}
+              </div>
+            </>
+          )}
+          {sec === 'company' && manage && (
+            <>
+              <div className="stg-title">بيانات الشركة <span>(تظهر في الطباعة وأعلى الشاشة)</span></div>
           <div className="card pad stack">
             <Field label="اسم الشركة / المحل"><input className="input" value={f.company_name ?? ''} onChange={(e) => setF({ ...f, company_name: e.target.value })} /></Field>
             <Field label="العنوان"><input className="input" value={f.company_address ?? ''} onChange={(e) => setF({ ...f, company_address: e.target.value })} /></Field>
@@ -68,7 +130,12 @@ export function SettingsPage() {
             </div>
             <Field label="تذييل الفاتورة المطبوعة"><input className="input" value={f.invoice_footer ?? ''} onChange={(e) => setF({ ...f, invoice_footer: e.target.value })} placeholder="مثال: شكرًا لتعاملكم معنا" /></Field>
           </div>
-          <div className="group-header">قواعد العمل</div>
+              {saveBtn}
+            </>
+          )}
+          {sec === 'rules' && manage && (
+            <>
+              <div className="stg-title">قواعد العمل</div>
           <div className="list">
             <div className="list-row">
               <div className="title">نسبة الضريبة الافتراضية للأصناف الجديدة %<div className="sub">العملة: الجنيه المصري. لا يتضمن النظام ربطًا بمنظومة الفاتورة الإلكترونية بعد.</div></div>
@@ -93,16 +160,24 @@ export function SettingsPage() {
               </div>
             )}
           </div>
-          <button className="btn primary lg block" style={{ marginTop: 16 }} onClick={save}>حفظ الإعدادات</button>
-        </>
-      )}
-
-      {can('settings.manage') && f && <PrintSettings f={f} setF={setF} />}
-
-      <div className="group-header">المظهر (خاص بحسابك)</div>
-      <div className="card pad"><AppearancePanel /></div>
-
-      <div className="group-header">تغيير كلمة المرور</div>
+              {saveBtn}
+            </>
+          )}
+          {sec === 'print' && manage && (
+            <>
+              <PrintSettings f={f} setF={setF} />
+              {saveBtn}
+            </>
+          )}
+          {sec === 'appearance' && (
+            <>
+              <div className="stg-title">المظهر <span>(خاص بحسابك)</span></div>
+              <div className="card pad"><AppearancePanel /></div>
+            </>
+          )}
+          {sec === 'password' && (
+            <>
+              <div className="stg-title">تغيير كلمة المرور</div>
       <div className="card pad stack">
         <Field label="كلمة المرور الحالية"><input className="input" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></Field>
         <Field label="كلمة المرور الجديدة"><input className="input" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
@@ -123,7 +198,11 @@ export function SettingsPage() {
         </button>
       </div>
 
-      <div className="group-header">هذا الجهاز</div>
+            </>
+          )}
+          {sec === 'device' && (
+            <>
+              <div className="stg-title">هذا الجهاز</div>
       <div className="list">
         <div className="list-row"><div className="title">التخزين المحلي</div><span className="muted">{storage ?? '—'}</span></div>
         <div className="list-row">
@@ -146,6 +225,10 @@ export function SettingsPage() {
           >
             مسح
           </button>
+        </div>
+      </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -172,7 +255,7 @@ function PrintSettings({ f, setF }: { f: any; setF: (v: any) => void }) {
   };
   return (
     <>
-      <div className="group-header">الطباعة</div>
+      <div className="stg-title">الطباعة</div>
       <div className="card pad stack">
         <div className="row">
           <div style={{ flex: 1 }}>

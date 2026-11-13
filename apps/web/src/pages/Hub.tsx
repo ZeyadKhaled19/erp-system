@@ -21,7 +21,18 @@ export function HubPage() {
   }, [hub]);
   if (!hub) return <Navigate to="/" replace />;
   if (hub.to) return <Navigate to={hub.to} replace />;
-  const groups = hub.groups.map((g) => ({ ...g, links: g.links.filter((l) => !l.perm || can(l.perm)) })).filter((g) => g.links.length);
+  // صفحة التقارير تجمع كمان تقارير المخزون والخزينة، وكل التقارير تظهر ككروت
+  const isReports = hub.key === 'reports';
+  const extra = isReports
+    ? [{
+        title: 'تقارير المخزون والخزينة',
+        links: [
+          ...(HUBS.find((h) => h.key === 'inventory')?.groups.find((g) => g.title === 'تقارير المخزون')?.links ?? []),
+          ...(HUBS.find((h) => h.key === 'treasury')?.groups.flatMap((g) => g.links).filter((l) => l.to.startsWith('/reports/')) ?? []),
+        ],
+      }]
+    : [];
+  const groups = [...hub.groups, ...extra].map((g) => ({ ...g, links: g.links.filter((l) => !l.perm || can(l.perm)) })).filter((g) => g.links.length);
 
   return (
     <div className="page">
@@ -32,14 +43,14 @@ export function HubPage() {
           <div className="page-sub" style={{ margin: 0 }}>{hub.sub}</div>
         </div>
       </div>
-      {HUB_WORKSPACE[hub.key] && <WorkspaceSummary ws={HUB_WORKSPACE[hub.key]} />}
+      {HUB_WORKSPACE[hub.key] && !isReports && <WorkspaceSummary ws={HUB_WORKSPACE[hub.key]} />}
       {groups.map((g, gi) => {
         const heroes = gi === 0 ? g.links.filter((l) => l.hero) : [];
         const rest = g.links.filter((l) => !heroes.includes(l));
         return (
           <div key={g.title}>
             <div className="hub-group-title">{g.title}</div>
-            {gi === 0 ? (
+            {gi === 0 || isReports ? (
               <div className="sc-grid">
                 {[...heroes, ...rest].map((l, i) => (
                   <ShortcutCard key={l.to} label={l.label} icon={l.icon} color={SC_COLORS[i % SC_COLORS.length]} sub={l.desc} onClick={() => nav(l.to)} />
@@ -59,6 +70,12 @@ export function HubPage() {
           </div>
         );
       })}
+      {isReports && HUB_WORKSPACE[hub.key] && (
+        <>
+          <div className="hub-group-title">ملخص الحسابات</div>
+          <WorkspaceSummary ws={HUB_WORKSPACE[hub.key]} />
+        </>
+      )}
     </div>
   );
 }
