@@ -5,7 +5,7 @@ import { useQuickActions, type QuickAction } from '../lib/quickActions';
 import { FloatingPop } from './ui';
 
 /** قائمة «جديد» في الشريط العلوي: كل ما يملك المستخدم صلاحية إنشائه، والأكثر استخدامًا أولًا */
-export function NewMenu() {
+export function NewMenu({ round }: { round?: boolean } = {}) {
   const nav = useNavigate();
   const { actions, usage, use } = useQuickActions();
   const [open, setOpen] = useState(false);
@@ -42,9 +42,15 @@ export function NewMenu() {
   );
   return (
     <>
-      <button ref={btn} type="button" className="btn primary sm nm-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <Plus /> <span className="hide-mobile">جديد</span>
-      </button>
+      {round ? (
+        <button ref={btn} type="button" className="mc-plus" title="جديد (فاتورة، سند، صنف…)" aria-label="إنشاء جديد" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <Plus />
+        </button>
+      ) : (
+        <button ref={btn} type="button" className="btn primary sm nm-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <Plus /> <span className="hide-mobile">جديد</span>
+        </button>
+      )}
       {open && (
         <FloatingPop anchor={btn} popRef={pop} className="picker-pop nm-pop" maxHeight={480}>
           <div role="menu" aria-label="إنشاء جديد">

@@ -1,28 +1,36 @@
-import { ChevronDown, MoreHorizontal } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, Wallet, FileWarning } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { Hub } from './nav';
-import { hubPath } from './nav';
+import { useWorkCounts } from '../lib/alerts';
+import { GEAR_HUBS, HUBS, SECTIONS, activeHubKey, activeSectionKey, type NavLink, type Section } from './nav';
 
-/**
- * القوائم العلوية (سطح المكتب): كل قسم زر في الشريط العلوي؛ الأقسام التي فيها صفحات
- * متعددة تفتح قائمة منسدلة بمجموعاتها، والباقي رابط مباشر. توفّر عرض الصفحة كاملًا.
- */
-export function TopNav({ hubs, active, can, badge }: { hubs: Hub[]; active: string; can: (p: string) => boolean; badge?: Record<string, number> }) {
-  const nav = useNavigate();
+type Can = (p: string) => boolean;
+const allowed = (can: Can, perms: string[]) => !perms.length || perms.some((p) => can(p));
+const linksOf = (can: Can, links: NavLink[]) => links.filter((l) => !l.perm || can(l.perm));
+
+/** مجموعات القائمة المنسدلة لقسم: روابطه الإضافية ثم مجموعات أقسامه، بلا تكرار */
+function sectionGroups(s: Section, can: Can) {
+  const seen = new Set<string>();
+  const uniq = (links: NavLink[]) => linksOf(can, links).filter((l) => !seen.has(l.to) && (seen.add(l.to), true));
+  const groups: { title: string; links: NavLink[] }[] = [];
+  if (s.extra) groups.push({ title: s.label, links: uniq(s.extra) });
+  for (const k of s.hubs) for (const g of HUBS.find((h) => h.key === k)?.groups ?? []) groups.push({ title: g.title, links: uniq(g.links) });
+  return groups.filter((g) => g.links.length);
+}
+
+/** فتح/غلق قائمة: الضغط برّه أو Esc يقفلها، وتغيير الصفحة يقفلها */
+function useMenu<T extends string>() {
   const loc = useLocation();
-  const [open, setOpen] = useState<string | null>(null);
-  const btns = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [open, setOpen] = useState<T | null>(null);
+  const anchors = useRef<Partial<Record<T, HTMLElement | null>>>({});
   const pop = useRef<HTMLDivElement>(null);
-  const timer = useRef<number | undefined>(undefined);
-
   useEffect(() => setOpen(null), [loc.pathname, loc.search]);
   useEffect(() => {
     if (!open) return;
     const down = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (pop.current?.contains(t) || btns.current[open]?.contains(t)) return;
+      if (pop.current?.contains(t) || anchors.current[open]?.contains(t)) return;
       setOpen(null);
     };
     const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(null);
@@ -33,137 +41,182 @@ export function TopNav({ hubs, active, can, badge }: { hubs: Hub[]; active: stri
       document.removeEventListener('keydown', key);
     };
   }, [open]);
+  return { open, setOpen, anchors, pop };
+}
 
-  const go = (to: string) => {
-    setOpen(null);
-    nav(to);
-  };
+function LinkGroups({ groups, onGo, wide }: { groups: { title: string; links: NavLink[] }[]; onGo: (to: string) => void; wide?: boolean }) {
+  const loc = useLocation();
+  return (
+    <div className={`tn-groups ${wide ? 'more' : ''}`}>
+      {groups.map((g) => (
+        <div key={g.title} className="tn-group">
+          <div className="tn-group-t">{g.title}</div>
+          {g.links.map((l) => (
+            <button key={l.to + l.label} role="menuitem" className={`tn-link ${loc.pathname + loc.search === l.to || loc.pathname === l.to ? 'on' : ''}`} onClick={() => onGo(l.to)}>
+              <span className="tn-ic">{l.icon}</span>
+              <span className="tn-link-l">{l.label}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * الشريط الأفقي المشترك لكل الصفحات: الأقسام السبعة بأيقونات وفواصل، والقسم النشط أزرق ممتلئ.
+ * الضغط يفتح صفحة القسم، والوقوف بالماوس يفتح قائمة بكل شاشاته.
+ */
+export function MainNav({ can }: { can: Can }) {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const { open, setOpen, anchors, pop } = useMenu<string>();
+  const timer = useRef<number | undefined>(undefined);
+  const active = activeSectionKey(loc.pathname);
+  const sections = SECTIONS.filter((s) => allowed(can, s.perms));
   const enter = (key: string) => {
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setOpen(key), open ? 0 : 120);
+    timer.current = window.setTimeout(() => setOpen(key), open ? 0 : 160);
   };
   const leave = () => {
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setOpen(null), 220);
   };
-
-  // الأقسام التي لا تتسع في الشريط تنتقل إلى «المزيد»
-  const wrap = useRef<HTMLElement>(null);
-  const widths = useRef<Record<string, number>>({});
-  const [fit, setFit] = useState(hubs.length);
-  useLayoutEffect(() => {
-    const el = wrap.current;
-    if (!el) return;
-    const measure = () => {
-      for (const h of hubs) {
-        const b = btns.current[h.key];
-        if (b && b.offsetWidth) widths.current[h.key] = b.offsetWidth + 2;
-      }
-      const avail = el.clientWidth;
-      const total = hubs.reduce((a, h) => a + (widths.current[h.key] ?? 90), 0);
-      if (total <= avail) return setFit(hubs.length);
-      let used = 96; // زر «المزيد»
-      let k = 0;
-      while (k < hubs.length && used + (widths.current[hubs[k].key] ?? 90) <= avail) used += widths.current[hubs[k++].key] ?? 90;
-      setFit(k);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [hubs.map((h) => h.key).join(), badge?.system]);
-  const overflow = hubs.slice(fit);
-  const activeInMore = overflow.some((h) => h.key === active);
-
-  const groupsOf = (h: Hub) => h.groups.map((g) => ({ ...g, links: g.links.filter((l) => !l.perm || can(l.perm)) })).filter((g) => g.links.length);
-  const openHub = hubs.find((h) => h.key === open);
-  const moreGroups = overflow.map((h) => ({ title: h.label, links: h.to ? [{ to: hubPath(h), label: h.label, icon: h.icon }] : groupsOf(h).flatMap((g) => g.links) }));
-
+  const go = (to: string) => {
+    window.clearTimeout(timer.current);
+    setOpen(null);
+    nav(to);
+  };
+  const openSection = sections.find((s) => s.key === open);
+  const groups = openSection ? sectionGroups(openSection, can) : [];
   return (
-    <nav className="topnav-menus" aria-label="الأقسام" ref={wrap}>
-      {hubs.map((h, i) => {
-        const groups = groupsOf(h);
-        const menu = !h.to && groups.length > 0;
-        const n = badge?.[h.key] ?? 0;
-        return (
-          <button
-            key={h.key}
-            ref={(el) => { btns.current[h.key] = el; }}
-            className={`tn-item ${active === h.key ? 'active' : ''} ${open === h.key ? 'open' : ''}`}
-            style={i >= fit ? { position: 'absolute', visibility: 'hidden', pointerEvents: 'none' } : undefined}
-            tabIndex={i >= fit ? -1 : undefined}
-            aria-current={active === h.key ? 'page' : undefined}
-            aria-haspopup={menu ? 'menu' : undefined}
-            aria-expanded={menu ? open === h.key : undefined}
-            title={h.sub}
-            onClick={() => (menu ? setOpen((o) => (o === h.key ? null : h.key)) : go(hubPath(h)))}
-            onMouseEnter={() => (menu ? enter(h.key) : open && setOpen(null))}
-            onMouseLeave={() => menu && leave()}
-          >
-            <span className="tn-ic">{h.icon}</span>
-            <span className="tn-label">{h.label}</span>
-            {menu && <ChevronDown className="tn-caret" />}
-            {n > 0 && <span className="badge solid-red">{n}</span>}
+    <nav className="mc-nav hide-mobile no-print" aria-label="الأقسام">
+      <div className="mc-nav-in">
+        {sections.map((s) => {
+          const hasMenu = sectionGroups(s, can).length > 0;
+          return (
+            <button
+              key={s.key}
+              ref={(el) => { anchors.current[s.key] = el; }}
+              type="button"
+              className={`mc-nav-item ${active === s.key ? 'on' : ''} ${open === s.key ? 'open' : ''}`}
+              aria-current={active === s.key ? 'page' : undefined}
+              aria-haspopup={hasMenu ? 'menu' : undefined}
+              aria-expanded={hasMenu ? open === s.key : undefined}
+              onClick={() => go(s.to)}
+              onKeyDown={(e) => { if (hasMenu && e.key === 'ArrowDown') { e.preventDefault(); setOpen(s.key); } }}
+              onMouseEnter={() => (hasMenu ? enter(s.key) : (window.clearTimeout(timer.current), setOpen(null)))}
+              onMouseLeave={() => hasMenu && leave()}
+            >
+              <span className="mc-nav-ic">{s.icon}</span>
+              <span className="mc-nav-l">{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {openSection && groups.length > 0 && (
+        <MenuPanel anchor={anchors.current[openSection.key]} popRef={pop} onEnter={() => window.clearTimeout(timer.current)} onLeave={leave}>
+          <button className="tn-hub-link" onClick={() => go(openSection.to)}>
+            <span className="tn-ic">{openSection.icon}</span>
+            <span><b>{openSection.label}</b><small>افتح صفحة القسم</small></span>
           </button>
-        );
-      })}
-      {overflow.length > 0 && (
-        <button
-          ref={(el) => { btns.current.__more = el; }}
-          className={`tn-item ${activeInMore ? 'active' : ''} ${open === '__more' ? 'open' : ''}`}
-          aria-haspopup="menu"
-          aria-expanded={open === '__more'}
-          onClick={() => setOpen((o) => (o === '__more' ? null : '__more'))}
-          onMouseEnter={() => enter('__more')}
-          onMouseLeave={leave}
-        >
-          <MoreHorizontal className="tn-caret" style={{ opacity: 1, width: 16, height: 16 }} />
-          <span className="tn-label">المزيد</span>
-        </button>
-      )}
-      {open === '__more' && (
-        <MenuPanel anchor={btns.current.__more} popRef={pop} onEnter={() => window.clearTimeout(timer.current)} onLeave={leave}>
-          <div className="tn-groups more">
-            {moreGroups.map((g) => (
-              <div key={g.title} className="tn-group">
-                <div className="tn-group-t">{g.title}</div>
-                {g.links.map((l) => (
-                  <button key={l.to + l.label} role="menuitem" className={`tn-link ${loc.pathname === l.to ? 'on' : ''}`} onClick={() => go(l.to)}>
-                    <span className="tn-ic">{l.icon}</span>
-                    <span className="tn-link-l">{l.label}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        </MenuPanel>
-      )}
-      {openHub && (
-        <MenuPanel anchor={btns.current[openHub.key]} popRef={pop} onEnter={() => window.clearTimeout(timer.current)} onLeave={leave}>
-          <button className="tn-hub-link" onClick={() => go(hubPath(openHub))}>
-            <span className="tn-ic">{openHub.icon}</span>
-            <span><b>{openHub.label}</b><small>{openHub.sub}</small></span>
-          </button>
-          <div className="tn-groups">
-            {groupsOf(openHub).map((g) => (
-              <div key={g.title} className="tn-group">
-                <div className="tn-group-t">{g.title}</div>
-                {g.links.map((l) => (
-                  <button key={l.to + l.label} role="menuitem" className={`tn-link ${loc.pathname === l.to ? 'on' : ''}`} onClick={() => go(l.to)}>
-                    <span className="tn-ic">{l.icon}</span>
-                    <span className="tn-link-l">{l.label}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
+          <LinkGroups groups={groups} onGo={go} />
         </MenuPanel>
       )}
     </nav>
   );
 }
 
-function MenuPanel({ anchor, popRef, children, onEnter, onLeave }: { anchor: HTMLElement | null | undefined; popRef: React.RefObject<HTMLDivElement | null>; children: React.ReactNode; onEnter: () => void; onLeave: () => void }) {
+/** أيقونات الشريط العلوي: الإعدادات (وفيها الحسابات والخزينة والتقارير)، المساعدة، الإشعارات */
+export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onSearch, userName, roleName, syncProblems }: {
+  can: Can; dark: boolean; onToggleTheme: () => void; onAppearance: () => void; onLogout: () => void; onSearch: () => void; userName: string; roleName: string; syncProblems: number;
+}) {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const { open, setOpen, anchors, pop } = useMenu<'gear' | 'help' | 'bell'>();
+  const w = useWorkCounts();
+  const go = (to: string) => {
+    setOpen(null);
+    nav(to);
+  };
+  const gearGroups = GEAR_HUBS.map((k) => HUBS.find((h) => h.key === k)!)
+    .filter((h) => h && (!h.perm || can(h.perm)))
+    .map((h) => ({ title: h.label, links: linksOf(can, h.groups.flatMap((g) => g.links)) }))
+    .filter((g) => g.links.length);
+  const gearActive = GEAR_HUBS.includes(activeHubKey(loc.pathname));
+  const alerts: { n: number; label: string; to: string; icon: ReactNode; tone: string }[] = [
+    { n: w.review, label: 'عمليات تحتاج مراجعة', to: '/sync', icon: <ShieldAlert />, tone: 'red' },
+    { n: w.overdue, label: 'فواتير آجلة متأخرة السداد', to: '/receivables', icon: <FileWarning />, tone: 'red' },
+    { n: w.reorder, label: 'أصناف تحت حد الطلب', to: '/reports/reorder', icon: <Package />, tone: 'orange' },
+    { n: w.dueSoon, label: 'شيكات وأقساط مستحقة خلال أسبوع', to: '/instruments', icon: <CalendarClock />, tone: 'purple' },
+    { n: w.pendingDelivery, label: 'فواتير بانتظار التسليم', to: '/deliveries', icon: <Truck />, tone: 'blue' },
+  ].filter((a) => a.n > 0);
+  const totalAlerts = alerts.reduce((s, a) => s + a.n, 0);
+  const btn = (k: 'gear' | 'help' | 'bell', label: string, icon: ReactNode, extra?: ReactNode, cls = '') => (
+    <button
+      ref={(el) => { anchors.current[k] = el; }}
+      type="button"
+      className={`mc-icon-btn ${open === k ? 'open' : ''} ${cls}`}
+      title={label}
+      aria-label={label}
+      aria-haspopup="menu"
+      aria-expanded={open === k}
+      onClick={() => setOpen((o) => (o === k ? null : k))}
+    >
+      {icon}
+      {extra}
+    </button>
+  );
+  return (
+    <>
+      {btn('gear', 'الإعدادات والحسابات والتقارير', <Settings />, syncProblems > 0 ? <span className="mc-dot" /> : null, gearActive ? 'on' : '')}
+      {btn('help', 'مساعدة', <CircleHelp />)}
+      {btn('bell', totalAlerts ? `الإشعارات (${totalAlerts})` : 'الإشعارات', <Bell />, totalAlerts > 0 ? <span className="mc-dot" /> : null)}
+      {open === 'gear' && (
+        <MenuPanel anchor={anchors.current.gear} popRef={pop}>
+          <div className="mc-menu-user">
+            <span className="mc-avatar" aria-hidden="true">{(userName || '؟').trim()[0]}</span>
+            <span><b>{userName}</b><small>{roleName}</small></span>
+          </div>
+          <LinkGroups groups={gearGroups} onGo={go} />
+          <div className="mc-menu-foot">
+            <button className="tn-link" onClick={() => { setOpen(null); onAppearance(); }}><span className="tn-ic"><Palette /></span>تفضيلاتي (المظهر والخط)</button>
+            <button className="tn-link" onClick={() => { setOpen(null); onToggleTheme(); }}><span className="tn-ic">{dark ? <Sun /> : <Moon />}</span>{dark ? 'الوضع الفاتح' : 'الوضع الغامق'}</button>
+            <button className="tn-link danger" onClick={() => { setOpen(null); onLogout(); }}><span className="tn-ic"><LogOut /></span>تسجيل الخروج</button>
+          </div>
+        </MenuPanel>
+      )}
+      {open === 'help' && (
+        <MenuPanel anchor={anchors.current.help} popRef={pop}>
+          <div className="mc-help">
+            <b>فين ألاقي…؟</b>
+            <p><Wallet /> <span><b>الخزينة والحسابات والتقارير والإعدادات</b> في زرار الترس <Settings className="inl" /> فوق.</span></p>
+            <p><Users /> <span>كل قسم في الشريط الأزرق: اضغط عليه يفتح صفحته، أو وقّف الماوس عليه تظهر كل شاشاته.</span></p>
+            <b>اختصارات الكيبورد</b>
+            <p><kbd>Ctrl</kbd>+<kbd>K</kbd> <span>بحث عن صنف أو عميل أو فاتورة</span></p>
+            <button className="btn sm" onClick={() => { setOpen(null); onSearch(); }}>افتح البحث</button>
+          </div>
+        </MenuPanel>
+      )}
+      {open === 'bell' && (
+        <MenuPanel anchor={anchors.current.bell} popRef={pop}>
+          <div className="mc-bell">
+            <div className="tn-group-t">الإشعارات</div>
+            {alerts.length ? alerts.map((a) => (
+              <button key={a.to} className="tn-link" onClick={() => go(a.to)}>
+                <span className={`tn-ic mc-tone-${a.tone}`}>{a.icon}</span>
+                <span className="tn-link-l" style={{ flex: 1 }}>{a.label}</span>
+                <span className={`mc-count ${a.tone}`}>{a.n}</span>
+              </button>
+            )) : <div className="mc-empty">مفيش تنبيهات دلوقتي 👍</div>}
+          </div>
+        </MenuPanel>
+      )}
+    </>
+  );
+}
+
+function MenuPanel({ anchor, popRef, children, onEnter, onLeave }: { anchor: HTMLElement | null | undefined; popRef: React.RefObject<HTMLDivElement | null>; children: ReactNode; onEnter?: () => void; onLeave?: () => void }) {
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   useLayoutEffect(() => {
     if (!anchor) return;
@@ -176,8 +229,13 @@ function MenuPanel({ anchor, popRef, children, onEnter, onLeave }: { anchor: HTM
       setPos({ top: r.bottom + 6, right });
     };
     place();
+    // إعادة الحساب بعد معرفة العرض الفعلي للقائمة
+    const raf = requestAnimationFrame(place);
     window.addEventListener('resize', place);
-    return () => window.removeEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', place);
+    };
   }, [anchor, popRef]);
   return createPortal(
     <div ref={popRef} className="tn-pop" role="menu" style={pos ? { top: pos.top, right: pos.right } : { visibility: 'hidden' }} onMouseEnter={onEnter} onMouseLeave={onLeave}>

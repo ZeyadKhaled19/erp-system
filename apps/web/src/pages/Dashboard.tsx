@@ -1,16 +1,16 @@
 import { DOC_TYPES, formatMoney, hasPermission, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  AlertTriangle, ArrowLeftRight, Banknote, BarChart3, Boxes, CalendarClock, CalendarDays, ChevronLeft, ClipboardCheck, ClipboardList, FileText, HandCoins, ListTree, Package, PackageSearch, PieChart, Receipt, RotateCcw, ShoppingBag, ShoppingCart, Store, Truck, TrendingDown, TrendingUp, Undo2, Users, Wallet, Zap,
+  ArrowDownLeft, CalendarClock, CalendarDays, Check, ChevronLeft, ClipboardList, Clock3, FileText, Package, PackagePlus, RotateCcw, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Star, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
+import { SECTIONS } from '../components/nav';
 import { db } from '../lib/db';
-import { type ShortcutColor } from '../components/ShortcutCard';
-import { ShortcutBoard, type Size } from '../components/ShortcutBoard';
-import { useQuickActions } from '../lib/quickActions';
-import { usePerm, useSession, useSyncCounts } from '../lib/hooks';
+import { useWorkCounts } from '../lib/alerts';
+import { QUICK_ACTIONS, recordUse } from '../lib/quickActions';
+import { usePerm, useSession, useSettings } from '../lib/hooks';
 
 const dayKey = (d: Date) => todayISO(d);
 function lastDays(n: number) {
@@ -33,7 +33,7 @@ export function Dashboard() {
   const nav = useNavigate();
   const can = usePerm();
   const { session } = useSession();
-  const counts = useSyncCounts();
+  const settings = useSettings();
   const today = todayISO();
   const days = useMemo(() => lastDays(14), []);
 
@@ -55,33 +55,11 @@ export function Dashboard() {
     const payables = parties.filter((p) => p.kind === 'supplier').reduce((s, p) => s + (p.balance ?? 0), 0);
     const balances = await db.stock_balances.toArray();
     const stockValue = balances.reduce((s, b) => s + (b.value ?? 0), 0);
-    const qtyByItem = new Map<string, number>();
-    balances.forEach((b) => qtyByItem.set(b.item_id, (qtyByItem.get(b.item_id) ?? 0) + b.qty));
-    const items = await db.items.toArray();
-    const reorder = items.filter((i) => i.active && i.reorder_level > 0 && (qtyByItem.get(i.id) ?? 0) <= i.reorder_level).length;
-    const allSales = await db.documents.where('doc_type').equals('sale_invoice').toArray();
-    const overdue = allSales.filter((d) => d.status === 'posted' && !d.closed && d.total > d.paid && d.due_date && d.due_date < today).length;
-    const pendingDelivery = allSales.filter((d) => d.status === 'posted' && d.deliver_later).length;
-    const week = new Date();
-    week.setDate(week.getDate() + 7);
-    const dueSoon = (await db.instruments.where('status').equals('open').toArray()).filter((x) => x.due_date <= todayISO(week)).length;
-    const review = await db.documents.where('status').equals('pending_review').count();
     const recent = (await db.documents.orderBy('date').reverse().limit(200).toArray())
       .filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && hasPermission(perms, `${m}.view`); })
       .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
       .slice(0, 6);
-    const todayPosted = docs.filter((d) => d.date === today && d.status === 'posted');
-    const countToday = (t: string) => todayPosted.filter((d) => d.doc_type === t).length;
-    const counts = {
-      saleReturns: countToday('sale_return'),
-      purchases: countToday('purchase_invoice'),
-      purchaseReturns: countToday('purchase_return'),
-      customers: parties.filter((p) => p.kind === 'customer' && p.active !== false && p.id !== 'party-cash-customer').length,
-      suppliers: parties.filter((p) => p.kind === 'supplier' && p.active !== false).length,
-      items: items.filter((i) => i.active !== false).length,
-      openQuotes: (await db.documents.where('doc_type').equals('quotation').toArray()).filter((d) => !d.converted_to_id && d.status !== 'cancelled').length,
-    };
-    return { series, todayCount, cashboxes, receivables, payables, stockValue, reorder, overdue, pendingDelivery, dueSoon, review, recent, counts };
+    return { series, todayCount, cashboxes, receivables, payables, stockValue, recent };
   }, [today, days, perms.join(',')]);
 
   const s = data?.series ?? [];
@@ -91,91 +69,25 @@ export function Dashboard() {
   const total14 = s.reduce((a, b) => a + b, 0);
   const cash = (data?.cashboxes ?? []).reduce((a, c) => a + (c.balance ?? 0), 0);
 
-  const alerts = [
-    { show: counts.rejected + counts.conflicts + (data?.review ?? 0) > 0, n: counts.rejected + counts.conflicts + (data?.review ?? 0), label: 'عمليات تحتاج مراجعة في المزامنة', to: '/sync', icon: <AlertTriangle />, grad: 'var(--grad-red)' },
-    { show: (data?.overdue ?? 0) > 0 && can('sales.view'), n: data?.overdue ?? 0, label: 'فواتير آجلة متأخرة السداد', to: '/receivables', icon: <CalendarClock />, grad: 'var(--grad-orange)' },
-    { show: (data?.dueSoon ?? 0) > 0 && can('treasury.view'), n: data?.dueSoon ?? 0, label: 'شيكات وأقساط مستحقة خلال أسبوع', to: '/instruments', icon: <CalendarClock />, grad: 'var(--grad-purple)' },
-    { show: (data?.reorder ?? 0) > 0 && can('inventory.view'), n: data?.reorder ?? 0, label: 'أصناف وصلت لحد الطلب', to: '/reports/reorder', icon: <Package />, grad: 'var(--grad-red)' },
-    { show: (data?.pendingDelivery ?? 0) > 0 && can('sales.view'), n: data?.pendingDelivery ?? 0, label: 'فواتير بانتظار التسليم', to: '/deliveries', icon: <Truck />, grad: 'var(--grad-brown)' },
-  ].filter((a) => a.show);
-
-  // الإجراءات المسموحة للمستخدم، الأكثر استخدامًا أولًا (بيع سريع له بطاقته الكبيرة)
-  const qa = useQuickActions('dashboard');
-  const actions = qa.actions.filter((a) => a.key !== 'pos').slice(0, 4);
-
-  // بطاقات الاختصارات: مجموعات ثابتة، كل بطاقة تظهر لمن يملك صلاحيتها، والعدّادات من بيانات الجهاز
-  const c = data?.counts;
-  const go = (to: string) => {
-    const a = qa.actions.find((x) => x.to === to);
-    if (a) qa.use(a);
-    nav(to);
-  };
-  type Card = { label: string; to: string; icon: ReactNode; color: ShortcutColor; perm: string; badge?: ReactNode; sub?: string; size?: Size };
-  // كتالوج المربعات: كل مربع يظهر لمن يملك صلاحيته، والمستخدم يغير الحجم ويرتب ويخفي ما لا يحتاجه
-  const groupsDef: { title: string; cards: Card[] }[] = [
-    {
-      title: 'الفواتير',
-      cards: [
-        { label: 'بيع سريع', to: '/pos', icon: <Zap />, color: 'green', perm: 'sales.create', sub: 'كاشير بالباركود', size: 'm' },
-        { label: 'بيع', to: '/docs/new/sale_invoice', icon: <ShoppingCart />, color: 'blue', perm: 'sales.create', badge: can('sales.view') ? data?.todayCount ?? 0 : undefined, sub: 'فواتير اليوم', size: 'm' },
-        { label: 'شراء', to: '/docs/new/purchase_invoice', icon: <Store />, color: 'red', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchases ?? 0 : undefined, sub: 'فواتير اليوم', size: 'm' },
-        { label: 'مرتجع بيع', to: '/docs/new/sale_return', icon: <Undo2 />, color: 'purple', perm: 'sales.create', badge: can('sales.view') ? c?.saleReturns ?? 0 : undefined },
-        { label: 'مرتجع شراء', to: '/docs/new/purchase_return', icon: <RotateCcw />, color: 'pink', perm: 'purchases.create', badge: can('purchases.view') ? c?.purchaseReturns ?? 0 : undefined },
-        { label: 'عرض أسعار', to: '/docs/new/quotation', icon: <FileText />, color: 'teal', perm: 'sales.quotation', badge: c?.openQuotes ?? 0 },
-        { label: 'سجل الفواتير', to: '/invoices', icon: <ClipboardList />, color: 'slate', perm: 'sales.view' },
-      ],
-    },
-    {
-      title: 'الخزينة',
-      cards: [
-        { label: 'قبض', to: '/docs/new/receipt', icon: <HandCoins />, color: 'green', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.receivables ?? 0) : undefined, sub: 'المستحق على العملاء' },
-        { label: 'صرف', to: '/docs/new/payment', icon: <Banknote />, color: 'orange', perm: 'treasury.create', badge: can('parties.view') ? formatMoney(data?.payables ?? 0) : undefined, sub: 'المستحق للموردين' },
-        { label: 'مصروف', to: '/docs/new/expense', icon: <Receipt />, color: 'red', perm: 'treasury.create' },
-        { label: 'تحويل بين الخزائن', to: '/docs/new/cash_transfer', icon: <ArrowLeftRight />, color: 'indigo', perm: 'treasury.create' },
-        { label: 'الخزائن', to: '/cashboxes', icon: <Wallet />, color: 'teal', perm: 'treasury.view' },
-      ],
-    },
-    {
-      title: 'البضاعة',
-      cards: [
-        { label: 'الأصناف', to: '/items', icon: <Package />, color: 'blue', perm: 'items.view', badge: c?.items ?? 0, size: 'm' },
-        { label: 'جرد وتسوية', to: '/docs/new/stock_adjustment', icon: <ClipboardCheck />, color: 'yellow', perm: 'inventory.create' },
-        { label: 'تحويل لمخزن', to: '/docs/new/stock_transfer', icon: <Truck />, color: 'teal', perm: 'inventory.create' },
-        { label: 'بضاعة مخزن', to: '/reports/stock', icon: <Boxes />, color: 'slate', perm: 'inventory.view' },
-        { label: 'استعلام صنف', to: '/items/inquiry', icon: <PackageSearch />, color: 'indigo', perm: 'items.view' },
-      ],
-    },
-    {
-      title: 'الحسابات',
-      cards: [
-        { label: 'العملاء', to: '/parties/customer', icon: <Users />, color: 'indigo', perm: 'parties.view', badge: c?.customers ?? 0 },
-        { label: 'الموردون', to: '/parties/supplier', icon: <Truck />, color: 'slate', perm: 'parties.view', badge: c?.suppliers ?? 0 },
-        { label: 'متابعة الآجل', to: '/receivables', icon: <CalendarClock />, color: 'orange', perm: 'sales.view' },
-        { label: 'دليل الحسابات', to: '/accounts', icon: <ListTree />, color: 'purple', perm: 'accounts.view' },
-      ],
-    },
-    {
-      title: 'التقارير',
-      cards: [
-        { label: 'الحركة اليومية', to: '/reports/daily', icon: <CalendarDays />, color: 'indigo', perm: 'reports.view' },
-        { label: 'تحليل المبيعات', to: '/reports/analysis', icon: <BarChart3 />, color: 'blue', perm: 'reports.view' },
-        { label: 'الأرباح والخسائر', to: '/reports/income', icon: <TrendingUp />, color: 'green', perm: 'reports.profit' },
-        { label: 'المقبوضات والمصروفات', to: '/reports/treasury', icon: <PieChart />, color: 'pink', perm: 'treasury.view' },
-      ],
-    },
-  ];
-  const shortcutGroups = groupsDef.map((g) => ({ ...g, cards: g.cards.filter((x) => can(x.perm)) })).filter((g) => g.cards.length);
-
-  const hour = new Date().getHours();
   return (
-    <div className="page">
-      <div className="dash-hello">
-        <b>{hour < 12 ? 'صباح الخير' : 'مساء الخير'}، {session.user.full_name.split(' ')[0]}</b>
-        <span className="muted">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+    <div className="page mc-home">
+      <HomeHeader name={session.user.full_name} company={settings.company_name || ''} />
+
+      <div className="mc-cards" role="list">
+        {SECTIONS.filter((x) => !x.perms.length || x.perms.some((p) => can(p))).map((x) => (
+          <button key={x.key} type="button" role="listitem" className={`mc-card mc-${x.color} ${x.key === 'home' ? 'on' : ''}`} aria-current={x.key === 'home' ? 'page' : undefined} onClick={() => nav(x.to)}>
+            <span className="mc-card-ic">{x.cardIcon}</span>
+            <span className="mc-card-l">{x.label}</span>
+          </button>
+        ))}
       </div>
 
-      <ShortcutBoard groups={shortcutGroups} onOpen={go} />
+      <div className="mc-panels">
+        <QuickTasks />
+        <Favorites />
+      </div>
 
+      <div className="section-title mc-more-title">ملخص اليوم</div>
       <div className="grid grid-3 dash-stats">
         {can('sales.view') && <div className="card stat" style={{ gridColumn: 'span 2' }}>
           <div className="row">
@@ -197,21 +109,6 @@ export function Dashboard() {
         {can('costs.view') && <Stat label="قيمة المخزون" value={data?.stockValue ?? 0} icon={<Package />} grad="var(--grad-orange)" onClick={() => nav('/reports/stock')} />}
       </div>
 
-      {alerts.length > 0 && (
-        <>
-          <div className="section-title">يحتاج انتباهك</div>
-          <div className="list">
-            {alerts.map((a) => (
-              <div key={a.to} className="list-row tappable with-icon" onClick={() => nav(a.to)}>
-                <span className="sb-icon" style={{ background: a.grad, color: '#fff' }}>{a.icon}</span>
-                <div className="title">{a.label}</div>
-                <span className="badge solid-red">{a.n}</span>
-                <ChevronLeft style={{ width: 18, height: 18, color: 'var(--label-3)' }} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
 
       <div className="section-title">آخر العمليات</div>
       {data?.recent.length ? (
@@ -265,5 +162,162 @@ function Bars({ values, labels }: { values: number[]; labels: string[] }) {
         );
       })}
     </svg>
+  );
+}
+
+/** «مرحبًا بك، الاسم 👋» + سطر الشركة، وكبسولة التاريخ والوقت (تتحدث كل نصف دقيقة) */
+function HomeHeader({ name, company }: { name: string; company: string }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const date = now.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const time = now.toLocaleTimeString('ar-EG-u-nu-latn', { hour: 'numeric', minute: '2-digit' });
+  return (
+    <div className="mc-hello">
+      <div className="mc-hello-t">
+        <h1>
+          <span className="mc-wave" aria-hidden="true">👋</span>
+          مرحبًا بك، <span className="mc-hello-n">{name}</span>
+        </h1>
+        {company && <div className="mc-hello-s">في نظام إدارة الأعمال {company}</div>}
+      </div>
+      <div className="mc-when">
+        <span><CalendarDays /> {date}</span>
+        <i aria-hidden="true" />
+        <span className="num"><Clock3 /> {time}</span>
+      </div>
+    </div>
+  );
+}
+
+/** «مهامي السريعة»: أرقام حقيقية من بيانات الجهاز، وكل سطر يظهر لمن يملك صلاحيته */
+function QuickTasks() {
+  const nav = useNavigate();
+  const can = usePerm();
+  const w = useWorkCounts();
+  const rows: { show: boolean; n: number; label: string; to: string; icon: ReactNode; tone: string; title?: string; always?: boolean }[] = [
+    { show: can('sales.view'), n: w.overdue, label: 'فواتير تحتاج متابعة', to: '/receivables', icon: <FileText />, tone: 'red', title: 'فواتير بيع آجلة عدّى ميعاد سدادها', always: true },
+    { show: can('inventory.view'), n: w.reorder, label: 'أصناف تحت حد الطلب', to: '/reports/reorder', icon: <Package />, tone: 'orange', always: true },
+    { show: can('parties.view'), n: w.customers, label: 'مستحقات على العملاء', to: '/parties/customer', icon: <Users />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.customersAmount)}`, always: true },
+    { show: can('parties.view'), n: w.suppliers, label: 'مستحقات للموردين', to: '/parties/supplier', icon: <Truck />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.suppliersAmount)}`, always: true },
+    { show: true, n: w.review, label: 'عمليات تحتاج مراجعة', to: '/sync', icon: <ShieldAlert />, tone: 'red' },
+    { show: can('treasury.view'), n: w.dueSoon, label: 'شيكات وأقساط مستحقة خلال أسبوع', to: '/instruments', icon: <CalendarClock />, tone: 'orange' },
+    { show: can('sales.view'), n: w.pendingDelivery, label: 'فواتير بانتظار التسليم', to: '/deliveries', icon: <Truck />, tone: 'blue' },
+  ];
+  const list = rows.filter((r) => r.show && (r.always || r.n > 0));
+  return (
+    <section className="mc-panel mc-tasks" aria-labelledby="mc-tasks-t">
+      <div className="mc-panel-h">
+        <h2 id="mc-tasks-t"><ClipboardList className="mc-panel-ic" /> مهامي السريعة</h2>
+      </div>
+      {list.length ? (
+        <div className="mc-task-list">
+          {list.map((r) => (
+            <button key={r.label} type="button" className="mc-task" title={r.title} onClick={() => nav(r.to)}>
+              <span className="mc-task-ic">{r.icon}</span>
+              <span className="mc-task-l">{r.label}</span>
+              <span className={`mc-count ${r.tone} num`}>{r.n}</span>
+              <ChevronLeft className="mc-chev" />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="mc-empty">مفيش مهام تخص صلاحياتك دلوقتي.</div>
+      )}
+    </section>
+  );
+}
+
+/** أيقونات وأسماء المفضلة (الباقي يستخدم أيقونة واسم الإجراء نفسه) */
+const FAV_ICONS: Record<string, ReactNode> = {
+  sale_invoice: <ShoppingCart />, purchase_invoice: <ShoppingBasket />, item_new: <PackagePlus />, receipt: <ArrowDownLeft />, pos: <Zap />,
+  purchase_return: <RotateCcw />, payment: <Wallet />,
+};
+const FAV_LABEL: Record<string, string> = {
+  sale_invoice: 'فاتورة بيع جديدة', purchase_invoice: 'فاتورة شراء جديدة', item_new: 'إضافة صنف جديد',
+};
+/** الافتراضي؛ ونكمل للأربعة من الباقي حسب صلاحيات المستخدم */
+const FAV_DEFAULT = ['sale_invoice', 'purchase_invoice', 'item_new', 'receipt', 'pos', 'payment', 'expense', 'customer_new'];
+const favKey = (uid: string) => `erp.favorites.v1.${uid}`;
+function readFavs(uid: string): string[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(favKey(uid)) ?? 'null');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** «اختصاراتي المفضلة»: 4 أزرار، الأول أزرق ممتلئ، و«تخصيص» يحفظ اختيار كل مستخدم على الجهاز */
+function Favorites() {
+  const nav = useNavigate();
+  const { session } = useSession();
+  const uid = session.user.id;
+  const perms = session.user.permissions;
+  const available = useMemo(() => QUICK_ACTIONS.filter((a) => hasPermission(perms, a.perm)), [perms]);
+  const [saved, setSaved] = useState<string[] | null>(() => readFavs(uid));
+  useEffect(() => setSaved(readFavs(uid)), [uid]);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string[]>([]);
+  const pick = (keys: string[]) => keys.map((k) => available.find((a) => a.key === k)).filter((a): a is (typeof available)[number] => !!a);
+  const chosen = (saved ? pick(saved) : pick(FAV_DEFAULT)).slice(0, 4);
+  const startEdit = () => {
+    setDraft(chosen.map((a) => a.key));
+    setEditing(true);
+  };
+  const toggle = (k: string) => setDraft((d) => (d.includes(k) ? d.filter((x) => x !== k) : d.length >= 4 ? d : [...d, k]));
+  const save = () => {
+    try {
+      localStorage.setItem(favKey(uid), JSON.stringify(draft));
+    } catch {
+      /* التخزين غير متاح: يُحفظ للجلسة الحالية فقط */
+    }
+    setSaved(draft);
+    setEditing(false);
+  };
+  return (
+    <section className="mc-panel mc-favs" aria-labelledby="mc-favs-t">
+      <div className="mc-panel-h">
+        <h2 id="mc-favs-t"><Star className="mc-star" /> اختصاراتي المفضلة</h2>
+        {available.length > 0 && (editing ? (
+          <span className="mc-fav-tools">
+            <button type="button" className="mc-chip" onClick={() => setEditing(false)}>إلغاء</button>
+            <button type="button" className="mc-chip primary" onClick={save} disabled={!draft.length}><Check /> حفظ</button>
+          </span>
+        ) : (
+          <button type="button" className="mc-chip" onClick={startEdit}><SlidersHorizontal /> تخصيص</button>
+        ))}
+      </div>
+      {editing ? (
+        <div className="mc-fav-pick">
+          <div className="mc-fav-hint">اختار لحد 4 اختصارات بالترتيب ({draft.length}/4) — الأول بيظهر أزرق.</div>
+          <div className="mc-fav-opts">
+            {available.map((a) => {
+              const i = draft.indexOf(a.key);
+              return (
+                <button key={a.key} type="button" className={`mc-fav-opt ${i >= 0 ? 'on' : ''}`} aria-pressed={i >= 0} onClick={() => toggle(a.key)} disabled={i < 0 && draft.length >= 4}>
+                  {i >= 0 && <b className="num">{i + 1}</b>}
+                  <span className="mc-fav-ic">{FAV_ICONS[a.key] ?? a.icon}</span>
+                  {FAV_LABEL[a.key] ?? a.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : chosen.length ? (
+        <div className="mc-fav-grid">
+          {chosen.map((a, i) => (
+            <button key={a.key} type="button" className={`mc-fav ${i === 0 ? 'primary' : ''} fav-${a.key}`} onClick={() => { recordUse(uid, a.key); nav(a.to); }}>
+              <span className="mc-fav-ic">{FAV_ICONS[a.key] ?? a.icon}</span>
+              <span>{FAV_LABEL[a.key] ?? a.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="mc-empty">مفيش اختصارات متاحة لصلاحياتك.</div>
+      )}
+    </section>
   );
 }

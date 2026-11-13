@@ -1,8 +1,9 @@
 import {
   AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Barcode, BarChart3, BookOpen, BookPlus, Boxes, Building2, CalendarClock, ClipboardCheck,
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
-  ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
+  IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
+import { Database, Handshake, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface NavLink {
@@ -192,6 +193,23 @@ export const HUBS: Hub[] = [
   },
   { key: 'partners', label: 'الشركاء', sub: 'رأس المال وتوزيع الأرباح', icon: <PieChart />, grad: 'var(--grad-green)', to: '/partners', perm: 'partners.view', groups: [] },
   {
+    key: 'employees',
+    label: 'الموظفين',
+    sub: 'المستخدمون والصلاحيات (الحضور والرواتب قريبًا)',
+    icon: <IdCard />,
+    grad: 'var(--grad-blue)',
+    perm: 'users.manage',
+    groups: [
+      {
+        title: 'الموظفين',
+        links: [
+          { to: '/users', label: 'المستخدمون والصلاحيات', desc: 'حسابات الموظفين على النظام وصلاحيات كل واحد', icon: <ShieldCheck />, grad: 'var(--grad-gray)', perm: 'users.manage', hero: true },
+          { to: '/audit', label: 'سجل التدقيق', desc: 'مين عمل إيه وإمتى', icon: <ScrollText />, grad: 'var(--grad-brown)', perm: 'audit.view' },
+        ],
+      },
+    ],
+  },
+  {
     key: 'system',
     label: 'الإعدادات',
     sub: 'المستخدمون والمزامنة والنسخ',
@@ -235,4 +253,53 @@ export function activeHubKey(pathname: string): string {
     for (const g of h.groups) if (g.links.some((l) => l.to === pathname || (l.to !== '/' && pathname.startsWith(l.to + '/')))) return h.key;
   }
   return '';
+}
+
+/**
+ * الأقسام السبعة في الشريط الأفقي وكروت الرئيسية (التصميم المعتمد).
+ * كل قسم يجمع أقسامًا من HUBS: قائمته المنسدلة = مجموعات تلك الأقسام، ويكون نشطًا عند فتح أي صفحة منها.
+ * الحسابات والخزينة والتقارير والإعدادات في قائمة الترس (أعلى الشاشة).
+ */
+export type SectionColor = 'blue' | 'green' | 'purple' | 'orange' | 'teal' | 'indigo' | 'violet';
+export interface Section {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  cardIcon: ReactNode;
+  color: SectionColor;
+  to: string;
+  /** يظهر لمن يملك أيًا منها (فارغ = للجميع) */
+  perms: string[];
+  hubs: string[];
+  /** روابط إضافية أعلى القائمة المنسدلة */
+  extra?: NavLink[];
+}
+
+export const SECTIONS: Section[] = [
+  { key: 'home', label: 'الرئيسية', icon: <Home />, cardIcon: <Home />, color: 'blue', to: '/', perms: [], hubs: ['home'] },
+  {
+    key: 'sales', label: 'المبيعات', icon: <ShoppingCart />, cardIcon: <ShoppingCart />, color: 'green', to: '/hub/sales', perms: ['sales.view', 'sales.create'], hubs: ['sales', 'pos', 'invoices'],
+    extra: [{ to: '/invoices', label: 'كل الفواتير والسندات', icon: <FileText />, grad: '', perm: 'sales.view' }],
+  },
+  { key: 'purchases', label: 'المشتريات', icon: <ShoppingBasket />, cardIcon: <ShoppingBasket />, color: 'purple', to: '/hub/purchases', perms: ['purchases.view', 'purchases.create'], hubs: ['purchases'] },
+  { key: 'inventory', label: 'المخزون', icon: <Package />, cardIcon: <Boxes />, color: 'orange', to: '/hub/inventory', perms: ['items.view'], hubs: ['inventory'] },
+  {
+    key: 'parties', label: 'العملاء والموردين', icon: <Users />, cardIcon: <Users />, color: 'teal', to: '/parties/customer', perms: ['parties.view'], hubs: ['customers', 'suppliers'],
+    extra: [
+      { to: '/parties/customer', label: 'العملاء', icon: <Users />, grad: '', perm: 'parties.view' },
+      { to: '/parties/supplier', label: 'الموردون', icon: <Truck />, grad: '', perm: 'parties.view' },
+      { to: '/receivables', label: 'الفواتير الآجلة', icon: <CalendarClock />, grad: '', perm: 'sales.view' },
+    ],
+  },
+  { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/hub/employees', perms: ['users.manage'], hubs: ['employees'] },
+  { key: 'partners', label: 'الشركاء ورأس المال', icon: <Database />, cardIcon: <Handshake />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'] },
+];
+
+/** أقسام قائمة الترس (غير الظاهرة في الشريط) */
+export const GEAR_HUBS = ['treasury', 'reports', 'system'];
+
+/** القسم النشط في الشريط الأفقي ('' إن كانت الصفحة من أقسام قائمة الترس) */
+export function activeSectionKey(pathname: string): string {
+  const hub = activeHubKey(pathname);
+  return SECTIONS.find((s) => s.hubs.includes(hub))?.key ?? '';
 }

@@ -16,6 +16,7 @@ import '@fontsource/almarai/400.css';
 import '@fontsource/almarai/700.css';
 import './styles.css';
 import './theme-pro.css';
+import './motorco.css';
 import { applyAppearance } from './lib/theme';
 
 // تطبيق المظهر المحفوظ قبل أول رسم لتجنب وميض الثيم

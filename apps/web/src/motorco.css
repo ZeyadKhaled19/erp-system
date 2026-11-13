@@ -1,0 +1,262 @@
+/* =====================================================================
+   التصميم المعتمد (docs/design/home-reference.webp):
+   شريط الهوية + الشريط الأفقي للأقسام + تبويبات الشاشات + الشاشة الرئيسية.
+   يُحمّل بعد theme-pro.css. كل الألوان من متغيرات الثيم فيعمل الفاتح والغامق ولون التمييز.
+   ===================================================================== */
+
+:root {
+  --mc-surface: var(--card);
+  --mc-panel: color-mix(in srgb, var(--card) 72%, var(--bg));
+  --mc-line: color-mix(in srgb, var(--label) 9%, transparent);
+  --mc-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 6px 18px -6px rgba(16, 24, 40, .12);
+  --mc-shadow-lg: 0 2px 4px rgba(16, 24, 40, .04), 0 14px 30px -12px rgba(16, 24, 40, .18);
+  --mc-active: linear-gradient(180deg, color-mix(in srgb, var(--tint) 78%, #ffffff) 0%, var(--tint) 45%, var(--tint-press) 100%);
+  --mc-active-shadow: 0 8px 18px -8px color-mix(in srgb, var(--tint) 70%, transparent);
+  /* ألوان أيقونات الأقسام */
+  --mc-blue: #2563EB; --mc-green: #16A34A; --mc-purple: #7C3AED; --mc-orange: #F59E0B;
+  --mc-teal: #0D9488; --mc-indigo: #2563EB; --mc-violet: #7C3AED;
+}
+:root[data-theme="dark"] {
+  --mc-panel: color-mix(in srgb, var(--card) 80%, var(--bg));
+  --mc-line: color-mix(in srgb, var(--label) 12%, transparent);
+  --mc-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px -10px rgba(0, 0, 0, .6);
+  --mc-shadow-lg: 0 2px 4px rgba(0, 0, 0, .35), 0 16px 32px -14px rgba(0, 0, 0, .7);
+  --mc-blue: #60A5FA; --mc-green: #4ADE80; --mc-purple: #A78BFA; --mc-orange: #FBBF24;
+  --mc-teal: #2DD4BF; --mc-indigo: #60A5FA; --mc-violet: #A78BFA;
+  /* لون التمييز في الغامق فاتح، فنغمّقه للأزرار الممتلئة حتى يقرأ النص الأبيض */
+  --mc-active: linear-gradient(180deg, color-mix(in srgb, var(--tint) 72%, #000000) 0%, color-mix(in srgb, var(--tint) 55%, #000000) 100%);
+}
+:root:not([data-theme="dark"]) .main { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 92%, #dfe4ec) 0%, var(--bg) 40%); }
+:root:not([data-theme="dark"]) .content { background: transparent; }
+
+/* ---------- 1) شريط الهوية ---------- */
+.nav-bar.mc-top {
+  position: relative; flex-direction: column; align-items: stretch; gap: 0; min-height: 0;
+  padding: calc(4px + env(safe-area-inset-top)) 20px 0; background: transparent !important; border: 0 !important; z-index: 30;
+}
+.mc-id { display: flex; align-items: center; gap: 8px; min-height: 52px; }
+.mc-id .nav-title { display: none; }
+.mc-brand { display: flex; align-items: center; gap: 12px; min-width: 0; text-decoration: none; color: var(--heading); flex-shrink: 1; }
+.mc-logo-img { height: 30px; max-width: 170px; object-fit: contain; display: block; }
+.mc-logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--mc-active); color: #fff; font-weight: 800; font-size: 17px; flex-shrink: 0; box-shadow: var(--mc-active-shadow); }
+.mc-company { font-size: 20px; font-weight: 800; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--heading); }
+.mc-brand-sep { width: 1px; height: 22px; background: var(--border-strong); flex-shrink: 0; }
+.mc-system { font-size: 17px; font-weight: 700; color: var(--heading); white-space: nowrap; }
+.mc-search { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-3); font: inherit; font-size: 13px; cursor: pointer; box-shadow: var(--shadow-card); }
+.mc-search:hover { color: var(--label); border-color: var(--border-strong); }
+.mc-search svg { width: 16px; height: 16px; }
+.mc-search kbd { font-size: 10.5px; }
+.mc-icon-btn { position: relative; width: 40px; height: 40px; border-radius: 12px; border: 0; background: transparent; color: var(--heading); display: grid; place-items: center; cursor: pointer; flex-shrink: 0; transition: background var(--dur); }
+.mc-icon-btn:hover, .mc-icon-btn.open { background: var(--fill); }
+.mc-icon-btn.on { color: var(--tint); background: var(--tint-soft); }
+.mc-icon-btn svg { width: 23px; height: 23px; stroke-width: 1.9; }
+.mc-dot { position: absolute; top: 7px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: #EF4444; box-shadow: 0 0 0 2px var(--bg); }
+.mc-id .sync-pill { height: 30px; font-size: 12.5px; }
+
+/* قوائم الترس والمساعدة والإشعارات */
+.mc-menu-user { display: flex; align-items: center; gap: 10px; padding: 6px 10px 10px; border-bottom: 1px solid var(--separator); margin-bottom: 4px; }
+.mc-menu-user b { display: block; font-size: 14px; }
+.mc-menu-user small { display: block; font-size: 12px; color: var(--label-3); }
+.mc-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--tint-soft); color: var(--tint); display: grid; place-items: center; font-weight: 700; flex-shrink: 0; }
+.mc-menu-foot { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 2px 6px; border-top: 1px solid var(--separator); margin-top: 6px; padding-top: 6px; }
+.mc-menu-foot .tn-link { height: 34px; }
+.tn-link.danger, .tn-link.danger .tn-ic { color: var(--red-text); }
+.mc-help { width: min(360px, calc(100vw - 32px)); padding: 6px 8px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+.mc-help > b { font-size: 13px; color: var(--label-2); }
+.mc-help p { margin: 0; display: flex; align-items: flex-start; gap: 8px; line-height: 1.6; }
+.mc-help p > svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 3px; color: var(--tint); }
+.mc-help svg.inl { width: 14px; height: 14px; vertical-align: -2px; }
+.mc-help .btn { align-self: flex-start; }
+.mc-bell { width: min(380px, calc(100vw - 32px)); }
+.mc-bell .tn-link { height: 42px; }
+.mc-bell .tn-ic svg { width: 18px; height: 18px; }
+.mc-tone-red { color: #DC2626 !important; } .mc-tone-orange { color: #D97706 !important; } .mc-tone-purple { color: #7C3AED !important; } .mc-tone-blue { color: #2563EB !important; }
+.mc-empty { padding: 18px 12px; text-align: center; color: var(--label-3); font-size: 13.5px; }
+
+/* ---------- 2) الشريط الأفقي للأقسام ---------- */
+.mc-nav { margin: 4px 0 0; padding: 6px; border-radius: 18px; background: var(--mc-surface); box-shadow: var(--mc-shadow); border: 1px solid var(--mc-line); }
+.mc-nav-in { display: flex; align-items: stretch; overflow-x: auto; scrollbar-width: none; }
+.mc-nav-in::-webkit-scrollbar { display: none; }
+.mc-nav-item {
+  position: relative; flex: 1 1 0; min-width: max-content; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 52px; padding: 0 18px; border: 0; border-radius: 13px; background: transparent; color: var(--heading);
+  font: inherit; font-size: 16.5px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background var(--dur), color var(--dur);
+}
+/* الفواصل بين الأقسام (تختفي بجوار النشط وعند الوقوف) */
+.mc-nav-item + .mc-nav-item::before { content: ''; position: absolute; inset-inline-start: 0; top: 16px; bottom: 16px; width: 1px; background: var(--border-strong); opacity: .8; }
+.mc-nav-item.on::before, .mc-nav-item.on + .mc-nav-item::before, .mc-nav-item:hover::before, .mc-nav-item:hover + .mc-nav-item::before,
+.mc-nav-item.open::before, .mc-nav-item.open + .mc-nav-item::before { opacity: 0; }
+.mc-nav-item:hover, .mc-nav-item.open { background: var(--fill-3); }
+.mc-nav-item.on { background: var(--mc-active); color: #fff; box-shadow: var(--mc-active-shadow); }
+.mc-nav-item:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+.mc-nav-ic { display: grid; place-items: center; }
+.mc-nav-ic svg { width: 25px; height: 25px; stroke-width: 1.8; }
+@media (max-width: 1420px) { .mc-nav-item { font-size: 15px; padding: 0 12px; gap: 8px; } .mc-nav-ic svg { width: 22px; height: 22px; } }
+@media (max-width: 1180px) { .mc-nav-item { font-size: 14px; padding: 0 10px; height: 46px; } .mc-nav-ic svg { width: 19px; height: 19px; } }
+@media (max-width: 960px) { .mc-nav-ic { display: none; } }
+
+/* ---------- 3) تبويبات الشاشات ---------- */
+.screen-tabs.mc-tabs { background: transparent; padding: 10px 20px 0; min-height: 0; gap: 10px; align-items: center; }
+.screen-tabs.mc-tabs::after { display: none; }
+.mc-tabs .st-strip { padding: 0; gap: 6px; align-items: center; }
+.mc-tabs .st-tab { height: 42px; padding: 0 14px; margin: 0; gap: 9px; flex: 0 1 220px; min-width: 120px; border-radius: 13px; background: color-mix(in srgb, var(--label) 7%, var(--bg)); color: var(--label); font-size: 14px; font-weight: 600; transition: background var(--dur), box-shadow var(--dur); }
+.mc-tabs .st-tab::before { display: none; }
+.mc-tabs .st-tab:hover { background: color-mix(in srgb, var(--label) 11%, var(--bg)); }
+.mc-tabs .st-tab.on { background: var(--mc-surface); color: var(--heading); box-shadow: var(--mc-shadow); font-weight: 700; }
+.mc-tabs .st-tab.home { min-width: 0; padding: 0 14px; flex: 0 0 auto; }
+.mc-tabs .st-tab.home.on { color: var(--tint); }
+.mc-tabs .st-ic { display: grid; place-items: center; flex-shrink: 0; }
+.mc-tabs .st-ic svg, .mc-tabs .st-home { width: 19px; height: 19px; stroke-width: 1.9; }
+.mc-tabs .st-x { width: 22px; height: 22px; border-radius: 7px; color: var(--label); margin-inline-start: 4px; }
+.mc-tabs .st-x svg { width: 15px; height: 15px; stroke-width: 2.4; }
+.mc-tabs .st-close-all { margin: 0; height: 32px; border-radius: 10px; border: 1px solid var(--mc-line); background: var(--mc-surface); }
+.mc-plus { flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--heading); display: grid; place-items: center; cursor: pointer; box-shadow: var(--mc-shadow); transition: transform var(--dur), color var(--dur); }
+.mc-plus:hover { color: var(--tint); transform: scale(1.05); }
+.mc-plus svg { width: 22px; height: 22px; stroke-width: 2.2; }
+
+/* ---------- 4) الشاشة الرئيسية ---------- */
+.page.mc-home { --mc-gap: clamp(14px, 2.6vh, 26px); max-width: 1880px; padding: clamp(14px, 2.4vh, 26px) clamp(16px, 2.6vw, 44px) 40px; margin-inline: auto; }
+.mc-hello { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: var(--mc-gap); }
+.mc-hello h1 { margin: 0; font-size: clamp(22px, 2.1vw, 32px); font-weight: 800; color: var(--heading); line-height: 1.35; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mc-hello-n { margin-inline-start: 4px; }
+.mc-wave { font-size: 1.15em; line-height: 1; display: inline-block; transform-origin: 70% 80%; animation: mcWave 1.6s ease-in-out 1; }
+@keyframes mcWave { 0%, 60%, 100% { transform: rotate(0); } 15%, 45% { transform: rotate(14deg); } 30% { transform: rotate(-8deg); } }
+.mc-hello-s { margin-top: 2px; font-size: clamp(14px, 1.15vw, 18px); font-weight: 600; color: var(--label); padding-inline-start: calc(1.15em + 12px); }
+.mc-when { display: inline-flex; align-items: center; gap: 18px; height: 52px; padding: 0 24px; border-radius: 999px; background: var(--mc-surface); box-shadow: var(--mc-shadow); border: 1px solid var(--mc-line); font-size: clamp(14px, 1.05vw, 17px); font-weight: 700; color: var(--heading); white-space: nowrap; }
+.mc-when span { display: inline-flex; align-items: center; gap: 10px; }
+.mc-when svg { width: 22px; height: 22px; stroke-width: 1.9; }
+.mc-when i { width: 1px; height: 24px; background: var(--border-strong); }
+
+/* كروت الأقسام */
+.mc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: clamp(12px, 1.3vw, 22px); margin-bottom: var(--mc-gap); }
+.mc-card {
+  --c: var(--mc-blue);
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(10px, 1.6vh, 18px);
+  height: clamp(132px, 19vh, 184px); padding: 14px 10px 18px; border-radius: 22px; border: 1px solid var(--mc-line);
+  background: var(--mc-surface); color: var(--heading); box-shadow: var(--mc-shadow-lg); cursor: pointer; font: inherit; overflow: hidden;
+  transition: transform .16s var(--ease), box-shadow .16s var(--ease), border-color .16s;
+}
+/* الخط السفلي الملون */
+.mc-card::after { content: ''; position: absolute; inset-inline: 14%; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--c); opacity: .9; }
+.mc-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--c) 35%, transparent); }
+.mc-card:active { transform: translateY(0) scale(.98); }
+.mc-card:focus-visible { outline: 2px solid var(--tint); outline-offset: 3px; }
+.mc-card-ic { display: grid; place-items: center; color: var(--c); }
+.mc-card-ic svg { width: clamp(42px, 4.2vw, 66px); height: clamp(42px, 4.2vw, 66px); stroke-width: 1.55; }
+.mc-card-l { font-size: clamp(14.5px, 1.25vw, 20px); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; max-width: 7.5em; }
+.mc-card.on { background: color-mix(in srgb, var(--tint) 11%, var(--mc-surface)); border: 1.5px solid color-mix(in srgb, var(--tint) 55%, transparent); --c: var(--tint); }
+.mc-blue { --c: var(--mc-blue); } .mc-green { --c: var(--mc-green); } .mc-purple { --c: var(--mc-purple); } .mc-orange { --c: var(--mc-orange); }
+.mc-teal { --c: var(--mc-teal); } .mc-indigo { --c: var(--mc-indigo); } .mc-violet { --c: var(--mc-violet); }
+
+/* اللوحتان السفليتان: المهام يمين والمفضلة يسار */
+.mc-panels { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1fr); gap: clamp(14px, 1.8vw, 30px); align-items: stretch; }
+.mc-panel { border-radius: 24px; background: var(--mc-panel); border: 1px solid color-mix(in srgb, var(--card) 70%, transparent); box-shadow: var(--mc-shadow-lg); padding: clamp(14px, 2vh, 22px) clamp(14px, 1.6vw, 26px); min-width: 0; }
+.mc-panel-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: clamp(10px, 1.6vh, 18px); min-height: 40px; }
+.mc-panel-h h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: clamp(17px, 1.4vw, 23px); font-weight: 800; color: var(--heading); }
+.mc-panel-ic { width: 30px; height: 30px; stroke-width: 1.7; color: var(--heading); }
+.mc-star { width: 30px; height: 30px; color: #F5B301; fill: #F5B301; stroke-width: 1.4; }
+
+.mc-task-list { background: var(--mc-surface); border-radius: 18px; border: 1px solid var(--mc-line); box-shadow: var(--shadow-card); padding: 4px 14px; }
+.mc-task { display: flex; align-items: center; gap: 14px; width: 100%; min-height: clamp(44px, 6.4vh, 55px); padding: 0 6px; border: 0; background: transparent; color: var(--heading); font: inherit; text-align: start; cursor: pointer; border-radius: 10px; }
+.mc-task + .mc-task { border-top: 1px solid var(--separator); border-radius: 0; }
+.mc-task:hover { background: var(--fill-3); }
+.mc-task-ic { display: grid; place-items: center; color: var(--heading); flex-shrink: 0; }
+.mc-task-ic svg { width: 24px; height: 24px; stroke-width: 1.6; }
+.mc-task-l { flex: 1; min-width: 0; font-size: clamp(14px, 1.15vw, 17.5px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-count { min-width: 34px; height: 28px; padding: 0 8px; border-radius: 8px; display: inline-grid; place-items: center; font-weight: 800; font-size: 16px; }
+.mc-count.red { background: #FDE2E2; color: #E11D48; }
+.mc-count.orange { background: #FDEFD3; color: #D97706; }
+.mc-count.blue { background: #DCE8FD; color: #2563EB; }
+.mc-count.purple { background: #EDE6FE; color: #7C3AED; }
+:root[data-theme="dark"] .mc-count.red { background: #4A1D24; color: #FDA4AF; }
+:root[data-theme="dark"] .mc-count.orange { background: #43300D; color: #FCD34D; }
+:root[data-theme="dark"] .mc-count.blue { background: #172B54; color: #93C5FD; }
+:root[data-theme="dark"] .mc-count.purple { background: #2E2257; color: #C4B5FD; }
+.mc-chev { width: 22px; height: 22px; stroke-width: 2.4; color: var(--heading); flex-shrink: 0; margin-inline-start: 12px; }
+
+.mc-chip { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--mc-surface); color: var(--heading); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-card); }
+.mc-chip:hover { border-color: var(--tint); color: var(--tint); }
+.mc-chip svg { width: 18px; height: 18px; }
+.mc-chip.primary { background: var(--mc-active); color: #fff; border-color: transparent; }
+.mc-chip:disabled { opacity: .5; cursor: default; }
+.mc-fav-tools { display: inline-flex; gap: 8px; }
+.mc-fav-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(10px, 1.4vw, 22px); }
+.mc-fav {
+  display: flex; align-items: center; gap: clamp(12px, 1.6vw, 26px); min-height: clamp(62px, 9.5vh, 84px); padding: 0 clamp(16px, 1.8vw, 30px);
+  border-radius: 18px; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--heading); box-shadow: var(--mc-shadow);
+  font: inherit; font-size: clamp(15px, 1.25vw, 20px); font-weight: 800; text-align: start; cursor: pointer; transition: transform .16s var(--ease), box-shadow .16s;
+}
+.mc-fav:hover { transform: translateY(-2px); box-shadow: var(--mc-shadow-lg); }
+.mc-fav > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-fav-ic { display: grid; place-items: center; flex-shrink: 0; color: var(--tint); }
+.mc-fav-ic svg { width: clamp(28px, 2.4vw, 38px); height: clamp(28px, 2.4vw, 38px); stroke-width: 1.6; }
+.mc-fav.primary { background: var(--mc-active); color: #fff; border-color: transparent; box-shadow: var(--mc-active-shadow); }
+.mc-fav.primary .mc-fav-ic { color: #fff; }
+.mc-fav.fav-purchase_invoice .mc-fav-ic, .mc-fav.fav-purchase_return .mc-fav-ic { color: var(--mc-purple); }
+.mc-fav.fav-item_new .mc-fav-ic { color: var(--heading); }
+.mc-fav.fav-receipt .mc-fav-ic, .mc-fav.fav-pos .mc-fav-ic { color: var(--mc-green); }
+.mc-fav-pick { display: flex; flex-direction: column; gap: 10px; }
+.mc-fav-hint { font-size: 13px; color: var(--label-2); }
+.mc-fav-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.mc-fav-opt { position: relative; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--heading); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-align: start; }
+.mc-fav-opt .mc-fav-ic svg { width: 20px; height: 20px; }
+.mc-fav-opt.on { border-color: var(--tint); box-shadow: inset 0 0 0 1px var(--tint); background: var(--tint-soft); }
+.mc-fav-opt b { position: absolute; top: -7px; left: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--tint); color: #fff; font-size: 12px; display: grid; place-items: center; }
+.mc-fav-opt:disabled { opacity: .45; cursor: default; }
+.mc-more-title { margin-top: calc(var(--mc-gap) + 10px); }
+
+/* ---------- الثيمات الملونة (البالتات): نفس الشكل بألوان البالتة ---------- */
+:root[data-mode="navy"] .mc-company, :root[data-mode="amber"] .mc-company { letter-spacing: 0; }
+
+/* ---------- الشاشات المتوسطة ---------- */
+@media (max-width: 1180px) {
+  .mc-panels { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .mc-system { font-size: 15px; }
+}
+@media (max-width: 1000px) {
+  .mc-panels { grid-template-columns: minmax(0, 1fr); }
+  .mc-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ---------- الموبايل: بلا تمرير أفقي ---------- */
+@media (max-width: 760px) {
+  .nav-bar.mc-top { padding: calc(6px + env(safe-area-inset-top)) 10px 4px; background: var(--bar) !important; border-bottom: 1px solid var(--separator) !important; }
+  .mc-id { gap: 4px; min-height: 46px; }
+  .mc-company { font-size: 16px; }
+  .mc-logo { width: 30px; height: 30px; font-size: 15px; border-radius: 9px; }
+  .mc-logo-img { height: 26px; max-width: 110px; }
+  .mc-icon-btn { width: 36px; height: 36px; border-radius: 10px; }
+  .mc-icon-btn svg { width: 21px; height: 21px; }
+  /* «متصل ومتزامن» نقطة خضراء فقط؛ أي حالة تانية (دون اتصال، بالانتظار، مشكلة) نصها يفضل ظاهر */
+  .mc-id .sync-pill.online > span:not(.dot) { display: none; }
+  .mc-id .sync-pill > span:not(.dot) { max-width: 92px; }
+  .mc-id .sync-pill { padding: 0 9px; min-width: 0; flex-shrink: 1; }
+  .mc-brand { min-width: 0; }
+  .mc-company { max-width: 34vw; }
+  .mc-id .nm-btn { padding: 0 9px; }
+  /* الترس والمساعدة على الموبايل: نفس المحتوى في القائمة الجانبية (☰) */
+  .mc-id .mc-icon-btn[aria-label^="الإعدادات"], .mc-id .mc-icon-btn[aria-label="مساعدة"] { display: none; }
+  .page.mc-home { padding: 14px 12px 96px; }
+  .mc-hello { flex-direction: column; gap: 10px; }
+  .mc-hello-s { padding-inline-start: 0; }
+  .mc-when { height: 40px; padding: 0 14px; gap: 10px; font-size: 13px; max-width: 100%; }
+  .mc-when svg { width: 17px; height: 17px; }
+  .mc-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .mc-card { height: 96px; border-radius: 16px; gap: 6px; padding: 8px 4px 10px; }
+  .mc-card::after { inset-inline: 18%; }
+  .mc-card-ic svg { width: 30px; height: 30px; }
+  .mc-card-l { font-size: 11.5px; line-height: 1.3; }
+  .mc-panel { border-radius: 20px; padding: 14px 12px; }
+  .mc-task-list { padding: 2px 8px; }
+  .mc-task { gap: 10px; }
+  .mc-chev { margin-inline-start: 4px; }
+  .mc-fav-grid { gap: 10px; }
+  .mc-fav { min-height: 60px; padding: 0 12px; gap: 10px; font-size: 14px; border-radius: 14px; }
+  .mc-fav > span:last-child { white-space: normal; line-height: 1.3; }
+  .mc-fav-ic svg { width: 24px; height: 24px; }
+  .mc-chip { height: 34px; padding: 0 12px; font-size: 13px; }
+}
+@media (max-width: 380px) {
+  .mc-when { font-size: 12px; padding: 0 10px; }
+  .mc-company { max-width: 110px; }
+}

@@ -20,7 +20,7 @@ export interface Appearance {
 
 const LEGACY_KEY = 'erp.appearance';
 const keyFor = (userId: string | null) => (userId ? `erp.appearance.${userId}` : 'erp.appearance.guest');
-export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'sky', density: 'comfortable', font: 'plex' };
+export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'blue', density: 'comfortable', font: 'plex' };
 
 export const FONTS: { id: FontName; label: string; family: string }[] = [
   { id: 'plex', label: 'IBM Plex Sans Arabic — رسمي وواضح (الافتراضي)', family: "'IBM Plex Sans Arabic'" },

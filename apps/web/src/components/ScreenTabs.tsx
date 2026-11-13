@@ -1,7 +1,16 @@
-import { Home, X } from 'lucide-react';
+import { FileText, Home, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { HUBS } from './nav';
+import { HUBS, SECTIONS, activeHubKey } from './nav';
+import { NewMenu } from './NewMenu';
+
+/** أيقونة التبويب: أيقونة القسم الذي تنتمي له الشاشة */
+function tabIcon(url: string) {
+  const path = url.split('?')[0];
+  if (path === '/') return <Home />;
+  const hub = activeHubKey(path);
+  return SECTIONS.find((s) => s.key !== 'home' && s.hubs.includes(hub))?.icon ?? HUBS.find((h) => h.key === hub)?.icon ?? <FileText />;
+}
 
 /** اسم احتياطي من روابط القوائم لشاشة لا تضبط عنوانها */
 const LINK_LABEL = new Map<string, string>();
@@ -178,9 +187,8 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
     setState({ tabs: keep, active: state.active });
   };
 
-  if (state.tabs.length <= 1) return null;
   return (
-    <div className="screen-tabs hide-mobile no-print" role="tablist" aria-label="الشاشات المفتوحة">
+    <div className="screen-tabs mc-tabs hide-mobile no-print" role="tablist" aria-label="الشاشات المفتوحة">
       <div className="st-strip" ref={stripRef}>
         {state.tabs.map((t) => {
           const on = t.key === state.active;
@@ -201,7 +209,12 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
                 }
               }}
             >
-              {t.key === '/' ? <Home className="st-home" /> : <span className="st-title">{t.title}</span>}
+              {t.key === '/' ? <Home className="st-home" /> : (
+                <>
+                  <span className="st-ic" aria-hidden="true">{tabIcon(t.url)}</span>
+                  <span className="st-title">{t.title}</span>
+                </>
+              )}
               {t.key !== '/' && (
                 <button
                   type="button"
@@ -225,6 +238,7 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
           إغلاق الباقي
         </button>
       )}
+      <NewMenu round />
     </div>
   );
 }

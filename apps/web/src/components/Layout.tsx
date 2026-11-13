@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CloudOff, Home, LayoutGrid, LogOut, Menu, Moon, Package, Palette, PanelRightClose, PanelRightOpen, RefreshCw, Search, Sun, Users, X, Zap } from 'lucide-react';
+import { CloudOff, Home, LayoutGrid, LogOut, Menu, Package, Palette, PanelRightClose, PanelRightOpen, RefreshCw, Search, Users, X, Zap } from 'lucide-react';
 import { applyAppearance, isPaletteMode, loadAppearance, resolvedTheme, saveAppearance, type ThemeMode } from '../lib/theme';
 import { AppearanceSheet } from './Appearance';
 import { NewMenu } from './NewMenu';
@@ -13,7 +13,7 @@ import { usePerm, useSession, useSettings, useSyncCounts, useSyncState } from '.
 import { syncNow } from '../lib/sync';
 import { activeHubKey, HUBS, hubPath } from './nav';
 import { ScreenTabs } from './ScreenTabs';
-import { TopNav } from './TopNav';
+import { MainNav, TopIcons } from './TopNav';
 import { searchItems } from '../lib/search';
 
 export function SyncPill() {
@@ -126,6 +126,7 @@ const HUB_GROUP: Record<string, string> = {
   treasury: 'المالية',
   reports: 'المالية',
   partners: 'المالية',
+  employees: 'النظام',
   system: 'النظام',
 };
 
@@ -275,39 +276,49 @@ export function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="main">
-        <div className={`nav-bar ${scrolled ? 'scrolled' : ''}`}>
-          <button className="icon-btn only-mobile" onClick={() => setOpen(true)} aria-label="القائمة">
-            <Menu />
-          </button>
-          <a href="/" className="tn-brand hide-mobile" title={settings.company_name || 'الحسابات'} onClick={(e) => { e.preventDefault(); nav('/'); }}>
-            {settings.print_logo ? <img className="sb-logo" src={settings.print_logo} alt="" /> : <span className="sb-logo">{(settings.company_name || 'ح').trim()[0]}</span>}
-          </a>
-          <TopNav hubs={hubs.filter((h) => h.key !== 'home')} active={active} can={can} badge={{ system: problems }} />
-          <div className="nav-title" id="nav-title-slot" />
-          <div className="spacer only-mobile" />
-          <button className="tn-search hide-mobile" onClick={() => setSearchOpen(true)} title="بحث (Ctrl K)" aria-label="بحث">
-            <Search />
-          </button>
-          <button className="top-search hide-mobile" onClick={() => setSearchOpen(true)}>
-            <Search />
-            <span>ابحث عن فاتورة أو صنف أو عميل</span>
-            <kbd>Ctrl K</kbd>
-          </button>
-          <NewMenu />
-          <SyncPill />
-          <button className="icon-btn" onClick={toggleTheme} title={dark ? 'الوضع الفاتح' : 'الوضع الغامق'} aria-label={dark ? 'الوضع الفاتح' : 'الوضع الغامق'}>
-            {dark ? <Sun /> : <Moon />}
-          </button>
-          <button className="icon-btn only-mobile" onClick={() => setSearchOpen(true)} aria-label="بحث">
-            <Search />
-          </button>
-          <button className="tn-user hide-mobile" title={`${session.user.full_name} · تفضيلاتي`} aria-label="تفضيلاتي" onClick={() => setAppearance(true)}>
-            {(session.user.full_name || '؟').trim()[0]}
-          </button>
-          <button className="icon-btn hide-mobile" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={logout}>
-            <LogOut />
-          </button>
-        </div>
+        <header className={`nav-bar mc-top ${scrolled ? 'scrolled' : ''}`}>
+          <div className="mc-id">
+            <button className="icon-btn only-mobile" onClick={() => setOpen(true)} aria-label="القائمة">
+              <Menu />
+            </button>
+            <a href="/" className="mc-brand" title={settings.company_name || 'الرئيسية'} onClick={(e) => { e.preventDefault(); nav('/'); }}>
+              {settings.print_logo ? (
+                <img className="mc-logo-img" src={settings.print_logo} alt={settings.company_name || ''} />
+              ) : (
+                <>
+                  <span className="mc-logo">{(settings.company_name || 'ح').trim()[0]}</span>
+                  <span className="mc-company">{settings.company_name || 'شركتي'}</span>
+                </>
+              )}
+              <span className="mc-brand-sep hide-mobile" aria-hidden="true" />
+              <span className="mc-system hide-mobile">نظام إدارة الأعمال ERP</span>
+            </a>
+            <div className="nav-title" id="nav-title-slot" />
+            <div className="spacer" />
+            <button className="mc-search hide-mobile" onClick={() => setSearchOpen(true)} title="بحث (Ctrl K)" aria-label="بحث">
+              <Search />
+              <span>بحث</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+            <span className="only-mobile"><NewMenu /></span>
+            <SyncPill />
+            <button className="icon-btn only-mobile" onClick={() => setSearchOpen(true)} aria-label="بحث">
+              <Search />
+            </button>
+            <TopIcons
+              can={can}
+              dark={dark}
+              onToggleTheme={toggleTheme}
+              onAppearance={() => setAppearance(true)}
+              onLogout={logout}
+              onSearch={() => setSearchOpen(true)}
+              userName={session.user.full_name}
+              roleName={session.user.role_name}
+              syncProblems={problems}
+            />
+          </div>
+          <MainNav can={can} />
+        </header>
         <ScreenTabs userId={session.user.id} scrollRef={contentRef} />
         <div className="content" ref={contentRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 30)} style={isPos ? { overflow: 'hidden' } : undefined}>
           {children}
