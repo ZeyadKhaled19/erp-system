@@ -32,7 +32,10 @@ describe('legacy shared offline database', () => {
     const check = new Dexie('erp-local');
     check.version(1).stores({ outbox: '++seq, op_id, status', meta: 'key' });
     await check.open();
+    // لا شيء يُحذف من القاعدة القديمة: المنقول يُعلَّم فقط
+    expect(await check.table('outbox').count()).toBe(2);
     expect(await check.table('outbox').where('status').equals('pending').count()).toBe(0);
+    expect(await check.table('outbox').where('status').equals('migrated').count()).toBe(1);
     check.close();
 
     await db.delete();

@@ -123,7 +123,8 @@ export function setLocalIdentity(userId: string | null | undefined) {
 /**
  * ترحيل لمرة واحدة من قاعدة الجهاز القديمة المشتركة («erp-local»):
  * العمليات التي لم تُرفع بعد كانت لآخر مستخدم دخل على الجهاز (النظام القديم كان يمنع غيره من الدخول قبل رفعها)،
- * فتُنقل إلى طابور ذلك المستخدم الجديد حتى تُرفع ولا تضيع. تُحذف من القديمة فقط بعد نسخها بنجاح.
+ * فتُنقل نسخة منها إلى طابور ذلك المستخدم حتى تُرفع ولا تضيع. القاعدة القديمة لا يُحذف منها شيء:
+ * العمليات المنقولة تُعلَّم فقط بحالة «migrated» حتى لا تُنقل مرتين، وتبقى للمراجعة.
  */
 const legacyChecked = new Set<string>();
 async function migrateLegacyOutbox(userId: string) {
@@ -141,7 +142,7 @@ async function migrateLegacyOutbox(userId: string) {
       const known = new Set((await target.outbox.toArray()).map((e) => e.op_id));
       const moving = pending.filter((e) => !known.has(e.op_id));
       await target.outbox.bulkAdd(moving.map(({ seq: _seq, ...e }) => ({ ...e, owner_user_id: userId })) as OutboxEntry[]);
-      await legacy.outbox.bulkDelete(pending.map((e) => e.seq!).filter((s) => s !== undefined));
+      await legacy.outbox.bulkUpdate(pending.filter((e) => e.seq !== undefined).map((e) => ({ key: e.seq!, changes: { status: 'migrated', migrated_to: userId, migrated_at: new Date().toISOString() } as any })));
       console.info(`نُقلت ${moving.length} عملية غير مرفوعة من قاعدة الجهاز القديمة`);
     } finally {
       legacy.close();
