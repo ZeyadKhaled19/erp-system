@@ -28,8 +28,17 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // كل ملفات الواجهة والخطوط تُخزن مسبقًا ليفتح التطبيق دون اتصال
+        // كل ملفات الواجهة والخط الافتراضي تُخزن مسبقًا ليفتح التطبيق دون اتصال.
+        // الخطوط الاختيارية مش بتتخزن مسبقًا (كانت بتنزّل ~800KB على كل جهاز)؛ بتتخزن أول ما تتحمل.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['**/readex-pro-*.woff2', '**/cairo-*.woff2', '**/tajawal-*.woff2', '**/almarai-*.woff2'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/assets/') && url.pathname.endsWith('.woff2'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'erp-fonts', expiration: { maxEntries: 60, maxAgeSeconds: 365 * 24 * 3600 } },
+          },
+        ],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

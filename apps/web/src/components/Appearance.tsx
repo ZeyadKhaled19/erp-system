@@ -2,6 +2,7 @@ import { Check, Home, Palette, Monitor, Moon, Sun } from 'lucide-react';
 import { useHome } from '../lib/home';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ACCENTS, FONTS, isPaletteMode, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
+import { loadAllFonts } from '../lib/fonts';
 import { Segmented, Sheet } from './ui';
 
 export function useAppearance(): [Appearance, (a: Appearance) => void] {
@@ -43,6 +44,8 @@ export function StartPagePicker() {
 
 export function AppearancePanel() {
   const [a, set] = useAppearance();
+  // معاينة الخطوط تحتاج الخطوط نفسها، فبتتحمل لما الشاشة دي تتفتح بس
+  useEffect(loadAllFonts, []);
   return (
     <div className="ap">
       <StartPagePicker />

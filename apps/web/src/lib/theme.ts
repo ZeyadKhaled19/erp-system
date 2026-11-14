@@ -18,6 +18,8 @@ export interface Appearance {
   font: FontName;
 }
 
+import { loadFont } from './fonts';
+
 const LEGACY_KEY = 'erp.appearance';
 const keyFor = (userId: string | null) => (userId ? `erp.appearance.${userId}` : 'erp.appearance.guest');
 export const DEFAULT_APPEARANCE: Appearance = { theme: 'system', accent: 'blue', density: 'comfortable', font: 'plex' };
@@ -100,6 +102,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.accent = a.accent;
   el.dataset.density = a.density;
   el.dataset.font = a.font;
+  loadFont(a.font);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'navy' ? '#1D2D44' : theme === 'amber' ? '#14213D' : theme === 'teal' ? '#264653' : theme === 'paprika' ? '#252422' : theme === 'sage' ? '#2F3E46' : theme === 'coral' ? '#004D65' : '#F4F6F9');
 }
 
