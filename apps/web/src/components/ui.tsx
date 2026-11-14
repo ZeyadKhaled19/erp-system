@@ -1,5 +1,5 @@
 import { DOC_STATUS_LABEL, moneyInput, parseMoney, parseQty, qtyInput } from '@erp/shared';
-import { AlertTriangle, CheckCircle2, Info, Search, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Plus, Search, X, XCircle } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { matchScore } from '../lib/search';
@@ -308,7 +308,11 @@ export function GroupChips({ groups, value, onChange }: { groups: string[]; valu
   );
 }
 
-export function Picker({ value, options, onChange, placeholder, disabled, autoFocus, allowClear }: { value: string | null | undefined; options: PickOption[]; onChange: (id: string | null) => void; placeholder?: string; disabled?: boolean; autoFocus?: boolean; allowClear?: boolean }) {
+/**
+ * قائمة اختيار بالبحث. لو اتبعت `onCreate` بيظهر في آخرها «+ إضافة جديد» (أو «+ إضافة «النص اللي اتكتب»»)
+ * عشان المستخدم يضيف اختيار جديد من نفس المكان وهو شغال. `createLabel` = اسم الحاجة (بند مصروف، مورد، صنف...).
+ */
+export function Picker({ value, options, onChange, placeholder, disabled, autoFocus, allowClear, onCreate, createLabel }: { value: string | null | undefined; options: PickOption[]; onChange: (id: string | null) => void; placeholder?: string; disabled?: boolean; autoFocus?: boolean; allowClear?: boolean; onCreate?: (text: string) => void; createLabel?: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [hl, setHl] = useState(0);
@@ -338,6 +342,14 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
     setOpen(false);
     setQ('');
   };
+  const typed = q.trim();
+  const exact = typed && options.some((o) => o.label.trim() === typed);
+  const create = () => {
+    if (!onCreate) return;
+    setOpen(false);
+    setQ('');
+    onCreate(exact ? '' : typed);
+  };
   return (
     <div className="picker" ref={ref}>
       <input
@@ -366,6 +378,7 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
           } else if (e.key === 'Enter') {
             e.preventDefault();
             if (filtered[hl]) pick(filtered[hl]);
+            else if (onCreate && typed) create();
           } else if (e.key === 'Escape') setOpen(false);
         }}
       />
@@ -377,13 +390,20 @@ export function Picker({ value, options, onChange, placeholder, disabled, autoFo
               <span className="muted">— بدون —</span>
             </div>
           )}
-          {filtered.length === 0 && <div className="picker-opt muted">لا نتائج</div>}
+          {filtered.length === 0 && <div className="picker-opt muted">{onCreate && typed ? `مفيش «${typed}» في القائمة` : 'لا نتائج'}</div>}
           {filtered.map((o, i) => (
             <div key={o.id} className={`picker-opt ${i === hl ? 'hl' : ''}`} onMouseDown={(e) => { e.preventDefault(); pick(o); }} onMouseEnter={() => setHl(i)}>
               <span style={{ flex: 1 }}>{o.label}</span>
               {o.sub && <span className="muted small">{o.sub}</span>}
             </div>
           ))}
+          {onCreate && (
+            <div className="picker-opt picker-create" role="button" onMouseDown={(e) => { e.preventDefault(); create(); }}>
+              <Plus aria-hidden="true" />
+              <span style={{ flex: 1 }}>{typed && !exact ? `إضافة «${typed}»${createLabel ? ` ك${createLabel} جديد` : ''}` : `إضافة ${createLabel ?? ''} جديد`.replace(/\s+/g, ' ')}</span>
+              {typed && !exact && filtered.length === 0 && <kbd>Enter</kbd>}
+            </div>
+          )}
         </FloatingPop>
       )}
     </div>

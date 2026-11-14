@@ -32,14 +32,14 @@ async function postOpening(warehouseId: string, lines: { item_id: string; unit: 
  * إضافة صنف سريعة: الاسم والسعر فقط إلزاميان، والكمية الحالية تُسجل تلقائيًا كرصيد أول المدة.
  * «حفظ وأضف التالي» يبقي النافذة مفتوحة لإدخال أصناف كثيرة بسرعة.
  */
-export function QuickItemSheet({ onClose, onSaved, onAdvanced }: { onClose: () => void; onSaved?: (id: string) => void; onAdvanced?: () => void }) {
+export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' }: { onClose: () => void; onSaved?: (id: string) => void; onAdvanced?: () => void; initialName?: string }) {
   const ui = useUi();
   const can = usePerm();
   const settings = useSettings();
   const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
   const empty = { name: '', price: 0, cost: 0, qty: 0, barcode: '', cat: 'cat-general', unit: 'قطعة' };
-  const [f, setF] = useState(empty);
+  const [f, setF] = useState({ ...empty, name: initialName });
   const [wh, setWh] = useState('');
   const [added, setAdded] = useState<{ id: string; name: string; price: number }[]>([]);
   const [err, setErr] = useState<string | null>(null);

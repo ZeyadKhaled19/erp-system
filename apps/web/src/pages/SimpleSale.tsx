@@ -210,6 +210,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
   const [err, setErr] = useState<string | null>(null);
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
+  const [newPartyName, setNewPartyName] = useState('');
   const [inquiry, setInquiry] = useState<string | null>(null);
   const [sel, setSel] = useState(0);
   const [now, setNow] = useState(() => new Date());
@@ -702,7 +703,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
           <div className="si-meta-field si-meta-party">
             <span>{P ? 'المورد' : 'العميل'}</span>
             {P ? (
-              <Picker value={partyId || null} options={customers.map((c) => ({ id: c.id, label: c.name, sub: c.phone ?? c.code, search: `${c.name} ${c.code} ${c.phone ?? ''}` }))} onChange={(id) => setPartyId(id ?? '')} placeholder="ابحث عن المورد بالاسم أو الكود" />
+              <Picker value={partyId || null} options={customers.map((c) => ({ id: c.id, label: c.name, sub: c.phone ?? c.code, search: `${c.name} ${c.code} ${c.phone ?? ''}` }))} onChange={(id) => setPartyId(id ?? '')} placeholder="ابحث عن المورد بالاسم أو الكود" createLabel="مورد" onCreate={can('parties.create') ? (t) => { setNewPartyName(t); setNewParty(true); } : undefined} />
             ) : (
               <CustomerFields partyId={partyId} onChange={setPartyId} layout="row" autoGroupName={credit > 0 ? 'آجل' : (boxes.find((b) => b.id === box)?.kind === 'bank' || restBox?.kind === 'bank') ? 'بنك' : 'نقدي'} />
             )}
@@ -1033,7 +1034,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       {inquiry && <InquirySheet purchase={P} itemId={inquiry} partyId={partyId} showCost={showCost} cost={costs.get(inquiry)} onClose={() => setInquiry(null)} />}
       {active && hover.node}
       {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void pick(id), 80)} />}
-      {newParty && <QuickPartySheet kind={P ? 'supplier' : 'customer'} onClose={() => setNewParty(false)} onSaved={(id) => setPartyId(id)} />}
+      {newParty && <QuickPartySheet kind={P ? 'supplier' : 'customer'} initialName={newPartyName} onClose={() => { setNewParty(false); setNewPartyName(''); }} onSaved={(id) => setPartyId(id)} />}
     </div>
   );
 }

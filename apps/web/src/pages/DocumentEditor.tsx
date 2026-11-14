@@ -12,6 +12,7 @@ import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
+import { QuickAccountSheet } from '../components/QuickAccount';
 import { CustomerFields } from '../components/CustomerFields';
 import { CategoryFilter } from '../components/Categories';
 
@@ -125,6 +126,9 @@ export function DocumentEditor() {
   const [avail, setAvail] = useState<Record<string, number>>({});
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
+  const [newPartyName, setNewPartyName] = useState('');
+  const [newItemName, setNewItemName] = useState('');
+  const [newAccount, setNewAccount] = useState<{ name: string } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [scan, setScan] = useState('');
   const scanRef = useRef<HTMLInputElement>(null);
@@ -566,6 +570,8 @@ export function DocumentEditor() {
                     options={partyOptions}
                     onChange={onPartyChange}
                     placeholder="ابحث بالاسم أو الكود"
+                    createLabel={info.partyKind === 'supplier' ? 'مورد' : 'طرف'}
+                    onCreate={can('parties.create') && info.partyKind ? (t) => { setNewPartyName(t); setNewParty(true); } : undefined}
                   />
                 </div>
                 {info.partyKind !== 'any' && can('parties.create') && (
@@ -587,7 +593,13 @@ export function DocumentEditor() {
           )}
           {(type === 'expense' || type === 'income') && (
             <Field label={type === 'expense' ? 'بند المصروف' : 'بند الإيراد'}>
-              <Picker value={h.account_id} options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))} onChange={(v) => set('account_id', v)} />
+              <Picker
+                value={h.account_id}
+                options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
+                onChange={(v) => set('account_id', v)}
+                createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
+                onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
+              />
             </Field>
           )}
           {type === 'expense' && reps.length > 0 && accounts.find((a) => a.id === h.account_id)?.system_key === 'commissions' && (
@@ -757,6 +769,8 @@ export function DocumentEditor() {
                           value={l.item_id || null}
                           options={itemOptions}
                           autoFocus={!l.item_id}
+                          createLabel="صنف"
+                          onCreate={can('items.create') ? (t) => { setNewItemName(t); setNewItem(true); } : undefined}
                           placeholder="اختر صنفًا"
                           onChange={async (v) => {
                             if (!v) return;
@@ -1076,11 +1090,13 @@ export function DocumentEditor() {
         </button>
       </div>
 
-      {newItem && <QuickItemSheet onClose={() => setNewItem(false)} onSaved={(id) => setTimeout(() => void addItem(id), 80)} />}
+      {newItem && <QuickItemSheet initialName={newItemName} onClose={() => { setNewItem(false); setNewItemName(''); }} onSaved={(id) => setTimeout(() => void addItem(id), 80)} />}
+      {newAccount && <QuickAccountSheet type={type === 'income' ? 'revenue' : 'expense'} initialName={newAccount.name} onClose={() => setNewAccount(null)} onSaved={(id) => set('account_id', id)} />}
       {newParty && (
         <QuickPartySheet
           kind={info.partyKind === 'supplier' ? 'supplier' : 'customer'}
-          onClose={() => setNewParty(false)}
+          initialName={newPartyName}
+          onClose={() => { setNewParty(false); setNewPartyName(''); }}
           onSaved={(id) => {
             const p = parties.find((x) => x.id === id);
             setH((o: any) => ({ ...o, party_id: id, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));

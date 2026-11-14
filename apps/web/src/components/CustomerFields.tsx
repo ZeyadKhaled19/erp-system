@@ -78,6 +78,7 @@ export function CustomerFields({ partyId, onChange, layout = 'stack', autoGroupN
   const [groupId, setGroupId] = useState<string>('');
   const [groupSheet, setGroupSheet] = useState<any | undefined>(undefined);
   const [newParty, setNewParty] = useState(false);
+  const [newPartyName, setNewPartyName] = useState('');
   const [editParty, setEditParty] = useState(false);
 
   // الأنواع المثبتة لكل مستخدم (تظهر كأزرار سريعة)
@@ -174,6 +175,8 @@ export function CustomerFields({ partyId, onChange, layout = 'stack', autoGroupN
               options={shown.map((p) => ({ id: p.id, label: p.name, sub: p.phone ?? p.code, search: `${p.name} ${p.code} ${p.phone ?? ''}` }))}
               onChange={(v) => onChange(v ?? CASH_CUSTOMER)}
               placeholder={group ? `ابحث في عملاء «${group.name}»` : 'عميل نقدي'}
+              createLabel="عميل"
+              onCreate={can('parties.create') ? (t) => { setNewPartyName(t); setNewParty(true); } : undefined}
             />
           </div>
           {can('parties.edit') && party && party.id !== CASH_CUSTOMER && <button type="button" className="icon-btn" title="تعديل بيانات العميل" onClick={() => setEditParty(true)}><Pencil /></button>}
@@ -182,7 +185,7 @@ export function CustomerFields({ partyId, onChange, layout = 'stack', autoGroupN
       </div>
 
       {groupSheet !== undefined && <PartyGroupSheet group={groupSheet} onClose={() => setGroupSheet(undefined)} onSaved={(id) => { setGroupId(id); if (!groupSheet && !pinned.includes(id)) savePins([...pinned, id]); }} />}
-      {newParty && <QuickPartySheet groupId={groupId || null} onClose={() => setNewParty(false)} onSaved={(id) => onChange(id)} />}
+      {newParty && <QuickPartySheet groupId={groupId || null} initialName={newPartyName} onClose={() => { setNewParty(false); setNewPartyName(''); }} onSaved={(id) => onChange(id)} />}
       {editParty && party && <PartyEditor kind="customer" party={party} onClose={() => setEditParty(false)} onSaved={(id) => onChange(id)} />}
     </div>
   );

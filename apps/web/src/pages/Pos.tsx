@@ -167,6 +167,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const [pickParty, setPickParty] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
   const [pay, setPay] = useState(false);
   // على الموبايل: السلة شريط صغير أسفل الشاشة يُفتح بلمسة فوق الأصناف
   const [cartOpen, setCartOpen] = useState(false);
@@ -449,6 +450,8 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
                 setPickParty(false);
               }}
               placeholder="ابحث بالاسم أو الهاتف"
+              createLabel="عميل"
+              onCreate={can('parties.create') ? (t) => { setNewCustomerName(t); setPickParty(false); setNewCustomer(true); } : undefined}
             />
             <button className="btn" onClick={() => { setPartyId('party-cash-customer'); setPickParty(false); }}>عميل نقدي</button>
             <button className="btn" onClick={() => { setPickParty(false); setNewCustomer(true); }}><UserRound /> إضافة عميل جديد</button>
@@ -511,7 +514,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
       )}
       {active && hover.node}
       {recentOpen && <RecentSales onClose={() => setRecentOpen(false)} />}
-      {newCustomer && <QuickPartySheet onClose={() => setNewCustomer(false)} onSaved={(id) => setPartyId(id)} />}
+      {newCustomer && <QuickPartySheet initialName={newCustomerName} onClose={() => { setNewCustomer(false); setNewCustomerName(''); }} onSaved={(id) => setPartyId(id)} />}
       {done && (
         <Sheet title="تم البيع" onClose={newSale}>
           <div className="stack" style={{ textAlign: 'center' }}>
