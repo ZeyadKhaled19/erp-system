@@ -10,6 +10,7 @@ import { api } from '../lib/api';
 import { db } from '../lib/db';
 import { usePerm, useSettings } from '../lib/hooks';
 import { clearLocalData, syncNow } from '../lib/sync';
+import { DEFAULT_SYSTEM_NAME } from '../lib/brand';
 
 export function SettingsPage() {
   const can = usePerm();
@@ -34,6 +35,7 @@ export function SettingsPage() {
       await api('/api/admin/settings', {
         body: {
           company_name: f.company_name,
+          system_name: (f.system_name ?? '').trim(),
           company_address: f.company_address ?? '',
           company_phone: f.company_phone ?? '',
           company_tax_no: f.company_tax_no ?? '',
@@ -127,7 +129,13 @@ export function SettingsPage() {
             <>
               <div className="stg-title">بيانات الشركة <span>(تظهر في الطباعة وأعلى الشاشة)</span></div>
           <div className="card pad stack">
-            <Field label="اسم الشركة / المحل"><input className="input" value={f.company_name ?? ''} onChange={(e) => setF({ ...f, company_name: e.target.value })} /></Field>
+            <LogoPicker f={f} setF={setF} />
+            <div className="grid grid-2">
+              <Field label="اسم الشركة / المحل"><input className="input" value={f.company_name ?? ''} onChange={(e) => setF({ ...f, company_name: e.target.value })} /></Field>
+              <Field label="اسم النظام" hint={`يظهر جنب اللوجو وفي صفحة الدخول. لو سبته فاضي: «${DEFAULT_SYSTEM_NAME}»`}>
+                <input className="input" maxLength={60} value={f.system_name ?? ''} placeholder={DEFAULT_SYSTEM_NAME} onChange={(e) => setF({ ...f, system_name: e.target.value })} />
+              </Field>
+            </div>
             <Field label="العنوان"><input className="input" value={f.company_address ?? ''} onChange={(e) => setF({ ...f, company_address: e.target.value })} /></Field>
             <div className="grid grid-2">
               <Field label="الهاتف"><input className="input num" value={f.company_phone ?? ''} onChange={(e) => setF({ ...f, company_phone: e.target.value })} /></Field>
@@ -273,8 +281,8 @@ export function SettingsPage() {
   );
 }
 
-/** إعدادات الطباعة: الشعار والقوالب الافتراضية وشروط عقد التقسيط */
-function PrintSettings({ f, setF }: { f: any; setF: (v: any) => void }) {
+/** لوجو الشركة: بيظهر في الشريط اللي فوق وصفحة الدخول وأيقونة المتصفح والطباعة */
+function LogoPicker({ f, setF }: { f: any; setF: (v: any) => void }) {
   const onLogo = (file: File | undefined) => {
     if (!file) return;
     const img = new Image();
@@ -292,21 +300,28 @@ function PrintSettings({ f, setF }: { f: any; setF: (v: any) => void }) {
     img.src = url;
   };
   return (
+    <div className="row">
+      <div style={{ flex: 1 }}>
+        <div className="bold">لوجو الشركة</div>
+        <div className="footnote">يظهر في الشريط اللي فوق وصفحة الدخول وأيقونة المتصفح، وأعلى الفواتير والسندات والإيصالات</div>
+      </div>
+      {f.print_logo && <img src={f.print_logo} alt="" style={{ maxHeight: 50, maxWidth: 120, objectFit: 'contain' }} />}
+      <label className="btn sm">
+        اختيار صورة
+        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onLogo(e.target.files?.[0])} />
+      </label>
+      {f.print_logo && <button className="btn sm danger" onClick={() => setF({ ...f, print_logo: null })}>إزالة</button>}
+    </div>
+  );
+}
+
+/** إعدادات الطباعة: اللوجو والقوالب الافتراضية وشروط عقد التقسيط */
+function PrintSettings({ f, setF }: { f: any; setF: (v: any) => void }) {
+  return (
     <>
       <div className="stg-title">الطباعة</div>
       <div className="card pad stack">
-        <div className="row">
-          <div style={{ flex: 1 }}>
-            <div className="bold">شعار الشركة</div>
-            <div className="footnote">يظهر أعلى الفواتير والسندات والإيصالات الحرارية</div>
-          </div>
-          {f.print_logo && <img src={f.print_logo} alt="" style={{ maxHeight: 50, maxWidth: 120, objectFit: 'contain' }} />}
-          <label className="btn sm">
-            اختيار صورة
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onLogo(e.target.files?.[0])} />
-          </label>
-          {f.print_logo && <button className="btn sm danger" onClick={() => setF({ ...f, print_logo: null })}>إزالة</button>}
-        </div>
+        <LogoPicker f={f} setF={setF} />
         <div className="grid grid-2">
           <Field label="القالب الافتراضي للفواتير">
             <select className="select" value={f.print_template_invoice || 'a4'} onChange={(e) => setF({ ...f, print_template_invoice: e.target.value })}>

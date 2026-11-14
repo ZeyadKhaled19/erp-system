@@ -14,6 +14,7 @@ import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 import { searchItems } from '../lib/search';
+import { setDocTitle } from '../lib/brand';
 
 interface Line {
   id: string;
@@ -99,7 +100,7 @@ export function SimpleSalePage({ kind = 'sale' }: { kind?: 'sale' | 'purchase' }
   const newTab = () => nav(`${loc.pathname}?${tabParam}=${encodeURIComponent(uuid())}`);
 
   useEffect(() => {
-    document.title = `${title}${tabId === defaultId ? '' : ` · ${tabId.slice(-4)}`} — الحسابات`;
+    setDocTitle(`${title}${tabId === defaultId ? '' : ` · ${tabId.slice(-4)}`}`);
     const slot = document.getElementById('nav-title-slot');
     if (slot) slot.textContent = title;
   }, [title, tabId]);

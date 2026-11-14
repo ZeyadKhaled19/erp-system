@@ -1814,3 +1814,7 @@ kbd { font-weight: 500; }
 .si-credit.over .si-credit-bar i { background: var(--red); }
 .si-credit-note { font-size: max(11px, 0.75rem); color: var(--label-2); }
 .si-credit.over .si-credit-note { color: var(--red-text); font-weight: 700; }
+
+/* لوجو الشركة وصفحة الدخول (هوية العميل من الإعدادات) */
+.login-logo { display: block; margin: 0 auto; max-width: 9rem; max-height: 4.5rem; object-fit: contain; }
+.login-company { font-size: 0.9375rem; font-weight: 700; color: var(--label-2); margin-bottom: 2px; }

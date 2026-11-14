@@ -10,6 +10,7 @@ import { DeliverSheet } from './Deliveries';
 import { cancelDocument, postDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useRemote, useSession, useSettings } from '../lib/hooks';
+import { setDocTitle } from '../lib/brand';
 
 export function DocumentView({ id: propId, embedded }: { id?: string; embedded?: boolean } = {}) {
   const { id: paramId = '' } = useParams();
@@ -55,7 +56,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
     const label = DOC_TYPES[doc.doc_type as keyof typeof DOC_TYPES]?.label ?? 'مستند';
     const slot = document.getElementById('nav-title-slot');
     if (slot) slot.textContent = `${label} ${doc.number ?? doc.local_number ?? ''}`;
-    document.title = `${label} — الحسابات`;
+    setDocTitle(`${label}`);
   }, [embedded, doc?.id, doc?.number]);
   const remote = useRemote<any>(doc && !doc._sync ? `/api/documents/${id}` : null, [doc?.row_version]);
 

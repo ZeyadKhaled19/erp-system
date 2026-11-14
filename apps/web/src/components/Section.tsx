@@ -6,6 +6,7 @@ import { useSession } from '../lib/hooks';
 import { QUICK_ACTIONS, recordUse } from '../lib/quickActions';
 import { CARD_HINTS, STAT_HINTS } from '../lib/hints';
 import { Hint } from './Hint';
+import { setDocTitle } from '../lib/brand';
 import '../sections.css';
 
 /**
@@ -18,7 +19,7 @@ export type SectionColor = 'blue' | 'green' | 'orange' | 'purple' | 'pink' | 're
 /** عنوان القسم: أيقونة + اسم + وصف، وعلى الشمال التاريخ والوقت أو أدوات القسم */
 export function SectionHeader({ icon, color = 'blue', title, sub, tools, clock = true }: { icon: ReactNode; color?: SectionColor; title: string; sub?: string; tools?: ReactNode; clock?: boolean }) {
   useEffect(() => {
-    document.title = `${title} — الحسابات`;
+    setDocTitle(`${title}`);
     const slot = document.getElementById('nav-title-slot');
     if (slot) slot.textContent = title;
   }, [title]);

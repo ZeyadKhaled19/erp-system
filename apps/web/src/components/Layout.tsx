@@ -15,6 +15,7 @@ import { activeHubKey, HUBS, hubPath } from './nav';
 import { ScreenTabs } from './ScreenTabs';
 import { MainNav, TopIcons } from './TopNav';
 import { searchItems } from '../lib/search';
+import { setDocTitle, systemName, useSyncBrand } from '../lib/brand';
 
 export function SyncPill() {
   const s = useSyncState();
@@ -136,6 +137,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { session, logout } = useSession();
   const can = usePerm();
   const settings = useSettings();
+  useSyncBrand(settings);
   const counts = useSyncCounts();
   const loc = useLocation();
   const nav = useNavigate();
@@ -291,7 +293,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 </>
               )}
               <span className="mc-brand-sep hide-mobile" aria-hidden="true" />
-              <span className="mc-system hide-mobile">نظام إدارة الأعمال ERP</span>
+              <span className="mc-system hide-mobile">{systemName({ system_name: settings.system_name ?? '' })}</span>
             </a>
             <div className="nav-title" id="nav-title-slot" />
             <div className="spacer" />
@@ -355,7 +357,7 @@ export function PageHeader({ title, sub, actions }: { title: ReactNode; sub?: Re
   useEffect(() => {
     const slot = document.getElementById('nav-title-slot');
     if (slot && typeof title === 'string') slot.textContent = title;
-    if (typeof title === 'string') document.title = `${title} — الحسابات`;
+    if (typeof title === 'string') setDocTitle(`${title}`);
   }, [title]);
   return (
     <div className="page-head">

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Banner } from '../components/ui';
 import { api, ApiError } from '../lib/api';
+import { readBrand, saveBrand, systemName, type Brand } from '../lib/brand';
 import { setLocalIdentity } from '../lib/db';
 import { getDeviceId, getDeviceName, type Session } from '../lib/session';
 
@@ -9,6 +10,22 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // اسم ولوجو الشركة: من آخر نسخة على الجهاز فورًا، وبعدين من الخادم
+  const [brand, setBrand] = useState<Brand>(() => readBrand());
+  useEffect(() => {
+    document.title = `تسجيل الدخول — ${readBrand().company_name || 'الحسابات'}`;
+    let alive = true;
+    api<Brand>('/api/brand')
+      .then((b) => {
+        if (!alive) return;
+        const next = { company_name: b.company_name ?? '', system_name: b.system_name ?? '', logo: b.logo ?? null };
+        saveBrand(next);
+        setBrand(next);
+        document.title = `تسجيل الدخول — ${next.company_name || 'الحسابات'}`;
+      })
+      .catch(() => { /* من غير نت: تفضل آخر نسخة محفوظة */ });
+    return () => { alive = false; };
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,10 +49,11 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   return (
     <div className="login-wrap">
       <form className="login-card stack" onSubmit={submit}>
-        <img className="app-icon" src="/icon.svg" alt="" />
+        {brand.logo ? <img className="login-logo" src={brand.logo} alt={brand.company_name} /> : <img className="app-icon" src="/icon.svg" alt="" />}
         <div className="login-title">
+          {brand.company_name && <div className="login-company">{brand.company_name}</div>}
           <h1>تسجيل الدخول</h1>
-          <div className="muted">نظام الحسابات والمخازن</div>
+          <div className="muted">{systemName(brand)}</div>
         </div>
         {error && <Banner kind="err">{error}</Banner>}
         <div className="field">

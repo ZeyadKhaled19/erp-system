@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 're
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { HUBS, SECTIONS, activeHubKey } from './nav';
 import { NewMenu } from './NewMenu';
+import { stripTitleSuffix, TITLE_SEP } from '../lib/brand';
 
 /** أيقونة التبويب: أيقونة القسم الذي تنتمي له الشاشة */
 function tabIcon(url: string) {
@@ -35,7 +36,6 @@ interface Tab {
 
 const MAX_TABS = 12;
 const HOME: Tab = { key: '/', url: '/', title: 'الرئيسية' };
-const SUFFIX = / — الحسابات$/;
 
 function load(storeKey: string): { tabs: Tab[]; active: string } {
   try {
@@ -121,9 +121,11 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
     const startTitle = document.title;
     let changed = false;
     const apply = () => {
+      // العنوان قبل ما الشاشة تضبطه (اسم الشركة لوحده) ما بيبقاش اسم تبويب
+      if (!document.title.includes(TITLE_SEP)) return;
       changed = true;
-      const t = document.title.replace(SUFFIX, '').trim();
-      if (t && t !== 'نظام الحسابات والمخازن') setTitle(t);
+      const t = stripTitleSuffix(document.title);
+      if (t) setTitle(t);
     };
     const mo = new MutationObserver(apply);
     mo.observe(titleEl, { childList: true, characterData: true, subtree: true });
@@ -133,7 +135,7 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
       setState((s) => {
         const tab = s.tabs.find((x) => x.key === key);
         if (!tab || tab.title !== '…') return s;
-        const t = LINK_LABEL.get(url) ?? LINK_LABEL.get(key) ?? (startTitle.replace(SUFFIX, '').trim() || 'شاشة');
+        const t = LINK_LABEL.get(url) ?? LINK_LABEL.get(key) ?? ((startTitle.includes(TITLE_SEP) && stripTitleSuffix(startTitle)) || 'شاشة');
         return { ...s, tabs: s.tabs.map((x) => (x.key === key ? { ...x, title: t } : x)) };
       });
     }, 400);

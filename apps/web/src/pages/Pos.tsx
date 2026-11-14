@@ -13,6 +13,7 @@ import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
+import { setDocTitle } from '../lib/brand';
 
 interface CartLine {
   item_id: string;
@@ -56,7 +57,7 @@ export function PosPage() {
   useEffect(() => posStore('erp.pos.tabs', tabs), [tabs]);
   const cur = tabs.includes(active) ? active : tabs[0];
   useEffect(() => {
-    document.title = 'بيع سريع — الحسابات';
+    setDocTitle('بيع سريع');
     const slot = document.getElementById('nav-title-slot');
     if (slot) slot.textContent = 'بيع سريع';
   }, []);

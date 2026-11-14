@@ -10,6 +10,7 @@ import { usePerm } from '../lib/hooks';
 import { InventorySection, PurchasesSection, ReportsSection, SettingsSection, TreasurySection } from './HubSections';
 import { SalesSection } from './SalesSection';
 import { SectionHeader } from '../components/Section';
+import { setDocTitle } from '../lib/brand';
 
 /** صفحة قسم: الإجراءات الأهم كبطاقات كبيرة، ثم باقي الشاشات بشكل مرتب */
 export function HubPage() {
@@ -18,7 +19,7 @@ export function HubPage() {
   const can = usePerm();
   const hub = HUBS.find((h) => h.key === key);
   useEffect(() => {
-    if (hub) document.title = `${hub.label} — الحسابات`;
+    if (hub) setDocTitle(`${hub.label}`);
     const slot = document.getElementById('nav-title-slot');
     if (slot && hub) slot.textContent = hub.label;
   }, [hub]);

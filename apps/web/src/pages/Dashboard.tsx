@@ -13,12 +13,13 @@ import { db } from '../lib/db';
 import { useWorkCounts } from '../lib/alerts';
 import { QUICK_ACTIONS, recordUse } from '../lib/quickActions';
 import { usePerm, useSession, useSettings } from '../lib/hooks';
+import { setDocTitle } from '../lib/brand';
 
 export function Dashboard() {
   useEffect(() => {
     const slot = document.getElementById('nav-title-slot');
     if (slot) slot.textContent = 'الرئيسية';
-    document.title = 'الرئيسية — الحسابات';
+    setDocTitle('الرئيسية');
   }, []);
   const nav = useNavigate();
   const can = usePerm();

@@ -97,6 +97,13 @@ export async function buildApp(opts: AppOptions) {
     }
     return f.n >= LOGIN_MAX ? left : 0;
   };
+  // هوية الشركة لصفحة الدخول (قبل تسجيل الدخول): الاسم واسم النظام واللوجو بس
+  app.get('/api/brand', async () => {
+    const rows = await db.query<{ key: string; value: any }>(`select key, value from settings where key in ('company_name', 'system_name', 'print_logo')`);
+    const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return { company_name: typeof v.company_name === 'string' ? v.company_name : '', system_name: typeof v.system_name === 'string' ? v.system_name : '', logo: typeof v.print_logo === 'string' ? v.print_logo : null };
+  });
+
   app.post('/api/auth/login', async (req) => {
     const body = z
       .object({ username: z.string().min(1), password: z.string().min(1), device_id: z.string().min(8).max(64), device_name: z.string().max(100).optional() })
@@ -404,7 +411,7 @@ export async function buildApp(opts: AppOptions) {
 
   app.post('/api/admin/settings', { preHandler: perm('settings.manage') }, async (req) => {
     const b = z.record(z.any()).parse(req.body);
-    const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until',
+    const allowed = ['company_name', 'system_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until',
       'print_logo', 'print_template_invoice', 'print_template_voucher', 'print_show_balance', 'print_contract_terms',
       'work_start_time', 'work_end_time', 'late_grace_minutes', 'weekly_off_days', 'monthly_leave_days'];
     return db.tx(async (t) => {
@@ -414,6 +421,7 @@ export async function buildApp(opts: AppOptions) {
         if (k === 'print_logo' && v !== null && (typeof v !== 'string' || !v.startsWith('data:image/') || v.length > 300_000)) {
           throw new AppError('الشعار يجب أن يكون صورة أصغر من 200 كيلوبايت');
         }
+        if (k === 'system_name' && (typeof v !== 'string' || v.length > 60)) throw new AppError('اسم النظام لازم يكون نص أقصاه 60 حرف');
         if (k === 'work_start_time' && (typeof v !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v))) throw new AppError('ميعاد بداية الشغل غير صالح');
         if (k === 'work_end_time' && (typeof v !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v))) throw new AppError('ميعاد الانصراف غير صالح');
         if (k === 'monthly_leave_days' && (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 31)) throw new AppError('عدد أيام الأجازة الشهرية يجب أن يكون بين 0 و31');

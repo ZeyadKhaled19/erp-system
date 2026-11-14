@@ -2,16 +2,21 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// اسم التطبيق لما يتثبت على الجهاز: يتغير لكل عميل من متغيرات Vercel (APP_NAME و APP_SHORT_NAME) من غير تعديل في الكود
+const APP_NAME = process.env.APP_NAME || 'نظام الحسابات والمخازن';
+const APP_SHORT_NAME = process.env.APP_SHORT_NAME || process.env.APP_NAME || 'الحسابات';
+
 export default defineConfig({
   plugins: [
     react(),
+    { name: 'app-name-html', transformIndexHtml: (html: string) => html.replace(/<title>[^<]*<\/title>/, `<title>${APP_NAME.replace(/[<&>]/g, '')}</title>`) },
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'نظام الحسابات والمخازن',
-        short_name: 'الحسابات',
+        name: APP_NAME,
+        short_name: APP_SHORT_NAME,
         description: 'نظام ERP عربي للحسابات والمخازن والمبيعات يعمل دون اتصال',
         lang: 'ar',
         dir: 'rtl',
