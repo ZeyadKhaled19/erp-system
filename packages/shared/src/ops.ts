@@ -138,7 +138,10 @@ export const ATTENDANCE_STATUS = ['present', 'absent', 'late', 'leave'] as const
 export const attendanceSchema = z.object({
   employee_id: id,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'تاريخ غير صالح'),
-  status: z.enum(ATTENDANCE_STATUS),
+  status: z.enum(ATTENDANCE_STATUS).default('present'),
+  /** وقت الحضور والانصراف (ساعة:دقيقة) */
+  check_in: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'وقت الحضور غير صالح').nullish(),
+  check_out: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'وقت الانصراف غير صالح').nullish(),
   notes: z.string().max(300).nullish(),
 });
 

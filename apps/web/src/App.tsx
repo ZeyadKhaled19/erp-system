@@ -36,7 +36,7 @@ import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
 import { InvoicesPage } from './pages/Invoices';
 import { SimpleSalePage } from './pages/SimpleSale';
-import { AdvancesPage, AttendancePage, EmployeesPage, PayrollPage } from './pages/Employees';
+import { AdvancesPage, AttendancePage, AttendanceReportPage, EmployeesPage, PayrollPage } from './pages/Employees';
 import { DocGuard, HomeRoute, HubGuard, NewDocGuard, RequirePerm } from './components/Guard';
 import { clearLanded } from './lib/home';
 import { CommissionsPage, YearEndPage } from './pages/YearEnd';
@@ -202,6 +202,7 @@ export function App() {
           <Route path="/reports/expiry" element={<RequirePerm any={['inventory.view']}><ExpiryReport /></RequirePerm>} />
           <Route path="/employees" element={<RequirePerm any={['employees.view']}><EmployeesPage /></RequirePerm>} />
           <Route path="/employees/attendance" element={<RequirePerm any={['employees.view', 'employees.attendance']}><AttendancePage /></RequirePerm>} />
+          <Route path="/employees/attendance-report" element={<RequirePerm any={['employees.view']}><AttendanceReportPage /></RequirePerm>} />
           <Route path="/employees/advances" element={<RequirePerm any={['employees.view']}><AdvancesPage /></RequirePerm>} />
           <Route path="/employees/payroll" element={<RequirePerm any={['employees.view']}><PayrollPage /></RequirePerm>} />
           <Route path="/users" element={<RequirePerm any={['users.manage']}><UsersPage /></RequirePerm>} />

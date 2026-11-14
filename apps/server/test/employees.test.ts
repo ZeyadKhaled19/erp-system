@@ -33,6 +33,17 @@ describe('قسم الموظفين', () => {
     expect(rows[0].status).toBe('present');
   });
 
+  it('الحضور: وقت الحضور والانصراف يُحفظ، والانصراف لا يسبق الحضور', async () => {
+    const id = `${E2}:2026-11-04`;
+    const up = (data: any, base: number | null) => A.op({ type: 'master.upsert', entity: 'attendance', id, base_version: base, data: { employee_id: E2, date: '2026-11-04', ...data } });
+    expect((await up({ status: 'present', check_in: '09:05' }, null)).status).toBe('accepted');
+    expect((await up({ status: 'present', check_in: '09:05', check_out: '17:30' }, 1)).status).toBe('accepted');
+    const r = await env.db.one(`select check_in, check_out from attendance where id = $1`, [id]);
+    expect([r.check_in, r.check_out]).toEqual(['09:05', '17:30']);
+    expect((await up({ status: 'present', check_in: '18:00', check_out: '17:30' }, 2)).status).not.toBe('accepted');
+    expect((await up({ status: 'absent', check_in: '09:00' }, 2)).status).not.toBe('accepted');
+  });
+
   it('السلفة: تُصرف من الخزينة وتزيد رصيد سلف الموظف', async () => {
     const before = await env.db.one(`select balance from cashboxes where id = 'cb-main'`);
     const r = await A.op(doc({ doc_type: 'employee_advance', employee_id: E1, cashbox_id: 'cb-main', amount: 100000 }));

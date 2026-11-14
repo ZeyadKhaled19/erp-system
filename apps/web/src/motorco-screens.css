@@ -263,3 +263,8 @@
 @media (max-width: 760px) { .pay-bar > * { flex: 1 1 100% !important; } .table td.pay-in { min-width: 0; } }
 .table td .lp-name { white-space: nowrap; }
 @media (max-width: 760px) { .lp-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lp-total { padding: 12px 14px; } .lp-total-v { font-size: 19px; } }
+/* أوقات الحضور والانصراف */
+.att-time { width: 130px; height: 36px; font-weight: 700; }
+.att-stamp { white-space: nowrap; }
+.att-table td { vertical-align: middle; }
+@media (max-width: 760px) { .att-time { width: 100%; } .att-stamp { width: 100%; } }

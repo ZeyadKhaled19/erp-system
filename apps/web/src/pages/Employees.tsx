@@ -5,7 +5,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { ActiveBadge, Avatar, PageTabs, RowActions, TotalCards } from '../components/ListParts';
-import { Banner, DocStatusBadge, Empty, Field, MoneyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, Empty, exportExcel, Field, MoneyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { useDebounced, usePerm } from '../lib/hooks';
@@ -14,6 +14,7 @@ import { useDebounced, usePerm } from '../lib/hooks';
 export const EMPLOYEE_TABS = [
   { to: '/employees', label: 'الموظفين', perm: 'employees.view' },
   { to: '/employees/attendance', label: 'الحضور والانصراف', perm: 'employees.view' },
+  { to: '/employees/attendance-report', label: 'مراجعة الحضور', perm: 'employees.view' },
   { to: '/employees/advances', label: 'السلف', perm: 'employees.view' },
   { to: '/employees/payroll', label: 'الرواتب', perm: 'employees.view' },
 ];
@@ -152,6 +153,41 @@ const STATUS: { id: 'present' | 'absent' | 'late' | 'leave'; label: string; tone
   { id: 'leave', label: 'إجازة', tone: 'blue' },
 ];
 
+/** الوقت الحالي على الجهاز (ساعة:دقيقة) */
+const nowHM = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+/** عرض الوقت بنظام 12 ساعة (9:05 ص) */
+const fmtTime = (t?: string | null) => {
+  if (!t) return '—';
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+};
+const minutesOf = (r: any) => {
+  if (!r?.check_in || !r?.check_out) return 0;
+  const [a, b] = [r.check_in, r.check_out].map((t: string) => t.split(':').map(Number));
+  return Math.max(0, b[0] * 60 + b[1] - (a[0] * 60 + a[1]));
+};
+const fmtHours = (min: number) => (min ? `${Math.floor(min / 60)}س ${String(min % 60).padStart(2, '0')}د` : '—');
+
+/** خانة وقت: زرار «تسجيل» بيختم الوقت الحالي (لليوم)، وبعدها الوقت نفسه قابل للتعديل */
+function TimeCell({ value, onSet, stamp, label, disabled }: { value?: string | null; onSet: (t: string | null) => void; stamp: boolean; label: string; disabled?: boolean }) {
+  if (!value && stamp && !disabled) {
+    return <button type="button" className="btn sm primary att-stamp" onClick={() => onSet(nowHM())}>{label}</button>;
+  }
+  return (
+    <input
+      type="time"
+      className="input att-time num"
+      aria-label={label}
+      value={value ?? ''}
+      disabled={disabled}
+      onChange={(e) => onSet(e.target.value || null)}
+    />
+  );
+}
+
 export function AttendancePage() {
   const can = usePerm();
   const ui = useUi();
@@ -160,51 +196,70 @@ export function AttendancePage() {
   const records = useLiveQuery(() => db.attendance.where('date').equals(date).toArray(), [date]) ?? [];
   const byEmp = new Map(records.map((r) => [r.employee_id, r]));
   const editable = can('employees.attendance');
-  const mark = async (empId: string, status: string) => {
+  const isToday = date === todayISO();
+  const write = async (empId: string, patch: Record<string, any>) => {
     const existing = byEmp.get(empId);
-    if (existing?.status === status) return;
+    const next = { status: 'present', check_in: null, check_out: null, notes: null, ...(existing ?? {}), ...patch };
+    // الغائب أو في إجازة ملوش أوقات
+    if (next.status === 'absent' || next.status === 'leave') Object.assign(next, { check_in: null, check_out: null });
+    if (!next.check_in) next.check_out = null;
     try {
-      await saveMaster('attendance', existing?.id ?? `${empId}:${date}`, { employee_id: empId, date, status, notes: existing?.notes ?? null }, existing ?? null);
+      await saveMaster('attendance', existing?.id ?? `${empId}:${date}`, { employee_id: empId, date, status: next.status, check_in: next.check_in, check_out: next.check_out, notes: next.notes }, existing ?? null);
     } catch (e) {
       ui.toast((e as Error).message, 'err');
     }
   };
+  const mark = (empId: string, status: string) => byEmp.get(empId)?.status !== status && write(empId, { status });
+  const setIn = (empId: string, t: string | null) => {
+    const r = byEmp.get(empId);
+    if (t && r?.check_out && r.check_out < t) return ui.toast('وقت الحضور بعد وقت الانصراف', 'err');
+    return write(empId, { check_in: t, status: r?.status === 'late' ? 'late' : 'present' });
+  };
+  const setOut = (empId: string, t: string | null) => {
+    const r = byEmp.get(empId);
+    if (t && r?.check_in && t < r.check_in) return ui.toast('وقت الانصراف قبل وقت الحضور', 'err');
+    return write(empId, { check_out: t });
+  };
   const markAll = async () => {
-    for (const e of employees) if (!byEmp.has(e.id)) await mark(e.id, 'present');
+    for (const e of employees) if (!byEmp.has(e.id)) await write(e.id, { status: 'present' });
   };
   const count = (s: string) => records.filter((r) => r.status === s && employees.some((e) => e.id === r.employee_id)).length;
   const unmarked = employees.filter((e) => !byEmp.has(e.id)).length;
+  const inside = records.filter((r) => r.check_in && !r.check_out).length;
 
   return (
     <div className="page">
       <PageTabs tabs={EMPLOYEE_TABS} />
       <PageHeader
         title="الحضور والانصراف"
-        sub="سجّل حالة كل موظف في اليوم — الغياب يُخصم تلقائيًا في مسير الرواتب"
+        sub={isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'}
         actions={<>
           <input type="date" className="input" style={{ width: 170 }} value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
-          {editable && unmarked > 0 && <button className="btn primary" onClick={() => void markAll()}><CalendarCheck /> الباقين حاضرين ({unmarked})</button>}
+          {editable && unmarked > 0 && !isToday && <button className="btn" onClick={() => void markAll()}><CalendarCheck /> الباقين حاضرين ({unmarked})</button>}
         </>}
       />
       <TotalCards items={[
         { label: 'حاضر', value: count('present'), tone: 'green' },
         { label: 'متأخر', value: count('late'), tone: 'orange' },
         { label: 'غائب', value: count('absent'), tone: 'red' },
-        { label: 'إجازة', value: count('leave'), tone: 'blue' },
+        { label: isToday ? 'لسه في الشغل' : 'إجازة', value: isToday ? inside : count('leave'), tone: 'blue' },
       ]} />
       {employees.length === 0 ? (
         <div className="card"><Empty icon={<Users />} title="لا يوجد موظفون نشطون" /></div>
       ) : (
         <div className="table-wrap">
-          <table className="table responsive">
-            <thead><tr><th>الموظف</th><th>الوظيفة</th><th>الحالة</th><th /></tr></thead>
+          <table className="table responsive att-table">
+            <thead><tr><th>الموظف</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th><th>الحالة</th><th /></tr></thead>
             <tbody>
               {employees.map((e) => {
                 const r = byEmp.get(e.id);
+                const off = r?.status === 'absent' || r?.status === 'leave';
                 return (
                   <tr key={e.id}>
-                    <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={e.name} />{e.name}</span></td>
-                    <td data-label="الوظيفة" className="muted">{e.job_title || '—'}</td>
+                    <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={e.name} />{e.name}</span>{e.job_title && <div className="muted small">{e.job_title}</div>}</td>
+                    <td data-label="الحضور"><TimeCell value={r?.check_in} stamp={isToday} label="تسجيل حضور" disabled={!editable || off} onSet={(t) => void setIn(e.id, t)} /></td>
+                    <td data-label="الانصراف"><TimeCell value={r?.check_out} stamp={isToday} label="تسجيل انصراف" disabled={!editable || off || !r?.check_in} onSet={(t) => void setOut(e.id, t)} /></td>
+                    <td data-label="ساعات العمل" className="num bold">{r?.check_in && !r?.check_out ? <span className="badge blue">في الشغل</span> : fmtHours(minutesOf(r))}</td>
                     <td data-label="الحالة">
                       <div className="att-opts" role="radiogroup" aria-label={`حالة ${e.name}`}>
                         {STATUS.map((s) => (
@@ -221,6 +276,127 @@ export function AttendancePage() {
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+// =====================================================================================
+// مراجعة الحضور الشهرية
+// =====================================================================================
+const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const STATUS_LABEL: Record<string, { label: string; tone: string }> = Object.fromEntries(STATUS.map((s) => [s.id, { label: s.label, tone: s.tone }]));
+
+export function AttendanceReportPage() {
+  const employees = useEmployees();
+  const [ym, setYm] = useState(todayISO().slice(0, 7));
+  const [empId, setEmpId] = useState('');
+  const { from, to } = monthRange(ym);
+  const recs = useLiveQuery(() => db.attendance.where('date').between(from, to, true, true).toArray(), [from, to]) ?? [];
+  const today = todayISO();
+  const lastDay = to < today ? to : today;
+  const days: string[] = [];
+  for (let d = from; d <= lastDay; ) {
+    days.push(d);
+    const x = new Date(d + 'T00:00:00Z');
+    x.setUTCDate(x.getUTCDate() + 1);
+    d = x.toISOString().slice(0, 10);
+  }
+  const shown = employees.filter((e) => e.active !== false || recs.some((r) => r.employee_id === e.id));
+  const summary = shown.map((e) => {
+    const mine = recs.filter((r) => r.employee_id === e.id);
+    const ins = mine.filter((r) => r.check_in).map((r) => r.check_in.split(':').map(Number)).map(([h, m]: number[]) => h * 60 + m);
+    const avgIn = ins.length ? Math.round(ins.reduce((s: number, v: number) => s + v, 0) / ins.length) : null;
+    return {
+      e,
+      present: mine.filter((r) => r.status === 'present').length,
+      late: mine.filter((r) => r.status === 'late').length,
+      absent: mine.filter((r) => r.status === 'absent').length,
+      leave: mine.filter((r) => r.status === 'leave').length,
+      missing: days.length - mine.length,
+      minutes: mine.reduce((s, r) => s + minutesOf(r), 0),
+      avgIn: avgIn === null ? null : `${String(Math.floor(avgIn / 60)).padStart(2, '0')}:${String(avgIn % 60).padStart(2, '0')}`,
+    };
+  });
+  const emp = employees.find((e) => e.id === empId);
+  const byDay = new Map(recs.filter((r) => r.employee_id === empId).map((r) => [String(r.date).slice(0, 10), r]));
+  const one = summary.find((s) => s.e.id === empId);
+
+  const exportAll = () => exportExcel(`حضور ${monthLabel(from)}`, ['الموظف', 'الوظيفة', 'حاضر', 'متأخر', 'غائب', 'إجازة', 'أيام بدون تسجيل', 'إجمالي الساعات', 'متوسط وقت الحضور'],
+    summary.map((s) => [s.e.name, s.e.job_title ?? '', s.present, s.late, s.absent, s.leave, s.missing, fmtHours(s.minutes), s.avgIn ? fmtTime(s.avgIn) : '—']));
+  const exportOne = () => emp && exportExcel(`حضور ${emp.name} ${monthLabel(from)}`, ['التاريخ', 'اليوم', 'الحالة', 'الحضور', 'الانصراف', 'ساعات العمل'],
+    days.map((d) => { const r = byDay.get(d); return [d, DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()], r ? STATUS_LABEL[r.status]?.label : 'لم يُسجَّل', fmtTime(r?.check_in), fmtTime(r?.check_out), fmtHours(minutesOf(r))]; }));
+
+  return (
+    <div className="page">
+      <PageTabs tabs={EMPLOYEE_TABS} />
+      <PageHeader
+        title="مراجعة الحضور"
+        sub={`${monthLabel(from)} — ${days.length} يوم`}
+        actions={<>
+          <input type="month" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && setYm(e.target.value)} />
+          <select className="select" style={{ width: 220 }} value={empId} onChange={(e) => setEmpId(e.target.value)}>
+            <option value="">كل الموظفين (ملخص)</option>
+            {shown.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          <button className="btn" onClick={() => void (empId ? exportOne() : exportAll())}>تصدير Excel</button>
+        </>}
+      />
+      {!empId ? (
+        shown.length === 0 ? <div className="card"><Empty icon={<Users />} title="لا يوجد موظفون" /></div> : (
+          <div className="table-wrap">
+            <table className="table responsive">
+              <thead><tr><th>الموظف</th><th className="n">حاضر</th><th className="n">متأخر</th><th className="n">غائب</th><th className="n">إجازة</th><th className="n">بدون تسجيل</th><th className="n">إجمالي الساعات</th><th className="n">متوسط الحضور</th><th /></tr></thead>
+              <tbody>
+                {summary.map((s) => (
+                  <tr key={s.e.id} className="click" onClick={() => setEmpId(s.e.id)}>
+                    <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={s.e.name} />{s.e.name}</span></td>
+                    <td data-label="حاضر" className="n green">{s.present}</td>
+                    <td data-label="متأخر" className="n orange">{s.late}</td>
+                    <td data-label="غائب" className="n red">{s.absent}</td>
+                    <td data-label="إجازة" className="n">{s.leave}</td>
+                    <td data-label="بدون تسجيل" className="n muted">{s.missing}</td>
+                    <td data-label="إجمالي الساعات" className="n bold">{fmtHours(s.minutes)}</td>
+                    <td data-label="متوسط الحضور" className="n">{s.avgIn ? fmtTime(s.avgIn) : '—'}</td>
+                    <td data-label="" className="lp-act-cell"><RowActions openLabel="تفاصيل الأيام" onOpen={() => setEmpId(s.e.id)} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : (
+        <>
+          {one && (
+            <TotalCards items={[
+              { label: 'أيام حضور', value: one.present + one.late, tone: 'green' },
+              { label: 'منها تأخير', value: one.late, tone: 'orange' },
+              { label: 'غياب', value: one.absent, tone: 'red' },
+              { label: 'إجمالي ساعات العمل', value: fmtHours(one.minutes), tone: 'blue' },
+            ]} />
+          )}
+          <div className="table-wrap">
+            <table className="table responsive">
+              <thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th></tr></thead>
+              <tbody>
+                {days.map((d) => {
+                  const r = byDay.get(d);
+                  const st = r ? STATUS_LABEL[r.status] : null;
+                  return (
+                    <tr key={d}>
+                      <td data-label="التاريخ" className="num">{d}</td>
+                      <td data-label="اليوم">{DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]}</td>
+                      <td data-label="الحالة">{st ? <span className={`badge ${st.tone}`}>{st.label}</span> : <span className="badge gray">لم يُسجَّل</span>}</td>
+                      <td data-label="الحضور" className="num">{fmtTime(r?.check_in)}</td>
+                      <td data-label="الانصراف" className="num">{fmtTime(r?.check_out)}</td>
+                      <td data-label="ساعات العمل" className="num bold">{fmtHours(minutesOf(r))}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

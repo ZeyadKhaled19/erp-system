@@ -122,6 +122,11 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
   if (entity === 'attendance') {
     const emp = await t.one(`select id, active from employees where id = $1`, [fields.employee_id]);
     if (!emp) throw new AppError('الموظف غير موجود');
+    fields.check_in = fields.check_in || null;
+    fields.check_out = fields.check_out || null;
+    if (fields.check_out && !fields.check_in) throw new AppError('سجّل وقت الحضور قبل الانصراف');
+    if (fields.check_in && fields.check_out && fields.check_out < fields.check_in) throw new AppError('وقت الانصراف قبل وقت الحضور');
+    if ((fields.status === 'absent' || fields.status === 'leave') && fields.check_in) throw new AppError('الموظف الغائب أو في إجازة لا يكون له وقت حضور');
     // سجل واحد لكل موظف في اليوم (الأجهزة تستخدم معرفًا ثابتًا: الموظف + التاريخ)
     if (!existing) {
       const same = await t.one(`select id from attendance where employee_id = $1 and date = $2`, [fields.employee_id, fields.date]);

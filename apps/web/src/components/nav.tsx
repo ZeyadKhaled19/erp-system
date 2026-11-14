@@ -206,6 +206,7 @@ export const HUBS: Hub[] = [
         links: [
           { to: '/employees', label: 'الموظفين', icon: <IdCard />, grad: 'var(--grad-blue)', perm: 'employees.view' },
           { to: '/employees/attendance', label: 'الحضور والانصراف', icon: <Fingerprint />, grad: 'var(--grad-green)', perm: 'employees.view' },
+          { to: '/employees/attendance-report', label: 'مراجعة الحضور', icon: <CalendarClock />, grad: 'var(--grad-teal)', perm: 'employees.view' },
           { to: '/employees/advances', label: 'السلف', icon: <HandCoins />, grad: 'var(--grad-orange)', perm: 'employees.view' },
           { to: '/employees/payroll', label: 'الرواتب', icon: <Wallet />, grad: 'var(--grad-purple)', perm: 'employees.view' },
         ],
