@@ -22,7 +22,7 @@ export function SettingsPage() {
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
   useEffect(() => {
-    if (!f && s.company_name !== undefined) setF({ ...s, tax_pct: bpToPercent(s.default_tax_rate_bp ?? 0) });
+    if (!f && s.company_name !== undefined) setF({ work_start_time: '09:00', late_grace_minutes: 15, weekly_off_days: [5], ...s, tax_pct: bpToPercent(s.default_tax_rate_bp ?? 0) });
   }, [s, f]);
   useEffect(() => {
     navigator.storage?.estimate?.().then((e) => setStorage(`${((e.usage ?? 0) / 1024 / 1024).toFixed(1)} م.ب مستخدمة`)).catch(() => {});
@@ -42,6 +42,9 @@ export function SettingsPage() {
           allow_negative_stock: !!f.allow_negative_stock,
           enforce_credit_limit: !!f.enforce_credit_limit,
           default_due_days: Math.max(0, Number(f.default_due_days) || 0),
+          work_start_time: f.work_start_time || '09:00',
+          late_grace_minutes: Math.min(240, Math.max(0, Math.round(Number(f.late_grace_minutes) || 0))),
+          weekly_off_days: Array.isArray(f.weekly_off_days) ? f.weekly_off_days : [5],
           print_logo: f.print_logo || null,
           print_template_invoice: f.print_template_invoice || 'a4',
           print_template_voucher: f.print_template_voucher || 'voucher',
@@ -152,6 +155,31 @@ export function SettingsPage() {
             <div className="list-row">
               <div className="title">أيام الاستحقاق الافتراضية للفواتير الآجلة<div className="sub">0 = بدون تاريخ استحقاق تلقائي</div></div>
               <input className="input num" style={{ width: 90 }} type="number" min={0} value={f.default_due_days ?? 0} onChange={(e) => setF({ ...f, default_due_days: e.target.value })} />
+            </div>
+            <div className="list-row stg-sub-head"><div className="title">مواعيد الشغل (للحضور والانصراف)</div></div>
+            <div className="list-row">
+              <div className="title">ميعاد بداية الشغل<div className="sub">اللي يسجّل حضور بعد الميعاد + فترة السماح يتعلّم «متأخر» تلقائيًا</div></div>
+              <input type="time" className="input num" style={{ width: 140 }} value={f.work_start_time ?? '09:00'} onChange={(e) => setF({ ...f, work_start_time: e.target.value || '09:00' })} />
+            </div>
+            <div className="list-row">
+              <div className="title">فترة السماح بالدقائق<div className="sub">مثال: 15 = اللي يوصل لحد 9:15 يتحسب حاضر</div></div>
+              <input className="input num" style={{ width: 90 }} type="number" min={0} max={240} value={f.late_grace_minutes ?? 15} onChange={(e) => setF({ ...f, late_grace_minutes: e.target.value })} />
+            </div>
+            <div className="list-row">
+              <div className="title">أيام الأجازة الأسبوعية<div className="sub">ما بتتحسبش «بدون تسجيل» في مراجعة الحضور</div></div>
+              <div className="stg-days">
+                {['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'].map((d, i) => {
+                  const on = (f.weekly_off_days ?? [5]).includes(i);
+                  return (
+                    <button key={d} type="button" className={on ? 'on' : ''} aria-pressed={on}
+                      onClick={() => {
+                        const cur: number[] = f.weekly_off_days ?? [5];
+                        const next = on ? cur.filter((x) => x !== i) : cur.length >= 6 ? cur : [...cur, i].sort();
+                        setF({ ...f, weekly_off_days: next });
+                      }}>{d}</button>
+                  );
+                })}
+              </div>
             </div>
             {can('period.lock') && (
               <div className="list-row">

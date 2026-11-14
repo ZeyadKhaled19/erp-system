@@ -268,3 +268,10 @@
 .att-stamp { white-space: nowrap; }
 .att-table td { vertical-align: middle; }
 @media (max-width: 760px) { .att-time { width: 100%; } .att-stamp { width: 100%; } }
+/* أيام الأجازة الأسبوعية في الإعدادات */
+.stg-days { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 460px; }
+.stg-days button { height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.stg-days button.on { background: color-mix(in srgb, var(--tint) 12%, var(--mc-surface)); border-color: var(--tint); color: var(--tint); }
+.list-row.stg-sub-head { min-height: 40px; background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); }
+.list-row.stg-sub-head .title { font-weight: 800; color: var(--heading); }
+@media (max-width: 760px) { .stg-days { justify-content: flex-start; } }

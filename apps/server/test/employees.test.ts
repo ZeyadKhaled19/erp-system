@@ -44,6 +44,15 @@ describe('قسم الموظفين', () => {
     expect((await up({ status: 'absent', check_in: '09:00' }, 2)).status).not.toBe('accepted');
   });
 
+  it('مواعيد الشغل: تُحفظ في الإعدادات وتُرفض القيم غير الصالحة', async () => {
+    const post = (payload: any) => env.app.inject({ method: 'POST', url: '/api/admin/settings', headers: A.headers, payload });
+    expect((await post({ work_start_time: '08:30', late_grace_minutes: 10, weekly_off_days: [5, 6] })).statusCode).toBe(200);
+    const rows = await env.db.query(`select key, value from settings where key in ('work_start_time', 'late_grace_minutes', 'weekly_off_days') order by key`);
+    expect(Object.fromEntries(rows.map((r: any) => [r.key, r.value]))).toEqual({ late_grace_minutes: 10, weekly_off_days: [5, 6], work_start_time: '08:30' });
+    expect((await post({ work_start_time: '25:00' })).statusCode).not.toBe(200);
+    expect((await post({ weekly_off_days: [7] })).statusCode).not.toBe(200);
+  });
+
   it('السلفة: تُصرف من الخزينة وتزيد رصيد سلف الموظف', async () => {
     const before = await env.db.one(`select balance from cashboxes where id = 'cb-main'`);
     const r = await A.op(doc({ doc_type: 'employee_advance', employee_id: E1, cashbox_id: 'cb-main', amount: 100000 }));

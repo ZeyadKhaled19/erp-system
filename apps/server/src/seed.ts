@@ -73,6 +73,10 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   default_due_days: 0,
   /** لا يُسمح بترحيل أو إلغاء مستند بتاريخ حتى هذا اليوم (قفل الفترة) */
   locked_until: null,
+  /** مواعيد الشغل: بداية اليوم، دقائق السماح قبل اعتبار الموظف متأخرًا، وأيام الأجازة الأسبوعية (0 = الأحد … 5 = الجمعة) */
+  work_start_time: '09:00',
+  late_grace_minutes: 15,
+  weekly_off_days: [5],
 };
 
 export async function seed(db: Db, opts: { adminPassword?: string } = {}) {

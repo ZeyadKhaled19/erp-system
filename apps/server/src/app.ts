@@ -403,7 +403,8 @@ export async function buildApp(opts: AppOptions) {
   app.post('/api/admin/settings', { preHandler: perm('settings.manage') }, async (req) => {
     const b = z.record(z.any()).parse(req.body);
     const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until',
-      'print_logo', 'print_template_invoice', 'print_template_voucher', 'print_show_balance', 'print_contract_terms'];
+      'print_logo', 'print_template_invoice', 'print_template_voucher', 'print_show_balance', 'print_contract_terms',
+      'work_start_time', 'late_grace_minutes', 'weekly_off_days'];
     return db.tx(async (t) => {
       await t.query(`select pg_advisory_xact_lock(7331)`);
       for (const [k, v] of Object.entries(b)) {
@@ -411,6 +412,9 @@ export async function buildApp(opts: AppOptions) {
         if (k === 'print_logo' && v !== null && (typeof v !== 'string' || !v.startsWith('data:image/') || v.length > 300_000)) {
           throw new AppError('الشعار يجب أن يكون صورة أصغر من 200 كيلوبايت');
         }
+        if (k === 'work_start_time' && (typeof v !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v))) throw new AppError('ميعاد بداية الشغل غير صالح');
+        if (k === 'late_grace_minutes' && (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 240)) throw new AppError('فترة السماح يجب أن تكون بين 0 و240 دقيقة');
+        if (k === 'weekly_off_days' && (!Array.isArray(v) || v.length > 6 || v.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(v).size !== v.length)) throw new AppError('أيام الأجازة الأسبوعية غير صالحة');
         if (k === 'locked_until') {
           if (!hasPermission(req.user!.permissions, 'period.lock')) throw new AppError('قفل الفترات يحتاج صلاحية خاصة', 'forbidden');
           if (v !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(v))) throw new AppError('تاريخ القفل غير صالح');

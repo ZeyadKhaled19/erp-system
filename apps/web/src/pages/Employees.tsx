@@ -8,7 +8,7 @@ import { ActiveBadge, Avatar, PageTabs, RowActions, TotalCards } from '../compon
 import { Banner, DocStatusBadge, Empty, exportExcel, Field, MoneyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
-import { useDebounced, usePerm } from '../lib/hooks';
+import { useDebounced, usePerm, useSettings } from '../lib/hooks';
 
 /** تبويبات قسم الموظفين (نفس الشريط في الأربع صفحات) */
 export const EMPLOYEE_TABS = [
@@ -169,6 +169,22 @@ const minutesOf = (r: any) => {
   const [a, b] = [r.check_in, r.check_out].map((t: string) => t.split(':').map(Number));
   return Math.max(0, b[0] * 60 + b[1] - (a[0] * 60 + a[1]));
 };
+const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+/** مواعيد الشغل من الإعدادات (بقيم افتراضية لو لسه ما اتحددتش) */
+function useWorkRules() {
+  const s = useSettings();
+  const start: string = typeof s.work_start_time === 'string' ? s.work_start_time : '09:00';
+  const grace = Number.isFinite(Number(s.late_grace_minutes)) ? Number(s.late_grace_minutes) : 15;
+  const offDays: number[] = Array.isArray(s.weekly_off_days) ? s.weekly_off_days : [5];
+  return {
+    start, grace, offDays,
+    /** متأخر لو الحضور بعد الميعاد + فترة السماح */
+    isLate: (t: string) => toMin(t) > toMin(start) + grace,
+    /** دقائق التأخير عن ميعاد البداية (لمن تعدّى فترة السماح فقط) */
+    lateMinutes: (t?: string | null) => (t && toMin(t) > toMin(start) + grace ? toMin(t) - toMin(start) : 0),
+    isOff: (date: string) => offDays.includes(new Date(date + 'T00:00:00Z').getUTCDay()),
+  };
+}
 const fmtHours = (min: number) => (min ? `${Math.floor(min / 60)}س ${String(min % 60).padStart(2, '0')}د` : '—');
 
 /** خانة وقت: زرار «تسجيل» بيختم الوقت الحالي (لليوم)، وبعدها الوقت نفسه قابل للتعديل */
@@ -197,6 +213,8 @@ export function AttendancePage() {
   const byEmp = new Map(records.map((r) => [r.employee_id, r]));
   const editable = can('employees.attendance');
   const isToday = date === todayISO();
+  const rules = useWorkRules();
+  const offDay = rules.isOff(date);
   const write = async (empId: string, patch: Record<string, any>) => {
     const existing = byEmp.get(empId);
     const next = { status: 'present', check_in: null, check_out: null, notes: null, ...(existing ?? {}), ...patch };
@@ -213,7 +231,8 @@ export function AttendancePage() {
   const setIn = (empId: string, t: string | null) => {
     const r = byEmp.get(empId);
     if (t && r?.check_out && r.check_out < t) return ui.toast('وقت الحضور بعد وقت الانصراف', 'err');
-    return write(empId, { check_in: t, status: r?.status === 'late' ? 'late' : 'present' });
+    // الحالة تتحدد من ميعاد بداية الشغل + فترة السماح (وتقدر تغيّرها بعدها)
+    return write(empId, { check_in: t, status: t && rules.isLate(t) ? 'late' : 'present' });
   };
   const setOut = (empId: string, t: string | null) => {
     const r = byEmp.get(empId);
@@ -232,12 +251,13 @@ export function AttendancePage() {
       <PageTabs tabs={EMPLOYEE_TABS} />
       <PageHeader
         title="الحضور والانصراف"
-        sub={isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'}
+        sub={`${isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'} · بداية الشغل ${fmtTime(rules.start)} وسماح ${rules.grace} دقيقة`}
         actions={<>
           <input type="date" className="input" style={{ width: 170 }} value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
           {editable && unmarked > 0 && !isToday && <button className="btn" onClick={() => void markAll()}><CalendarCheck /> الباقين حاضرين ({unmarked})</button>}
         </>}
       />
+      {offDay && <div style={{ marginBottom: 12 }}><Banner kind="info">اليوم ده أجازة أسبوعية حسب الإعدادات — تقدر تسجّل لو فيه حد شغال.</Banner></div>}
       <TotalCards items={[
         { label: 'حاضر', value: count('present'), tone: 'green' },
         { label: 'متأخر', value: count('late'), tone: 'orange' },
@@ -293,6 +313,7 @@ export function AttendanceReportPage() {
   const [empId, setEmpId] = useState('');
   const { from, to } = monthRange(ym);
   const recs = useLiveQuery(() => db.attendance.where('date').between(from, to, true, true).toArray(), [from, to]) ?? [];
+  const rules = useWorkRules();
   const today = todayISO();
   const lastDay = to < today ? to : today;
   const days: string[] = [];
@@ -313,8 +334,10 @@ export function AttendanceReportPage() {
       late: mine.filter((r) => r.status === 'late').length,
       absent: mine.filter((r) => r.status === 'absent').length,
       leave: mine.filter((r) => r.status === 'leave').length,
-      missing: days.length - mine.length,
+      // الأيام بدون تسجيل (من غير أيام الأجازة الأسبوعية)
+      missing: days.filter((d) => !rules.isOff(d) && !mine.some((r) => String(r.date).slice(0, 10) === d)).length,
       minutes: mine.reduce((s, r) => s + minutesOf(r), 0),
+      lateMin: mine.reduce((s, r) => s + rules.lateMinutes(r.check_in), 0),
       avgIn: avgIn === null ? null : `${String(Math.floor(avgIn / 60)).padStart(2, '0')}:${String(avgIn % 60).padStart(2, '0')}`,
     };
   });
@@ -322,10 +345,10 @@ export function AttendanceReportPage() {
   const byDay = new Map(recs.filter((r) => r.employee_id === empId).map((r) => [String(r.date).slice(0, 10), r]));
   const one = summary.find((s) => s.e.id === empId);
 
-  const exportAll = () => exportExcel(`حضور ${monthLabel(from)}`, ['الموظف', 'الوظيفة', 'حاضر', 'متأخر', 'غائب', 'إجازة', 'أيام بدون تسجيل', 'إجمالي الساعات', 'متوسط وقت الحضور'],
-    summary.map((s) => [s.e.name, s.e.job_title ?? '', s.present, s.late, s.absent, s.leave, s.missing, fmtHours(s.minutes), s.avgIn ? fmtTime(s.avgIn) : '—']));
-  const exportOne = () => emp && exportExcel(`حضور ${emp.name} ${monthLabel(from)}`, ['التاريخ', 'اليوم', 'الحالة', 'الحضور', 'الانصراف', 'ساعات العمل'],
-    days.map((d) => { const r = byDay.get(d); return [d, DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()], r ? STATUS_LABEL[r.status]?.label : 'لم يُسجَّل', fmtTime(r?.check_in), fmtTime(r?.check_out), fmtHours(minutesOf(r))]; }));
+  const exportAll = () => exportExcel(`حضور ${monthLabel(from)}`, ['الموظف', 'الوظيفة', 'حاضر', 'متأخر', 'غائب', 'إجازة', 'أيام بدون تسجيل', 'إجمالي الساعات', 'إجمالي التأخير', 'متوسط وقت الحضور'],
+    summary.map((s) => [s.e.name, s.e.job_title ?? '', s.present, s.late, s.absent, s.leave, s.missing, fmtHours(s.minutes), fmtHours(s.lateMin), s.avgIn ? fmtTime(s.avgIn) : '—']));
+  const exportOne = () => emp && exportExcel(`حضور ${emp.name} ${monthLabel(from)}`, ['التاريخ', 'اليوم', 'الحالة', 'الحضور', 'الانصراف', 'ساعات العمل', 'التأخير'],
+    days.map((d) => { const r = byDay.get(d); return [d, DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()], r ? STATUS_LABEL[r.status]?.label : rules.isOff(d) ? 'أجازة أسبوعية' : 'لم يُسجَّل', fmtTime(r?.check_in), fmtTime(r?.check_out), fmtHours(minutesOf(r)), fmtHours(rules.lateMinutes(r?.check_in))]; }));
 
   return (
     <div className="page">
@@ -342,11 +365,12 @@ export function AttendanceReportPage() {
           <button className="btn" onClick={() => void (empId ? exportOne() : exportAll())}>تصدير Excel</button>
         </>}
       />
+      <div className="footnote" style={{ margin: '-6px 0 12px' }}>بداية الشغل {fmtTime(rules.start)} · سماح {rules.grace} دقيقة · الأجازة الأسبوعية: {rules.offDays.length ? rules.offDays.map((d) => DAY_NAMES[d]).join('، ') : 'لا يوجد'} — تتغير من الإعدادات ← قواعد العمل</div>
       {!empId ? (
         shown.length === 0 ? <div className="card"><Empty icon={<Users />} title="لا يوجد موظفون" /></div> : (
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr><th>الموظف</th><th className="n">حاضر</th><th className="n">متأخر</th><th className="n">غائب</th><th className="n">إجازة</th><th className="n">بدون تسجيل</th><th className="n">إجمالي الساعات</th><th className="n">متوسط الحضور</th><th /></tr></thead>
+              <thead><tr><th>الموظف</th><th className="n">حاضر</th><th className="n">متأخر</th><th className="n">غائب</th><th className="n">إجازة</th><th className="n">بدون تسجيل</th><th className="n">إجمالي الساعات</th><th className="n">إجمالي التأخير</th><th className="n">متوسط الحضور</th><th /></tr></thead>
               <tbody>
                 {summary.map((s) => (
                   <tr key={s.e.id} className="click" onClick={() => setEmpId(s.e.id)}>
@@ -357,6 +381,7 @@ export function AttendanceReportPage() {
                     <td data-label="إجازة" className="n">{s.leave}</td>
                     <td data-label="بدون تسجيل" className="n muted">{s.missing}</td>
                     <td data-label="إجمالي الساعات" className="n bold">{fmtHours(s.minutes)}</td>
+                    <td data-label="إجمالي التأخير" className={`n ${s.lateMin ? 'orange bold' : ''}`}>{fmtHours(s.lateMin)}</td>
                     <td data-label="متوسط الحضور" className="n">{s.avgIn ? fmtTime(s.avgIn) : '—'}</td>
                     <td data-label="" className="lp-act-cell"><RowActions openLabel="تفاصيل الأيام" onOpen={() => setEmpId(s.e.id)} /></td>
                   </tr>
@@ -370,14 +395,14 @@ export function AttendanceReportPage() {
           {one && (
             <TotalCards items={[
               { label: 'أيام حضور', value: one.present + one.late, tone: 'green' },
-              { label: 'منها تأخير', value: one.late, tone: 'orange' },
+              { label: one.lateMin ? `أيام تأخير (إجمالي ${fmtHours(one.lateMin)})` : 'أيام تأخير', value: one.late, tone: 'orange' },
               { label: 'غياب', value: one.absent, tone: 'red' },
               { label: 'إجمالي ساعات العمل', value: fmtHours(one.minutes), tone: 'blue' },
             ]} />
           )}
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th><th>التأخير</th></tr></thead>
               <tbody>
                 {days.map((d) => {
                   const r = byDay.get(d);
@@ -386,10 +411,11 @@ export function AttendanceReportPage() {
                     <tr key={d}>
                       <td data-label="التاريخ" className="num">{d}</td>
                       <td data-label="اليوم">{DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()]}</td>
-                      <td data-label="الحالة">{st ? <span className={`badge ${st.tone}`}>{st.label}</span> : <span className="badge gray">لم يُسجَّل</span>}</td>
+                      <td data-label="الحالة">{st ? <span className={`badge ${st.tone}`}>{st.label}</span> : rules.isOff(d) ? <span className="badge blue">أجازة أسبوعية</span> : <span className="badge gray">لم يُسجَّل</span>}</td>
                       <td data-label="الحضور" className="num">{fmtTime(r?.check_in)}</td>
                       <td data-label="الانصراف" className="num">{fmtTime(r?.check_out)}</td>
                       <td data-label="ساعات العمل" className="num bold">{fmtHours(minutesOf(r))}</td>
+                      <td data-label="التأخير" className={`num ${rules.lateMinutes(r?.check_in) ? 'orange bold' : 'muted'}`}>{fmtHours(rules.lateMinutes(r?.check_in))}</td>
                     </tr>
                   );
                 })}
