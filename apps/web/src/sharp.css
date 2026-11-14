@@ -14,7 +14,7 @@
   --shadow-card: none;
   --shadow-lift: 0 1px 2px rgba(16, 18, 24, .06);
   --shadow-pop: 0 18px 48px rgba(16, 18, 24, .18);
-  --radius-s: 0.375rem; --radius: 0.625rem; --radius-l: 0.75rem; --radius-xl: 0.75rem;
+  --radius-s: 0.5rem; --radius: 0.75rem; --radius-l: 0.875rem; --radius-xl: 0.875rem;
   --nav-bg: #15171C; --nav-2: #1C1F26; --nav-text: #F3F4F6; --nav-muted: #A0A5B1; --nav-hover: #22252D; --nav-active: #2C2F38; --nav-border: #2C2F38;
 
   --mc-panel: var(--card);
@@ -49,19 +49,19 @@
 .nav-bar.mc-top { background: var(--nav-bg) !important; color: var(--nav-text); padding: calc(0.25rem + env(safe-area-inset-top)) 1.25rem 0.5rem; }
 .mc-top .mc-company, .mc-top .mc-system { color: var(--nav-text); }
 .mc-top .mc-brand-sep { background: var(--nav-border); }
-.mc-top .mc-logo { border-radius: 0.625rem; box-shadow: none; }
-.mc-top .mc-icon-btn { color: var(--nav-text); border-radius: 0.625rem; border: 1px solid var(--nav-border); width: 2.375rem; height: 2.375rem; }
+.mc-top .mc-logo { border-radius: 0.75rem; box-shadow: none; }
+.mc-top .mc-icon-btn { color: var(--nav-text); border-radius: 0.75rem; border: 1px solid var(--nav-border); width: 2.375rem; height: 2.375rem; }
 .mc-top .mc-icon-btn:hover, .mc-top .mc-icon-btn.open { background: var(--nav-hover); }
 .mc-top .mc-icon-btn svg { width: 1.125rem; height: 1.125rem; }
 .mc-top .mc-dot { box-shadow: 0 0 0 2px var(--nav-bg); top: 0.375rem; right: 0.4375rem; }
-.mc-top .mc-search { background: var(--nav-2); border-color: var(--nav-border); color: var(--nav-muted); border-radius: 0.625rem; }
+.mc-top .mc-search { background: var(--nav-2); border-color: var(--nav-border); color: var(--nav-muted); border-radius: 0.75rem; }
 .mc-top .mc-search:hover { color: var(--nav-text); border-color: #3A3E48; }
 .mc-top .mc-search kbd { background: var(--nav-active); border-color: #3A3E48; color: var(--nav-muted); }
 .mc-top .sync-pill { border-radius: 999px; }
 .mc-top .nm-btn { color: var(--nav-text); }
 
 .mc-nav { margin: 0.125rem 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.mc-nav-item { flex: 0 0 auto; height: 2.5rem; padding: 0 0.875rem; gap: 0.5rem; border-radius: 0.5rem; color: var(--nav-muted); font-size: 0.9375rem; font-weight: 600; }
+.mc-nav-item { flex: 0 0 auto; height: 2.5rem; padding: 0 0.875rem; gap: 0.5rem; border-radius: 0.625rem; color: var(--nav-muted); font-size: 0.9375rem; font-weight: 600; }
 .mc-nav-item + .mc-nav-item::before { display: none; }
 .mc-nav-item:hover, .mc-nav-item.open { background: var(--nav-hover); color: var(--nav-text); }
 .mc-nav-item.on { background: var(--nav-active); color: #FFFFFF; box-shadow: inset 0 -2px 0 var(--tint); }
@@ -74,44 +74,44 @@
 
 /* ---------- 3) تبويبات الشاشات ---------- */
 .screen-tabs.mc-tabs { background: var(--card); border-bottom: 1px solid var(--separator); padding: 0.375rem 1.25rem; }
-.mc-tabs .st-tab { height: 2.25rem; border-radius: 0.5rem; background: transparent; border: 1px solid transparent; font-weight: 500; }
+.mc-tabs .st-tab { height: 2.25rem; border-radius: 0.625rem; background: transparent; border: 1px solid transparent; font-weight: 500; }
 .mc-tabs .st-tab:hover { background: var(--card-2); }
 .mc-tabs .st-tab.on { background: var(--card-2); border-color: var(--separator); box-shadow: none; font-weight: 600; }
 .mc-tabs .st-tab.home.on { color: var(--heading); }
-.mc-tabs .st-close-all { border-radius: 0.5rem; }
-.mc-plus { width: 2.25rem; height: 2.25rem; border-radius: 0.5rem; box-shadow: none; }
+.mc-tabs .st-close-all { border-radius: 0.625rem; }
+.mc-plus { width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; box-shadow: none; }
 .mc-plus:hover { transform: none; border-color: var(--border-strong); }
 
 /* ---------- 4) المكونات العامة ---------- */
-.card, .list, .table-wrap, .stat, .kpi, .pos-cart, .pos-item, .login-card, .tile { border-radius: 0.75rem; box-shadow: none; }
+.card, .list, .table-wrap, .stat, .kpi, .pos-cart, .pos-item, .login-card, .tile { border-radius: 0.875rem; box-shadow: none; }
 .tile:hover { box-shadow: none; border-color: var(--border-strong); }
-.btn { border-radius: 0.625rem; box-shadow: none; }
+.btn { border-radius: 0.75rem; box-shadow: none; }
 .btn.primary, .btn.success.primary, .btn.danger.primary { box-shadow: none; }
-.btn.sm { border-radius: 0.5rem; }
-.btn.lg, .btn.xl { border-radius: 0.625rem; }
-.input, .select, .textarea { border-radius: 0.5rem; }
-.segmented { border-radius: 0.625rem; }
+.btn.sm { border-radius: 0.625rem; }
+.btn.lg, .btn.xl { border-radius: 0.75rem; }
+.input, .select, .textarea { border-radius: 0.625rem; }
+.segmented { border-radius: 0.75rem; }
 .segmented button.on, :root[data-theme="dark"] .segmented button.on { background: var(--heading); color: var(--card); box-shadow: none; }
-.stat .stat-icon { border-radius: 0.5rem; background: var(--card-2) !important; color: var(--heading) !important; border: 1px solid var(--separator); }
+.stat .stat-icon { border-radius: 0.625rem; background: var(--card-2) !important; color: var(--heading) !important; border: 1px solid var(--separator); }
 .stat .stat-value { font-size: 1.75rem; letter-spacing: -0.5px; }
-.list-row .sb-icon { border-radius: 0.5rem; }
-.sheet, .overlay .sheet { border-radius: 0.75rem; }
-kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card-2); }
+.list-row .sb-icon { border-radius: 0.625rem; }
+.sheet, .overlay .sheet { border-radius: 0.875rem; }
+kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card-2); }
 
 /* ---------- 5) الرئيسية ---------- */
 .page.mc-home { --mc-gap: clamp(0.75rem, 2vh, 1.125rem); }
 .mc-hello h1 { font-size: clamp(1.25rem, 1.8vw, 1.625rem); font-weight: 700; letter-spacing: -0.2px; }
 .mc-wave { display: none; }
 .mc-hello-s { padding-inline-start: 0; font-size: 0.875rem; font-weight: 500; color: var(--label-2); }
-.mc-when { height: 2.5rem; padding: 0 1rem; border-radius: 0.625rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; }
+.mc-when { height: 2.5rem; padding: 0 1rem; border-radius: 0.75rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; }
 .mc-when svg { width: 1.125rem; height: 1.125rem; }
 
 /* الكروت: بلاطات مدمجة بحد رفيع بدل كروت الآيباد */
 .mc-cards { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.625rem; }
-.mc-card { flex-direction: row; justify-content: flex-start; gap: 0.75rem; height: 3.75rem; padding: 0 0.875rem; border-radius: 0.625rem; box-shadow: none; background: var(--card); }
+.mc-card { flex-direction: row; justify-content: flex-start; gap: 0.75rem; height: 3.75rem; padding: 0 0.875rem; border-radius: 0.75rem; box-shadow: none; background: var(--card); }
 .mc-card::after { display: none; }
 .mc-card:hover { transform: none; border-color: var(--border-strong); background: var(--card-2); }
-.mc-card-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); flex-shrink: 0; }
+.mc-card-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); flex-shrink: 0; }
 .mc-card-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
 .mc-card-l { font-size: 0.875rem; font-weight: 600; text-align: start; max-width: none; line-height: 1.3; }
 .mc-card.on { background: var(--heading); border: 1px solid var(--heading); color: var(--card); --c: #FFFFFF; }
@@ -119,36 +119,36 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 
 /* اللوحات */
 .mc-panels { gap: 1rem; }
-.mc-panel, .sx-card { background: var(--card); border: 1px solid var(--separator); border-radius: 0.75rem; box-shadow: none; }
+.mc-panel, .sx-card { background: var(--card); border: 1px solid var(--separator); border-radius: 0.875rem; box-shadow: none; }
 .mc-panel-h h2 { font-size: 1rem; font-weight: 700; }
 .mc-panel-ic, .mc-star { width: 1.25rem; height: 1.25rem; }
 .mc-task-list { border: 0; box-shadow: none; padding: 0; background: transparent; }
 .mc-task { min-height: 3rem; border-radius: 0; }
-.mc-task-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
+.mc-task-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); }
 .mc-task-ic svg { width: 1.0625rem; height: 1.0625rem; }
 .mc-task-l { font-size: 0.875rem; font-weight: 600; }
 .mc-count { border-radius: 999px; height: 1.375rem; min-width: 1.625rem; font-size: 0.75rem; }
 .mc-chev { width: 1rem; height: 1rem; color: var(--label-2); }
 
 .mc-fav-grid { gap: 0.5rem; }
-.mc-fav { min-height: 3rem; border-radius: 0.625rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; gap: 0.625rem; padding: 0 0.875rem; }
+.mc-fav { min-height: 3rem; border-radius: 0.75rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; gap: 0.625rem; padding: 0 0.875rem; }
 .mc-fav:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
 .mc-fav-ic, .mc-fav.fav-purchase_invoice .mc-fav-ic, .mc-fav.fav-purchase_return .mc-fav-ic, .mc-fav.fav-item_new .mc-fav-ic,
 .mc-fav.fav-receipt .mc-fav-ic, .mc-fav.fav-pos .mc-fav-ic, .mc-fav.fav-attendance .mc-fav-ic { color: var(--heading); }
 .mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
 .mc-fav.primary { background: var(--tint); border-color: var(--tint); }
 .mc-fav.primary .mc-fav-ic { color: #FFFFFF; }
-.mc-chip { border-radius: 0.5rem; box-shadow: none; }
+.mc-chip { border-radius: 0.625rem; box-shadow: none; }
 .mc-chip.primary { background: var(--tint); }
-.mc-fav-opt { border-radius: 0.5rem; }
+.mc-fav-opt { border-radius: 0.625rem; }
 
 @media (max-width: 760px) {
   .mc-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-  .mc-card { height: 3.25rem; border-radius: 0.625rem; gap: 0.5rem; padding: 0 0.625rem; }
+  .mc-card { height: 3.25rem; border-radius: 0.75rem; gap: 0.5rem; padding: 0 0.625rem; }
   .mc-card-ic { width: 1.875rem; height: 1.875rem; }
   .mc-card-ic svg { width: 1rem; height: 1rem; }
   .mc-card-l { font-size: 0.8125rem; }
-  .mc-panel { border-radius: 0.75rem; }
+  .mc-panel { border-radius: 0.875rem; }
   .mc-fav { min-height: 3rem; }
 }
 
@@ -167,7 +167,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 /* الاختصارات: تملا اللوحة، أيقونة في مربع، والاسم وتحته القسم */
 .mc-favs .mc-fav-grid { flex: 1; grid-auto-rows: minmax(3.5rem, 1fr); gap: 0.625rem; }
 .mc-fav { min-height: 0; height: auto; padding: 0.625rem 0.875rem; gap: 0.75rem; align-items: center; }
-.mc-fav .mc-fav-ic { width: 2.375rem; height: 2.375rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
+.mc-fav .mc-fav-ic { width: 2.375rem; height: 2.375rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); }
 .mc-fav .mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
 .mc-fav > span.mc-fav-t:last-child { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; -webkit-line-clamp: none; overflow: visible; }
 .mc-fav-l { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -194,23 +194,23 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 
 /* ---------- 7) فاتورة البيع والشراء (النسخة الحادة) ---------- */
 .si-page-heading h1 { font-size: clamp(1.25rem, 1.6vw, 1.5rem); font-weight: 700; letter-spacing: -0.2px; }
-.si-new-tab { border-radius: 0.625rem; }
+.si-new-tab { border-radius: 0.75rem; }
 /* بيانات الفاتورة: شريط واحد بفواصل بدل كروت منفصلة */
-.si .si-meta { background: var(--card); border: 1px solid var(--separator); border-radius: 0.75rem; box-shadow: none; padding: 0; gap: 0; overflow: visible; }
+.si .si-meta { background: var(--card); border: 1px solid var(--separator); border-radius: 0.875rem; box-shadow: none; padding: 0; gap: 0; overflow: visible; }
 .si .si-meta-field { background: transparent; border: 0; border-radius: 0; box-shadow: none; min-height: 3.5rem; padding: 0.5rem 0.875rem; }
 .si .si-meta-field + .si-meta-field { border-inline-start: 1px solid var(--separator); }
 .si .si-meta-field > span, .si .si-meta-field > label { font-weight: 600; color: var(--label-2); }
 .si .si-meta-field b, .si .si-date, .si .si-wh { font-weight: 600; }
-.si-navs { border-radius: 0.625rem; }
-.si-navs button { border-radius: 0.375rem; }
+.si-navs { border-radius: 0.75rem; }
+.si-navs button { border-radius: 0.5rem; }
 
 /* البحث والجدول */
-.si .ss-entry, .si .ss-top .ss-entry { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .ss-entry, .si .ss-top .ss-entry { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); }
 .si .ss-top .ss-step > label { font-weight: 600; color: var(--label-2); }
-.si .ss-top .ss-step > label b { background: var(--heading); color: var(--card); border-radius: 0.3125rem; }
-.si .ss-add.btn, .si .ss-add.btn.success.primary { background: var(--tint); border-color: var(--tint); color: #FFFFFF; border-radius: 0.625rem; }
+.si .ss-top .ss-step > label b { background: var(--heading); color: var(--card); border-radius: 0.4375rem; }
+.si .ss-add.btn, .si .ss-add.btn.success.primary { background: var(--tint); border-color: var(--tint); color: #FFFFFF; border-radius: 0.75rem; }
 .si .ss-add.btn:disabled, .si .ss-add.btn.success.primary:disabled { background: var(--card-2); border-color: var(--separator); color: var(--label-3); opacity: 1; }
-.si .si-grid { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .si-grid { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); }
 .si-table th, .si .si-table th { background: var(--card-2); color: var(--label-2); font-weight: 600; font-size: 0.8125rem; border-bottom: 1px solid var(--separator); }
 .si-table td.c-name { font-weight: 600; }
 .si-table tbody tr td { border-bottom: 1px solid var(--separator); }
@@ -218,19 +218,19 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 .si-table tbody tr.sel td { background: var(--tint-soft); }
 .si-table tfoot td { background: var(--card-2); font-weight: 700; }
 .si-grid-foot { background: var(--card); }
-.si-short, .si-credit { border-radius: 0.625rem; }
+.si-short, .si-credit { border-radius: 0.75rem; }
 
 /* الملخص والدفع */
-.si .ss-side > .card { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .ss-side > .card { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); }
 .si-summary-title { font-size: 1rem; font-weight: 700; padding-bottom: 0.625rem; border-bottom: 1px solid var(--separator); }
 .si .ss-sum .row b, .si-pay-sum .row b { font-weight: 700; }
 /* «الإجمالي النهائي» صندوق داكن والرقم كبير */
-.si-grand { background: var(--nav-bg); color: #FFFFFF; border-radius: 0.625rem; box-shadow: none; padding: 0.875rem 1rem; }
+.si-grand { background: var(--nav-bg); color: #FFFFFF; border-radius: 0.75rem; box-shadow: none; padding: 0.875rem 1rem; }
 .si-grand span { color: var(--nav-muted); font-size: 0.875rem; font-weight: 600; }
 .si-grand b { font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 700; letter-spacing: -0.5px; }
-.si .ss-pay button { border-radius: 0.5rem; font-weight: 600; }
+.si .ss-pay button { border-radius: 0.625rem; font-weight: 600; }
 .si .ss-pay button.on { background: var(--tint-soft); box-shadow: inset 0 0 0 1px var(--tint); }
-.si .si-bar .btn { border-radius: 0.625rem; }
+.si .si-bar .btn { border-radius: 0.75rem; }
 .si-more-panel summary { font-weight: 600; }
 @media (max-width: 760px) {
   .si .si-meta-field + .si-meta-field { border-inline-start: 0; }
@@ -239,27 +239,27 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 
 /* ---------- 8) صفحات الأقسام (المبيعات، المشتريات، المخزون، ...) ---------- */
 .sx-title h1 { font-size: clamp(1.25rem, 1.6vw, 1.5rem); font-weight: 700; letter-spacing: -0.2px; }
-.sx-title-ic { width: 2.5rem; height: 2.5rem; border-radius: 0.625rem; background: var(--card); border: 1px solid var(--separator); color: var(--heading); }
+.sx-title-ic { width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; background: var(--card); border: 1px solid var(--separator); color: var(--heading); }
 .sx-title-ic svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.9; }
-.sx-when { border-radius: 0.625rem; box-shadow: none; font-weight: 600; font-size: 0.875rem; }
+.sx-when { border-radius: 0.75rem; box-shadow: none; font-weight: 600; font-size: 0.875rem; }
 
 /* المؤشرات: نفس الارتفاع والمقاس، أيقونة في مربع محايد */
 .sx-stats { gap: 0.75rem; grid-auto-rows: 1fr; }
-.sx-stat { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); height: 100%; }
+.sx-stat { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); height: 100%; }
 .sx-stat:not(:disabled):hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
-.sx-stat-ic { border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.5rem; height: 2.5rem; }
+.sx-stat-ic { border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.5rem; height: 2.5rem; }
 .sx-stat-ic svg { width: 1.125rem; height: 1.125rem; }
 .sx-stat-l { font-weight: 600; font-size: 0.8125rem; }
 .sx-stat-v { font-weight: 700; letter-spacing: -0.4px; }
 .sx-stat-s { font-weight: 500; }
 
 /* الكروت */
-.sx-card { border-radius: 0.75rem; background: var(--card); border: 1px solid var(--separator); box-shadow: none; }
+.sx-card { border-radius: 0.875rem; background: var(--card); border: 1px solid var(--separator); box-shadow: none; }
 .sx-card-h { padding-bottom: 0.625rem; border-bottom: 1px solid var(--separator); margin-bottom: 0.625rem; }
 .sx-card-h h2 { font-size: 1rem; font-weight: 700; }
 .sx-h-ic { color: var(--heading); }
 .sx-h-ic svg, svg.sx-h-ic { width: 1.25rem; height: 1.25rem; }
-.sx-more { border-radius: 0.5rem; font-weight: 600; }
+.sx-more { border-radius: 0.625rem; font-weight: 600; }
 @media (min-width: 1181px) {
   .sx-actions:not(.editing) > .sx-card-h { padding-bottom: 0; border-bottom: 0; margin-bottom: 0; }
   .sx-actions:not(.editing) h2 { font-size: 0.9375rem; }
@@ -267,7 +267,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 
 /* العمليات السريعة: أزرار متساوية بحد رفيع */
 .sx-action-row { grid-auto-rows: 1fr; gap: 0.625rem; }
-.sx-action { border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); font-weight: 600; font-size: 0.9375rem; min-height: 3rem; }
+.sx-action { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); font-weight: 600; font-size: 0.9375rem; min-height: 3rem; }
 .sx-action:hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
 .sx-action-ic { color: var(--heading); }
 .sx-action-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
@@ -284,10 +284,10 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 .sx-follow-list { border: 0; box-shadow: none; padding: 0; background: transparent; border-radius: 0; }
 .sx-follow-row { min-height: 3rem; border-radius: 0; }
 .sx-follow-row:hover { background: var(--card-2); }
-.sx-follow-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
+.sx-follow-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); }
 .sx-follow-ic svg { width: 1.0625rem; height: 1.0625rem; }
 .sx-follow-l { font-size: 0.875rem; font-weight: 600; }
-.sx-table { border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
+.sx-table { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
 .sx-table .table th { background: var(--card-2); color: var(--label-2); font-weight: 600; font-size: 0.8125rem; }
 .sx-table .table tbody tr:hover td { background: var(--card-2); }
 .sx-empty { color: var(--label-2); }
@@ -295,21 +295,21 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
   .sx-main > :last-child, .sx-side > :last-child { flex: none; }
 }
 @media (max-width: 700px) {
-  .sx-stat { border-radius: 0.75rem; }
-  .sx-action { border-radius: 0.625rem; background: var(--card); font-weight: 600; }
-  .sx-card { border-radius: 0.75rem; }
+  .sx-stat { border-radius: 0.875rem; }
+  .sx-action { border-radius: 0.75rem; background: var(--card); font-weight: 600; }
+  .sx-card { border-radius: 0.875rem; }
 }
 
 /* شبكة الروابط (التقارير والإعدادات) بنفس الشكل الحاد */
-.sx-link { border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
+.sx-link { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
 .sx-link:hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
-.sx-link-ic { border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.25rem; height: 2.25rem; }
+.sx-link-ic { border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.25rem; height: 2.25rem; }
 .sx-link-ic svg { width: 1.0625rem; height: 1.0625rem; }
 .sx-link-l { font-weight: 600; font-size: 0.875rem; }
 .sx-link-d { font-weight: 500; }
 
 /* ---------- 9) الجداول (كل جداول المشروع) ---------- */
-.table-wrap { border-radius: 0.75rem; border: 1px solid var(--separator); background: var(--card); box-shadow: none; overflow: auto; }
+.table-wrap { border-radius: 0.875rem; border: 1px solid var(--separator); background: var(--card); box-shadow: none; overflow: auto; }
 .table { border-collapse: separate; border-spacing: 0; width: 100%; }
 /* العناوين: رمادي محايد، خط أصغر وأهدى، ثابتة فوق وإنت بتنزل جوه الجدول */
 .table th, .table thead th {
@@ -342,25 +342,120 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 .table tbody tr.lp-sel td:first-child, .table tbody tr.sel td:first-child { box-shadow: inset -3px 0 0 var(--tint); }
 
 /* الصورة الرمزية: مربع محايد بدل دايرة ملونة */
-.lp-avatar { width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); font-weight: 700; font-size: 0.8125rem; margin-inline-end: 0.625rem; }
+.lp-avatar { width: 1.875rem; height: 1.875rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); font-weight: 700; font-size: 0.8125rem; margin-inline-end: 0.625rem; }
 .lp-name { gap: 0; }
 /* أزرار الصف: صغيرة وهادية، تبان أوضح لما تقف على الصف */
 .lp-actions { gap: 0.25rem; }
-.lp-act { width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); color: var(--label-2); }
+.lp-act { width: 1.875rem; height: 1.875rem; border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); color: var(--label-2); }
 .lp-act:hover { color: var(--heading); background: var(--card-2); border-color: var(--border-strong); }
 .lp-act svg { width: 0.9375rem; height: 0.9375rem; }
 .table td.lp-act-cell { width: 1%; white-space: nowrap; }
 /* شارات الحالة: مستطيلة صغيرة بنقطة */
-.table .badge, .badge { display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; line-height: 1.5; }
+.table .badge, .badge { display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; line-height: 1.5; }
 .badge.green::before, .badge.orange::before, .badge.red::before, .badge.blue::before { content: ''; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: currentColor; }
 .badge.green { background: var(--green-soft); color: var(--green-text); }
 .badge.orange { background: var(--orange-soft); color: var(--orange-text); }
 .badge.red { background: var(--red-soft); color: var(--red-text); }
 .badge.blue { background: var(--tint-soft); color: var(--tint); }
-.stock-chip { border-radius: 0.375rem; font-weight: 600; }
+.stock-chip { border-radius: 0.5rem; font-weight: 600; }
 /* الجداول جوه الكروت والفواتير بنفس النظام */
 .sx-table .table th, .si .si-table th { position: sticky; top: 0; }
 @media (max-width: 760px) {
   .table th, .table thead th { position: static; }
   .table td { height: auto; }
+}
+
+/* ---------- 10) علامة الشرح (?) ---------- */
+.hint { position: relative; display: inline-grid; place-items: center; width: 1.125rem; height: 1.125rem; margin-inline-start: 0.25rem; color: var(--label-3); cursor: help; vertical-align: middle; border-radius: 50%; outline: none; flex-shrink: 0; }
+.hint > svg { width: 0.9375rem; height: 0.9375rem; stroke-width: 2; }
+.hint:hover, .hint:focus-visible { color: var(--tint); }
+.hint:focus-visible { box-shadow: 0 0 0 2px var(--tint-soft); }
+.hint-pop {
+  position: absolute; top: calc(100% + 0.5rem); z-index: 60; width: max-content; max-width: min(17.5rem, 80vw);
+  padding: 0.625rem 0.75rem; border-radius: 0.75rem; background: #1C1F26; color: #F3F4F6;
+  font-size: 0.78rem; font-weight: 500; line-height: 1.6; text-align: start; white-space: normal; letter-spacing: 0;
+  box-shadow: 0 12px 32px rgba(16, 18, 24, .22); opacity: 0; visibility: hidden; transform: translateY(-4px);
+  transition: opacity .14s ease, transform .14s ease, visibility .14s; pointer-events: none;
+}
+.hint-start .hint-pop { inset-inline-start: -0.5rem; }
+.hint-end .hint-pop { inset-inline-end: -0.5rem; }
+.hint:hover .hint-pop, .hint:focus-visible .hint-pop { opacity: 1; visibility: visible; transform: none; }
+:root[data-theme="dark"] .hint-pop { background: #3A3D45; }
+.dark .hint, .hk-kpi.dark .hint { color: #8A8F9B; }
+@media (prefers-reduced-motion: reduce) { .hint-pop { transition: none; } }
+
+/* ---------- 11) ملخص الأداء في الرئيسية ---------- */
+.hk { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+.hk-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.hk-head h2 { margin: 0; display: flex; align-items: center; font-size: 1.125rem; font-weight: 700; color: var(--heading); }
+.hk-periods { display: inline-flex; height: 2.375rem; }
+.hk-periods button { padding: 0 0.875rem; font-weight: 600; }
+.hk-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.875rem; grid-auto-rows: 1fr; }
+.hk-kpi {
+  display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; padding: 1rem 1.125rem; text-align: start;
+  border-radius: 0.875rem; border: 1px solid var(--separator); background: var(--card); color: var(--heading); font: inherit;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+.hk-kpi, .hk-bal-row { position: relative; }
+/* طبقة الضغط تغطي الكارت كله، و(?) فوقها */
+.hk-hit { position: absolute; inset: 0; z-index: 1; border: 0; padding: 0; margin: 0; background: transparent; border-radius: inherit; cursor: pointer; }
+.hk-hit:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+.hk-kpi .hint, .hk-bal-row .hint { z-index: 2; }
+.hk-kpi.click:hover { border-color: var(--border-strong); background: var(--card-2); }
+.hk-kpi.click:active { transform: translateY(1px); }
+.hk-kpi.dark { background: var(--nav-bg); border-color: var(--nav-bg); color: #FFFFFF; }
+.hk-kpi.dark.click:hover { background: #22252D; }
+.hk-kpi-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.hk-kpi-l { display: inline-flex; align-items: center; font-size: 0.8125rem; font-weight: 600; color: var(--label-2); }
+.hk-kpi.dark .hk-kpi-l { color: #A0A5B1; }
+.hk-kpi-ic { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); flex-shrink: 0; }
+.hk-kpi-ic svg { width: 1.0625rem; height: 1.0625rem; stroke-width: 1.9; }
+.hk-kpi.dark .hk-kpi-ic { background: var(--tint); border-color: var(--tint); color: #FFFFFF; }
+.hk-kpi-v { display: flex; align-items: baseline; gap: 0.375rem; min-width: 0; }
+.hk-kpi-v b { font-size: clamp(1.375rem, 1.9vw, 1.75rem); font-weight: 700; letter-spacing: -0.5px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hk-kpi-v small { font-size: 0.78rem; color: var(--label-2); font-weight: 500; }
+.hk-kpi.dark .hk-kpi-v small { color: #A0A5B1; }
+.hk-kpi-foot { display: flex; flex-direction: column; gap: 0.125rem; margin-top: auto; font-size: 0.78rem; font-weight: 600; }
+.hk-chg.up { color: var(--green-text); }
+.hk-chg.down { color: var(--red-text); }
+.hk-kpi.dark .hk-chg.up { color: #6EE7A8; }
+.hk-kpi.dark .hk-chg.down { color: #FCA5A5; }
+.hk-sub { color: var(--label-2); font-weight: 500; }
+.hk-sub.green { color: var(--green-text); font-weight: 600; }
+.hk-sub.red { color: var(--red-text); font-weight: 600; }
+.hk-sub.orange { color: var(--orange-text); font-weight: 600; }
+
+.hk-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(17.5rem, 1fr); gap: 0.875rem; align-items: stretch; }
+.hk-row > :only-child { grid-column: 1 / -1; }
+.hk-card { border-radius: 0.875rem; border: 1px solid var(--separator); background: var(--card); padding: 1rem 1.125rem; min-width: 0; display: flex; flex-direction: column; }
+.hk-card-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding-bottom: 0.75rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--separator); }
+.hk-card-h h3 { margin: 0; display: flex; align-items: center; font-size: 1rem; font-weight: 700; color: var(--heading); }
+.hk-card-sub { font-size: 0.78rem; color: var(--label-2); }
+.hk-legend { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.78rem; color: var(--label-2); }
+.hk-legend i { display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 0.1875rem; margin-inline-start: 0.5rem; }
+.hk-legend i.cur { background: var(--tint); }
+.hk-legend i.prev { width: 1rem; height: 0; border-top: 2px dashed var(--label-3); border-radius: 0; }
+.hk-chart { width: 100%; height: auto; flex: 1; min-height: 12rem; display: block; }
+.hk-grid-l { stroke: var(--separator); stroke-width: 1; }
+.hk-axis { fill: var(--label-3); font-size: 11px; font-family: inherit; }
+.hk-bar { fill: color-mix(in srgb, var(--tint) 22%, var(--card-2)); transition: fill .15s; }
+.hk-bar.today { fill: var(--tint); }
+.hk-bar:hover { fill: color-mix(in srgb, var(--tint) 60%, var(--card)); }
+.hk-prev { fill: none; stroke: var(--label-3); stroke-width: 2; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
+.hk-bal { gap: 0; }
+.hk-bal-row { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 3.75rem; padding: 0.5rem 0.25rem; border: 0; border-bottom: 1px solid var(--separator); background: transparent; color: var(--heading); font: inherit; text-align: start; cursor: pointer; border-radius: 0; }
+.hk-bal-row:last-child { border-bottom: 0; }
+.hk-bal-row:hover { background: var(--card-2); }
+.hk-bal-t { flex: 1; display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.hk-bal-l { display: inline-flex; align-items: center; font-size: 0.875rem; font-weight: 600; }
+.hk-bal-s { font-size: 0.75rem; color: var(--label-2); }
+.hk-bal-row > b { font-size: 1.0625rem; font-weight: 700; }
+@media (max-width: 1180px) { .hk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 980px) { .hk-row { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .hk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+  .hk-kpi { padding: 0.75rem; }
+  .hk-kpi-ic { width: 1.875rem; height: 1.875rem; }
+  .hk-periods { width: 100%; }
+  .hk-periods button { flex: 1; padding: 0 0.25rem; font-size: 0.78rem; }
 }
