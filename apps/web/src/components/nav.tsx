@@ -270,7 +270,7 @@ export function activeHubKey(pathname: string): string {
 /**
  * أقسام الشريط الأفقي وكروت الرئيسية (التصميم المعتمد، والخزينة والتقارير اتنقلوا للشريط بطلب المستخدم).
  * كل قسم يجمع أقسامًا من HUBS: قائمته المنسدلة = مجموعات تلك الأقسام، ويكون نشطًا عند فتح أي صفحة منها.
- * الشركاء والإعدادات في قائمة الترس (أعلى الشاشة).
+ * الإعدادات في قائمة الترس (أعلى الشاشة)، والشركاء في الشريط.
  */
 export type SectionColor = 'blue' | 'green' | 'purple' | 'orange' | 'teal' | 'indigo' | 'violet' | 'pink';
 export interface Section {
@@ -306,10 +306,18 @@ export const SECTIONS: Section[] = [
   { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/employees', perms: ['employees.view'], hubs: ['employees'] },
   { key: 'treasury', label: 'الخزينة', icon: <Wallet />, cardIcon: <Wallet />, color: 'violet', to: '/hub/treasury', perms: ['treasury.view'], hubs: ['treasury'] },
   { key: 'reports', label: 'التقارير', icon: <BarChart3 />, cardIcon: <BarChart3 />, color: 'pink', to: '/hub/reports', perms: ['reports.view'], hubs: ['reports'] },
+  {
+    key: 'partners', label: 'الشركاء', icon: <HandCoins />, cardIcon: <HandCoins />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'],
+    extra: [
+      { to: '/partners', label: 'الشركاء ورأس المال', icon: <PieChart />, grad: '', perm: 'partners.view' },
+      { to: '/docs/new/partner_capital', label: 'إيداع رأس مال', icon: <ArrowDownLeft />, grad: '', perm: 'partners.create' },
+      { to: '/docs/new/partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
+    ],
+  },
 ];
 
-/** أقسام قائمة الترس (غير الظاهرة في الشريط) */
-export const GEAR_HUBS = ['partners', 'system'];
+/** أقسام قائمة الترس (غير الظاهرة في الشريط) — الشركاء اتنقلوا للشريط بطلب المستخدم 2026-11-14 */
+export const GEAR_HUBS = ['system'];
 
 /** القسم النشط في الشريط الأفقي ('' إن كانت الصفحة من أقسام قائمة الترس) */
 export function activeSectionKey(pathname: string): string {

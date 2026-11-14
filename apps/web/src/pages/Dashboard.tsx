@@ -173,7 +173,7 @@ function HomeHeader({ name, company, onCustomize }: { name: string; company: str
       <div className="mc-hello-t">
         <h1>
           <span className="mc-wave" aria-hidden="true">👋</span>
-          مرحبًا بك، <span className="mc-hello-n">{name}</span>
+          مرحبًا بك، <span className="mc-hello-n">{name.trim()}</span>
         </h1>
         {company && <div className="mc-hello-s">في نظام إدارة الأعمال {company}</div>}
       </div>
@@ -309,7 +309,10 @@ function Favorites() {
           {chosen.map((a, i) => (
             <button key={a.key} type="button" className={`mc-fav ${i === 0 ? 'primary' : ''} fav-${a.key}`} onClick={() => { recordUse(uid, a.key); nav(a.to); }}>
               <span className="mc-fav-ic">{FAV_ICONS[a.key] ?? a.icon}</span>
-              <span>{FAV_LABEL[a.key] ?? a.label}</span>
+              <span className="mc-fav-t">
+                <span className="mc-fav-l">{FAV_LABEL[a.key] ?? a.label}</span>
+                <span className="mc-fav-g">{a.group}</span>
+              </span>
             </button>
           ))}
         </div>

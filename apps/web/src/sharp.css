@@ -29,18 +29,20 @@
 }
 :root[data-accent="blue"], :root:not([data-accent]) { --tint: #1D4ED8; --tint-press: #1E40AF; }
 :root[data-theme="dark"] {
-  --bg: #0B0D11; --app-bg: #0B0D11; --bg-tertiary: #0B0D11;
-  --card: #15181F; --card-2: #1A1E26; --hover: #1E222B; --field: #12151B;
-  --label: #ECEEF2; --heading: #F3F4F6; --label-2: #A0A5B1; --label-3: #8A8F9B;
-  --separator: #262A33; --separator-opaque: #262A33; --border-strong: #353A45;
-  --input-border: #353A45;
-  --shadow-card: none; --shadow-lift: none; --shadow-pop: 0 18px 48px rgba(0, 0, 0, .6);
-  --nav-bg: #07080B; --nav-hover: #15181F; --nav-active: #1E222B; --nav-border: #1E222B;
+  /* رمادي غامق مش أسود (طلب المستخدم 2026-11-14) */
+  --bg: #202227; --app-bg: #202227; --bg-tertiary: #202227; --bg-elevated: #2A2D33; --bg-secondary: #2A2D33;
+  --card: #2A2D33; --card-2: #31343B; --hover: #353840; --field: #26282E; --bar: #2A2D33; --sidebar-bg: #26282E;
+  --label: #ECEEF2; --heading: #F4F5F7; --label-2: #B4B8C2; --label-3: #9A9EA9; --label-field: #CDD0D7;
+  --separator: #3A3D45; --separator-opaque: #3A3D45; --border-strong: #4A4E58;
+  --input-bg: #26282E; --input-border: #4A4E58; --input-border-hover: #5A5F6A; --input-disabled: #2E3137;
+  --shadow-card: none; --shadow-lift: none; --shadow-pop: 0 18px 48px rgba(0, 0, 0, .45);
+  --nav-bg: #18191D; --nav-2: #222429; --nav-text: #F3F4F6; --nav-muted: #A9ADB8; --nav-hover: #26282E; --nav-active: #31343B; --nav-border: #2E3036;
   --mc-panel: var(--card); --mc-line: var(--separator); --mc-shadow: none; --mc-shadow-lg: none;
   --mc-active: color-mix(in srgb, var(--tint) 62%, #000000);
   --mc-blue: var(--tint); --mc-green: var(--tint); --mc-purple: var(--tint); --mc-orange: var(--tint);
   --mc-teal: var(--tint); --mc-indigo: var(--tint); --mc-violet: var(--tint); --mc-pink: var(--tint);
 }
+:root[data-theme="dark"] .main { background: var(--bg); }
 :root:not([data-theme="dark"]) .main { background: var(--bg); }
 
 /* ---------- 2) الشريط العلوي الداكن (الهوية + الأقسام) ---------- */
@@ -148,4 +150,38 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
   .mc-card-l { font-size: 0.8125rem; }
   .mc-panel { border-radius: 0.75rem; }
   .mc-fav { min-height: 3rem; }
+}
+
+/* ---------- 6) تظبيط المقاسات والمسافات (الجولة التانية) ---------- */
+.mc-hello { align-items: center; margin-bottom: 1rem; }
+.mc-hello-n { margin-inline-start: 0; }
+.mc-hello-side { gap: 0.5rem; }
+.mc-hello-side .mc-chip { height: 2.5rem; }
+.mc-cards { gap: 0.75rem; margin-bottom: 1rem; }
+.mc-card { height: 4rem; padding: 0 1rem; }
+.mc-card-l { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.mc-panel { padding: 1rem 1.125rem; display: flex; flex-direction: column; }
+.mc-panel-h { margin-bottom: 0.75rem; min-height: 2.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--separator); }
+.mc-task { padding: 0 0.25rem; }
+
+/* الاختصارات: تملا اللوحة، أيقونة في مربع، والاسم وتحته القسم */
+.mc-favs .mc-fav-grid { flex: 1; grid-auto-rows: minmax(3.5rem, 1fr); gap: 0.625rem; }
+.mc-fav { min-height: 0; height: auto; padding: 0.625rem 0.875rem; gap: 0.75rem; align-items: center; }
+.mc-fav .mc-fav-ic { width: 2.375rem; height: 2.375rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
+.mc-fav .mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
+.mc-fav > .mc-fav-t { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; -webkit-line-clamp: unset; overflow: visible; }
+.mc-fav-l { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-fav-g { font-size: max(11px, 0.75rem); font-weight: 500; color: var(--label-2); }
+.mc-fav.primary .mc-fav-ic { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .22); }
+.mc-fav.primary .mc-fav-g { color: rgba(255, 255, 255, .8); }
+.mc-fav:hover { background: var(--card-2); }
+.mc-fav.primary:hover { background: var(--tint-press); }
+
+.mc-more-title { margin-top: 1.5rem; }
+@media (max-width: 760px) {
+  .mc-hello { align-items: flex-start; }
+  .mc-card { height: 3.5rem; padding: 0 0.625rem; }
+  .mc-fav { padding: 0.5rem 0.625rem; gap: 0.5rem; }
+  .mc-fav .mc-fav-ic { width: 2rem; height: 2rem; }
+  .mc-fav-l { white-space: normal; font-size: 0.8125rem; }
 }

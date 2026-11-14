@@ -135,7 +135,7 @@ const GEAR_EXTRA: Record<string, NavLink[]> = {
   ],
 };
 
-/** أيقونات الشريط العلوي: الإعدادات (وفيها الشركاء والإعدادات)، المساعدة، الإشعارات */
+/** أيقونات الشريط العلوي: الإعدادات، المساعدة، الإشعارات */
 export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onSearch, userName, roleName, syncProblems }: {
   can: Can; dark: boolean; onToggleTheme: () => void; onAppearance: () => void; onLogout: () => void; onSearch: () => void; userName: string; roleName: string; syncProblems: number;
 }) {
