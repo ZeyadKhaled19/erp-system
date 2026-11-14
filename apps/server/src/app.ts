@@ -404,7 +404,7 @@ export async function buildApp(opts: AppOptions) {
     const b = z.record(z.any()).parse(req.body);
     const allowed = ['company_name', 'company_address', 'company_phone', 'company_tax_no', 'default_tax_rate_bp', 'allow_negative_stock', 'enforce_credit_limit', 'invoice_footer', 'default_due_days', 'locked_until',
       'print_logo', 'print_template_invoice', 'print_template_voucher', 'print_show_balance', 'print_contract_terms',
-      'work_start_time', 'late_grace_minutes', 'weekly_off_days'];
+      'work_start_time', 'work_end_time', 'late_grace_minutes', 'weekly_off_days', 'monthly_leave_days'];
     return db.tx(async (t) => {
       await t.query(`select pg_advisory_xact_lock(7331)`);
       for (const [k, v] of Object.entries(b)) {
@@ -413,6 +413,8 @@ export async function buildApp(opts: AppOptions) {
           throw new AppError('الشعار يجب أن يكون صورة أصغر من 200 كيلوبايت');
         }
         if (k === 'work_start_time' && (typeof v !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v))) throw new AppError('ميعاد بداية الشغل غير صالح');
+        if (k === 'work_end_time' && (typeof v !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v))) throw new AppError('ميعاد الانصراف غير صالح');
+        if (k === 'monthly_leave_days' && (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 31)) throw new AppError('عدد أيام الأجازة الشهرية يجب أن يكون بين 0 و31');
         if (k === 'late_grace_minutes' && (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 240)) throw new AppError('فترة السماح يجب أن تكون بين 0 و240 دقيقة');
         if (k === 'weekly_off_days' && (!Array.isArray(v) || v.length > 6 || v.some((d) => !Number.isInteger(d) || d < 0 || d > 6) || new Set(v).size !== v.length)) throw new AppError('أيام الأجازة الأسبوعية غير صالحة');
         if (k === 'locked_until') {

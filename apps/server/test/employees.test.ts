@@ -51,6 +51,9 @@ describe('قسم الموظفين', () => {
     expect(Object.fromEntries(rows.map((r: any) => [r.key, r.value]))).toEqual({ late_grace_minutes: 10, weekly_off_days: [5, 6], work_start_time: '08:30' });
     expect((await post({ work_start_time: '25:00' })).statusCode).not.toBe(200);
     expect((await post({ weekly_off_days: [7] })).statusCode).not.toBe(200);
+    expect((await post({ work_end_time: '17:30', monthly_leave_days: 4 })).statusCode).toBe(200);
+    expect((await post({ work_end_time: '5pm' })).statusCode).not.toBe(200);
+    expect((await post({ monthly_leave_days: 40 })).statusCode).not.toBe(200);
   });
 
   it('السلفة: تُصرف من الخزينة وتزيد رصيد سلف الموظف', async () => {

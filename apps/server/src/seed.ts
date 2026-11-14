@@ -75,8 +75,12 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   locked_until: null,
   /** مواعيد الشغل: بداية اليوم، دقائق السماح قبل اعتبار الموظف متأخرًا، وأيام الأجازة الأسبوعية (0 = الأحد … 5 = الجمعة) */
   work_start_time: '09:00',
+  work_end_time: '17:00',
   late_grace_minutes: 15,
-  weekly_off_days: [5],
+  /** أيام أجازة ثابتة في الأسبوع (فاضية = مفيش يوم ثابت) */
+  weekly_off_days: [],
+  /** أيام أجازة متغيرة لكل موظف في الشهر يختارها براحته */
+  monthly_leave_days: 4,
 };
 
 export async function seed(db: Db, opts: { adminPassword?: string } = {}) {

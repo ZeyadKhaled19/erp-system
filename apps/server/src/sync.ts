@@ -59,7 +59,7 @@ function visible(table: SyncTable, row: any, user: AuthUser) {
     case 'instruments': return can(user, 'treasury.instruments');
     case 'cashier_shifts': return row.user_id === user.id || can(user, 'treasury.manage');
     case 'partners': return can(user, 'partners.view');
-    case 'settings': return ['role_home_pages', 'company_name', 'print_logo', 'work_start_time', 'late_grace_minutes', 'weekly_off_days'].includes(row.key) || can(user, 'settings.manage');
+    case 'settings': return ['role_home_pages', 'company_name', 'print_logo', 'work_start_time', 'work_end_time', 'late_grace_minutes', 'weekly_off_days', 'monthly_leave_days'].includes(row.key) || can(user, 'settings.manage');
     case 'sales_reps': return can(user, 'sales.view') || can(user, 'parties.view');
     case 'price_lists': return can(user, 'items.view');
     case 'party_groups': return can(user, 'parties.view');

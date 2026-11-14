@@ -175,9 +175,13 @@ function useWorkRules() {
   const s = useSettings();
   const start: string = typeof s.work_start_time === 'string' ? s.work_start_time : '09:00';
   const grace = Number.isFinite(Number(s.late_grace_minutes)) ? Number(s.late_grace_minutes) : 15;
-  const offDays: number[] = Array.isArray(s.weekly_off_days) ? s.weekly_off_days : [5];
+  const end: string = typeof s.work_end_time === 'string' ? s.work_end_time : '17:00';
+  const offDays: number[] = Array.isArray(s.weekly_off_days) ? s.weekly_off_days : [];
+  const leaveDays = Number.isFinite(Number(s.monthly_leave_days)) ? Number(s.monthly_leave_days) : 4;
   return {
-    start, grace, offDays,
+    start, end, grace, offDays, leaveDays,
+    /** دقائق الانصراف المبكر عن ميعاد الانصراف (لمن خرج قبل الميعاد − فترة السماح فقط) */
+    earlyMinutes: (t?: string | null) => (t && toMin(t) < toMin(end) - grace ? toMin(end) - toMin(t) : 0),
     /** متأخر لو الحضور بعد الميعاد + فترة السماح */
     isLate: (t: string) => toMin(t) > toMin(start) + grace,
     /** دقائق التأخير عن ميعاد البداية (لمن تعدّى فترة السماح فقط) */
@@ -214,6 +218,13 @@ export function AttendancePage() {
   const editable = can('employees.attendance');
   const isToday = date === todayISO();
   const rules = useWorkRules();
+  // الأجازات المستخدمة في شهر اليوم المختار (لكل موظف من رصيده الشهري)
+  const mr = monthRange(date.slice(0, 7));
+  const leaveUsed = useLiveQuery(async () => {
+    const m = new Map<string, number>();
+    (await db.attendance.where('date').between(mr.from, mr.to, true, true).toArray()).forEach((r) => r.status === 'leave' && m.set(r.employee_id, (m.get(r.employee_id) ?? 0) + 1));
+    return m;
+  }, [mr.from, mr.to]) ?? new Map<string, number>();
   const offDay = rules.isOff(date);
   const write = async (empId: string, patch: Record<string, any>) => {
     const existing = byEmp.get(empId);
@@ -227,7 +238,13 @@ export function AttendancePage() {
       ui.toast((e as Error).message, 'err');
     }
   };
-  const mark = (empId: string, status: string) => byEmp.get(empId)?.status !== status && write(empId, { status });
+  const mark = (empId: string, status: string) => {
+    if (byEmp.get(empId)?.status === status) return;
+    if (status === 'leave' && (leaveUsed.get(empId) ?? 0) >= rules.leaveDays) {
+      ui.toast(`الموظف خلّص أجازاته (${rules.leaveDays} أيام في الشهر) — اليوم ده هيتخصم زي الغياب في الرواتب`, 'err');
+    }
+    return write(empId, { status });
+  };
   const setIn = (empId: string, t: string | null) => {
     const r = byEmp.get(empId);
     if (t && r?.check_out && r.check_out < t) return ui.toast('وقت الحضور بعد وقت الانصراف', 'err');
@@ -251,7 +268,7 @@ export function AttendancePage() {
       <PageTabs tabs={EMPLOYEE_TABS} />
       <PageHeader
         title="الحضور والانصراف"
-        sub={`${isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'} · بداية الشغل ${fmtTime(rules.start)} وسماح ${rules.grace} دقيقة`}
+        sub={`${isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'} · الشغل من ${fmtTime(rules.start)} لـ ${fmtTime(rules.end)} وسماح ${rules.grace} دقيقة`}
         actions={<>
           <input type="date" className="input" style={{ width: 170 }} value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
           {editable && unmarked > 0 && !isToday && <button className="btn" onClick={() => void markAll()}><CalendarCheck /> الباقين حاضرين ({unmarked})</button>}
@@ -276,10 +293,15 @@ export function AttendancePage() {
                 const off = r?.status === 'absent' || r?.status === 'leave';
                 return (
                   <tr key={e.id}>
-                    <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={e.name} />{e.name}</span>{e.job_title && <div className="muted small">{e.job_title}</div>}</td>
+                    <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={e.name} />{e.name}</span>
+                      <div className={`small ${(leaveUsed.get(e.id) ?? 0) > rules.leaveDays ? 'red' : 'muted'}`}>{e.job_title ? `${e.job_title} · ` : ''}أجازات الشهر {leaveUsed.get(e.id) ?? 0} من {rules.leaveDays}</div>
+                    </td>
                     <td data-label="الحضور"><TimeCell value={r?.check_in} stamp={isToday} label="تسجيل حضور" disabled={!editable || off} onSet={(t) => void setIn(e.id, t)} /></td>
                     <td data-label="الانصراف"><TimeCell value={r?.check_out} stamp={isToday} label="تسجيل انصراف" disabled={!editable || off || !r?.check_in} onSet={(t) => void setOut(e.id, t)} /></td>
-                    <td data-label="ساعات العمل" className="num bold">{r?.check_in && !r?.check_out ? <span className="badge blue">في الشغل</span> : fmtHours(minutesOf(r))}</td>
+                    <td data-label="ساعات العمل" className="num bold">
+                      {r?.check_in && !r?.check_out ? <span className="badge blue">في الشغل</span> : fmtHours(minutesOf(r))}
+                      {rules.earlyMinutes(r?.check_out) > 0 && <div><span className="badge orange">انصراف مبكر {fmtHours(rules.earlyMinutes(r?.check_out))}</span></div>}
+                    </td>
                     <td data-label="الحالة">
                       <div className="att-opts" role="radiogroup" aria-label={`حالة ${e.name}`}>
                         {STATUS.map((s) => (
@@ -338,6 +360,7 @@ export function AttendanceReportPage() {
       missing: days.filter((d) => !rules.isOff(d) && !mine.some((r) => String(r.date).slice(0, 10) === d)).length,
       minutes: mine.reduce((s, r) => s + minutesOf(r), 0),
       lateMin: mine.reduce((s, r) => s + rules.lateMinutes(r.check_in), 0),
+      earlyMin: mine.reduce((s, r) => s + rules.earlyMinutes(r.check_out), 0),
       avgIn: avgIn === null ? null : `${String(Math.floor(avgIn / 60)).padStart(2, '0')}:${String(avgIn % 60).padStart(2, '0')}`,
     };
   });
@@ -345,10 +368,10 @@ export function AttendanceReportPage() {
   const byDay = new Map(recs.filter((r) => r.employee_id === empId).map((r) => [String(r.date).slice(0, 10), r]));
   const one = summary.find((s) => s.e.id === empId);
 
-  const exportAll = () => exportExcel(`حضور ${monthLabel(from)}`, ['الموظف', 'الوظيفة', 'حاضر', 'متأخر', 'غائب', 'إجازة', 'أيام بدون تسجيل', 'إجمالي الساعات', 'إجمالي التأخير', 'متوسط وقت الحضور'],
-    summary.map((s) => [s.e.name, s.e.job_title ?? '', s.present, s.late, s.absent, s.leave, s.missing, fmtHours(s.minutes), fmtHours(s.lateMin), s.avgIn ? fmtTime(s.avgIn) : '—']));
-  const exportOne = () => emp && exportExcel(`حضور ${emp.name} ${monthLabel(from)}`, ['التاريخ', 'اليوم', 'الحالة', 'الحضور', 'الانصراف', 'ساعات العمل', 'التأخير'],
-    days.map((d) => { const r = byDay.get(d); return [d, DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()], r ? STATUS_LABEL[r.status]?.label : rules.isOff(d) ? 'أجازة أسبوعية' : 'لم يُسجَّل', fmtTime(r?.check_in), fmtTime(r?.check_out), fmtHours(minutesOf(r)), fmtHours(rules.lateMinutes(r?.check_in))]; }));
+  const exportAll = () => exportExcel(`حضور ${monthLabel(from)}`, ['الموظف', 'الوظيفة', 'حاضر', 'متأخر', 'غائب', `إجازة (من ${rules.leaveDays})`, 'أجازات زيادة', 'أيام بدون تسجيل', 'إجمالي الساعات', 'إجمالي التأخير', 'انصراف مبكر', 'متوسط وقت الحضور'],
+    summary.map((s) => [s.e.name, s.e.job_title ?? '', s.present, s.late, s.absent, s.leave, Math.max(0, s.leave - rules.leaveDays), s.missing, fmtHours(s.minutes), fmtHours(s.lateMin), fmtHours(s.earlyMin), s.avgIn ? fmtTime(s.avgIn) : '—']));
+  const exportOne = () => emp && exportExcel(`حضور ${emp.name} ${monthLabel(from)}`, ['التاريخ', 'اليوم', 'الحالة', 'الحضور', 'الانصراف', 'ساعات العمل', 'التأخير', 'انصراف مبكر'],
+    days.map((d) => { const r = byDay.get(d); return [d, DAY_NAMES[new Date(d + 'T00:00:00Z').getUTCDay()], r ? STATUS_LABEL[r.status]?.label : rules.isOff(d) ? 'أجازة أسبوعية' : 'لم يُسجَّل', fmtTime(r?.check_in), fmtTime(r?.check_out), fmtHours(minutesOf(r)), fmtHours(rules.lateMinutes(r?.check_in)), fmtHours(rules.earlyMinutes(r?.check_out))]; }));
 
   return (
     <div className="page">
@@ -365,12 +388,12 @@ export function AttendanceReportPage() {
           <button className="btn" onClick={() => void (empId ? exportOne() : exportAll())}>تصدير Excel</button>
         </>}
       />
-      <div className="footnote" style={{ margin: '-6px 0 12px' }}>بداية الشغل {fmtTime(rules.start)} · سماح {rules.grace} دقيقة · الأجازة الأسبوعية: {rules.offDays.length ? rules.offDays.map((d) => DAY_NAMES[d]).join('، ') : 'لا يوجد'} — تتغير من الإعدادات ← قواعد العمل</div>
+      <div className="footnote" style={{ margin: '-6px 0 12px' }}>الشغل من {fmtTime(rules.start)} لـ {fmtTime(rules.end)} · سماح {rules.grace} دقيقة · {rules.leaveDays} أيام أجازة متغيرة في الشهر{rules.offDays.length ? ` · أجازة ثابتة: ${rules.offDays.map((d) => DAY_NAMES[d]).join('، ')}` : ''} — تتغير من الإعدادات ← قواعد العمل</div>
       {!empId ? (
         shown.length === 0 ? <div className="card"><Empty icon={<Users />} title="لا يوجد موظفون" /></div> : (
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr><th>الموظف</th><th className="n">حاضر</th><th className="n">متأخر</th><th className="n">غائب</th><th className="n">إجازة</th><th className="n">بدون تسجيل</th><th className="n">إجمالي الساعات</th><th className="n">إجمالي التأخير</th><th className="n">متوسط الحضور</th><th /></tr></thead>
+              <thead><tr><th>الموظف</th><th className="n">حاضر</th><th className="n">متأخر</th><th className="n">غائب</th><th className="n">أجازات (من {rules.leaveDays})</th><th className="n">بدون تسجيل</th><th className="n">إجمالي الساعات</th><th className="n">إجمالي التأخير</th><th className="n">انصراف مبكر</th><th className="n">متوسط الحضور</th><th /></tr></thead>
               <tbody>
                 {summary.map((s) => (
                   <tr key={s.e.id} className="click" onClick={() => setEmpId(s.e.id)}>
@@ -378,10 +401,11 @@ export function AttendanceReportPage() {
                     <td data-label="حاضر" className="n green">{s.present}</td>
                     <td data-label="متأخر" className="n orange">{s.late}</td>
                     <td data-label="غائب" className="n red">{s.absent}</td>
-                    <td data-label="إجازة" className="n">{s.leave}</td>
+                    <td data-label="أجازات" className={`n ${s.leave > rules.leaveDays ? 'red bold' : ''}`}>{s.leave}{s.leave > rules.leaveDays && <div className="small">زيادة {s.leave - rules.leaveDays}</div>}</td>
                     <td data-label="بدون تسجيل" className="n muted">{s.missing}</td>
                     <td data-label="إجمالي الساعات" className="n bold">{fmtHours(s.minutes)}</td>
                     <td data-label="إجمالي التأخير" className={`n ${s.lateMin ? 'orange bold' : ''}`}>{fmtHours(s.lateMin)}</td>
+                    <td data-label="انصراف مبكر" className={`n ${s.earlyMin ? 'orange bold' : ''}`}>{fmtHours(s.earlyMin)}</td>
                     <td data-label="متوسط الحضور" className="n">{s.avgIn ? fmtTime(s.avgIn) : '—'}</td>
                     <td data-label="" className="lp-act-cell"><RowActions openLabel="تفاصيل الأيام" onOpen={() => setEmpId(s.e.id)} /></td>
                   </tr>
@@ -397,12 +421,13 @@ export function AttendanceReportPage() {
               { label: 'أيام حضور', value: one.present + one.late, tone: 'green' },
               { label: one.lateMin ? `أيام تأخير (إجمالي ${fmtHours(one.lateMin)})` : 'أيام تأخير', value: one.late, tone: 'orange' },
               { label: 'غياب', value: one.absent, tone: 'red' },
+              { label: `أجازات (من ${rules.leaveDays})${one.leave > rules.leaveDays ? ` — زيادة ${one.leave - rules.leaveDays}` : ''}`, value: one.leave, tone: one.leave > rules.leaveDays ? 'red' : 'purple' },
               { label: 'إجمالي ساعات العمل', value: fmtHours(one.minutes), tone: 'blue' },
             ]} />
           )}
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th><th>التأخير</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>اليوم</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th><th>التأخير</th><th>انصراف مبكر</th></tr></thead>
               <tbody>
                 {days.map((d) => {
                   const r = byDay.get(d);
@@ -416,6 +441,7 @@ export function AttendanceReportPage() {
                       <td data-label="الانصراف" className="num">{fmtTime(r?.check_out)}</td>
                       <td data-label="ساعات العمل" className="num bold">{fmtHours(minutesOf(r))}</td>
                       <td data-label="التأخير" className={`num ${rules.lateMinutes(r?.check_in) ? 'orange bold' : 'muted'}`}>{fmtHours(rules.lateMinutes(r?.check_in))}</td>
+                      <td data-label="انصراف مبكر" className={`num ${rules.earlyMinutes(r?.check_out) ? 'orange bold' : 'muted'}`}>{fmtHours(rules.earlyMinutes(r?.check_out))}</td>
                     </tr>
                   );
                 })}
@@ -547,21 +573,28 @@ export function PayrollPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openRun, setOpenRun] = useState<string | null>(null);
+  const rules = useWorkRules();
+  // أيام الخصم = الغياب + الأجازات الزيادة عن المسموح في الشهر
   const absences = useLiveQuery(async () => {
-    const m = new Map<string, number>();
-    (await db.attendance.where('date').between(from, to, true, true).toArray()).forEach((r) => r.status === 'absent' && m.set(r.employee_id, (m.get(r.employee_id) ?? 0) + 1));
-    return m;
-  }, [from, to]) ?? new Map<string, number>();
+    const absent = new Map<string, number>();
+    const leave = new Map<string, number>();
+    for (const r of await db.attendance.where('date').between(from, to, true, true).toArray()) {
+      if (r.status === 'absent') absent.set(r.employee_id, (absent.get(r.employee_id) ?? 0) + 1);
+      if (r.status === 'leave') leave.set(r.employee_id, (leave.get(r.employee_id) ?? 0) + 1);
+    }
+    return { absent, leave };
+  }, [from, to]) ?? { absent: new Map<string, number>(), leave: new Map<string, number>() };
   const runs = useLiveQuery(async () => (await db.documents.where('doc_type').equals('payroll').toArray()).sort((a, b) => String(b.data?.period_from ?? b.date).localeCompare(String(a.data?.period_from ?? a.date))), []) ?? [];
   const done = runs.find((d) => d.status !== 'cancelled' && (d.data?.period_from ?? d.period_from) === from);
 
-  const rows: (Row & { name: string; job: string; balance: number; net: number })[] = employees
+  const rows: (Row & { extraLeave: number; name: string; job: string; balance: number; net: number })[] = employees
     .filter((e) => e.active !== false)
     .map((e) => {
-      const days = absences.get(e.id) ?? 0;
+      const extraLeave = Math.max(0, (absences.leave.get(e.id) ?? 0) - rules.leaveDays);
+      const days = (absences.absent.get(e.id) ?? 0) + extraLeave;
       const base: Row = { employee_id: e.id, salary: e.salary ?? 0, absent_days: days, absence_deduction: Math.round(((e.salary ?? 0) / 30) * days), bonus: 0, other_deduction: 0, advance_deduction: 0 };
       const r = { ...base, ...(edits[e.id] ?? {}) } as Row;
-      return { ...r, name: e.name, job: e.job_title ?? '', balance: Math.max(0, e.advance_balance ?? 0), net: r.salary + r.bonus - r.absence_deduction - r.other_deduction - r.advance_deduction };
+      return { ...r, extraLeave, name: e.name, job: e.job_title ?? '', balance: Math.max(0, e.advance_balance ?? 0), net: r.salary + r.bonus - r.absence_deduction - r.other_deduction - r.advance_deduction };
     });
   const set = (id: string, k: keyof Row, v: number) => setEdits((m) => ({ ...m, [id]: { ...(m[id] ?? {}), [k]: v } }));
   const sum = (k: 'salary' | 'bonus' | 'absence_deduction' | 'other_deduction' | 'advance_deduction' | 'net') => rows.reduce((s, r) => s + r[k], 0);
@@ -597,7 +630,7 @@ export function PayrollPage() {
       <PageTabs tabs={EMPLOYEE_TABS} />
       <PageHeader
         title="الرواتب"
-        sub="الصافي = الراتب + المكافأة − الغياب − الجزاءات − خصم السلفة"
+        sub={`الصافي = الراتب + المكافأة − الغياب − الجزاءات − خصم السلفة · الأجازات اللي تزيد عن ${rules.leaveDays} أيام في الشهر تتخصم زي الغياب`}
         actions={<input type="month" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && (setYm(e.target.value), setEdits({}))} />}
       />
       {err && <div style={{ marginBottom: 12 }}><Banner kind="err">{err}</Banner></div>}
@@ -615,7 +648,7 @@ export function PayrollPage() {
                   <tr key={r.employee_id}>
                     <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={r.name} />{r.name}</span>{r.job && <div className="muted small">{r.job}</div>}</td>
                     <td data-label="الراتب" className="n">{formatMoney(r.salary)}</td>
-                    <td data-label="أيام الغياب" className="n">{r.absent_days}</td>
+                    <td data-label="أيام الغياب" className="n">{r.absent_days}{r.extraLeave > 0 && <div className="small orange">منها {r.extraLeave} أجازة زيادة</div>}</td>
                     <td data-label="خصم الغياب" className="n pay-in"><MoneyInput value={r.absence_deduction} onChange={(v) => set(r.employee_id, 'absence_deduction', v)} /></td>
                     <td data-label="مكافأة" className="n pay-in"><MoneyInput value={r.bonus} onChange={(v) => set(r.employee_id, 'bonus', v)} /></td>
                     <td data-label="جزاءات" className="n pay-in"><MoneyInput value={r.other_deduction} onChange={(v) => set(r.employee_id, 'other_deduction', v)} /></td>
