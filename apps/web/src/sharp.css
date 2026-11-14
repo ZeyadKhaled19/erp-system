@@ -1,0 +1,151 @@
+/* =====================================================================
+   النسخة الحادة (اعتمدها المستخدم 2026-11-14 بدل الشكل الناعم):
+   لون أساسي واحد، حدود رفيعة بدل الظلال، زوايا 6/10/12px، شريط علوي داكن،
+   تباين عالي. يُحمّل بعد كل ملفات التصميم. عرض فقط: لا يغيّر أي منطق.
+   ===================================================================== */
+
+/* ---------- 1) المتغيرات ---------- */
+:root {
+  --bg: #EEEFF3; --app-bg: #EEEFF3; --bg-tertiary: #EEEFF3;
+  --card: #FFFFFF; --card-2: #F4F5F8; --hover: #F4F5F8; --field: #FFFFFF;
+  --label: #15171C; --heading: #15171C; --label-2: #5A5F6B; --label-3: #6B707C; --label-field: #3A3F4A;
+  --separator: #DEE0E7; --separator-opaque: #DEE0E7; --border-strong: #C7CAD4;
+  --input-border: #C7CAD4; --input-border-hover: #A3A8B4;
+  --shadow-card: none;
+  --shadow-lift: 0 1px 2px rgba(16, 18, 24, .06);
+  --shadow-pop: 0 18px 48px rgba(16, 18, 24, .18);
+  --radius-s: 0.375rem; --radius: 0.625rem; --radius-l: 0.75rem; --radius-xl: 0.75rem;
+  --nav-bg: #15171C; --nav-2: #1C1F26; --nav-text: #F3F4F6; --nav-muted: #A0A5B1; --nav-hover: #22252D; --nav-active: #2C2F38; --nav-border: #2C2F38;
+
+  --mc-panel: var(--card);
+  --mc-line: var(--separator);
+  --mc-shadow: none;
+  --mc-shadow-lg: none;
+  --mc-active: var(--tint);
+  --mc-active-shadow: none;
+  /* لون واحد: أيقونات الأقسام كلها بلون التمييز */
+  --mc-blue: var(--tint); --mc-green: var(--tint); --mc-purple: var(--tint); --mc-orange: var(--tint);
+  --mc-teal: var(--tint); --mc-indigo: var(--tint); --mc-violet: var(--tint); --mc-pink: var(--tint);
+}
+:root[data-accent="blue"], :root:not([data-accent]) { --tint: #1D4ED8; --tint-press: #1E40AF; }
+:root[data-theme="dark"] {
+  --bg: #0B0D11; --app-bg: #0B0D11; --bg-tertiary: #0B0D11;
+  --card: #15181F; --card-2: #1A1E26; --hover: #1E222B; --field: #12151B;
+  --label: #ECEEF2; --heading: #F3F4F6; --label-2: #A0A5B1; --label-3: #8A8F9B;
+  --separator: #262A33; --separator-opaque: #262A33; --border-strong: #353A45;
+  --input-border: #353A45;
+  --shadow-card: none; --shadow-lift: none; --shadow-pop: 0 18px 48px rgba(0, 0, 0, .6);
+  --nav-bg: #07080B; --nav-hover: #15181F; --nav-active: #1E222B; --nav-border: #1E222B;
+  --mc-panel: var(--card); --mc-line: var(--separator); --mc-shadow: none; --mc-shadow-lg: none;
+  --mc-active: color-mix(in srgb, var(--tint) 62%, #000000);
+  --mc-blue: var(--tint); --mc-green: var(--tint); --mc-purple: var(--tint); --mc-orange: var(--tint);
+  --mc-teal: var(--tint); --mc-indigo: var(--tint); --mc-violet: var(--tint); --mc-pink: var(--tint);
+}
+:root:not([data-theme="dark"]) .main { background: var(--bg); }
+
+/* ---------- 2) الشريط العلوي الداكن (الهوية + الأقسام) ---------- */
+.nav-bar.mc-top { background: var(--nav-bg) !important; color: var(--nav-text); padding: calc(0.25rem + env(safe-area-inset-top)) 1.25rem 0.5rem; }
+.mc-top .mc-company, .mc-top .mc-system { color: var(--nav-text); }
+.mc-top .mc-brand-sep { background: var(--nav-border); }
+.mc-top .mc-logo { border-radius: 0.625rem; box-shadow: none; }
+.mc-top .mc-icon-btn { color: var(--nav-text); border-radius: 0.625rem; border: 1px solid var(--nav-border); width: 2.375rem; height: 2.375rem; }
+.mc-top .mc-icon-btn:hover, .mc-top .mc-icon-btn.open { background: var(--nav-hover); }
+.mc-top .mc-icon-btn svg { width: 1.125rem; height: 1.125rem; }
+.mc-top .mc-dot { box-shadow: 0 0 0 2px var(--nav-bg); top: 0.375rem; right: 0.4375rem; }
+.mc-top .mc-search { background: var(--nav-2); border-color: var(--nav-border); color: var(--nav-muted); border-radius: 0.625rem; }
+.mc-top .mc-search:hover { color: var(--nav-text); border-color: #3A3E48; }
+.mc-top .mc-search kbd { background: var(--nav-active); border-color: #3A3E48; color: var(--nav-muted); }
+.mc-top .sync-pill { border-radius: 999px; }
+.mc-top .nm-btn { color: var(--nav-text); }
+
+.mc-nav { margin: 0.125rem 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.mc-nav-item { flex: 0 0 auto; height: 2.5rem; padding: 0 0.875rem; gap: 0.5rem; border-radius: 0.5rem; color: var(--nav-muted); font-size: 0.9375rem; font-weight: 600; }
+.mc-nav-item + .mc-nav-item::before { display: none; }
+.mc-nav-item:hover, .mc-nav-item.open { background: var(--nav-hover); color: var(--nav-text); }
+.mc-nav-item.on { background: var(--nav-active); color: #FFFFFF; box-shadow: inset 0 -2px 0 var(--tint); }
+.mc-nav-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
+@media (max-width: 1420px) { .mc-nav-item { font-size: 0.875rem; padding: 0 0.625rem; } .mc-nav-ic svg { width: 1.0625rem; height: 1.0625rem; } }
+@media (max-width: 1180px) { .mc-nav-item { height: 2.375rem; font-size: 0.8125rem; padding: 0 0.5rem; } }
+@media (max-width: 760px) {
+  .nav-bar.mc-top { background: var(--nav-bg) !important; border-bottom: 0 !important; padding-bottom: 0.375rem; }
+}
+
+/* ---------- 3) تبويبات الشاشات ---------- */
+.screen-tabs.mc-tabs { background: var(--card); border-bottom: 1px solid var(--separator); padding: 0.375rem 1.25rem; }
+.mc-tabs .st-tab { height: 2.25rem; border-radius: 0.5rem; background: transparent; border: 1px solid transparent; font-weight: 500; }
+.mc-tabs .st-tab:hover { background: var(--card-2); }
+.mc-tabs .st-tab.on { background: var(--card-2); border-color: var(--separator); box-shadow: none; font-weight: 600; }
+.mc-tabs .st-tab.home.on { color: var(--heading); }
+.mc-tabs .st-close-all { border-radius: 0.5rem; }
+.mc-plus { width: 2.25rem; height: 2.25rem; border-radius: 0.5rem; box-shadow: none; }
+.mc-plus:hover { transform: none; border-color: var(--border-strong); }
+
+/* ---------- 4) المكونات العامة ---------- */
+.card, .list, .table-wrap, .stat, .kpi, .pos-cart, .pos-item, .login-card, .tile { border-radius: 0.75rem; box-shadow: none; }
+.tile:hover { box-shadow: none; border-color: var(--border-strong); }
+.btn { border-radius: 0.625rem; box-shadow: none; }
+.btn.primary, .btn.success.primary, .btn.danger.primary { box-shadow: none; }
+.btn.sm { border-radius: 0.5rem; }
+.btn.lg, .btn.xl { border-radius: 0.625rem; }
+.input, .select, .textarea { border-radius: 0.5rem; }
+.segmented { border-radius: 0.625rem; }
+.segmented button.on, :root[data-theme="dark"] .segmented button.on { background: var(--heading); color: var(--card); box-shadow: none; }
+.stat .stat-icon { border-radius: 0.5rem; background: var(--card-2) !important; color: var(--heading) !important; border: 1px solid var(--separator); }
+.stat .stat-value { font-size: 1.75rem; letter-spacing: -0.5px; }
+.list-row .sb-icon { border-radius: 0.5rem; }
+.sheet, .overlay .sheet { border-radius: 0.75rem; }
+kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card-2); }
+
+/* ---------- 5) الرئيسية ---------- */
+.page.mc-home { --mc-gap: clamp(0.75rem, 2vh, 1.125rem); }
+.mc-hello h1 { font-size: clamp(1.25rem, 1.8vw, 1.625rem); font-weight: 700; letter-spacing: -0.2px; }
+.mc-wave { display: none; }
+.mc-hello-s { padding-inline-start: 0; font-size: 0.875rem; font-weight: 500; color: var(--label-2); }
+.mc-when { height: 2.5rem; padding: 0 1rem; border-radius: 0.625rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; }
+.mc-when svg { width: 1.125rem; height: 1.125rem; }
+
+/* الكروت: بلاطات مدمجة بحد رفيع بدل كروت الآيباد */
+.mc-cards { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.625rem; }
+.mc-card { flex-direction: row; justify-content: flex-start; gap: 0.75rem; height: 3.75rem; padding: 0 0.875rem; border-radius: 0.625rem; box-shadow: none; background: var(--card); }
+.mc-card::after { display: none; }
+.mc-card:hover { transform: none; border-color: var(--border-strong); background: var(--card-2); }
+.mc-card-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); flex-shrink: 0; }
+.mc-card-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
+.mc-card-l { font-size: 0.875rem; font-weight: 600; text-align: start; max-width: none; line-height: 1.3; }
+.mc-card.on { background: var(--heading); border: 1px solid var(--heading); color: var(--card); --c: #FFFFFF; }
+.mc-card.on .mc-card-ic { background: var(--tint); border-color: var(--tint); color: #FFFFFF; }
+
+/* اللوحات */
+.mc-panels { gap: 1rem; }
+.mc-panel, .sx-card { background: var(--card); border: 1px solid var(--separator); border-radius: 0.75rem; box-shadow: none; }
+.mc-panel-h h2 { font-size: 1rem; font-weight: 700; }
+.mc-panel-ic, .mc-star { width: 1.25rem; height: 1.25rem; }
+.mc-task-list { border: 0; box-shadow: none; padding: 0; background: transparent; }
+.mc-task { min-height: 3rem; border-radius: 0; }
+.mc-task-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
+.mc-task-ic svg { width: 1.0625rem; height: 1.0625rem; }
+.mc-task-l { font-size: 0.875rem; font-weight: 600; }
+.mc-count { border-radius: 999px; height: 1.375rem; min-width: 1.625rem; font-size: 0.75rem; }
+.mc-chev { width: 1rem; height: 1rem; color: var(--label-2); }
+
+.mc-fav-grid { gap: 0.5rem; }
+.mc-fav { min-height: 3rem; border-radius: 0.625rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; gap: 0.625rem; padding: 0 0.875rem; }
+.mc-fav:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
+.mc-fav-ic, .mc-fav.fav-purchase_invoice .mc-fav-ic, .mc-fav.fav-purchase_return .mc-fav-ic, .mc-fav.fav-item_new .mc-fav-ic,
+.mc-fav.fav-receipt .mc-fav-ic, .mc-fav.fav-pos .mc-fav-ic, .mc-fav.fav-attendance .mc-fav-ic { color: var(--heading); }
+.mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
+.mc-fav.primary { background: var(--tint); border-color: var(--tint); }
+.mc-fav.primary .mc-fav-ic { color: #FFFFFF; }
+.mc-chip { border-radius: 0.5rem; box-shadow: none; }
+.mc-chip.primary { background: var(--tint); }
+.mc-fav-opt { border-radius: 0.5rem; }
+
+@media (max-width: 760px) {
+  .mc-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+  .mc-card { height: 3.25rem; border-radius: 0.625rem; gap: 0.5rem; padding: 0 0.625rem; }
+  .mc-card-ic { width: 1.875rem; height: 1.875rem; }
+  .mc-card-ic svg { width: 1rem; height: 1rem; }
+  .mc-card-l { font-size: 0.8125rem; }
+  .mc-panel { border-radius: 0.75rem; }
+  .mc-fav { min-height: 3rem; }
+}

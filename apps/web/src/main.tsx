@@ -19,6 +19,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
+// النسخة الحادة آخر ملف تصميم (بعد sections.css اللي بيتحمّل من داخل App)
+import './sharp.css';
 import { UiProvider } from './components/ui';
 
 createRoot(document.getElementById('root')!).render(
