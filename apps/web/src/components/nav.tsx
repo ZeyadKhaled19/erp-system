@@ -236,6 +236,7 @@ export const HUBS: Hub[] = [
           { to: '/sync', label: 'مركز المزامنة', icon: <RefreshCw />, grad: 'var(--grad-green)' },
           { to: '/users', label: 'المستخدمون والصلاحيات', icon: <ShieldCheck />, grad: 'var(--grad-gray)', perm: 'users.manage' },
           { to: '/backups', label: 'النسخ الاحتياطي', icon: <HardDriveDownload />, grad: 'var(--grad-blue)', perm: 'backup.manage' },
+          { to: '/integrity', label: 'فحص سلامة البيانات', desc: 'تأكد إن الأرصدة مطابقة للقيود', icon: <ShieldCheck />, grad: 'var(--grad-green)', perm: 'reports.financial' },
           { to: '/audit', label: 'سجل التدقيق', icon: <ScrollText />, grad: 'var(--grad-brown)', perm: 'audit.view' },
         ],
       },

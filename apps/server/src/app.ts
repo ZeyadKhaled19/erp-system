@@ -10,6 +10,7 @@ import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser }
 import { backupToFile, exportData, listBackups, restoreFromFile } from './backup';
 import type { Db } from './db';
 import { AppError } from './errors';
+import { integrityCheck } from './integrity';
 import { applyOp, shiftExpected } from './ops';
 import * as R from './reports';
 import { pull } from './sync';
@@ -258,6 +259,7 @@ export async function buildApp(opts: AppOptions) {
   });
 
   app.get('/api/reports/commissions', { preHandler: perm('reports.view') }, async (req) => R.commissionsReport(db, range(req)));
+  app.get('/api/admin/integrity', { preHandler: perm('reports.financial') }, async () => integrityCheck(db));
   app.get('/api/reports/closing-preview', { preHandler: perm('reports.financial') }, async (req) => R.closingPreview(db, q(req).to || todayISO()));
   app.get('/api/reports/partners', { preHandler: perm('partners.view') }, async (req) => R.partnersReport(db, range(req)));
   app.get('/api/reports/serial', { preHandler: perm('inventory.view') }, async (req) => R.serialSearch(db, q(req).q ?? '', req.user!.warehouse_ids));
