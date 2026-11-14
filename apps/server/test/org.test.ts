@@ -71,6 +71,19 @@ describe('الهيكل التنظيمي', () => {
     expect(names.indexOf('employees')).toBeLessThan(names.indexOf('documents'));
   });
 
+  it('النسخة الاحتياطية والاستعادة بتحافظ على الموظفين والحضور والهيكل', async () => {
+    expect((await A.op({ type: 'master.upsert', entity: 'attendance', id: 'e-1:2026-11-05', base_version: null, data: { employee_id: 'e-1', date: '2026-11-05', status: 'present', check_in: '09:00' } })).status).toBe('accepted');
+    const { exportData, importData } = await import('../src/backup');
+    const count = async () => (await env.db.one(`select (select count(*)::int from employees) as e, (select count(*)::int from attendance) as a, (select count(*)::int from departments) as d, (select count(*)::int from job_titles) as j`));
+    const before = await count();
+    expect(before.e).toBeGreaterThan(0);
+    expect(before.a).toBeGreaterThan(0);
+    await importData(env.db, await exportData(env.db));
+    expect(await count()).toEqual(before);
+    const e = await env.db.one(`select department_id, job_title_id, manager_id from employees where id = 'e-1'`);
+    expect(e).toMatchObject({ department_id: 'd-sales', job_title_id: 'jt-cashier', manager_id: 'e-boss' });
+  });
+
   it('الترحيل 011 بيحوّل الوظائف المكتوبة نصًا لقائمة ويربطها', async () => {
     const sql = MIGRATIONS.find((m) => m.name === '011_org_structure.sql')!.sql;
     const insert = sql.slice(sql.indexOf('INSERT INTO job_titles'));
