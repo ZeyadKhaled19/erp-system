@@ -156,3 +156,21 @@
   .sx-recent .table.responsive td:nth-child(5) { grid-area: status; justify-self: end; }
   .sx-recent .table.responsive td:nth-child(6) { display: none; }
 }
+
+/* ---------- شبكة الروابط (التقارير والإعدادات) ---------- */
+.sx-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr)); gap: clamp(0.5rem, 0.9vw, 0.75rem); }
+.sx-link {
+  display: flex; align-items: center; gap: 0.75rem; min-height: clamp(3.5rem, 7.5vh, 4.25rem); padding: 0.5rem 0.875rem;
+  border-radius: 0.875rem; border: 1px solid var(--mc-line); background: var(--mc-surface); box-shadow: var(--mc-shadow);
+  font: inherit; color: var(--heading); text-align: start; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
+}
+.sx-link:hover { transform: translateY(-2px); box-shadow: var(--mc-shadow-lg); }
+.sx-link-ic { display: grid; place-items: center; color: var(--c); flex-shrink: 0; width: 2.375rem; height: 2.375rem; border-radius: 0.6875rem; background: color-mix(in srgb, var(--c) 13%, transparent); }
+.sx-link-ic svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.8; }
+.sx-link-t { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.sx-link-l { font-size: clamp(0.875rem, 1.05vw, 0.9688rem); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-link-d { font-size: max(11px, 0.75rem); color: var(--label-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) {
+  .sx-links { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+  .sx-link { min-height: 3.25rem; box-shadow: none; }
+}

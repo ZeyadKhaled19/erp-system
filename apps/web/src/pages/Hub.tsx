@@ -7,7 +7,7 @@ const SC_COLORS: ShortcutColor[] = ['blue', 'purple', 'teal', 'orange', 'yellow'
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { HUBS } from '../components/nav';
 import { usePerm } from '../lib/hooks';
-import { InventorySection, PurchasesSection, TreasurySection } from './HubSections';
+import { InventorySection, PurchasesSection, ReportsSection, SettingsSection, TreasurySection } from './HubSections';
 import { SalesSection } from './SalesSection';
 import { SectionHeader } from '../components/Section';
 
@@ -29,6 +29,8 @@ export function HubPage() {
   if (hub.key === 'purchases') return <PurchasesSection />;
   if (hub.key === 'inventory') return <InventorySection />;
   if (hub.key === 'treasury') return <TreasurySection />;
+  if (hub.key === 'reports') return <ReportsSection />;
+  if (hub.key === 'system') return <SettingsSection />;
   // صفحة التقارير تجمع كمان تقارير المخزون والخزينة، وكل التقارير تظهر ككروت
   const isReports = hub.key === 'reports';
   const extra = isReports

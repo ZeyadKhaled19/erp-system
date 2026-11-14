@@ -1,7 +1,7 @@
 import { DOC_TYPES, formatMoney, formatQty, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Pencil, Plus, Users, Wallet, UserCheck, FileClock } from 'lucide-react';
-import { QuickActions, SectionStats } from '../components/Section';
+import { Pencil, Plus, Truck, Users, Wallet, UserCheck, FileClock } from 'lucide-react';
+import { QuickActions, SectionHeader, SectionStats } from '../components/Section';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -55,10 +55,12 @@ export function PartiesPage() {
   return (
     <div className="page">
       <PageTabs tabs={[{ to: '/parties/customer', label: 'العملاء' }, { to: '/parties/supplier', label: 'الموردون' }]} />
-      <PageHeader
+      <SectionHeader
+        icon={kind === 'customer' ? <Users /> : <Truck />}
+        color={kind === 'customer' ? 'teal' : 'purple'}
         title={L.many}
         sub={`${list.length} · إجمالي ${L.bal}: ${formatMoney(total)}`}
-        actions={
+        tools={
           <>
             <button className="btn" onClick={() => exportExcel(L.many, ['الكود', 'الاسم', 'الهاتف', 'الرصيد'], list.map((p) => [p.code, p.name, p.phone, formatMoney(p.balance ?? 0)]))}>
               تصدير Excel

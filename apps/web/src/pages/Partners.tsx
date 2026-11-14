@@ -1,7 +1,7 @@
 import { bpToPercent, formatMoney, parsePercentBp, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Landmark, PieChart, Plus, Users, Wallet, ArrowUpRight } from 'lucide-react';
-import { QuickActions, SectionStats } from '../components/Section';
+import { HandCoins, Landmark, PieChart, Plus, Users, Wallet, ArrowUpRight } from 'lucide-react';
+import { QuickActions, SectionHeader, SectionStats } from '../components/Section';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -31,10 +31,12 @@ export function PartnersPage() {
   return (
     <div className="page">
       <InlineTabs value={tab} onChange={setTab} options={[{ value: 'partners', label: 'الشركاء' }, { value: 'dists', label: `توزيعات الأرباح${dists.length ? ` (${dists.length})` : ''}` }]} />
-      <PageHeader
+      <SectionHeader
+        icon={<HandCoins />}
+        color="purple"
         title="الشركاء"
         sub="نسبة الملكية ونسبة توزيع الأرباح منفصلتان"
-        actions={
+        tools={
           <>
             {can('partners.create') && <button className="btn" onClick={() => setDist(true)}><PieChart /> توزيع أرباح</button>}
             {can('partners.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> شريك</button>}

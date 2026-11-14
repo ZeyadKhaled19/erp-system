@@ -1,16 +1,17 @@
 import { DOC_TYPES, formatMoney, formatQty, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  AlertTriangle, ArrowDownLeft, ArrowUpRight, BarChart3, Boxes, CalendarClock, ClipboardCheck, FileClock, FileText, Package, PackageX, ShoppingBag, Truck, Wallet,
+  AlertTriangle, ArrowDownLeft, ArrowUpRight, BarChart3, BookOpen, Boxes, CalendarClock, CheckCircle2, ClipboardCheck, CloudOff, FileClock, FileText, Package, PackageX, RefreshCw, Settings,
+  ShoppingBag, ShoppingCart, Truck, UserCircle, Users, Wallet,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RowActions } from '../components/ListParts';
 import { HUBS, type NavLink } from '../components/nav';
-import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, type FollowUpItem, type SectionStat } from '../components/Section';
+import { FollowUpPanel, LinkGrid, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, type FollowUpItem, type SectionLink, type SectionStat } from '../components/Section';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
-import { usePerm, useSession } from '../lib/hooks';
+import { usePerm, useSession, useSyncCounts, useSyncState } from '../lib/hooks';
 
 /** روابط مجموعة من أقسام الشريط (للمتابعة)، مفلترة بالصلاحيات */
 function useHubLinks(hubKey: string, titles: string[]) {
@@ -243,6 +244,87 @@ export function TreasurySection() {
         </>}
         main={<RecentDocs title="آخر السندات" icon={<FileText />} moreTo="/docs/list/treasury" docs={data?.recent ?? []} partyHead="الطرف / الخزينة" module="treasury" typeCol empty="لسه مفيش سندات قبض أو صرف." />}
       />
+    </div>
+  );
+}
+
+const toLinks = (links: NavLink[]): SectionLink[] => links.map((l) => ({ key: l.to, label: l.label, desc: l.desc, icon: l.icon, to: l.to }));
+
+// =====================================================================================
+// التقارير والحسابات
+// =====================================================================================
+export function ReportsSection() {
+  const can = usePerm();
+  const { session } = useSession();
+  const permsKey = session.user.permissions.join(',');
+  const today = todayISO();
+  const month = today.slice(0, 7) + '-01';
+  const data = useLiveQuery(async () => {
+    const stats: SectionStat[] = [];
+    const sumBal = async (kind: string) => (await db.parties.where('kind').equals(kind).toArray()).reduce((s, p) => s + (p.balance ?? 0), 0);
+    if (can('sales.view')) {
+      const docs = (await db.documents.where('date').between(month, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'sale_invoice' || d.doc_type === 'sale_return'));
+      stats.push({ key: 'sales', label: 'مبيعات الشهر', value: formatMoney(docs.reduce((s, d) => s + (d.doc_type === 'sale_invoice' ? d.total : -d.total), 0)), sub: 'بعد المرتجعات', icon: <ShoppingCart />, color: 'green', valueTone: 'green', to: '/reports/analysis' });
+    }
+    const week = new Date();
+    week.setDate(week.getDate() + 7);
+    if (can('treasury.view')) {
+      const cash = (await db.cashboxes.toArray()).filter((c) => c.active !== false).reduce((s, c) => s + (c.balance ?? 0), 0);
+      stats.push({ key: 'cash', label: 'النقدية بالخزائن والبنوك', value: formatMoney(cash), icon: <Wallet />, color: 'blue', to: '/cashboxes' });
+    }
+    if (can('parties.view')) {
+      stats.push({ key: 'ar', label: 'مستحق من العملاء', value: formatMoney(await sumBal('customer')), icon: <Users />, color: 'orange', to: '/parties/customer' });
+      stats.push({ key: 'ap', label: 'مستحق للموردين', value: formatMoney(await sumBal('supplier')), icon: <Truck />, color: 'purple', to: '/parties/supplier' });
+    }
+    if (can('treasury.view')) {
+      const due = (await db.instruments.where('status').equals('open').toArray()).filter((x) => x.due_date <= todayISO(week)).length;
+      stats.push({ key: 'due', label: 'شيكات وأقساط خلال أسبوع', value: due, icon: <CalendarClock />, color: 'pink', valueTone: due ? 'orange' : undefined, to: '/instruments' });
+    }
+    return { stats };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today, permsKey]);
+  const top = toLinks(useHubLinks('reports', ['أهم التقارير']));
+  const stock = useHubLinks('inventory', ['تقارير المخزون']);
+  const treasury = useHubLinks('treasury', ['ابدأ', 'المتابعة']).filter((l) => l.to.startsWith('/reports/'));
+  const more = toLinks([...stock, ...treasury]);
+  const accounts = toFollow(useHubLinks('reports', ['الحسابات']));
+  return (
+    <div className="page sx-page">
+      <SectionHeader icon={<BarChart3 />} color="pink" title="التقارير والحسابات" sub="الأرباح والميزانية وتحليل المبيعات وتقارير المخزون والخزينة" />
+      <SectionStats items={data?.stats ?? []} />
+      <QuickActions section="reports" defaults={['journal_voucher', 'expense', 'receipt', 'payment', 'income', 'cash_transfer']} />
+      <ResponsiveSectionLayout
+        side={accounts.length > 0 && <FollowUpPanel title="الحسابات" icon={<BookOpen />} items={accounts} />}
+        main={(top.length > 0 || more.length > 0) && <>
+          {top.length > 0 && <SectionCard icon={<BarChart3 />} title="أهم التقارير"><LinkGrid items={top} /></SectionCard>}
+          {more.length > 0 && <SectionCard icon={<Package />} title="تقارير المخزون والخزينة"><LinkGrid items={more} /></SectionCard>}
+        </>}
+      />
+    </div>
+  );
+}
+
+// =====================================================================================
+// الإعدادات
+// =====================================================================================
+export function SettingsSection() {
+  const { session } = useSession();
+  const sync = useSyncState();
+  const counts = useSyncCounts();
+  const reachable = sync.online && sync.serverReachable;
+  const problems = counts.rejected + counts.conflicts;
+  const stats: SectionStat[] = [
+    { key: 'conn', label: 'الاتصال بالخادم', value: reachable ? 'متصل' : 'بدون اتصال', sub: reachable ? 'البيانات بتتزامن تلقائيًا' : 'الشغل بيتحفظ على الجهاز', icon: reachable ? <CheckCircle2 /> : <CloudOff />, color: reachable ? 'green' : 'slate', valueTone: reachable ? 'green' : undefined, to: '/sync' },
+    { key: 'pending', label: 'بانتظار الإرسال', value: counts.pending, sub: counts.pending ? 'عمليات لسه ما اتبعتتش' : 'كله اتبعت', icon: <RefreshCw />, color: 'blue', valueTone: counts.pending ? 'orange' : undefined, to: '/sync' },
+    { key: 'problems', label: 'مشاكل المزامنة', value: problems, sub: problems ? 'محتاجة مراجعة' : 'مفيش', icon: <AlertTriangle />, color: 'red', valueTone: problems ? 'red' : undefined, to: '/sync' },
+    { key: 'me', label: 'المستخدم الحالي', value: session.user.full_name || session.user.username || '—', sub: session.user.username, icon: <UserCircle />, color: 'purple' },
+  ];
+  const system = useHubLinks('system', ['النظام']);
+  return (
+    <div className="page sx-page">
+      <SectionHeader icon={<Settings />} color="slate" title="الإعدادات" sub="بيانات الشركة والمستخدمين والمزامنة والنسخ الاحتياطي" />
+      <SectionStats items={stats} />
+      <ResponsiveSectionLayout main={<SectionCard icon={<Settings />} title="إعدادات النظام"><LinkGrid items={toLinks(system)} /></SectionCard>} />
     </div>
   );
 }

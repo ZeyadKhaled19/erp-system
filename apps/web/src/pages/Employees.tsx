@@ -1,7 +1,7 @@
 import { formatMoney, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CalendarCheck, HandCoins, IdCard, Plus, Users, UserX, Wallet } from 'lucide-react';
-import { QuickActions, SectionStats } from '../components/Section';
+import { QuickActions, SectionHeader, SectionStats } from '../components/Section';
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -63,10 +63,12 @@ export function EmployeesPage() {
   return (
     <div className="page">
       <PageTabs tabs={EMPLOYEE_TABS} />
-      <PageHeader
+      <SectionHeader
+        icon={<IdCard />}
+        color="indigo"
         title="الموظفين"
         sub={`${active.length} موظف نشط`}
-        actions={can('employees.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> موظف جديد</button>}
+        tools={can('employees.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> موظف جديد</button>}
       />
       <div className="sx-top">
         <SectionStats items={[

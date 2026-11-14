@@ -229,3 +229,34 @@ export function ResponsiveSectionLayout({ main, side }: { main?: ReactNode; side
     </div>
   );
 }
+
+export interface SectionLink {
+  key: string;
+  label: string;
+  desc?: string;
+  icon: ReactNode;
+  to: string;
+  color?: SectionColor;
+}
+
+const LINK_COLORS: SectionColor[] = ['blue', 'green', 'purple', 'orange', 'teal', 'indigo', 'pink', 'red', 'slate'];
+
+/** شبكة روابط (للتقارير والإعدادات): أيقونة ملونة + اسم + وصف قصير */
+export function LinkGrid({ items }: { items: SectionLink[] }) {
+  const nav = useNavigate();
+  if (!items.length) return null;
+  return (
+    <div className="sx-links">
+      {items.map((l, i) => (
+        <button key={l.key} type="button" className="sx-link" onClick={() => nav(l.to)}>
+          <span className={`sx-link-ic c-${l.color ?? LINK_COLORS[i % LINK_COLORS.length]}`} aria-hidden="true">{l.icon}</span>
+          <span className="sx-link-t">
+            <span className="sx-link-l">{l.label}</span>
+            {l.desc && <span className="sx-link-d">{l.desc}</span>}
+          </span>
+          <ChevronLeft className="sx-chev" />
+        </button>
+      ))}
+    </div>
+  );
+}

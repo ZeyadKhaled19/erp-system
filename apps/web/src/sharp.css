@@ -299,3 +299,68 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
   .sx-action { border-radius: 0.625rem; background: var(--card); font-weight: 600; }
   .sx-card { border-radius: 0.75rem; }
 }
+
+/* شبكة الروابط (التقارير والإعدادات) بنفس الشكل الحاد */
+.sx-link { border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
+.sx-link:hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
+.sx-link-ic { border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.25rem; height: 2.25rem; }
+.sx-link-ic svg { width: 1.0625rem; height: 1.0625rem; }
+.sx-link-l { font-weight: 600; font-size: 0.875rem; }
+.sx-link-d { font-weight: 500; }
+
+/* ---------- 9) الجداول (كل جداول المشروع) ---------- */
+.table-wrap { border-radius: 0.75rem; border: 1px solid var(--separator); background: var(--card); box-shadow: none; overflow: auto; }
+.table { border-collapse: separate; border-spacing: 0; width: 100%; }
+/* العناوين: رمادي محايد، خط أصغر وأهدى، ثابتة فوق وإنت بتنزل جوه الجدول */
+.table th, .table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--card-2); color: var(--label-2);
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0; white-space: nowrap;
+  padding: 0.625rem 0.875rem; height: 2.5rem; border-bottom: 1px solid var(--separator);
+}
+/* الصفوف: ارتفاع ثابت، فاصل رفيع، من غير تلوين متبادل */
+.table td { font-size: 0.875rem; color: var(--label); padding: 0.5rem 0.875rem; height: 3rem; border-bottom: 1px solid var(--separator); vertical-align: middle; }
+.table tbody tr:nth-child(even) td { background: transparent; }
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover td, .table tr.click:hover td, .table tbody tr.click:hover td { background: var(--card-2); }
+.table tr.click { cursor: pointer; }
+/* أول عمود (الاسم/الرقم) أوضح */
+.table tbody td:first-child { font-weight: 600; color: var(--heading); }
+.table td.bold, .table td .bold { font-weight: 600; color: var(--heading); }
+/* الأرقام والمبالغ: أرقام بعرض ثابت ومحاذية لنفس الجهة عشان تتقارن بسهولة */
+.table td.n, .table th.n { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table td.n { font-weight: 600; color: var(--heading); }
+.table td.num { font-variant-numeric: tabular-nums; }
+.table td.n.orange, .table td .orange { color: var(--orange-text); }
+.table td.n.red, .table td .red { color: var(--red-text); }
+.table td.n.green, .table td .green { color: var(--green-text); }
+/* الخانات الفاضية (—) باهتة عشان البيانات الحقيقية تبان */
+.table td .muted, .table td.muted { color: var(--label-3); font-weight: 400; }
+.table tfoot td { background: var(--card-2); font-weight: 700; color: var(--heading); border-top: 1px solid var(--border-strong); border-bottom: 0; }
+.table .group-row td { background: var(--card-2); font-size: 0.78rem; font-weight: 700; color: var(--label-2); height: 2.25rem; }
+.table tbody tr.lp-sel td, .table tbody tr.sel td { background: var(--tint-soft); }
+.table tbody tr.lp-sel td:first-child, .table tbody tr.sel td:first-child { box-shadow: inset -3px 0 0 var(--tint); }
+
+/* الصورة الرمزية: مربع محايد بدل دايرة ملونة */
+.lp-avatar { width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); font-weight: 700; font-size: 0.8125rem; margin-inline-end: 0.625rem; }
+.lp-name { gap: 0; }
+/* أزرار الصف: صغيرة وهادية، تبان أوضح لما تقف على الصف */
+.lp-actions { gap: 0.25rem; }
+.lp-act { width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); color: var(--label-2); }
+.lp-act:hover { color: var(--heading); background: var(--card-2); border-color: var(--border-strong); }
+.lp-act svg { width: 0.9375rem; height: 0.9375rem; }
+.table td.lp-act-cell { width: 1%; white-space: nowrap; }
+/* شارات الحالة: مستطيلة صغيرة بنقطة */
+.table .badge, .badge { display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; line-height: 1.5; }
+.badge.green::before, .badge.orange::before, .badge.red::before, .badge.blue::before { content: ''; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: currentColor; }
+.badge.green { background: var(--green-soft); color: var(--green-text); }
+.badge.orange { background: var(--orange-soft); color: var(--orange-text); }
+.badge.red { background: var(--red-soft); color: var(--red-text); }
+.badge.blue { background: var(--tint-soft); color: var(--tint); }
+.stock-chip { border-radius: 0.375rem; font-weight: 600; }
+/* الجداول جوه الكروت والفواتير بنفس النظام */
+.sx-table .table th, .si .si-table th { position: sticky; top: 0; }
+@media (max-width: 760px) {
+  .table th, .table thead th { position: static; }
+  .table td { height: auto; }
+}
