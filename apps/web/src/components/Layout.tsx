@@ -34,7 +34,7 @@ export function SyncPill() {
         ? `${c.pending} بانتظار المزامنة`
         : 'متصل ومتزامن';
   return (
-    <button className={`sync-pill ${cls}`} onClick={() => nav('/sync')} title={s.lastError ?? undefined}>
+    <button className={`sync-pill ${cls}`} onClick={() => nav('/sync')} title={s.lastError ?? text} aria-label={text}>
       {s.syncing ? <RefreshCw className="spin" /> : !reachable ? <CloudOff /> : <span className="dot" />}
       <span>{text}</span>
     </button>

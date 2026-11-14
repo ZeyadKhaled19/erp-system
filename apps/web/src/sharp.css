@@ -626,3 +626,41 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 .ap-prev.paprika { background: #F3EEEF; border-color: #E5D9DB; } .ap-prev.paprika b { background: #2A1418; } .ap-prev.paprika i { --pv: #9F1239; }
 .ap-prev.sage { background: #ECF1EE; border-color: #D6E1DA; } .ap-prev.sage b { background: #14261D; } .ap-prev.sage i { --pv: #047857; }
 .ap-prev.coral { background: #EFEFF6; border-color: #DCDCEA; } .ap-prev.coral b { background: #1A1838; } .ap-prev.coral i { --pv: #4338CA; }
+
+/* ---------- 17) الشريط اللي فوق في صف واحد: الهوية ← الأقسام ← البحث والمزامنة والأيقونات ----------
+   أطول شوية وكل اللي جواه أكبر. تحت 1181px بيرجع صفين زي الأول علشان الأقسام تكفي. */
+.mc-logo-img, .login-logo, img.sb-logo { border-radius: 0.625rem; }
+@media (min-width: 1181px) {
+  .nav-bar.mc-top { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0.875rem; min-height: 4.25rem; padding-block: calc(0.5rem + env(safe-area-inset-top)) 0.5rem; }
+  .mc-top .mc-id { display: contents; }
+  .mc-top .mc-id > .spacer, .mc-top .mc-id > .nav-title { display: none; }
+  .mc-top .mc-brand { order: 0; flex: 0 0 auto; }
+  .mc-top .mc-nav { order: 1; flex: 1 1 auto; min-width: 0; margin: 0; }
+  .mc-top .mc-nav-in { justify-content: center; gap: 0.125rem; }
+  .mc-top .mc-search, .mc-top .sync-pill, .mc-top .mc-icon-btn { order: 2; flex-shrink: 0; }
+  .mc-top .mc-nav-item { height: 3rem; padding: 0 0.9375rem; gap: 0.5625rem; font-size: 1.0312rem; border-radius: 0.875rem; }
+  .mc-top .mc-nav-ic svg { width: 1.3125rem; height: 1.3125rem; }
+  .mc-top .mc-logo-img { height: 2.625rem; max-width: 11rem; }
+  .mc-top .mc-logo { width: 2.5rem; height: 2.5rem; font-size: 1.1875rem; }
+  .mc-top .mc-company { font-size: 1.375rem; }
+  .mc-top .mc-system { font-size: 1.0625rem; }
+  .mc-top .mc-icon-btn { width: 2.75rem; height: 2.75rem; }
+  .mc-top .mc-icon-btn svg { width: 1.3125rem; height: 1.3125rem; }
+  .mc-top .mc-search { height: 2.75rem; padding: 0 0.75rem; font-size: 0.9375rem; }
+  .mc-top .mc-search svg { width: 1.125rem; height: 1.125rem; }
+  .mc-top .sync-pill { height: 2.375rem; font-size: 0.875rem; padding: 0 0.875rem; }
+}
+/* لاب توب: نفس الصف، بس البحث أيقونة والمزامنة نقطة واسم النظام مستخبي علشان الأقسام تاخد مكانها */
+@media (min-width: 1181px) and (max-width: 1599px) {
+  .mc-top .mc-brand-sep, .mc-top .mc-system { display: none; }
+  .mc-top .mc-search > span, .mc-top .mc-search > kbd { display: none; }
+  .mc-top .mc-search { width: 2.75rem; padding: 0; justify-content: center; }
+  .mc-top .sync-pill.online > span:not(.dot) { display: none; }
+  .mc-top .sync-pill.online { width: 2.375rem; padding: 0; justify-content: center; }
+  .mc-top .mc-nav-item { padding: 0 0.6875rem; gap: 0.4375rem; font-size: 0.9688rem; }
+  .mc-top .mc-nav-ic svg { width: 1.1875rem; height: 1.1875rem; }
+}
+@media (min-width: 1181px) and (max-width: 1365px) {
+  .mc-top .mc-nav-item { padding: 0 0.5rem; font-size: 0.9062rem; }
+  .mc-top .mc-company { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }
+}
