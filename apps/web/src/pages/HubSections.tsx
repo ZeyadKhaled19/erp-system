@@ -128,6 +128,7 @@ export function InventorySection() {
   const data = useLiveQuery(async () => {
     const stats: SectionStat[] = [];
     let short: any[] = [];
+    let moreTo = '/reports/reorder';
     let moves: any[] = [];
     let pendingDelivery = 0;
     const items = (await db.items.toArray()).filter((i) => i.active !== false);
@@ -145,12 +146,14 @@ export function InventorySection() {
       stats.push({ key: 'neg', label: 'أرصدة سالبة', value: negative.length, sub: negative.length ? 'محتاجة جرد' : 'مفيش', icon: <AlertTriangle />, color: 'pink', valueTone: negative.length ? 'red' : undefined, to: '/reports/negative' });
       if (can('costs.view')) stats.push({ key: 'value', label: 'قيمة المخزون', value: formatMoney(balances.reduce((s, b) => s + (b.value ?? 0), 0)), sub: 'بالتكلفة', icon: <Boxes />, color: 'green', valueTone: 'green', to: '/reports/stock' });
       short = [...negative, ...out, ...low].slice(0, 8).map((i) => ({ ...i, qty: qty.get(i.id) ?? 0 }));
+      // «عرض الكل» يفتح التقرير اللي فيه أول نوع ظاهر في الكارت (السالب أولًا، وبعدين تحت حد الطلب، وبعدين أرصدة المخزون)
+      moreTo = negative.length ? '/reports/negative' : low.length ? '/reports/reorder' : '/reports/stock';
       const whs = new Map((await db.warehouses.toArray()).map((w) => [w.id, w.name]));
       moves = (await db.documents.where('doc_type').anyOf(['stock_transfer', 'stock_adjustment', 'opening_stock']).toArray()).sort(newest).slice(0, 5)
         .map((d) => ({ ...d, party: d.doc_type === 'stock_transfer' ? `${whs.get(d.warehouse_id) ?? '—'} ← ${whs.get(d.to_warehouse_id) ?? '—'}` : whs.get(d.warehouse_id) ?? '—' }));
     }
     if (can('sales.view')) pendingDelivery = (await db.documents.where('doc_type').equals('sale_invoice').toArray()).filter((d) => d.status === 'posted' && d.deliver_later).length;
-    return { stats, short, moves, pendingDelivery };
+    return { stats, short, moves, pendingDelivery, moreTo };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permsKey]);
   const follow = toFollow([...useHubLinks('inventory', ['الأصناف']), ...useHubLinks('inventory', ['حركات المخزن']).filter((l) => !l.to.startsWith('/docs/new/'))]);
@@ -167,7 +170,7 @@ export function InventorySection() {
           {reports.length > 0 && <FollowUpPanel title="تقارير المخزون" icon={<BarChart3 />} items={reports} />}
         </>}
         main={can('inventory.view') && <>
-          <SectionCard icon={<AlertTriangle />} color="orange" title="النواقص والأرصدة السالبة" moreTo="/reports/reorder">
+          <SectionCard icon={<AlertTriangle />} color="orange" title="النواقص والأرصدة السالبة" moreTo={data?.moreTo ?? '/reports/reorder'}>
             <div className="sx-table">
               {!data || data.short.length === 0 ? <div className="sx-empty">مفيش نواقص دلوقتي.</div> : (
                 <table className="table responsive">
