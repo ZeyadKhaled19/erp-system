@@ -92,7 +92,7 @@ export function SectionStats({ items }: { items: SectionStat[] }) {
 const ACTION_COLOR: Record<string, SectionColor> = {
   sale_invoice: 'blue', pos: 'green', sale_return: 'purple', quotation: 'orange', expense: 'purple', supplier_new: 'blue', customer_new: 'blue',
   receipt: 'green', payment: 'orange', purchase_invoice: 'purple', purchase_return: 'orange', item_new: 'blue', stock_adjustment: 'teal',
-  stock_transfer: 'indigo', item_inquiry: 'teal', journal_voucher: 'indigo', cash_transfer: 'teal', attendance: 'green', employee_advance: 'orange', shift: 'slate',
+  stock_transfer: 'indigo', item_inquiry: 'teal', journal_voucher: 'indigo', cash_transfer: 'teal', attendance: 'green', employee_advance: 'orange', shift: 'slate', income: 'green', opening_stock: 'slate', payroll: 'purple', employee_new: 'blue',
 };
 const MAX_ACTIONS = 6;
 const actionsKey = (uid: string, section: string) => `erp.section-actions.v1.${uid}.${section}`;
@@ -133,7 +133,7 @@ export function QuickActions({ section, defaults }: { section: string; defaults:
     setEditing(false);
   };
   return (
-    <section className="sx-card sx-actions" aria-labelledby={`sx-qa-${section}`}>
+    <section className={`sx-card sx-actions ${editing ? 'editing' : ''}`} aria-labelledby={`sx-qa-${section}`}>
       <div className="sx-card-h">
         <h2 id={`sx-qa-${section}`}><Zap className="sx-h-ic c-orange" /> العمليات السريعة</h2>
         {editing ? (

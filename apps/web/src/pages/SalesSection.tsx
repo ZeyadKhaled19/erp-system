@@ -78,7 +78,7 @@ export function SalesSection() {
       <ResponsiveSectionLayout
         side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
         main={can('sales.view') && (
-          <SectionCard icon={<FileText />} title="آخر فواتير البيع" moreTo="/invoices">
+          <SectionCard icon={<FileText />} title="آخر فواتير البيع" moreTo="/invoices" className="sx-recent">
             {!data ? null : data.recent.length === 0 ? (
               <div className="sx-table"><div className="sx-empty">لسه مفيش فواتير بيع.</div></div>
             ) : (
