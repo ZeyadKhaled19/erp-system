@@ -27,6 +27,11 @@ export const BACKUP_TABLES: { name: string; order: string }[] = [
   { name: 'parties', order: 'kind, code' },
   { name: 'cashboxes', order: 'name' },
   { name: 'partners', order: 'id' },
+  // الموظفون قبل المستندات (السلف والرواتب مربوطة بيهم)
+  { name: 'departments', order: 'id' },
+  { name: 'job_titles', order: 'id' },
+  { name: 'employees', order: 'id' },
+  { name: 'attendance', order: 'date, id' },
   { name: 'doc_sequences', order: 'key' },
   { name: 'documents', order: 'created_at, id' },
   { name: 'document_lines', order: 'document_id, line_no' },

@@ -9,10 +9,12 @@ import { Banner, DocStatusBadge, Empty, exportExcel, Field, MoneyInput, SearchBo
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useSettings } from '../lib/hooks';
+import { deptPath, deptTree, DeptSelect, useDeptFilter, useDeptMatcher, useJobTitles, withChildren } from '../lib/org';
 
 /** تبويبات قسم الموظفين (نفس الشريط في الأربع صفحات) */
 export const EMPLOYEE_TABS = [
   { to: '/employees', label: 'الموظفين', perm: 'employees.view' },
+  { to: '/employees/org', label: 'الهيكل التنظيمي', perm: 'employees.view' },
   { to: '/employees/attendance', label: 'الحضور والانصراف', perm: 'employees.view' },
   { to: '/employees/attendance-report', label: 'مراجعة الحضور', perm: 'employees.view' },
   { to: '/employees/advances', label: 'السلف', perm: 'employees.view' },
@@ -38,13 +40,19 @@ export function EmployeesPage() {
   const [q, setQ] = useState('');
   const dq = useDebounced(q);
   const [edit, setEdit] = useState<any | null>(null);
+  const [dept, setDept] = useDeptFilter();
+  const { depts, match } = useDeptMatcher(dept);
+  const titles = useJobTitles();
+  const jobOf = (e: any) => (e.job_title_id && titles.find((t) => t.id === e.job_title_id)?.name) || e.job_title || '';
+  const empName = new Map(employees.map((e) => [e.id, e.name]));
   const list = useMemo(() => {
     const s = dq.trim().toLowerCase();
-    return employees.filter((e) => !s || [e.name, e.code, e.phone, e.job_title].some((v) => v?.toLowerCase?.().includes(s)));
-  }, [employees, dq]);
-  const active = employees.filter((e) => e.active !== false);
+    return employees.filter((e) => match(e) && (!s || [e.name, e.code, e.phone, e.job_title, deptPath(depts, e.department_id)].some((v) => v?.toLowerCase?.().includes(s))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees, dq, dept, depts]);
+  const active = list.filter((e) => e.active !== false);
   const salaries = active.reduce((s, e) => s + (e.salary ?? 0), 0);
-  const advances = employees.reduce((s, e) => s + Math.max(0, e.advance_balance ?? 0), 0);
+  const advances = list.reduce((s, e) => s + Math.max(0, e.advance_balance ?? 0), 0);
 
   return (
     <div className="page">
@@ -55,7 +63,8 @@ export function EmployeesPage() {
         actions={can('employees.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> موظف جديد</button>}
       />
       <div className="row wrap" style={{ marginBottom: 12 }}>
-        <div style={{ flex: 1, minWidth: 220 }}><SearchBox value={q} onChange={setQ} placeholder="ابحث عن موظف بالاسم أو الوظيفة أو الهاتف" /></div>
+        <div style={{ flex: 1, minWidth: 220 }}><SearchBox value={q} onChange={setQ} placeholder="ابحث عن موظف بالاسم أو الوظيفة أو الإدارة أو الهاتف" /></div>
+        <DeptSelect value={dept} onChange={setDept} depts={depts} width={220} />
       </div>
       {list.length === 0 ? (
         <div className="card">
@@ -66,12 +75,14 @@ export function EmployeesPage() {
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
-            <thead><tr><th>الموظف</th><th>الوظيفة</th><th>الهاتف</th><th className="n">الراتب</th><th className="n">رصيد السلف</th><th>الحالة</th><th /></tr></thead>
+            <thead><tr><th>الموظف</th><th>الوظيفة</th><th>الإدارة</th><th>بيتبع</th><th>الهاتف</th><th className="n">الراتب</th><th className="n">رصيد السلف</th><th>الحالة</th><th /></tr></thead>
             <tbody>
               {list.map((e) => (
                 <tr key={e.id} className={can('employees.manage') ? 'click' : ''} onClick={() => can('employees.manage') && setEdit(e)}>
                   <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={e.name} />{e.name}</span></td>
-                  <td data-label="الوظيفة">{e.job_title || <span className="muted">—</span>}</td>
+                  <td data-label="الوظيفة">{jobOf(e) || <span className="muted">—</span>}</td>
+                  <td data-label="الإدارة">{deptPath(depts, e.department_id) || <span className="muted">—</span>}</td>
+                  <td data-label="بيتبع">{empName.get(e.manager_id) ?? <span className="muted">—</span>}</td>
                   <td data-label="الهاتف" className="num muted">{e.phone || '—'}</td>
                   <td data-label="الراتب" className="n">{formatMoney(e.salary ?? 0)}</td>
                   <td data-label="رصيد السلف" className={`n ${(e.advance_balance ?? 0) > 0 ? 'bold orange' : ''}`}>{formatMoney(e.advance_balance ?? 0)}</td>
@@ -101,18 +112,39 @@ export function EmployeesPage() {
   );
 }
 
-function EmployeeEditor({ emp, onClose }: { emp: any | null; onClose: () => void }) {
+export function EmployeeEditor({ emp, onClose }: { emp: any | null; onClose: () => void }) {
   const ui = useUi();
+  const all = useEmployees();
+  const titles = useJobTitles();
+  const { depts } = useDeptMatcher('');
   const [f, setF] = useState<any>(() => ({
     code: emp?.code ?? '', name: emp?.name ?? '', job_title: emp?.job_title ?? '', phone: emp?.phone ?? '', national_id: emp?.national_id ?? '',
     hire_date: emp?.hire_date ?? '', salary: emp?.salary ?? 0, notes: emp?.notes ?? '', active: emp?.active ?? true,
+    department_id: emp?.department_id ?? '', job_title_id: emp?.job_title_id ?? '', manager_id: emp?.manager_id ?? '',
   }));
   const [err, setErr] = useState<string | null>(null);
   const set = (k: string, v: any) => setF((p: any) => ({ ...p, [k]: v }));
+  // المدير المباشر: مش الموظف نفسه ولا حد من اللي تحته
+  const under = useMemo(() => {
+    const out = new Set<string>(emp?.id ? [emp.id] : []);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const e of all) if (e.manager_id && out.has(e.manager_id) && !out.has(e.id)) { out.add(e.id); grew = true; }
+    }
+    return out;
+  }, [all, emp?.id]);
+  const managers = all.filter((e) => !under.has(e.id) && (e.active !== false || e.id === f.manager_id));
+  const deptMgr = all.find((e) => e.id === depts.find((d) => d.id === f.department_id)?.manager_id);
   const save = async () => {
     if (!f.name.trim()) return setErr('اسم الموظف مطلوب');
+    const title = titles.find((t) => t.id === f.job_title_id);
     try {
-      await saveMaster('employee', emp?.id ?? uuid(), { ...f, name: f.name.trim(), hire_date: f.hire_date || null, code: f.code || null }, emp);
+      await saveMaster('employee', emp?.id ?? uuid(), {
+        ...f, name: f.name.trim(), hire_date: f.hire_date || null, code: f.code || null,
+        department_id: f.department_id || null, job_title_id: f.job_title_id || null, manager_id: f.manager_id || null,
+        // اسم الوظيفة يتحفظ كمان نصًا (والنص القديم يفضل لو لسه ما اتربطش بوظيفة من القائمة)
+        job_title: title?.name ?? (f.job_title_id ? f.job_title : f.job_title || null),
+      }, emp);
       ui.toast(emp ? 'تم تعديل بيانات الموظف' : 'تمت إضافة الموظف');
       onClose();
     } catch (e) {
@@ -125,8 +157,30 @@ function EmployeeEditor({ emp, onClose }: { emp: any | null; onClose: () => void
         {err && <Banner kind="err">{err}</Banner>}
         <Field label="اسم الموظف" required><input className="input" autoFocus value={f.name} onChange={(e) => set('name', e.target.value)} /></Field>
         <div className="grid grid-2">
-          <Field label="الوظيفة"><input className="input" value={f.job_title} onChange={(e) => set('job_title', e.target.value)} placeholder="مثال: كاشير، أمين مخزن، محاسب" /></Field>
+          <Field label="الوظيفة" hint={!titles.length ? 'أضف الوظائف من «الهيكل التنظيمي ← الوظائف»' : !f.job_title_id && f.job_title ? `مكتوبة قبل كده: ${f.job_title}` : undefined}>
+            <select className="select" value={f.job_title_id} onChange={(e) => set('job_title_id', e.target.value)}>
+              <option value="">— اختر الوظيفة —</option>
+              {titles.filter((t) => t.active !== false || t.id === f.job_title_id).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </Field>
           <Field label="كود الموظف"><input className="input num" value={f.code} onChange={(e) => set('code', e.target.value)} /></Field>
+        </div>
+        <div className="grid grid-2">
+          <Field label="الإدارة" hint={!depts.length ? 'أضف الإدارات من «الهيكل التنظيمي»' : undefined}>
+            <select className="select" value={f.department_id} onChange={(e) => set('department_id', e.target.value)}>
+              <option value="">— من غير إدارة —</option>
+              {deptTree(depts).filter(({ d }) => d.active !== false || d.id === f.department_id).map(({ d, depth }) => <option key={d.id} value={d.id}>{'  '.repeat(depth)}{depth ? '└ ' : ''}{d.name}</option>)}
+            </select>
+          </Field>
+          <Field label="بيتبع مين (المدير المباشر)">
+            <select className="select" value={f.manager_id} onChange={(e) => set('manager_id', e.target.value)}>
+              <option value="">— مش تابع لحد —</option>
+              {managers.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+            {deptMgr && !under.has(deptMgr.id) && f.manager_id !== deptMgr.id && (
+              <button type="button" className="pay-all" onClick={() => set('manager_id', deptMgr.id)}>مدير الإدارة: {deptMgr.name}</button>
+            )}
+          </Field>
         </div>
         <div className="grid grid-2">
           <Field label="الهاتف"><input className="input num" value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
@@ -211,7 +265,9 @@ function TimeCell({ value, onSet, stamp, label, disabled }: { value?: string | n
 export function AttendancePage() {
   const can = usePerm();
   const ui = useUi();
-  const employees = useEmployees().filter((e) => e.active !== false);
+  const [dept, setDept] = useDeptFilter();
+  const { depts, match } = useDeptMatcher(dept);
+  const employees = useEmployees().filter((e) => e.active !== false && match(e));
   const [date, setDate] = useState(todayISO());
   const records = useLiveQuery(() => db.attendance.where('date').equals(date).toArray(), [date]) ?? [];
   const byEmp = new Map(records.map((r) => [r.employee_id, r]));
@@ -270,6 +326,7 @@ export function AttendancePage() {
         title="الحضور والانصراف"
         sub={`${isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'} · الشغل من ${fmtTime(rules.start)} لـ ${fmtTime(rules.end)} وسماح ${rules.grace} دقيقة`}
         actions={<>
+          <DeptSelect value={dept} onChange={setDept} depts={depts} />
           <input type="date" className="input" style={{ width: 170 }} value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
           {editable && unmarked > 0 && !isToday && <button className="btn" onClick={() => void markAll()}><CalendarCheck /> الباقين حاضرين ({unmarked})</button>}
         </>}
@@ -330,7 +387,9 @@ const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأر
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = Object.fromEntries(STATUS.map((s) => [s.id, { label: s.label, tone: s.tone }]));
 
 export function AttendanceReportPage() {
-  const employees = useEmployees();
+  const [dept, setDept] = useDeptFilter();
+  const { depts, match } = useDeptMatcher(dept);
+  const employees = useEmployees().filter(match);
   const [ym, setYm] = useState(todayISO().slice(0, 7));
   const [empId, setEmpId] = useState('');
   const { from, to } = monthRange(ym);
@@ -381,6 +440,7 @@ export function AttendanceReportPage() {
         sub={`${monthLabel(from)} — ${days.length} يوم`}
         actions={<>
           <input type="month" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && setYm(e.target.value)} />
+          <DeptSelect value={dept} onChange={(v) => { setDept(v); setEmpId(''); }} depts={depts} />
           <select className="select" style={{ width: 220 }} value={empId} onChange={(e) => setEmpId(e.target.value)}>
             <option value="">كل الموظفين (ملخص)</option>
             {shown.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -566,6 +626,10 @@ export function PayrollPage() {
   const nav = useNavigate();
   const employees = useEmployees();
   const boxes = useCashboxes();
+  // فلتر الإدارة للعرض بس — الاعتماد بيكون لكل الموظفين في مسير واحد للشهر
+  const [dept, setDept] = useDeptFilter();
+  const { depts, match } = useDeptMatcher(dept);
+  const shownIds = new Set(employees.filter(match).map((e) => e.id));
   const [ym, setYm] = useState(todayISO().slice(0, 7));
   const { from, to } = monthRange(ym);
   const [edits, setEdits] = useState<Record<string, Partial<Row>>>({});
@@ -597,7 +661,9 @@ export function PayrollPage() {
       return { ...r, extraLeave, name: e.name, job: e.job_title ?? '', balance: Math.max(0, e.advance_balance ?? 0), net: r.salary + r.bonus - r.absence_deduction - r.other_deduction - r.advance_deduction };
     });
   const set = (id: string, k: keyof Row, v: number) => setEdits((m) => ({ ...m, [id]: { ...(m[id] ?? {}), [k]: v } }));
-  const sum = (k: 'salary' | 'bonus' | 'absence_deduction' | 'other_deduction' | 'advance_deduction' | 'net') => rows.reduce((s, r) => s + r[k], 0);
+  const sum = (k: 'salary' | 'bonus' | 'absence_deduction' | 'other_deduction' | 'advance_deduction' | 'net', list = rows) => list.reduce((s, r) => s + r[k], 0);
+  const shown = rows.filter((r) => shownIds.has(r.employee_id));
+  const deptName = dept === '-' ? 'من غير إدارة' : depts.find((d) => d.id === dept)?.name;
   const cashbox = box || boxes[0]?.id || '';
 
   const approve = async () => {
@@ -631,7 +697,10 @@ export function PayrollPage() {
       <PageHeader
         title="الرواتب"
         sub={`الصافي = الراتب + المكافأة − الغياب − الجزاءات − خصم السلفة · الأجازات اللي تزيد عن ${rules.leaveDays} أيام في الشهر تتخصم زي الغياب`}
-        actions={<input type="month" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && (setYm(e.target.value), setEdits({}))} />}
+        actions={<>
+          <DeptSelect value={dept} onChange={setDept} depts={depts} />
+          <input type="month" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && (setYm(e.target.value), setEdits({}))} />
+        </>}
       />
       {err && <div style={{ marginBottom: 12 }}><Banner kind="err">{err}</Banner></div>}
       {done ? (
@@ -640,11 +709,12 @@ export function PayrollPage() {
         <div className="card"><Empty icon={<Wallet />} title="لا يوجد موظفون نشطون" /></div>
       ) : (
         <>
+          {deptName && <div style={{ marginBottom: 12 }}><Banner kind="info">بتعرض موظفين «{deptName}» بس. الاعتماد بيصرف رواتب كل الموظفين ({rows.length}) في مسير واحد للشهر.</Banner></div>}
           <div className="table-wrap">
             <table className="table responsive">
               <thead><tr><th>الموظف</th><th className="n">الراتب</th><th className="n">أيام الغياب</th><th className="n">خصم الغياب</th><th className="n">مكافأة</th><th className="n">جزاءات</th><th className="n">خصم سلفة</th><th className="n">الصافي</th></tr></thead>
               <tbody>
-                {rows.map((r) => (
+                {shown.map((r) => (
                   <tr key={r.employee_id}>
                     <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={r.name} />{r.name}</span>{r.job && <div className="muted small">{r.job}</div>}</td>
                     <td data-label="الراتب" className="n">{formatMoney(r.salary)}</td>
@@ -660,12 +730,12 @@ export function PayrollPage() {
                   </tr>
                 ))}
               </tbody>
-              <tfoot><tr><td>الإجمالي ({rows.length} موظف)</td><td className="n">{formatMoney(sum('salary'))}</td><td /><td className="n">{formatMoney(sum('absence_deduction'))}</td><td className="n">{formatMoney(sum('bonus'))}</td><td className="n">{formatMoney(sum('other_deduction'))}</td><td className="n">{formatMoney(sum('advance_deduction'))}</td><td className="n">{formatMoney(sum('net'))}</td></tr></tfoot>
+              <tfoot><tr><td>{deptName ? `إجمالي ${deptName}` : 'الإجمالي'} ({shown.length} موظف)</td><td className="n">{formatMoney(sum('salary', shown))}</td><td /><td className="n">{formatMoney(sum('absence_deduction', shown))}</td><td className="n">{formatMoney(sum('bonus', shown))}</td><td className="n">{formatMoney(sum('other_deduction', shown))}</td><td className="n">{formatMoney(sum('advance_deduction', shown))}</td><td className="n">{formatMoney(sum('net', shown))}</td></tr></tfoot>
             </table>
           </div>
           {can('employees.create') && (
             <div className="pay-bar">
-              <div className="si-grand pay-grand"><span>صافي رواتب {monthLabel(from)}</span><b className="num">{formatMoney(sum('net'))}</b></div>
+              <div className="si-grand pay-grand"><span>صافي رواتب {monthLabel(from)}{deptName ? ` — كل الإدارات (${rows.length} موظف)` : ''}</span><b className="num">{formatMoney(sum('net'))}</b></div>
               <Field label="تُصرف من">
                 <select className="select" value={cashbox} onChange={(e) => setBox(e.target.value)}>
                   {boxes.map((b) => <option key={b.id} value={b.id}>{b.name} — رصيدها {formatMoney(b.balance ?? 0)}</option>)}

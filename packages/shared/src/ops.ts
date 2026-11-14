@@ -128,8 +128,29 @@ export const employeeSchema = z.object({
   hire_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   /** الراتب الشهري بالقرش */
   salary: nonneg.default(0),
+  /** الهيكل التنظيمي: الإدارة والوظيفة والمدير المباشر */
+  department_id: id.nullish(),
+  job_title_id: id.nullish(),
+  manager_id: id.nullish(),
   user_id: id.nullish(),
   notes: z.string().max(1000).nullish(),
+  active: z.boolean().default(true),
+});
+
+/** إدارة/قسم في الهيكل التنظيمي (ممكن تكون جوه إدارة أم) */
+export const departmentSchema = z.object({
+  name: z.string().trim().min(1, 'اسم الإدارة مطلوب').max(100),
+  parent_id: id.nullish(),
+  manager_id: id.nullish(),
+  notes: z.string().max(500).nullish(),
+  sort: int.default(0),
+  active: z.boolean().default(true),
+});
+
+/** وظيفة من قائمة الوظائف */
+export const jobTitleSchema = z.object({
+  name: z.string().trim().min(1, 'اسم الوظيفة مطلوب').max(100),
+  notes: z.string().max(500).nullish(),
   active: z.boolean().default(true),
 });
 
@@ -178,6 +199,8 @@ export const MASTER_SCHEMAS = {
   party_group: partyGroupSchema,
   employee: employeeSchema,
   attendance: attendanceSchema,
+  department: departmentSchema,
+  job_title: jobTitleSchema,
 } as const;
 export type MasterEntity = keyof typeof MASTER_SCHEMAS;
 
@@ -295,7 +318,7 @@ export type DocInput = z.infer<typeof docSchema>;
 export const opSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('master.upsert'),
-    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group', 'employee', 'attendance']),
+    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group', 'employee', 'attendance', 'department', 'job_title']),
     id,
     /** النسخة التي عدّل عليها الجهاز؛ null = إنشاء جديد */
     base_version: int.nullable(),
@@ -386,5 +409,7 @@ export const SYNC_TABLES = [
   'party_groups',
   'employees',
   'attendance',
+  'departments',
+  'job_titles',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];

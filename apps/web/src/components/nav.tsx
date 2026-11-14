@@ -3,7 +3,7 @@ import {
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
   IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
-import { Database, Fingerprint, HandCoins, Handshake, ShoppingBasket } from 'lucide-react';
+import { Database, Fingerprint, HandCoins, Handshake, Network, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface NavLink {
@@ -195,7 +195,7 @@ export const HUBS: Hub[] = [
   {
     key: 'employees',
     label: 'الموظفين',
-    sub: 'الموظفين والحضور والسلف والرواتب',
+    sub: 'الموظفين والهيكل التنظيمي والحضور والسلف والرواتب',
     icon: <IdCard />,
     grad: 'var(--grad-blue)',
     to: '/employees',
@@ -205,6 +205,7 @@ export const HUBS: Hub[] = [
         title: 'الموظفين',
         links: [
           { to: '/employees', label: 'الموظفين', icon: <IdCard />, grad: 'var(--grad-blue)', perm: 'employees.view' },
+          { to: '/employees/org', label: 'الهيكل التنظيمي', icon: <Network />, grad: 'var(--grad-indigo)', perm: 'employees.view' },
           { to: '/employees/attendance', label: 'الحضور والانصراف', icon: <Fingerprint />, grad: 'var(--grad-green)', perm: 'employees.view' },
           { to: '/employees/attendance-report', label: 'مراجعة الحضور', icon: <CalendarClock />, grad: 'var(--grad-teal)', perm: 'employees.view' },
           { to: '/employees/advances', label: 'السلف', icon: <HandCoins />, grad: 'var(--grad-orange)', perm: 'employees.view' },

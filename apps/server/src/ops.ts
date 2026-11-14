@@ -20,6 +20,8 @@ const MASTER_TABLE: Record<MasterEntity, string> = {
   party_group: 'party_groups',
   employee: 'employees',
   attendance: 'attendance',
+  department: 'departments',
+  job_title: 'job_titles',
 };
 
 const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
@@ -35,6 +37,8 @@ const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
   party_group: ['parties.create', 'parties.edit'],
   employee: ['employees.manage', 'employees.manage'],
   attendance: ['employees.attendance', 'employees.attendance'],
+  department: ['employees.manage', 'employees.manage'],
+  job_title: ['employees.manage', 'employees.manage'],
 };
 
 const ENTITY_LABEL: Record<MasterEntity, string> = {
@@ -50,7 +54,19 @@ const ENTITY_LABEL: Record<MasterEntity, string> = {
   party_group: 'نوع العميل',
   employee: 'الموظف',
   attendance: 'سجل الحضور',
+  department: 'الإدارة',
+  job_title: 'الوظيفة',
 };
+
+/** يمشي لفوق في سلسلة (مدير المدير… أو الإدارة الأم…) ويرفض لو رجع لنفس السجل */
+async function assertNoCycle(t: Db, table: 'employees' | 'departments', col: 'manager_id' | 'parent_id', id: string, start: string | null | undefined, message: string) {
+  const seen = new Set<string>();
+  for (let cur = start ?? null; cur; ) {
+    if (cur === id || seen.has(cur)) throw new AppError(message);
+    seen.add(cur);
+    cur = (await t.one(`select ${col} as p from ${table} where id = $1`, [cur]))?.p ?? null;
+  }
+}
 
 function need(user: AuthUser, perm: string) {
   if (!hasPermission(user.permissions, perm)) throw new AppError('ليس لديك صلاحية لهذه العملية', 'forbidden');
@@ -102,6 +118,28 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
   }
 
   if (entity === 'employee') {
+    // الهيكل التنظيمي (الأجهزة القديمة اللي ما بتبعتش الحقول دي ما بتغيّرهاش)
+    if ('department_id' in fields) {
+      fields.department_id = fields.department_id || null;
+      if (fields.department_id && !(await t.one(`select id from departments where id = $1`, [fields.department_id]))) throw new AppError('الإدارة غير موجودة');
+    }
+    if ('job_title_id' in fields) {
+      fields.job_title_id = fields.job_title_id || null;
+      if (fields.job_title_id) {
+        const jt = await t.one(`select name from job_titles where id = $1`, [fields.job_title_id]);
+        if (!jt) throw new AppError('الوظيفة غير موجودة');
+        // اسم الوظيفة يتحفظ نصًا كمان (للتقارير والأجهزة القديمة)
+        fields.job_title = jt.name;
+      }
+    }
+    if ('manager_id' in fields) {
+      fields.manager_id = fields.manager_id || null;
+      if (fields.manager_id) {
+        if (fields.manager_id === id) throw new AppError('الموظف لا يكون مديرًا لنفسه');
+        if (!(await t.one(`select id from employees where id = $1`, [fields.manager_id]))) throw new AppError('المدير المباشر غير موجود');
+        await assertNoCycle(t, 'employees', 'manager_id', id, fields.manager_id as string, 'لا يمكن أن يتبع الموظف أحد الموظفين التابعين له');
+      }
+    }
     fields.code = fields.code || null;
     fields.hire_date = fields.hire_date || null;
     fields.user_id = fields.user_id || null;
@@ -116,6 +154,31 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
       const accId = crypto.randomUUID();
       await t.query(`insert into accounts (id, code, name, parent_id, type) values ($1,$2,$3,$4,'asset')`, [accId, code, `سلف ${fields.name}`, g.id]);
       fields.advance_account_id = accId;
+    }
+  }
+
+  if (entity === 'department') {
+    fields.parent_id = fields.parent_id || null;
+    fields.manager_id = fields.manager_id || null;
+    if (fields.parent_id) {
+      if (fields.parent_id === id) throw new AppError('الإدارة لا تكون تابعة لنفسها');
+      if (!(await t.one(`select id from departments where id = $1`, [fields.parent_id]))) throw new AppError('الإدارة الأم غير موجودة');
+      await assertNoCycle(t, 'departments', 'parent_id', id, fields.parent_id as string, 'لا يمكن أن تتبع الإدارة إحدى الإدارات التابعة لها');
+    }
+    if (fields.manager_id && !(await t.one(`select id from employees where id = $1`, [fields.manager_id]))) throw new AppError('مدير الإدارة غير موجود');
+    if (existing && existing.active && !fields.active) {
+      const busy = await t.one(`select (select count(*)::int from employees where department_id = $1 and active) as e, (select count(*)::int from departments where parent_id = $1 and active) as d`, [id]);
+      if (busy?.e) throw new AppError(`لا يمكن إيقاف الإدارة وفيها ${busy.e} موظف نشط — انقلهم لإدارة تانية الأول`);
+      if (busy?.d) throw new AppError('لا يمكن إيقاف الإدارة وتحتها أقسام نشطة');
+    }
+  }
+
+  if (entity === 'job_title') {
+    const dup = await t.one(`select id from job_titles where lower(btrim(name)) = lower(btrim($1)) and id <> $2`, [fields.name, id]);
+    if (dup) throw new AppError('الوظيفة دي موجودة بالفعل في القائمة');
+    if (existing && existing.name !== fields.name) {
+      // تغيير اسم الوظيفة يتنقل لكل الموظفين المربوطين بيها
+      await t.query(`update employees set job_title = $2 where job_title_id = $1`, [id, fields.name]);
     }
   }
 

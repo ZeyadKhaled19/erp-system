@@ -64,7 +64,9 @@ function visible(table: SyncTable, row: any, user: AuthUser) {
     case 'price_lists': return can(user, 'items.view');
     case 'party_groups': return can(user, 'parties.view');
     case 'employees': return can(user, 'employees.view') || row.user_id === user.id;
-    case 'attendance': return can(user, 'employees.view') || can(user, 'employees.attendance');
+    case 'attendance':
+    case 'departments':
+    case 'job_titles': return can(user, 'employees.view') || can(user, 'employees.attendance');
     default: return false;
   }
 }

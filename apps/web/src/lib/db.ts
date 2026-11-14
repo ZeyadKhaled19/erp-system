@@ -61,6 +61,8 @@ class LocalDb extends Dexie {
   party_groups!: Table<Row, string>;
   employees!: Table<Row, string>;
   attendance!: Table<Row, string>;
+  departments!: Table<Row, string>;
+  job_titles!: Table<Row, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<{ key: string; value: any }, string>;
 
@@ -105,6 +107,14 @@ class LocalDb extends Dexie {
     this.version(4).stores({
       employees: 'id, name, active',
       attendance: 'id, employee_id, date, [employee_id+date]',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // الهيكل التنظيمي: الإدارات والوظائف وربط الموظف بإدارة ومدير
+    this.version(5).stores({
+      employees: 'id, name, active, department_id, manager_id',
+      departments: 'id, parent_id, name',
+      job_titles: 'id, name',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
@@ -187,5 +197,5 @@ export const SYNCED_TABLE_NAMES = [
   'settings', 'roles', 'users', 'accounts', 'warehouses', 'categories', 'items', 'item_units',
   'stock_balances', 'parties', 'cashboxes', 'documents', 'document_lines', 'sync_conflicts',
   'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts', 'party_groups',
-  'employees', 'attendance',
+  'employees', 'attendance', 'departments', 'job_titles',
 ] as const;

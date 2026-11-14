@@ -99,6 +99,8 @@ const TABLE_OF: Record<string, keyof typeof db | undefined> = {
   party_group: 'party_groups',
   employee: 'employees',
   attendance: 'attendance',
+  department: 'departments',
+  job_title: 'job_titles',
   instrument: 'instruments',
   shift: 'cashier_shifts',
 };
