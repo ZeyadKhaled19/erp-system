@@ -6,9 +6,9 @@ import { HelpCircle } from 'lucide-react';
  */
 export function Hint({ text, side = 'end' }: { text: string; side?: 'start' | 'end' }) {
   return (
-    <span className={`hint hint-${side}`} tabIndex={0} role="note" aria-label={text} onClick={(e) => e.stopPropagation()}>
+    <span className={`qhint qhint-${side}`} tabIndex={0} role="note" aria-label={text} onClick={(e) => e.stopPropagation()}>
       <HelpCircle aria-hidden="true" />
-      <span className="hint-pop" aria-hidden="true">{text}</span>
+      <span className="qhint-pop" aria-hidden="true">{text}</span>
     </span>
   );
 }
