@@ -483,3 +483,9 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 /* تقرير ماركات السكوتر: شريط النسبة */
 .brand-bar { display: inline-block; width: 4rem; height: 0.375rem; border-radius: 999px; background: var(--card-2); border: 1px solid var(--separator); vertical-align: middle; overflow: hidden; margin-inline-end: 0.375rem; }
 .brand-bar i { display: block; height: 100%; background: var(--tint); }
+
+/* ---------- 14) فاتورة البيع: «الباقي / يُدفع الباقي بـ» جوه الصفحة مش فوق أزرار الحفظ ----------
+   كانت نافذة طايرة (position: absolute) فوق آخر الكارت فبتغطي «حفظ». دلوقتي جزء عادي تحت خانة المدفوع. */
+.si .si-paid-field { flex-wrap: wrap; }
+.si .si-paid-field .si-rest { position: static; inset: auto; z-index: auto; flex: 1 1 100%; margin-top: 0.25rem; padding: 0.625rem; background: var(--card-2); box-shadow: none; border: 1px solid var(--separator); border-radius: 0.75rem; }
+.si .si-rest .pay-line.warn { border-radius: 0.625rem; }
