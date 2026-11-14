@@ -686,3 +686,18 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 /* البيع السريع: على الكمبيوتر الشاشة ثابتة والأصناف بتتحرك جواها؛ على الموبايل الصفحة كلها بتتحرك لتحت
    (كان السكرول مقفول على كل المقاسات فالأصناف اللي تحت مكانتش بتتوصل على الموبايل) */
 @media (min-width: 761px) { .content.is-pos { overflow: hidden; } }
+
+/* ---------- 19) الموبايل: الشاشة ما تتحركش يمين وشمال ----------
+   شرح علامة «؟» كان مخفي بالشفافية بس، فكان واخد مكان بره حدود الشاشة والصفحة بتبقى أعرض من الموبايل
+   وتتزحلق للجنب باللمس. دلوقتي مش بياخد مكان غير وهو ظاهر، والمحتوى ما يتحركش بالعرض أبدًا. */
+.qhint-pop { display: none; }
+.qhint:hover .qhint-pop, .qhint:focus .qhint-pop, .qhint:focus-visible .qhint-pop { display: block; }
+.content { overflow-x: hidden; }
+/* البيع السريع بعرض القائمة على الموبايل: اسم الصنف ياخد المساحة (الكود بيستخبى والسعر والرصيد على قد محتواهم) */
+@media (max-width: 760px) {
+  .pos-grid.as-list .pos-item { gap: 0.5rem; padding: 0.5rem 0.625rem; }
+  .pos-grid.as-list .pi-code { display: none; }
+  .pos-grid.as-list .pi-top { flex: 1 1 auto; min-width: 0; }
+  .pos-grid.as-list .pi-name { min-width: 0; }
+  .pos-grid.as-list .pi-bottom { width: auto; flex: 0 0 auto; gap: 0.625rem; }
+}
