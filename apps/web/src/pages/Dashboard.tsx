@@ -1,7 +1,7 @@
 import { DOC_TYPES, formatMoney, hasPermission, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  ArrowDownLeft, CalendarClock, CalendarDays, Check, ChevronLeft, ClipboardList, Clock3, FileText, Package, PackagePlus, RotateCcw, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Star, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
+  ArrowDownLeft, Fingerprint, CalendarClock, CalendarDays, Check, ChevronLeft, ClipboardList, Clock3, FileText, Package, PackagePlus, RotateCcw, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Star, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -233,13 +233,13 @@ function QuickTasks() {
 /** أيقونات وأسماء المفضلة (الباقي يستخدم أيقونة واسم الإجراء نفسه) */
 const FAV_ICONS: Record<string, ReactNode> = {
   sale_invoice: <ShoppingCart />, purchase_invoice: <ShoppingBasket />, item_new: <PackagePlus />, receipt: <ArrowDownLeft />, pos: <Zap />,
-  purchase_return: <RotateCcw />, payment: <Wallet />,
+  purchase_return: <RotateCcw />, payment: <Wallet />, attendance: <Fingerprint />,
 };
 const FAV_LABEL: Record<string, string> = {
   sale_invoice: 'فاتورة بيع جديدة', purchase_invoice: 'فاتورة شراء جديدة', item_new: 'إضافة صنف جديد',
 };
 /** الافتراضي؛ ونكمل للأربعة من الباقي حسب صلاحيات المستخدم */
-const FAV_DEFAULT = ['sale_invoice', 'purchase_invoice', 'item_new', 'receipt', 'pos', 'payment', 'expense', 'customer_new'];
+const FAV_DEFAULT = ['sale_invoice', 'purchase_invoice', 'item_new', 'attendance', 'receipt', 'pos', 'payment', 'expense', 'customer_new'];
 const favKey = (uid: string) => `erp.favorites.v1.${uid}`;
 function readFavs(uid: string): string[] | null {
   try {

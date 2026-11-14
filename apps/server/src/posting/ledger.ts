@@ -71,6 +71,7 @@ export async function writeJournal(
       );
     }
     await t.query(`update cashboxes set balance = balance + $2::bigint - $3::bigint where account_id = $1`, [l.account_id, l.debit, l.credit]);
+    await t.query(`update employees set advance_balance = advance_balance + $2::bigint - $3::bigint where advance_account_id = $1`, [l.account_id, l.debit, l.credit]);
   }
   return id;
 }

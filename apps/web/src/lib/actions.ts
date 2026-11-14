@@ -2,7 +2,7 @@ import { computeDocument, DOC_TYPES, toBaseQty, type DocInput, type MasterEntity
 import { db } from './db';
 import { enqueue, nextLocalNumber } from './sync';
 
-const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners' | 'party_groups'> = {
+const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners' | 'party_groups' | 'employees' | 'attendance'> = {
   item: 'items',
   party: 'parties',
   warehouse: 'warehouses',
@@ -13,9 +13,11 @@ const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categori
   price_list: 'price_lists',
   partner: 'partners',
   party_group: 'party_groups',
+  employee: 'employees',
+  attendance: 'attendance',
 };
 const LABEL: Record<MasterEntity, string> = {
-  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك', party_group: 'نوع عميل',
+  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك', party_group: 'نوع عميل', employee: 'موظف', attendance: 'حضور',
 };
 
 /** حفظ بيانات أساسية: يظهر فورًا على الجهاز ويُرفع عند الاتصال */
@@ -24,7 +26,7 @@ export async function saveMaster(entity: MasterEntity, id: string, data: Record<
   return enqueue(
     { type: 'master.upsert', entity, id, base_version: baseVersion, data },
     {
-      label: `${existing ? 'تعديل' : 'إضافة'} ${LABEL[entity]}: ${data.name ?? data.code}`,
+      label: `${existing ? 'تعديل' : 'إضافة'} ${LABEL[entity]}: ${data.name ?? data.code ?? data.date ?? ''}`,
       entity,
       entity_id: id,
       apply: async () => {

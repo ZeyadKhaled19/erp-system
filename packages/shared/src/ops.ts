@@ -119,6 +119,40 @@ export const partnerSchema = z.object({
   active: z.boolean().default(true),
 });
 
+export const employeeSchema = z.object({
+  code: z.string().trim().max(30).nullish(),
+  name: z.string().trim().min(1, 'اسم الموظف مطلوب').max(150),
+  job_title: z.string().trim().max(100).nullish(),
+  phone: z.string().trim().max(50).nullish(),
+  national_id: z.string().trim().max(30).nullish(),
+  hire_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  /** الراتب الشهري بالقرش */
+  salary: nonneg.default(0),
+  user_id: id.nullish(),
+  notes: z.string().max(1000).nullish(),
+  active: z.boolean().default(true),
+});
+
+/** الحضور اليومي: سجل واحد لكل موظف في اليوم */
+export const ATTENDANCE_STATUS = ['present', 'absent', 'late', 'leave'] as const;
+export const attendanceSchema = z.object({
+  employee_id: id,
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'تاريخ غير صالح'),
+  status: z.enum(ATTENDANCE_STATUS),
+  notes: z.string().max(300).nullish(),
+});
+
+/** سطر في مسير الرواتب (كل المبالغ بالقرش) */
+export const payrollRowSchema = z.object({
+  employee_id: id,
+  salary: nonneg,
+  absent_days: nonneg.max(31).default(0),
+  absence_deduction: nonneg.default(0),
+  bonus: nonneg.default(0),
+  other_deduction: nonneg.default(0),
+  advance_deduction: nonneg.default(0),
+});
+
 export const accountSchema = z.object({
   code: z.string().trim().min(1).max(20),
   name: z.string().trim().min(1).max(150),
@@ -139,6 +173,8 @@ export const MASTER_SCHEMAS = {
   price_list: priceListSchema,
   partner: partnerSchema,
   party_group: partyGroupSchema,
+  employee: employeeSchema,
+  attendance: attendanceSchema,
 } as const;
 export type MasterEntity = keyof typeof MASTER_SCHEMAS;
 
@@ -184,6 +220,7 @@ export const docSchema = z.object({
     'sale_invoice', 'sale_return', 'purchase_invoice', 'purchase_return', 'receipt', 'payment', 'expense', 'income',
     'stock_transfer', 'stock_adjustment', 'opening_stock', 'party_opening', 'journal_voucher',
     'cash_transfer', 'quotation', 'partner_capital', 'partner_withdrawal', 'profit_distribution', 'year_closing',
+    'employee_advance', 'payroll',
   ]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'تاريخ غير صالح'),
   party_id: id.nullish(),
@@ -193,6 +230,10 @@ export const docSchema = z.object({
   to_cashbox_id: id.nullish(),
   account_id: id.nullish(),
   partner_id: id.nullish(),
+  /** سلفة موظف */
+  employee_id: id.nullish(),
+  /** مسير الرواتب: سطر لكل موظف */
+  payroll_rows: z.array(payrollRowSchema).optional(),
   sales_rep_id: id.nullish(),
   price_list_id: id.nullish(),
   shift_id: id.nullish(),
@@ -251,7 +292,7 @@ export type DocInput = z.infer<typeof docSchema>;
 export const opSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('master.upsert'),
-    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group']),
+    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group', 'employee', 'attendance']),
     id,
     /** النسخة التي عدّل عليها الجهاز؛ null = إنشاء جديد */
     base_version: int.nullable(),
@@ -340,5 +381,7 @@ export const SYNC_TABLES = [
   'partners',
   'cashier_shifts',
   'party_groups',
+  'employees',
+  'attendance',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];

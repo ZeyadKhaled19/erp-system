@@ -100,6 +100,18 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
     ],
   },
   {
+    module: 'employees',
+    label: 'الموظفين',
+    actions: [
+      { key: 'employees.view', label: 'مشاهدة' },
+      { key: 'employees.manage', label: 'إضافة وتعديل الموظفين والرواتب' },
+      { key: 'employees.attendance', label: 'تسجيل الحضور' },
+      { key: 'employees.create', label: 'السلف ومسيرات الرواتب' },
+      { key: 'employees.post', label: 'ترحيل' },
+      { key: 'employees.cancel', label: 'إلغاء' },
+    ],
+  },
+  {
     module: 'reports',
     label: 'التقارير',
     actions: [

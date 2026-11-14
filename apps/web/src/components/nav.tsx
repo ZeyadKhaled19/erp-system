@@ -3,7 +3,7 @@ import {
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
   IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
-import { Database, Handshake, ShoppingBasket } from 'lucide-react';
+import { Database, Fingerprint, HandCoins, Handshake, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface NavLink {
@@ -195,16 +195,26 @@ export const HUBS: Hub[] = [
   {
     key: 'employees',
     label: 'الموظفين',
-    sub: 'المستخدمون والصلاحيات (الحضور والرواتب قريبًا)',
+    sub: 'الموظفين والحضور والسلف والرواتب',
     icon: <IdCard />,
     grad: 'var(--grad-blue)',
-    perm: 'users.manage',
+    to: '/employees',
+    perm: 'employees.view',
     groups: [
       {
         title: 'الموظفين',
         links: [
-          { to: '/users', label: 'المستخدمون والصلاحيات', desc: 'حسابات الموظفين على النظام وصلاحيات كل واحد', icon: <ShieldCheck />, grad: 'var(--grad-gray)', perm: 'users.manage', hero: true },
-          { to: '/audit', label: 'سجل التدقيق', desc: 'مين عمل إيه وإمتى', icon: <ScrollText />, grad: 'var(--grad-brown)', perm: 'audit.view' },
+          { to: '/employees', label: 'الموظفين', icon: <IdCard />, grad: 'var(--grad-blue)', perm: 'employees.view' },
+          { to: '/employees/attendance', label: 'الحضور والانصراف', icon: <Fingerprint />, grad: 'var(--grad-green)', perm: 'employees.view' },
+          { to: '/employees/advances', label: 'السلف', icon: <HandCoins />, grad: 'var(--grad-orange)', perm: 'employees.view' },
+          { to: '/employees/payroll', label: 'الرواتب', icon: <Wallet />, grad: 'var(--grad-purple)', perm: 'employees.view' },
+        ],
+      },
+      {
+        title: 'الإدارة',
+        links: [
+          { to: '/users', label: 'المستخدمون والصلاحيات', icon: <ShieldCheck />, grad: 'var(--grad-gray)', perm: 'users.manage' },
+          { to: '/audit', label: 'سجل التدقيق', icon: <ScrollText />, grad: 'var(--grad-brown)', perm: 'audit.view' },
         ],
       },
     ],
@@ -291,7 +301,7 @@ export const SECTIONS: Section[] = [
       { to: '/receivables', label: 'الفواتير الآجلة', icon: <CalendarClock />, grad: '', perm: 'sales.view' },
     ],
   },
-  { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/hub/employees', perms: ['users.manage'], hubs: ['employees'] },
+  { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/employees', perms: ['employees.view'], hubs: ['employees'] },
   { key: 'partners', label: 'الشركاء ورأس المال', icon: <Database />, cardIcon: <Handshake />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'] },
 ];
 

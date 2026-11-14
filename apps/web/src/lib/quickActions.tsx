@@ -1,6 +1,6 @@
 import { hasPermission, type WorkspaceId } from '@erp/shared';
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, BookPlus, ClipboardCheck, Clock, FileText, PackagePlus, PackageSearch, Receipt, RotateCcw, ShoppingBag,
+  ArrowDownLeft, ArrowLeftRight, Fingerprint, HandCoins, ArrowUpRight, BookPlus, ClipboardCheck, Clock, FileText, PackagePlus, PackageSearch, Receipt, RotateCcw, ShoppingBag,
   ShoppingCart, Undo2, UserPlus, Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -16,7 +16,7 @@ export interface QuickAction {
   icon: ReactNode;
   to: string;
   perm: string;
-  group: 'المبيعات' | 'المشتريات' | 'الخزينة' | 'المخزون' | 'الأطراف' | 'الحسابات';
+  group: 'المبيعات' | 'المشتريات' | 'الخزينة' | 'المخزون' | 'الأطراف' | 'الحسابات' | 'الموظفين';
   /** إنشاء مستند/سجل جديد (يظهر في قائمة «جديد») */
   creates: boolean;
   /** المساحات التي يكون فيها هذا الإجراء من الأساسيات */
@@ -41,6 +41,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { key: 'stock_transfer', label: 'تحويل مخزني', icon: <ArrowLeftRight />, to: '/docs/new/stock_transfer', perm: 'inventory.create', group: 'المخزون', creates: true, ws: ['inventory'] },
   { key: 'item_inquiry', label: 'استعلام عن صنف', icon: <PackageSearch />, to: '/items/inquiry', perm: 'items.view', group: 'المخزون', creates: false, ws: ['pos', 'inventory', 'sales'] },
   { key: 'journal_voucher', label: 'قيد يومية', icon: <BookPlus />, to: '/docs/new/journal_voucher', perm: 'accounts.journal', group: 'الحسابات', creates: true, ws: ['accounting'] },
+  { key: 'attendance', label: 'حضور وانصراف', icon: <Fingerprint />, to: '/employees/attendance', perm: 'employees.attendance', group: 'الموظفين', creates: false, ws: ['dashboard'] },
+  { key: 'employee_advance', label: 'سلفة موظف', icon: <HandCoins />, to: '/employees/advances', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
   { key: 'shift', label: 'الوردية', icon: <Clock />, to: '/shift', perm: 'treasury.shift', group: 'الخزينة', creates: false, ws: ['pos'] },
 ];
 

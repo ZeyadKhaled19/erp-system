@@ -241,3 +241,25 @@
   .stg-save { align-self: stretch; }
 }
 @media (max-width: 760px) { .stg-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ===================== قسم الموظفين ===================== */
+/* أزرار حالة الحضور: الحالة المختارة ملونة */
+.att-opts { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.att-opt { --c: var(--tint); height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.att-opt:hover:not(:disabled) { border-color: color-mix(in srgb, var(--c) 45%, transparent); color: var(--c); }
+.att-opt.on { background: color-mix(in srgb, var(--c) 14%, var(--mc-surface)); border-color: color-mix(in srgb, var(--c) 55%, transparent); color: var(--c); }
+.att-opt:disabled { cursor: default; opacity: .75; }
+.att-opt.green { --c: #16A34A; } .att-opt.orange { --c: #D97706; } .att-opt.red { --c: #DC2626; } .att-opt.blue { --c: #2563EB; }
+:root[data-theme="dark"] .att-opt.green { --c: #4ADE80; } :root[data-theme="dark"] .att-opt.orange { --c: #FBBF24; }
+:root[data-theme="dark"] .att-opt.red { --c: #F87171; } :root[data-theme="dark"] .att-opt.blue { --c: #60A5FA; }
+/* مسير الرواتب */
+.table td.pay-in { min-width: 110px; }
+.table td.pay-in .input { height: 36px; text-align: left; }
+.pay-all { display: block; margin-top: 4px; border: 0; background: none; color: var(--tint); font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 0; }
+.pay-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; margin: 16px 0 6px; }
+.pay-bar .pay-grand { flex: 1 1 320px; }
+.pay-bar .field { flex: 0 1 280px; margin: 0; }
+.pay-bar .btn.lg { min-width: 220px; }
+@media (max-width: 760px) { .pay-bar > * { flex: 1 1 100% !important; } .table td.pay-in { min-width: 0; } }
+.table td .lp-name { white-space: nowrap; }
+@media (max-width: 760px) { .lp-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lp-total { padding: 12px 14px; } .lp-total-v { font-size: 19px; } }

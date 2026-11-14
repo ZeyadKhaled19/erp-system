@@ -59,6 +59,8 @@ class LocalDb extends Dexie {
   partners!: Table<Row, string>;
   cashier_shifts!: Table<Row, string>;
   party_groups!: Table<Row, string>;
+  employees!: Table<Row, string>;
+  attendance!: Table<Row, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<{ key: string; value: any }, string>;
 
@@ -96,6 +98,13 @@ class LocalDb extends Dexie {
     this.version(3).stores({
       party_groups: 'id, kind, sort',
       parties: 'id, kind, code, name, group_id, _sync',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // قسم الموظفين: الموظفون والحضور اليومي
+    this.version(4).stores({
+      employees: 'id, name, active',
+      attendance: 'id, employee_id, date, [employee_id+date]',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
@@ -178,4 +187,5 @@ export const SYNCED_TABLE_NAMES = [
   'settings', 'roles', 'users', 'accounts', 'warehouses', 'categories', 'items', 'item_units',
   'stock_balances', 'parties', 'cashboxes', 'documents', 'document_lines', 'sync_conflicts',
   'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts', 'party_groups',
+  'employees', 'attendance',
 ] as const;

@@ -15,6 +15,7 @@ const modulePermission: Record<string, string> = {
   treasury: 'treasury.view',
   accounts: 'accounts.view',
   partners: 'partners.view',
+  employees: 'employees.view',
 };
 const can = (user: AuthUser, permission: string) => hasPermission(user.permissions, permission);
 const inScope = (ids: string[] | null, id: string | null | undefined) => !id || !ids || ids.includes(id);
@@ -58,10 +59,12 @@ function visible(table: SyncTable, row: any, user: AuthUser) {
     case 'instruments': return can(user, 'treasury.instruments');
     case 'cashier_shifts': return row.user_id === user.id || can(user, 'treasury.manage');
     case 'partners': return can(user, 'partners.view');
-    case 'settings': return row.key === 'role_home_pages' || can(user, 'settings.manage');
+    case 'settings': return ['role_home_pages', 'company_name', 'print_logo'].includes(row.key) || can(user, 'settings.manage');
     case 'sales_reps': return can(user, 'sales.view') || can(user, 'parties.view');
     case 'price_lists': return can(user, 'items.view');
     case 'party_groups': return can(user, 'parties.view');
+    case 'employees': return can(user, 'employees.view') || row.user_id === user.id;
+    case 'attendance': return can(user, 'employees.view') || can(user, 'employees.attendance');
     default: return false;
   }
 }

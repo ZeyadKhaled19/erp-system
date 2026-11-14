@@ -18,6 +18,8 @@ const MASTER_TABLE: Record<MasterEntity, string> = {
   price_list: 'price_lists',
   partner: 'partners',
   party_group: 'party_groups',
+  employee: 'employees',
+  attendance: 'attendance',
 };
 
 const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
@@ -31,6 +33,8 @@ const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
   price_list: ['settings.manage', 'settings.manage'],
   partner: ['partners.manage', 'partners.manage'],
   party_group: ['parties.create', 'parties.edit'],
+  employee: ['employees.manage', 'employees.manage'],
+  attendance: ['employees.attendance', 'employees.attendance'],
 };
 
 const ENTITY_LABEL: Record<MasterEntity, string> = {
@@ -44,6 +48,8 @@ const ENTITY_LABEL: Record<MasterEntity, string> = {
   price_list: 'قائمة الأسعار',
   partner: 'الشريك',
   party_group: 'نوع العميل',
+  employee: 'الموظف',
+  attendance: 'سجل الحضور',
 };
 
 function need(user: AuthUser, perm: string) {
@@ -92,6 +98,36 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
       };
       fields.capital_account_id = await mk('partners_capital_group', 'equity', `رأس مال ${fields.name}`);
       fields.current_account_id = await mk('partners_current_group', 'liability', `جاري ${fields.name}`);
+    }
+  }
+
+  if (entity === 'employee') {
+    fields.code = fields.code || null;
+    fields.hire_date = fields.hire_date || null;
+    fields.user_id = fields.user_id || null;
+    if (existing) {
+      await t.query(`update accounts set name = $2 where id = $1`, [existing.advance_account_id, `سلف ${fields.name}`]);
+    } else {
+      // لكل موظف حساب سلف فرعي تحت «سلف الموظفين»
+      const g = await t.one(`select * from accounts where system_key = 'employee_advances_group'`);
+      if (!g) throw new AppError('حساب سلف الموظفين الرئيسي غير موجود في الدليل', 'state');
+      const last = await t.one(`select max(code) as c from accounts where parent_id = $1`, [g.id]);
+      const code = last?.c ? String(BigInt(last.c) + 1n) : `${g.code}01`;
+      const accId = crypto.randomUUID();
+      await t.query(`insert into accounts (id, code, name, parent_id, type) values ($1,$2,$3,$4,'asset')`, [accId, code, `سلف ${fields.name}`, g.id]);
+      fields.advance_account_id = accId;
+    }
+  }
+
+  if (entity === 'attendance') {
+    const emp = await t.one(`select id, active from employees where id = $1`, [fields.employee_id]);
+    if (!emp) throw new AppError('الموظف غير موجود');
+    // سجل واحد لكل موظف في اليوم (الأجهزة تستخدم معرفًا ثابتًا: الموظف + التاريخ)
+    if (!existing) {
+      const same = await t.one(`select id from attendance where employee_id = $1 and date = $2`, [fields.employee_id, fields.date]);
+      if (same && same.id !== id) throw new AppError('الحضور مسجل لهذا الموظف في نفس اليوم بالفعل');
+    } else if (existing.employee_id !== fields.employee_id || String(existing.date).slice(0, 10) !== fields.date) {
+      throw new AppError('لا يمكن نقل سجل الحضور لموظف أو يوم آخر');
     }
   }
 

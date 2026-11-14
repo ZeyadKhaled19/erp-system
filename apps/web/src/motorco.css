@@ -194,7 +194,7 @@
 .mc-fav.primary .mc-fav-ic { color: #fff; }
 .mc-fav.fav-purchase_invoice .mc-fav-ic, .mc-fav.fav-purchase_return .mc-fav-ic { color: var(--mc-purple); }
 .mc-fav.fav-item_new .mc-fav-ic { color: var(--heading); }
-.mc-fav.fav-receipt .mc-fav-ic, .mc-fav.fav-pos .mc-fav-ic { color: var(--mc-green); }
+.mc-fav.fav-receipt .mc-fav-ic, .mc-fav.fav-pos .mc-fav-ic, .mc-fav.fav-attendance .mc-fav-ic { color: var(--mc-green); }
 .mc-fav-pick { display: flex; flex-direction: column; gap: 10px; }
 .mc-fav-hint { font-size: 13px; color: var(--label-2); }
 .mc-fav-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }

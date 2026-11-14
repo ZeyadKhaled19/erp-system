@@ -18,11 +18,13 @@ export type DocType =
   | 'partner_capital'
   | 'partner_withdrawal'
   | 'profit_distribution'
-  | 'year_closing';
+  | 'year_closing'
+  | 'employee_advance'
+  | 'payroll';
 
 export interface DocTypeInfo {
   label: string;
-  module: 'sales' | 'purchases' | 'treasury' | 'inventory' | 'accounts' | 'partners';
+  module: 'sales' | 'purchases' | 'treasury' | 'inventory' | 'accounts' | 'partners' | 'employees';
   /** مستند لا يُرحّل محاسبيًا (عرض الأسعار) */
   noPosting?: boolean;
   prefix: string;
@@ -56,6 +58,8 @@ export const DOC_TYPES: Record<DocType, DocTypeInfo> = {
   partner_withdrawal: { label: 'مسحوبات شريك', module: 'partners', prefix: 'PW', hasLines: false },
   profit_distribution: { label: 'توزيع أرباح', module: 'partners', prefix: 'PD', hasLines: false },
   year_closing: { label: 'قيد إقفال السنة', module: 'accounts', prefix: 'YC', hasLines: false },
+  employee_advance: { label: 'سلفة موظف', module: 'employees', prefix: 'EA', hasLines: false },
+  payroll: { label: 'مسير رواتب', module: 'employees', prefix: 'SL', hasLines: false },
 };
 
 export const DOC_STATUS_LABEL: Record<string, string> = {
@@ -102,4 +106,6 @@ export type SystemAccount =
   | 'partners_current_group'
   | 'profit_distribution'
   | 'misc_expense'
-  | 'commissions';
+  | 'commissions'
+  | 'employee_advances_group'
+  | 'salaries';

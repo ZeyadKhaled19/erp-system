@@ -16,7 +16,7 @@ export interface Ctx {
 }
 
 export const CASH_CUSTOMER_ID = 'party-cash-customer';
-const CASH_DOCS = ['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'];
+const CASH_DOCS = ['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal', 'employee_advance', 'payroll'];
 
 async function nextNumber(t: Db, docType: DocType): Promise<string> {
   const info = DOC_TYPES[docType];
@@ -153,7 +153,7 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
     );
     ({ gross, discount, tax, total } = r);
     computed = r.lines;
-  } else if (!info.hasLines && !['journal_voucher', 'profit_distribution', 'year_closing'].includes(input.doc_type)) {
+  } else if (!info.hasLines && !['journal_voucher', 'profit_distribution', 'year_closing', 'payroll'].includes(input.doc_type)) {
     if (input.amount <= 0) throw new AppError('المبلغ يجب أن يكون أكبر من صفر');
     total = input.amount;
   }
@@ -245,6 +245,36 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
   }
   if (input.doc_type === 'partner_capital' || input.doc_type === 'partner_withdrawal') {
     await mustGet(t, 'partners', input.partner_id, 'الشريك');
+  }
+  if (input.doc_type === 'employee_advance') {
+    const emp = await mustGet(t, 'employees', input.employee_id, 'الموظف');
+    if (!emp.active) throw new AppError(`الموظف «${emp.name}» موقوف`);
+  }
+
+  // ---- مسير الرواتب: سطر لكل موظف، والصافي = الراتب + المكافأة − الغياب − الجزاءات − خصم السلف
+  let payrollData: any = null;
+  if (input.doc_type === 'payroll') {
+    if (!input.period_from || !input.period_to || input.period_from > input.period_to) throw new AppError('حدد شهر المسير');
+    const overlap = await t.one(
+      `select number from documents where doc_type = 'payroll' and status = 'posted' and id <> $3
+        and (data->>'period_from') <= $2 and (data->>'period_to') >= $1 limit 1`,
+      [input.period_from, input.period_to, input.id],
+    );
+    if (overlap) throw new AppError(`يوجد مسير رواتب مرحّل (${overlap.number}) لنفس الفترة`);
+    const rows = input.payroll_rows ?? [];
+    if (!rows.length) throw new AppError('المسير بدون موظفين');
+    if (new Set(rows.map((r) => r.employee_id)).size !== rows.length) throw new AppError('موظف مكرر في المسير');
+    const out: any[] = [];
+    for (const r of rows) {
+      const emp = await mustGet(t, 'employees', r.employee_id, 'الموظف');
+      const net = r.salary + r.bonus - r.absence_deduction - r.other_deduction - r.advance_deduction;
+      if (net < 0) throw new AppError(`صافي راتب «${emp.name}» بالسالب — راجع الخصومات`);
+      if (r.advance_deduction > Math.max(0, Number(emp.advance_balance))) throw new AppError(`خصم السلفة لـ«${emp.name}» أكبر من رصيد سلفه (${Number(emp.advance_balance) / 100})`);
+      out.push({ ...r, name: emp.name, job_title: emp.job_title ?? null, net });
+    }
+    payrollData = { period_from: input.period_from, period_to: input.period_to, rows: out };
+    total = out.reduce((s, r) => s + r.net, 0);
+    if (total <= 0) throw new AppError('صافي المسير صفر');
   }
 
   // ---- توزيع الأرباح: يُحسب من القيود المرحّلة للفترة
@@ -351,6 +381,7 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
     to_cashbox_id: input.to_cashbox_id ?? null,
     account_id: input.account_id ?? null,
     partner_id: input.partner_id ?? null,
+    employee_id: input.doc_type === 'employee_advance' ? input.employee_id ?? null : null,
     sales_rep_id: input.sales_rep_id ?? null,
     price_list_id: priceListId,
     shift_id: input.shift_id ?? null,
@@ -376,6 +407,7 @@ export async function saveDocument(t: Db, ctx: Ctx, input: DocInput, existing?: 
       charges,
       from_quotation_id: input.from_quotation_id ?? null,
       ...(distData ?? {}),
+      ...(payrollData ?? {}),
     }),
     local_number: input.local_number ?? null,
   };
@@ -741,6 +773,28 @@ export async function postDocument(t: Db, ctx: Ctx, docId: string, opts: PostOpt
         jl.push({ account_id: p.current_account_id, debit: doc.total, credit: 0, memo: `${memo} — ${p.name}` });
         jl.push({ account_id: cash, debit: 0, credit: doc.total, memo: `${memo} — ${p.name}` });
       }
+      break;
+    }
+    case 'employee_advance': {
+      const emp = await t.one(`select * from employees where id = $1`, [doc.employee_id]);
+      jl.push({ account_id: emp.advance_account_id, debit: doc.total, credit: 0, memo: `${memo} — ${emp.name}` });
+      jl.push({ account_id: await cbAccount(doc.cashbox_id), debit: 0, credit: doc.total, memo: `${memo} — ${emp.name}` });
+      break;
+    }
+    case 'payroll': {
+      // المصروف = الراتب المستحق فعلًا (الراتب + المكافأة − الغياب − الجزاءات)، والسلف تُسدَّد من الراتب
+      const rows = (data.rows ?? []) as any[];
+      let expense = 0;
+      for (const r of rows) {
+        expense += r.salary + r.bonus - r.absence_deduction - r.other_deduction;
+        if (r.advance_deduction > 0) {
+          const emp = await t.one(`select * from employees where id = $1`, [r.employee_id]);
+          if (r.advance_deduction > Number(emp.advance_balance)) throw new AppError(`خصم السلفة لـ«${emp.name}» أكبر من رصيد سلفه الحالي`, 'state');
+          jl.push({ account_id: emp.advance_account_id, debit: 0, credit: r.advance_deduction, memo: `خصم سلفة من راتب ${emp.name} — ${memo}` });
+        }
+      }
+      jl.push({ account_id: await acc('salaries'), debit: expense, credit: 0, memo });
+      jl.push({ account_id: await cbAccount(doc.cashbox_id), debit: 0, credit: doc.total, memo });
       break;
     }
     case 'profit_distribution': {
