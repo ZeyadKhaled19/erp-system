@@ -191,3 +191,48 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 :root[data-theme="dark"] .mc-fav.primary:hover { background: color-mix(in srgb, var(--tint) 52%, #000000); }
 :root[data-theme="dark"] .mc-card.on { background: var(--nav-active); border-color: var(--border-strong); color: var(--heading); }
 :root[data-theme="dark"] .mc-card.on .mc-card-ic { background: var(--mc-active); border-color: transparent; }
+
+/* ---------- 7) فاتورة البيع والشراء (النسخة الحادة) ---------- */
+.si-page-heading h1 { font-size: clamp(1.25rem, 1.6vw, 1.5rem); font-weight: 700; letter-spacing: -0.2px; }
+.si-new-tab { border-radius: 0.625rem; }
+/* بيانات الفاتورة: شريط واحد بفواصل بدل كروت منفصلة */
+.si .si-meta { background: var(--card); border: 1px solid var(--separator); border-radius: 0.75rem; box-shadow: none; padding: 0; gap: 0; overflow: visible; }
+.si .si-meta-field { background: transparent; border: 0; border-radius: 0; box-shadow: none; min-height: 3.5rem; padding: 0.5rem 0.875rem; }
+.si .si-meta-field + .si-meta-field { border-inline-start: 1px solid var(--separator); }
+.si .si-meta-field > span, .si .si-meta-field > label { font-weight: 600; color: var(--label-2); }
+.si .si-meta-field b, .si .si-date, .si .si-wh { font-weight: 600; }
+.si-navs { border-radius: 0.625rem; }
+.si-navs button { border-radius: 0.375rem; }
+
+/* البحث والجدول */
+.si .ss-entry, .si .ss-top .ss-entry { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .ss-top .ss-step > label { font-weight: 600; color: var(--label-2); }
+.si .ss-top .ss-step > label b { background: var(--heading); color: var(--card); border-radius: 0.3125rem; }
+.si .ss-add.btn, .si .ss-add.btn.success.primary { background: var(--tint); border-color: var(--tint); color: #FFFFFF; border-radius: 0.625rem; }
+.si .ss-add.btn:disabled, .si .ss-add.btn.success.primary:disabled { background: var(--card-2); border-color: var(--separator); color: var(--label-3); opacity: 1; }
+.si .si-grid { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); }
+.si-table th, .si .si-table th { background: var(--card-2); color: var(--label-2); font-weight: 600; font-size: 0.8125rem; border-bottom: 1px solid var(--separator); }
+.si-table td.c-name { font-weight: 600; }
+.si-table tbody tr td { border-bottom: 1px solid var(--separator); }
+.si-table tbody tr:hover td { background: var(--card-2); }
+.si-table tbody tr.sel td { background: var(--tint-soft); }
+.si-table tfoot td { background: var(--card-2); font-weight: 700; }
+.si-grid-foot { background: var(--card); }
+.si-short, .si-credit { border-radius: 0.625rem; }
+
+/* الملخص والدفع */
+.si .ss-side > .card { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); }
+.si-summary-title { font-size: 1rem; font-weight: 700; padding-bottom: 0.625rem; border-bottom: 1px solid var(--separator); }
+.si .ss-sum .row b, .si-pay-sum .row b { font-weight: 700; }
+/* «الإجمالي النهائي» صندوق داكن والرقم كبير */
+.si-grand { background: var(--nav-bg); color: #FFFFFF; border-radius: 0.625rem; box-shadow: none; padding: 0.875rem 1rem; }
+.si-grand span { color: var(--nav-muted); font-size: 0.875rem; font-weight: 600; }
+.si-grand b { font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 700; letter-spacing: -0.5px; }
+.si .ss-pay button { border-radius: 0.5rem; font-weight: 600; }
+.si .ss-pay button.on { background: var(--tint-soft); box-shadow: inset 0 0 0 1px var(--tint); }
+.si .si-bar .btn { border-radius: 0.625rem; }
+.si-more-panel summary { font-weight: 600; }
+@media (max-width: 760px) {
+  .si .si-meta-field + .si-meta-field { border-inline-start: 0; }
+  .si .si-meta-field { border-bottom: 1px solid var(--separator); }
+}
