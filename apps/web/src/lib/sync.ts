@@ -97,6 +97,7 @@ const TABLE_OF: Record<string, keyof typeof db | undefined> = {
   price_list: 'price_lists',
   partner: 'partners',
   party_group: 'party_groups',
+  scooter_brand: 'scooter_brands',
   employee: 'employees',
   attendance: 'attendance',
   department: 'departments',

@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
+import { ScooterBrandSelect } from './ScooterBrands';
 import { Banner, Field, MoneyInput, Sheet, useUi } from './ui';
 
 /**
@@ -16,6 +17,7 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', groupId: 
   const [groupId, setGroupId] = useState<string>(initialGroup ?? '');
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState('');
+  const [brandId, setBrandId] = useState<string | null>(null);
   const [limit, setLimit] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,6 +50,7 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', groupId: 
       price_list: 'retail',
       price_list_id: 'pl-retail',
       group_id: groupId || null,
+      scooter_brand_id: kind === 'customer' ? brandId : null,
       discount_bp: 0,
       due_days: 0,
       review_date: null,
@@ -78,6 +81,11 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', groupId: 
         <Field label="رقم الموبايل">
           <input className="input num" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" />
         </Field>
+        {kind === 'customer' && (
+          <Field label="ماركة السكوتر">
+            <ScooterBrandSelect value={brandId} onChange={setBrandId} />
+          </Field>
+        )}
         {groups.length > 0 && (
           <Field label={kind === 'customer' ? 'نوع العميل' : 'نوع المورد'}>
             <div className="seg-chips">

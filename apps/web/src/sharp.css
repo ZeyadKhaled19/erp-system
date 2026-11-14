@@ -469,3 +469,17 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .sx-stat-chg.up { color: var(--green-text); }
 .sx-stat-chg.down { color: var(--red-text); }
 .sx-card-h h2 { flex-wrap: nowrap; }
+
+/* ---------- 13) فاتورة البيع: أزرار الحفظ دايمًا ظاهرة ----------
+   لما تختار طريقتين دفع، كارت الملخص بيطول وأزرار الحفظ كانت بتنزل تحت الشاشة
+   من غير ما يبقى فيه سكرول توصلها. دلوقتي الكارت بيعمل سكرول جواه، وشريط الحفظ ثابت في آخره. */
+.si .ss-side > .card { height: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.si .ss-side .card > .si-bar { position: sticky; bottom: -0.8125rem; z-index: 3; margin: 0 -0.8125rem -0.8125rem; padding: 0.625rem 0.8125rem 0.8125rem; background: var(--card); border-top: 1px solid var(--separator); }
+@media (max-width: 760px) {
+  .si .ss-side > .card { height: auto; max-height: none; overflow: visible; }
+  .si .ss-side .card > .si-bar { position: static; margin: 0; padding: 0.5rem 0 0; border-top: 0; }
+}
+
+/* تقرير ماركات السكوتر: شريط النسبة */
+.brand-bar { display: inline-block; width: 4rem; height: 0.375rem; border-radius: 999px; background: var(--card-2); border: 1px solid var(--separator); vertical-align: middle; overflow: hidden; margin-inline-end: 0.375rem; }
+.brand-bar i { display: block; height: 100%; background: var(--tint); }

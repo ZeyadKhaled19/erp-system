@@ -9,6 +9,7 @@ import { Banner, DocStatusBadge, Empty, exportExcel, savePdf, Field, MoneyInput,
 import { saveMaster } from '../lib/actions';
 import { PartyInsights } from '../components/Insights';
 import { PartyGroupSheet } from '../components/CustomerFields';
+import { ScooterBrandSelect, ScooterBrandsManager, useScooterBrands } from '../components/ScooterBrands';
 import { ActiveBadge, PageTabs, RowActions } from '../components/ListParts';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useRemote } from '../lib/hooks';
@@ -23,6 +24,10 @@ export function PartiesPage() {
   const [filter, setFilter] = useState<'all' | 'balance'>('all');
   const [grp, setGrp] = useState('');
   const [grpSheet, setGrpSheet] = useState<any | undefined>(undefined);
+  const [brand, setBrand] = useState(() => new URLSearchParams(window.location.search).get('brand') ?? '');
+  const [brandsOpen, setBrandsOpen] = useState(false);
+  const brands = useScooterBrands(true);
+  const brandName = useMemo(() => new Map(brands.map((b) => [b.id, b.name])), [brands]);
   const groups = useLiveQuery(async () => (await db.party_groups.where('kind').equals(kind).toArray()).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)), [kind]) ?? [];
   const groupName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const [editing, setEditing] = useState<any | null>(null);
@@ -40,8 +45,10 @@ export function PartiesPage() {
   const parties = useLiveQuery(() => db.parties.where('kind').equals(kind).sortBy('code'), [kind]) ?? [];
   const list = useMemo(() => {
     const s = dq.trim().toLowerCase();
-    return parties.filter((p) => (!grp || p.group_id === grp) && (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s))) && (filter === 'all' || p.balance !== 0));
-  }, [parties, dq, filter, grp]);
+    return parties.filter((p) => (!grp || p.group_id === grp)
+      && (!brand || (brand === '__none' ? !p.scooter_brand_id : p.scooter_brand_id === brand))
+      && (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s))) && (filter === 'all' || p.balance !== 0));
+  }, [parties, dq, filter, grp, brand]);
   const total = list.reduce((s, p) => s + (p.balance ?? 0), 0);
   // مؤشرات القسم من كل العملاء/الموردين (مش من نتيجة البحث)
   const activeParties = parties.filter((p) => p.active !== false);
@@ -100,7 +107,18 @@ export function PartiesPage() {
           {can('parties.create') && <button onClick={() => setGrpSheet(null)}><Plus /> نوع جديد</button>}
         </div>
       )}
+      {kind === 'customer' && (brands.length > 0 || can('settings.manage')) && (
+        <div className="row wrap" style={{ marginBottom: 12, gap: 8 }}>
+          <select className="select" style={{ width: 240 }} value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="فلتر ماركة السكوتر">
+            <option value="">كل ماركات السكوتر</option>
+            <option value="__none">من غير ماركة</option>
+            {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          {can('settings.manage') && <button className="btn" onClick={() => setBrandsOpen(true)}>إدارة ماركات السكوتر</button>}
+        </div>
+      )}
       {grpSheet !== undefined && <PartyGroupSheet group={grpSheet} onClose={() => setGrpSheet(undefined)} onSaved={(id) => setGrp(id)} />}
+      {brandsOpen && <ScooterBrandsManager onClose={() => setBrandsOpen(false)} />}
       {list.length === 0 ? (
         <div className="card">
           <Empty icon={<Users />} title="لا يوجد" />
@@ -114,6 +132,7 @@ export function PartiesPage() {
                 <th>الاسم</th>
                 <th>الهاتف</th>
                 {kind === 'customer' && <th>النوع</th>}
+                {kind === 'customer' && <th>ماركة السكوتر</th>}
                 <th className="n">{L.bal}</th>
                 <th>الحالة</th>
                 <th />
@@ -128,6 +147,7 @@ export function PartiesPage() {
                   </td>
                   <td data-label="الهاتف" className="num muted">{p.phone ?? '—'}</td>
                   {kind === 'customer' && <td data-label="النوع">{p.group_id ? <span className="badge">{groupName.get(p.group_id) ?? '—'}</span> : <span className="muted">—</span>}</td>}
+                  {kind === 'customer' && <td data-label="ماركة السكوتر">{p.scooter_brand_id ? brandName.get(p.scooter_brand_id) ?? '—' : <span className="muted">—</span>}</td>}
                   <td data-label={L.bal} className={`n bold ${(p.balance ?? 0) < 0 ? 'red' : ''}`}>{formatMoney(p.balance ?? 0)}</td>
                   <td data-label="الحالة"><ActiveBadge active={p.active !== false} /></td>
                   <td data-label="" className="lp-act-cell">
@@ -163,6 +183,7 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
     price_list: party?.price_list ?? 'retail',
     price_list_id: party?.price_list_id ?? 'pl-retail',
     group_id: party?.group_id ?? null,
+    scooter_brand_id: party?.scooter_brand_id ?? null,
     discount_pct: party?.discount_bp ? String(party.discount_bp / 100) : '0',
     due_days: party?.due_days ?? 0,
     review_date: party?.review_date ?? '',
@@ -238,6 +259,9 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
                 <option value="">—</option>
                 {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
+            </Field>
+            <Field label="ماركة السكوتر" hint="من القائمة اللي بيحددها صاحب النظام">
+              <ScooterBrandSelect value={f.scooter_brand_id} onChange={(id) => set('scooter_brand_id', id)} />
             </Field>
             <Field label="الحد الائتماني" hint="0 = بدون حد">
               <MoneyInput value={f.credit_limit} onChange={(v) => set('credit_limit', v)} />

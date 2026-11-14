@@ -59,6 +59,7 @@ class LocalDb extends Dexie {
   partners!: Table<Row, string>;
   cashier_shifts!: Table<Row, string>;
   party_groups!: Table<Row, string>;
+  scooter_brands!: Table<Row, string>;
   employees!: Table<Row, string>;
   attendance!: Table<Row, string>;
   departments!: Table<Row, string>;
@@ -115,6 +116,13 @@ class LocalDb extends Dexie {
       employees: 'id, name, active, department_id, manager_id',
       departments: 'id, parent_id, name',
       job_titles: 'id, name',
+    }).upgrade(async (tx) => {
+      await tx.table('meta').put({ key: 'cursor', value: 0 });
+    });
+    // ماركات السكوتر وربطها بالعميل
+    this.version(6).stores({
+      scooter_brands: 'id, sort',
+      parties: 'id, kind, code, name, group_id, scooter_brand_id, _sync',
     }).upgrade(async (tx) => {
       await tx.table('meta').put({ key: 'cursor', value: 0 });
     });
@@ -196,6 +204,6 @@ export async function setMeta(key: string, value: unknown) {
 export const SYNCED_TABLE_NAMES = [
   'settings', 'roles', 'users', 'accounts', 'warehouses', 'categories', 'items', 'item_units',
   'stock_balances', 'parties', 'cashboxes', 'documents', 'document_lines', 'sync_conflicts',
-  'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts', 'party_groups',
+  'instruments', 'price_lists', 'item_prices', 'sales_reps', 'partners', 'cashier_shifts', 'party_groups', 'scooter_brands',
   'employees', 'attendance', 'departments', 'job_titles',
 ] as const;

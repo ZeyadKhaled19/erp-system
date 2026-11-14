@@ -63,6 +63,7 @@ function visible(table: SyncTable, row: any, user: AuthUser) {
     case 'sales_reps': return can(user, 'sales.view') || can(user, 'parties.view');
     case 'price_lists': return can(user, 'items.view');
     case 'party_groups': return can(user, 'parties.view');
+    case 'scooter_brands': return can(user, 'parties.view') || can(user, 'sales.view');
     case 'employees': return can(user, 'employees.view') || row.user_id === user.id;
     case 'attendance':
     case 'departments':

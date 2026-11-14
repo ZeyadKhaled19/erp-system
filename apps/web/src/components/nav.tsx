@@ -3,7 +3,7 @@ import {
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
   IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
-import { Fingerprint, HandCoins, Network, ShoppingBasket } from 'lucide-react';
+import { Bike, Fingerprint, HandCoins, Network, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface NavLink {
@@ -174,6 +174,7 @@ export const HUBS: Hub[] = [
           { to: '/reports/income', label: 'الأرباح والخسائر', icon: <TrendingUp />, grad: 'var(--grad-orange)', perm: 'reports.profit' },
           { to: '/reports/documents', label: 'تقارير المستندات', icon: <BarChart3 />, grad: 'var(--grad-pink)', perm: 'reports.view' },
           { to: '/reports/commissions', label: 'عمولات المندوبين', icon: <Users />, grad: 'var(--grad-teal)', perm: 'reports.view' },
+          { to: '/reports/scooter-brands', label: 'العملاء حسب ماركة السكوتر', desc: 'عدد العملاء ومبيعاتهم ومستحقاتهم لكل ماركة', icon: <Bike />, grad: 'var(--grad-orange)', perm: 'reports.view' },
         ],
       },
       {
