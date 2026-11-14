@@ -98,7 +98,8 @@ export function formatMoney(piasters: number, opts: { currency?: boolean } = {})
   const s = scaledToString(piasters, MONEY_SCALE, 2);
   const neg = s.startsWith('-');
   const [i, f] = (neg ? s.slice(1) : s).split('.');
-  const out = (neg ? '-' : '') + groupInt(i) + '.' + (f ?? '00');
+  // من غير قروش لما المبلغ جنيه صحيح (1,500 مش 1,500.00)؛ لو فيه قروش فعلًا بتظهر برقمين (1,489.20)
+  const out = (neg ? '-' : '') + groupInt(i) + (f && f !== '00' ? '.' + f.padEnd(2, '0') : '');
   return opts.currency ? `${out} ج.م` : out;
 }
 

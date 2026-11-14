@@ -14,7 +14,7 @@
   --shadow-card: none;
   --shadow-lift: 0 1px 2px rgba(16, 18, 24, .06);
   --shadow-pop: 0 18px 48px rgba(16, 18, 24, .18);
-  --radius-s: 0.5rem; --radius: 0.75rem; --radius-l: 0.875rem; --radius-xl: 0.875rem;
+  --radius-s: 0.625rem; --radius: 0.875rem; --radius-l: 1rem; --radius-xl: 1rem;
   --nav-bg: #15171C; --nav-2: #1C1F26; --nav-text: #F3F4F6; --nav-muted: #A0A5B1; --nav-hover: #22252D; --nav-active: #2C2F38; --nav-border: #2C2F38;
 
   --mc-panel: var(--card);
@@ -49,19 +49,19 @@
 .nav-bar.mc-top { background: var(--nav-bg) !important; color: var(--nav-text); padding: calc(0.25rem + env(safe-area-inset-top)) 1.25rem 0.5rem; }
 .mc-top .mc-company, .mc-top .mc-system { color: var(--nav-text); }
 .mc-top .mc-brand-sep { background: var(--nav-border); }
-.mc-top .mc-logo { border-radius: 0.75rem; box-shadow: none; }
-.mc-top .mc-icon-btn { color: var(--nav-text); border-radius: 0.75rem; border: 1px solid var(--nav-border); width: 2.375rem; height: 2.375rem; }
+.mc-top .mc-logo { border-radius: 0.875rem; box-shadow: none; }
+.mc-top .mc-icon-btn { color: var(--nav-text); border-radius: 0.875rem; border: 1px solid var(--nav-border); width: 2.375rem; height: 2.375rem; }
 .mc-top .mc-icon-btn:hover, .mc-top .mc-icon-btn.open { background: var(--nav-hover); }
 .mc-top .mc-icon-btn svg { width: 1.125rem; height: 1.125rem; }
 .mc-top .mc-dot { box-shadow: 0 0 0 2px var(--nav-bg); top: 0.375rem; right: 0.4375rem; }
-.mc-top .mc-search { background: var(--nav-2); border-color: var(--nav-border); color: var(--nav-muted); border-radius: 0.75rem; }
+.mc-top .mc-search { background: var(--nav-2); border-color: var(--nav-border); color: var(--nav-muted); border-radius: 0.875rem; }
 .mc-top .mc-search:hover { color: var(--nav-text); border-color: #3A3E48; }
 .mc-top .mc-search kbd { background: var(--nav-active); border-color: #3A3E48; color: var(--nav-muted); }
 .mc-top .sync-pill { border-radius: 999px; }
 .mc-top .nm-btn { color: var(--nav-text); }
 
 .mc-nav { margin: 0.125rem 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.mc-nav-item { flex: 0 0 auto; height: 2.5rem; padding: 0 0.875rem; gap: 0.5rem; border-radius: 0.625rem; color: var(--nav-muted); font-size: 0.9375rem; font-weight: 600; }
+.mc-nav-item { flex: 0 0 auto; height: 2.5rem; padding: 0 0.875rem; gap: 0.5rem; border-radius: 0.75rem; color: var(--nav-muted); font-size: 0.9375rem; font-weight: 600; }
 .mc-nav-item + .mc-nav-item::before { display: none; }
 .mc-nav-item:hover, .mc-nav-item.open { background: var(--nav-hover); color: var(--nav-text); }
 .mc-nav-item.on { background: var(--nav-active); color: #FFFFFF; box-shadow: inset 0 -2px 0 var(--tint); }
@@ -74,44 +74,44 @@
 
 /* ---------- 3) تبويبات الشاشات ---------- */
 .screen-tabs.mc-tabs { background: var(--card); border-bottom: 1px solid var(--separator); padding: 0.375rem 1.25rem; }
-.mc-tabs .st-tab { height: 2.25rem; border-radius: 0.625rem; background: transparent; border: 1px solid transparent; font-weight: 500; }
+.mc-tabs .st-tab { height: 2.25rem; border-radius: 0.75rem; background: transparent; border: 1px solid transparent; font-weight: 500; }
 .mc-tabs .st-tab:hover { background: var(--card-2); }
 .mc-tabs .st-tab.on { background: var(--card-2); border-color: var(--separator); box-shadow: none; font-weight: 600; }
 .mc-tabs .st-tab.home.on { color: var(--heading); }
-.mc-tabs .st-close-all { border-radius: 0.625rem; }
-.mc-plus { width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; box-shadow: none; }
+.mc-tabs .st-close-all { border-radius: 0.75rem; }
+.mc-plus { width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; box-shadow: none; }
 .mc-plus:hover { transform: none; border-color: var(--border-strong); }
 
 /* ---------- 4) المكونات العامة ---------- */
-.card, .list, .table-wrap, .stat, .kpi, .pos-cart, .pos-item, .login-card, .tile { border-radius: 0.875rem; box-shadow: none; }
+.card, .list, .table-wrap, .stat, .kpi, .pos-cart, .pos-item, .login-card, .tile { border-radius: 1rem; box-shadow: none; }
 .tile:hover { box-shadow: none; border-color: var(--border-strong); }
-.btn { border-radius: 0.75rem; box-shadow: none; }
+.btn { border-radius: 0.875rem; box-shadow: none; }
 .btn.primary, .btn.success.primary, .btn.danger.primary { box-shadow: none; }
-.btn.sm { border-radius: 0.625rem; }
-.btn.lg, .btn.xl { border-radius: 0.75rem; }
-.input, .select, .textarea { border-radius: 0.625rem; }
-.segmented { border-radius: 0.75rem; }
+.btn.sm { border-radius: 0.75rem; }
+.btn.lg, .btn.xl { border-radius: 0.875rem; }
+.input, .select, .textarea { border-radius: 0.75rem; }
+.segmented { border-radius: 0.875rem; }
 .segmented button.on, :root[data-theme="dark"] .segmented button.on { background: var(--heading); color: var(--card); box-shadow: none; }
-.stat .stat-icon { border-radius: 0.625rem; background: var(--card-2) !important; color: var(--heading) !important; border: 1px solid var(--separator); }
+.stat .stat-icon { border-radius: 0.75rem; background: var(--card-2) !important; color: var(--heading) !important; border: 1px solid var(--separator); }
 .stat .stat-value { font-size: 1.75rem; letter-spacing: -0.5px; }
-.list-row .sb-icon { border-radius: 0.625rem; }
-.sheet, .overlay .sheet { border-radius: 0.875rem; }
-kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card-2); }
+.list-row .sb-icon { border-radius: 0.75rem; }
+.sheet, .overlay .sheet { border-radius: 1rem; }
+kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2); }
 
 /* ---------- 5) الرئيسية ---------- */
 .page.mc-home { --mc-gap: clamp(0.75rem, 2vh, 1.125rem); }
 .mc-hello h1 { font-size: clamp(1.25rem, 1.8vw, 1.625rem); font-weight: 700; letter-spacing: -0.2px; }
 .mc-wave { display: none; }
 .mc-hello-s { padding-inline-start: 0; font-size: 0.875rem; font-weight: 500; color: var(--label-2); }
-.mc-when { height: 2.5rem; padding: 0 1rem; border-radius: 0.75rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; }
+.mc-when { height: 2.5rem; padding: 0 1rem; border-radius: 0.875rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; }
 .mc-when svg { width: 1.125rem; height: 1.125rem; }
 
 /* الكروت: بلاطات مدمجة بحد رفيع بدل كروت الآيباد */
 .mc-cards { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.625rem; }
-.mc-card { flex-direction: row; justify-content: flex-start; gap: 0.75rem; height: 3.75rem; padding: 0 0.875rem; border-radius: 0.75rem; box-shadow: none; background: var(--card); }
+.mc-card { flex-direction: row; justify-content: flex-start; gap: 0.75rem; height: 3.75rem; padding: 0 0.875rem; border-radius: 0.875rem; box-shadow: none; background: var(--card); }
 .mc-card::after { display: none; }
 .mc-card:hover { transform: none; border-color: var(--border-strong); background: var(--card-2); }
-.mc-card-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); flex-shrink: 0; }
+.mc-card-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); flex-shrink: 0; }
 .mc-card-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
 .mc-card-l { font-size: 0.875rem; font-weight: 600; text-align: start; max-width: none; line-height: 1.3; }
 .mc-card.on { background: var(--heading); border: 1px solid var(--heading); color: var(--card); --c: #FFFFFF; }
@@ -119,36 +119,36 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 
 /* اللوحات */
 .mc-panels { gap: 1rem; }
-.mc-panel, .sx-card { background: var(--card); border: 1px solid var(--separator); border-radius: 0.875rem; box-shadow: none; }
+.mc-panel, .sx-card { background: var(--card); border: 1px solid var(--separator); border-radius: 1rem; box-shadow: none; }
 .mc-panel-h h2 { font-size: 1rem; font-weight: 700; }
 .mc-panel-ic, .mc-star { width: 1.25rem; height: 1.25rem; }
 .mc-task-list { border: 0; box-shadow: none; padding: 0; background: transparent; }
 .mc-task { min-height: 3rem; border-radius: 0; }
-.mc-task-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); }
+.mc-task-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); }
 .mc-task-ic svg { width: 1.0625rem; height: 1.0625rem; }
 .mc-task-l { font-size: 0.875rem; font-weight: 600; }
 .mc-count { border-radius: 999px; height: 1.375rem; min-width: 1.625rem; font-size: 0.75rem; }
 .mc-chev { width: 1rem; height: 1rem; color: var(--label-2); }
 
 .mc-fav-grid { gap: 0.5rem; }
-.mc-fav { min-height: 3rem; border-radius: 0.75rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; gap: 0.625rem; padding: 0 0.875rem; }
+.mc-fav { min-height: 3rem; border-radius: 0.875rem; box-shadow: none; font-size: 0.875rem; font-weight: 600; gap: 0.625rem; padding: 0 0.875rem; }
 .mc-fav:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
 .mc-fav-ic, .mc-fav.fav-purchase_invoice .mc-fav-ic, .mc-fav.fav-purchase_return .mc-fav-ic, .mc-fav.fav-item_new .mc-fav-ic,
 .mc-fav.fav-receipt .mc-fav-ic, .mc-fav.fav-pos .mc-fav-ic, .mc-fav.fav-attendance .mc-fav-ic { color: var(--heading); }
 .mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
 .mc-fav.primary { background: var(--tint); border-color: var(--tint); }
 .mc-fav.primary .mc-fav-ic { color: #FFFFFF; }
-.mc-chip { border-radius: 0.625rem; box-shadow: none; }
+.mc-chip { border-radius: 0.75rem; box-shadow: none; }
 .mc-chip.primary { background: var(--tint); }
-.mc-fav-opt { border-radius: 0.625rem; }
+.mc-fav-opt { border-radius: 0.75rem; }
 
 @media (max-width: 760px) {
   .mc-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-  .mc-card { height: 3.25rem; border-radius: 0.75rem; gap: 0.5rem; padding: 0 0.625rem; }
+  .mc-card { height: 3.25rem; border-radius: 0.875rem; gap: 0.5rem; padding: 0 0.625rem; }
   .mc-card-ic { width: 1.875rem; height: 1.875rem; }
   .mc-card-ic svg { width: 1rem; height: 1rem; }
   .mc-card-l { font-size: 0.8125rem; }
-  .mc-panel { border-radius: 0.875rem; }
+  .mc-panel { border-radius: 1rem; }
   .mc-fav { min-height: 3rem; }
 }
 
@@ -167,7 +167,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 /* الاختصارات: تملا اللوحة، أيقونة في مربع، والاسم وتحته القسم */
 .mc-favs .mc-fav-grid { flex: 1; grid-auto-rows: minmax(3.5rem, 1fr); gap: 0.625rem; }
 .mc-fav { min-height: 0; height: auto; padding: 0.625rem 0.875rem; gap: 0.75rem; align-items: center; }
-.mc-fav .mc-fav-ic { width: 2.375rem; height: 2.375rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); }
+.mc-fav .mc-fav-ic { width: 2.375rem; height: 2.375rem; border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); }
 .mc-fav .mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
 .mc-fav > span.mc-fav-t:last-child { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; -webkit-line-clamp: none; overflow: visible; }
 .mc-fav-l { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -194,23 +194,23 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 
 /* ---------- 7) فاتورة البيع والشراء (النسخة الحادة) ---------- */
 .si-page-heading h1 { font-size: clamp(1.25rem, 1.6vw, 1.5rem); font-weight: 700; letter-spacing: -0.2px; }
-.si-new-tab { border-radius: 0.75rem; }
+.si-new-tab { border-radius: 0.875rem; }
 /* بيانات الفاتورة: شريط واحد بفواصل بدل كروت منفصلة */
-.si .si-meta { background: var(--card); border: 1px solid var(--separator); border-radius: 0.875rem; box-shadow: none; padding: 0; gap: 0; overflow: visible; }
+.si .si-meta { background: var(--card); border: 1px solid var(--separator); border-radius: 1rem; box-shadow: none; padding: 0; gap: 0; overflow: visible; }
 .si .si-meta-field { background: transparent; border: 0; border-radius: 0; box-shadow: none; min-height: 3.5rem; padding: 0.5rem 0.875rem; }
 .si .si-meta-field + .si-meta-field { border-inline-start: 1px solid var(--separator); }
 .si .si-meta-field > span, .si .si-meta-field > label { font-weight: 600; color: var(--label-2); }
 .si .si-meta-field b, .si .si-date, .si .si-wh { font-weight: 600; }
-.si-navs { border-radius: 0.75rem; }
-.si-navs button { border-radius: 0.5rem; }
+.si-navs { border-radius: 0.875rem; }
+.si-navs button { border-radius: 0.625rem; }
 
 /* البحث والجدول */
-.si .ss-entry, .si .ss-top .ss-entry { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .ss-entry, .si .ss-top .ss-entry { border-radius: 1rem; box-shadow: none; border: 1px solid var(--separator); }
 .si .ss-top .ss-step > label { font-weight: 600; color: var(--label-2); }
-.si .ss-top .ss-step > label b { background: var(--heading); color: var(--card); border-radius: 0.4375rem; }
-.si .ss-add.btn, .si .ss-add.btn.success.primary { background: var(--tint); border-color: var(--tint); color: #FFFFFF; border-radius: 0.75rem; }
+.si .ss-top .ss-step > label b { background: var(--heading); color: var(--card); border-radius: 0.5rem; }
+.si .ss-add.btn, .si .ss-add.btn.success.primary { background: var(--tint); border-color: var(--tint); color: #FFFFFF; border-radius: 0.875rem; }
 .si .ss-add.btn:disabled, .si .ss-add.btn.success.primary:disabled { background: var(--card-2); border-color: var(--separator); color: var(--label-3); opacity: 1; }
-.si .si-grid { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .si-grid { border-radius: 1rem; box-shadow: none; border: 1px solid var(--separator); }
 .si-table th, .si .si-table th { background: var(--card-2); color: var(--label-2); font-weight: 600; font-size: 0.8125rem; border-bottom: 1px solid var(--separator); }
 .si-table td.c-name { font-weight: 600; }
 .si-table tbody tr td { border-bottom: 1px solid var(--separator); }
@@ -218,19 +218,19 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .si-table tbody tr.sel td { background: var(--tint-soft); }
 .si-table tfoot td { background: var(--card-2); font-weight: 700; }
 .si-grid-foot { background: var(--card); }
-.si-short, .si-credit { border-radius: 0.75rem; }
+.si-short, .si-credit { border-radius: 0.875rem; }
 
 /* الملخص والدفع */
-.si .ss-side > .card { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); }
+.si .ss-side > .card { border-radius: 1rem; box-shadow: none; border: 1px solid var(--separator); }
 .si-summary-title { font-size: 1rem; font-weight: 700; padding-bottom: 0.625rem; border-bottom: 1px solid var(--separator); }
 .si .ss-sum .row b, .si-pay-sum .row b { font-weight: 700; }
 /* «الإجمالي النهائي» صندوق داكن والرقم كبير */
-.si-grand { background: var(--nav-bg); color: #FFFFFF; border-radius: 0.75rem; box-shadow: none; padding: 0.875rem 1rem; }
+.si-grand { background: var(--nav-bg); color: #FFFFFF; border-radius: 0.875rem; box-shadow: none; padding: 0.875rem 1rem; }
 .si-grand span { color: var(--nav-muted); font-size: 0.875rem; font-weight: 600; }
 .si-grand b { font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 700; letter-spacing: -0.5px; }
-.si .ss-pay button { border-radius: 0.625rem; font-weight: 600; }
+.si .ss-pay button { border-radius: 0.75rem; font-weight: 600; }
 .si .ss-pay button.on { background: var(--tint-soft); box-shadow: inset 0 0 0 1px var(--tint); }
-.si .si-bar .btn { border-radius: 0.75rem; }
+.si .si-bar .btn { border-radius: 0.875rem; }
 .si-more-panel summary { font-weight: 600; }
 @media (max-width: 760px) {
   .si .si-meta-field + .si-meta-field { border-inline-start: 0; }
@@ -239,27 +239,27 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 
 /* ---------- 8) صفحات الأقسام (المبيعات، المشتريات، المخزون، ...) ---------- */
 .sx-title h1 { font-size: clamp(1.25rem, 1.6vw, 1.5rem); font-weight: 700; letter-spacing: -0.2px; }
-.sx-title-ic { width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; background: var(--card); border: 1px solid var(--separator); color: var(--heading); }
+.sx-title-ic { width: 2.5rem; height: 2.5rem; border-radius: 0.875rem; background: var(--card); border: 1px solid var(--separator); color: var(--heading); }
 .sx-title-ic svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.9; }
-.sx-when { border-radius: 0.75rem; box-shadow: none; font-weight: 600; font-size: 0.875rem; }
+.sx-when { border-radius: 0.875rem; box-shadow: none; font-weight: 600; font-size: 0.875rem; }
 
 /* المؤشرات: نفس الارتفاع والمقاس، أيقونة في مربع محايد */
 .sx-stats { gap: 0.75rem; grid-auto-rows: 1fr; }
-.sx-stat { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); height: 100%; }
+.sx-stat { border-radius: 1rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); height: 100%; }
 .sx-stat:not(:disabled):hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
-.sx-stat-ic { border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.5rem; height: 2.5rem; }
+.sx-stat-ic { border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.5rem; height: 2.5rem; }
 .sx-stat-ic svg { width: 1.125rem; height: 1.125rem; }
 .sx-stat-l { font-weight: 600; font-size: 0.8125rem; }
 .sx-stat-v { font-weight: 700; letter-spacing: -0.4px; }
 .sx-stat-s { font-weight: 500; }
 
 /* الكروت */
-.sx-card { border-radius: 0.875rem; background: var(--card); border: 1px solid var(--separator); box-shadow: none; }
+.sx-card { border-radius: 1rem; background: var(--card); border: 1px solid var(--separator); box-shadow: none; }
 .sx-card-h { padding-bottom: 0.625rem; border-bottom: 1px solid var(--separator); margin-bottom: 0.625rem; }
 .sx-card-h h2 { font-size: 1rem; font-weight: 700; }
 .sx-h-ic { color: var(--heading); }
 .sx-h-ic svg, svg.sx-h-ic { width: 1.25rem; height: 1.25rem; }
-.sx-more { border-radius: 0.625rem; font-weight: 600; }
+.sx-more { border-radius: 0.75rem; font-weight: 600; }
 @media (min-width: 1181px) {
   .sx-actions:not(.editing) > .sx-card-h { padding-bottom: 0; border-bottom: 0; margin-bottom: 0; }
   .sx-actions:not(.editing) h2 { font-size: 0.9375rem; }
@@ -267,7 +267,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 
 /* العمليات السريعة: أزرار متساوية بحد رفيع */
 .sx-action-row { grid-auto-rows: 1fr; gap: 0.625rem; }
-.sx-action { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); font-weight: 600; font-size: 0.9375rem; min-height: 3rem; }
+.sx-action { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); font-weight: 600; font-size: 0.9375rem; min-height: 3rem; }
 .sx-action:hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
 .sx-action-ic { color: var(--heading); }
 .sx-action-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
@@ -284,10 +284,10 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .sx-follow-list { border: 0; box-shadow: none; padding: 0; background: transparent; border-radius: 0; }
 .sx-follow-row { min-height: 3rem; border-radius: 0; }
 .sx-follow-row:hover { background: var(--card-2); }
-.sx-follow-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); }
+.sx-follow-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); }
 .sx-follow-ic svg { width: 1.0625rem; height: 1.0625rem; }
 .sx-follow-l { font-size: 0.875rem; font-weight: 600; }
-.sx-table { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
+.sx-table { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
 .sx-table .table th { background: var(--card-2); color: var(--label-2); font-weight: 600; font-size: 0.8125rem; }
 .sx-table .table tbody tr:hover td { background: var(--card-2); }
 .sx-empty { color: var(--label-2); }
@@ -295,21 +295,21 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
   .sx-main > :last-child, .sx-side > :last-child { flex: none; }
 }
 @media (max-width: 700px) {
-  .sx-stat { border-radius: 0.875rem; }
-  .sx-action { border-radius: 0.75rem; background: var(--card); font-weight: 600; }
-  .sx-card { border-radius: 0.875rem; }
+  .sx-stat { border-radius: 1rem; }
+  .sx-action { border-radius: 0.875rem; background: var(--card); font-weight: 600; }
+  .sx-card { border-radius: 1rem; }
 }
 
 /* شبكة الروابط (التقارير والإعدادات) بنفس الشكل الحاد */
-.sx-link { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
+.sx-link { border-radius: 0.875rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
 .sx-link:hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
-.sx-link-ic { border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.25rem; height: 2.25rem; }
+.sx-link-ic { border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.25rem; height: 2.25rem; }
 .sx-link-ic svg { width: 1.0625rem; height: 1.0625rem; }
 .sx-link-l { font-weight: 600; font-size: 0.875rem; }
 .sx-link-d { font-weight: 500; }
 
 /* ---------- 9) الجداول (كل جداول المشروع) ---------- */
-.table-wrap { border-radius: 0.875rem; border: 1px solid var(--separator); background: var(--card); box-shadow: none; overflow: auto; }
+.table-wrap { border-radius: 1rem; border: 1px solid var(--separator); background: var(--card); box-shadow: none; overflow: auto; }
 .table { border-collapse: separate; border-spacing: 0; width: 100%; }
 /* العناوين: رمادي محايد، خط أصغر وأهدى، ثابتة فوق وإنت بتنزل جوه الجدول */
 .table th, .table thead th {
@@ -342,22 +342,22 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .table tbody tr.lp-sel td:first-child, .table tbody tr.sel td:first-child { box-shadow: inset -3px 0 0 var(--tint); }
 
 /* الصورة الرمزية: مربع محايد بدل دايرة ملونة */
-.lp-avatar { width: 1.875rem; height: 1.875rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); font-weight: 700; font-size: 0.8125rem; margin-inline-end: 0.625rem; }
+.lp-avatar { width: 1.875rem; height: 1.875rem; border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); font-weight: 700; font-size: 0.8125rem; margin-inline-end: 0.625rem; }
 .lp-name { gap: 0; }
 /* أزرار الصف: صغيرة وهادية، تبان أوضح لما تقف على الصف */
 .lp-actions { gap: 0.25rem; }
-.lp-act { width: 1.875rem; height: 1.875rem; border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); color: var(--label-2); }
+.lp-act { width: 1.875rem; height: 1.875rem; border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); color: var(--label-2); }
 .lp-act:hover { color: var(--heading); background: var(--card-2); border-color: var(--border-strong); }
 .lp-act svg { width: 0.9375rem; height: 0.9375rem; }
 .table td.lp-act-cell { width: 1%; white-space: nowrap; }
 /* شارات الحالة: مستطيلة صغيرة بنقطة */
-.table .badge, .badge { display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; line-height: 1.5; }
+.table .badge, .badge { display: inline-flex; align-items: center; gap: 0.375rem; border-radius: 0.625rem; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; line-height: 1.5; }
 .badge.green::before, .badge.orange::before, .badge.red::before, .badge.blue::before { content: ''; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: currentColor; }
 .badge.green { background: var(--green-soft); color: var(--green-text); }
 .badge.orange { background: var(--orange-soft); color: var(--orange-text); }
 .badge.red { background: var(--red-soft); color: var(--red-text); }
 .badge.blue { background: var(--tint-soft); color: var(--tint); }
-.stock-chip { border-radius: 0.5rem; font-weight: 600; }
+.stock-chip { border-radius: 0.625rem; font-weight: 600; }
 /* الجداول جوه الكروت والفواتير بنفس النظام */
 .sx-table .table th, .si .si-table th { position: sticky; top: 0; }
 @media (max-width: 760px) {
@@ -373,7 +373,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .qhint:focus-visible { box-shadow: 0 0 0 2px var(--tint-soft); }
 .qhint-pop {
   position: absolute; top: calc(100% + 0.5rem); z-index: 60; width: max-content; max-width: min(17.5rem, 80vw);
-  padding: 0.625rem 0.75rem; border-radius: 0.75rem; background: #1C1F26; color: #F3F4F6;
+  padding: 0.625rem 0.75rem; border-radius: 0.875rem; background: #1C1F26; color: #F3F4F6;
   font-size: 0.78rem; font-weight: 500; line-height: 1.6; text-align: start; white-space: normal; letter-spacing: 0;
   box-shadow: 0 12px 32px rgba(16, 18, 24, .22); opacity: 0; visibility: hidden; transform: translateY(-4px);
   transition: opacity .14s ease, transform .14s ease, visibility .14s; pointer-events: none;
@@ -394,7 +394,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .hk-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.875rem; grid-auto-rows: 1fr; }
 .hk-kpi {
   display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; padding: 1rem 1.125rem; text-align: start;
-  border-radius: 0.875rem; border: 1px solid var(--separator); background: var(--card); color: var(--heading); font: inherit;
+  border-radius: 1rem; border: 1px solid var(--separator); background: var(--card); color: var(--heading); font: inherit;
   transition: border-color .15s, background .15s, transform .15s;
 }
 .hk-kpi, .hk-bal-row { position: relative; }
@@ -409,7 +409,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .hk-kpi-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
 .hk-kpi-l { display: inline-flex; align-items: center; font-size: 0.8125rem; font-weight: 600; color: var(--label-2); }
 .hk-kpi.dark .hk-kpi-l { color: #A0A5B1; }
-.hk-kpi-ic { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); flex-shrink: 0; }
+.hk-kpi-ic { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); flex-shrink: 0; }
 .hk-kpi-ic svg { width: 1.0625rem; height: 1.0625rem; stroke-width: 1.9; }
 .hk-kpi.dark .hk-kpi-ic { background: var(--tint); border-color: var(--tint); color: #FFFFFF; }
 .hk-kpi-v { display: flex; align-items: baseline; gap: 0.375rem; min-width: 0; }
@@ -428,7 +428,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 
 .hk-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(17.5rem, 1fr); gap: 0.875rem; align-items: stretch; }
 .hk-row > :only-child { grid-column: 1 / -1; }
-.hk-card { border-radius: 0.875rem; border: 1px solid var(--separator); background: var(--card); padding: 1rem 1.125rem; min-width: 0; display: flex; flex-direction: column; }
+.hk-card { border-radius: 1rem; border: 1px solid var(--separator); background: var(--card); padding: 1rem 1.125rem; min-width: 0; display: flex; flex-direction: column; }
 .hk-card-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding-bottom: 0.75rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--separator); }
 .hk-card-h h3 { margin: 0; display: flex; align-items: center; font-size: 1rem; font-weight: 700; color: var(--heading); }
 .hk-card-sub { font-size: 0.78rem; color: var(--label-2); }
@@ -488,8 +488,8 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 /* ---------- 14) فاتورة البيع: «الباقي / يُدفع الباقي بـ» جوه الصفحة مش فوق أزرار الحفظ ----------
    كانت نافذة طايرة (position: absolute) فوق آخر الكارت فبتغطي «حفظ». دلوقتي جزء عادي تحت خانة المدفوع. */
 .si .si-paid-field { flex-wrap: wrap; }
-.si .si-paid-field .si-rest { position: static; inset: auto; z-index: auto; flex: 1 1 100%; margin-top: 0.25rem; padding: 0.625rem; background: var(--card-2); box-shadow: none; border: 1px solid var(--separator); border-radius: 0.75rem; }
-.si .si-rest .pay-line.warn { border-radius: 0.625rem; }
+.si .si-paid-field .si-rest { position: static; inset: auto; z-index: auto; flex: 1 1 100%; margin-top: 0.25rem; padding: 0.625rem; background: var(--card-2); box-shadow: none; border: 1px solid var(--separator); border-radius: 0.875rem; }
+.si .si-rest .pay-line.warn { border-radius: 0.75rem; }
 
 /* ---------- 15) المحتوى بياخد عرض الشاشة كله (زي المرجع) ----------
    كان فيه حد أقصى للعرض (117.5rem) فعلى الشاشات العريضة بيفضل فراغ كبير على الجنبين. */

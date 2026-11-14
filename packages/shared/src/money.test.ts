@@ -19,6 +19,13 @@ describe('money', () => {
   it('formats', () => {
     expect(formatMoney(123456789)).toBe('1,234,567.89');
     expect(formatMoney(-50)).toBe('-0.50');
+    // جنيه صحيح من غير قروش، والكسور بتفضل برقمين
+    expect(formatMoney(150000)).toBe('1,500');
+    expect(formatMoney(0)).toBe('0');
+    expect(formatMoney(-30000)).toBe('-300');
+    expect(formatMoney(148920)).toBe('1,489.20');
+    expect(formatMoney(148905)).toBe('1,489.05');
+    expect(formatMoney(150000, { currency: true })).toBe('1,500 ج.م');
     expect(formatQty(2500)).toBe('2.5');
   });
 });

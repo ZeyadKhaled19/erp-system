@@ -18,7 +18,7 @@ export function Field({ label, hint, error, children, className, required }: { l
 
 /** إدخال مبلغ: يعرض بالجنيه ويخزن بالقرش (عدد صحيح) */
 export function MoneyInput({ value, onChange, disabled, autoFocus, placeholder, id }: { value: number; onChange: (v: number) => void; disabled?: boolean; autoFocus?: boolean; placeholder?: string; id?: string }) {
-  return <ScaledInput id={id} value={value} onChange={onChange} disabled={disabled} autoFocus={autoFocus} placeholder={placeholder ?? '0.00'} fmt={moneyInput} parse={parseMoney} />;
+  return <ScaledInput id={id} value={value} onChange={onChange} disabled={disabled} autoFocus={autoFocus} placeholder={placeholder ?? '0'} fmt={moneyInput} parse={parseMoney} />;
 }
 export function QtyInput({ value, onChange, disabled, autoFocus, id }: { value: number; onChange: (v: number) => void; disabled?: boolean; autoFocus?: boolean; id?: string }) {
   return <ScaledInput id={id} value={value} onChange={onChange} disabled={disabled} autoFocus={autoFocus} placeholder="0" fmt={qtyInput} parse={parseQty} />;
