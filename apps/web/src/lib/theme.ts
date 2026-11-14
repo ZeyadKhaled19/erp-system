@@ -100,7 +100,8 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   const theme = resolvedTheme(a);
   el.dataset.theme = theme;
   el.dataset.mode = a.theme;
-  el.dataset.accent = a.accent;
+  // لون التمييز اتشال من الإعدادات: اللون بيمشي مع وضع الألوان (الفاتح والغامق بالأزرق)
+  el.dataset.accent = 'blue';
   el.dataset.density = a.density;
   el.dataset.font = a.font;
   loadFont(a.font);

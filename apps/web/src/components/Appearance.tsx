@@ -1,7 +1,7 @@
-import { Check, Home, Palette, Monitor, Moon, Sun } from 'lucide-react';
+import { Home, Palette, Monitor, Moon, Sun } from 'lucide-react';
 import { useHome } from '../lib/home';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ACCENTS, FONTS, isPaletteMode, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
+import { FONTS, loadAppearance, saveAppearance, THEMES, type Appearance, type ThemeMode } from '../lib/theme';
 import { loadAllFonts } from '../lib/fonts';
 import { Segmented, Sheet } from './ui';
 
@@ -59,25 +59,6 @@ export function AppearancePanel() {
               <span className="ap-mode-d">{t.desc}</span>
             </button>
           ))}
-        </div>
-      </section>
-
-      <section className="ap-sec">
-        <div className="ap-h">لون التمييز</div>
-        {isPaletteMode(a.theme) && <div className="footnote">وضع «{THEMES.find((t) => t.id === a.theme)?.label}» له ألوانه الخاصة، ولون التمييز يتبع البالتة. اختيارك هنا يُطبق في الأوضاع العادية.</div>}
-        <div className="ap-accents" role="radiogroup" aria-label="لون التمييز">
-          {ACCENTS.map((c) => (
-            <button key={c.id} role="radio" aria-checked={a.accent === c.id} className={`ap-acc ${a.accent === c.id ? 'on' : ''}`} onClick={() => set({ ...a, accent: c.id })}>
-              <i style={{ background: c.color }}>{a.accent === c.id && <Check />}</i>
-              {c.label}
-            </button>
-          ))}
-        </div>
-        <div className="ap-sample">
-          <button className="btn primary sm" type="button">زر أساسي</button>
-          <span className="badge blue">محدد</span>
-          <a href="#" onClick={(e) => e.preventDefault()}>رابط</a>
-          <span className="ap-focus">خانة نشطة</span>
         </div>
       </section>
 
