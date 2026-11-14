@@ -4,7 +4,7 @@ import { BarChart3, ClipboardCheck, FileClock, FileText, ShoppingCart, Tag, User
 import { useNavigate } from 'react-router-dom';
 import { RowActions } from '../components/ListParts';
 import { HUBS } from '../components/nav';
-import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, type FollowUpItem, type SectionStat } from '../components/Section';
+import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, pctChange, prevSpans, type FollowUpItem, type SectionStat } from '../components/Section';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useSession } from '../lib/hooks';
@@ -31,15 +31,20 @@ export function SalesSection() {
     const partyName = new Map(parties.map((p) => [p.id, p.name]));
     if (can('sales.view')) {
       const sales = await db.documents.where('doc_type').equals('sale_invoice').toArray();
-      const monthDocs = (await db.documents.where('date').between(month, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'sale_invoice' || d.doc_type === 'sale_return'));
+      const ps = prevSpans(today);
+      const span = (await db.documents.where('date').between(ps.pmFrom, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'sale_invoice' || d.doc_type === 'sale_return'));
+      const monthDocs = span.filter((d) => d.date >= month);
       const sign = (d: any) => (d.doc_type === 'sale_invoice' ? d.total : -d.total);
+      const total = (xs: any[]) => xs.reduce((s, d) => s + sign(d), 0);
       const todayDocs = monthDocs.filter((d) => d.date === today);
+      const yDocs = span.filter((d) => d.date === ps.yesterday);
+      const pmDocs = span.filter((d) => d.date >= ps.pmFrom && d.date <= ps.pmTo);
       const open = sales.filter((d) => d.status === 'posted' && !d.closed && d.total > d.paid);
       openCredit = open.length;
       overdue = open.filter((d) => d.due_date && d.due_date < today).length;
       pendingDelivery = sales.filter((d) => d.status === 'posted' && d.deliver_later).length;
-      stats.push({ key: 'today', label: 'مبيعات اليوم', value: formatMoney(todayDocs.reduce((s, d) => s + sign(d), 0)), sub: `${todayDocs.filter((d) => d.doc_type === 'sale_invoice').length} فاتورة`, icon: <ShoppingCart />, color: 'blue', to: '/invoices' });
-      stats.push({ key: 'month', label: 'مبيعات الشهر', value: formatMoney(monthDocs.reduce((s, d) => s + sign(d), 0)), sub: 'بعد المرتجعات', icon: <BarChart3 />, color: 'green', valueTone: 'green', to: can('reports.view') ? '/reports/analysis' : undefined });
+      stats.push({ key: 'today', label: 'مبيعات اليوم', value: formatMoney(total(todayDocs)), sub: `${todayDocs.filter((d) => d.doc_type === 'sale_invoice').length} فاتورة`, change: { pct: pctChange(total(todayDocs), total(yDocs)), vs: 'عن امبارح' }, icon: <ShoppingCart />, color: 'blue', to: '/invoices' });
+      stats.push({ key: 'month', label: 'مبيعات الشهر', value: formatMoney(total(monthDocs)), sub: 'بعد المرتجعات', change: { pct: pctChange(total(monthDocs), total(pmDocs)), vs: 'عن الشهر اللي فات' }, icon: <BarChart3 />, color: 'green', valueTone: 'green', to: can('reports.view') ? '/reports/analysis' : undefined });
       recent = sales
         .sort((a, b) => String(b.created_at ?? b.date).localeCompare(String(a.created_at ?? a.date)))
         .slice(0, 5)

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/hooks';
 import { QUICK_ACTIONS, recordUse } from '../lib/quickActions';
+import { CARD_HINTS, STAT_HINTS } from '../lib/hints';
+import { Hint } from './Hint';
 import '../sections.css';
 
 /**
@@ -66,6 +68,25 @@ export interface SectionStat {
   /** لون الرقم نفسه (افتراضيًا لون العناوين) */
   valueTone?: 'green' | 'red' | 'orange';
   to?: string;
+  /** شرح الرقم (لو مش متحدد بيتاخد من lib/hints حسب الاسم) */
+  hint?: string;
+  /** مقارنة بالفترة اللي قبلها: النسبة واسم الفترة. invert = الزيادة مش كويسة (زي المدفوعات) */
+  change?: { pct: number | null; vs: string; invert?: boolean };
+}
+
+/** نسبة التغيير بين رقمين (null لو مفيش حاجة نقارن بيها) */
+export const pctChange = (cur: number, prev: number) => (prev ? Math.round(((cur - prev) * 100) / Math.abs(prev)) : null);
+
+/** امبارح، وأول الشهر اللي فات لحد نفس اليوم منه (لمقارنة «اليوم» و«الشهر») */
+export function prevSpans(today: string) {
+  const t = new Date(`${today}T12:00:00`);
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const y = new Date(t);
+  y.setDate(t.getDate() - 1);
+  const pmFrom = new Date(t.getFullYear(), t.getMonth() - 1, 1, 12);
+  const lastPrev = new Date(t.getFullYear(), t.getMonth(), 0, 12).getDate();
+  const pmTo = new Date(t.getFullYear(), t.getMonth() - 1, Math.min(t.getDate(), lastPrev), 12);
+  return { yesterday: iso(y), pmFrom: iso(pmFrom), pmTo: iso(pmTo) };
 }
 
 /** صف المؤشرات: كروت صغيرة متساوية تلتف تلقائيًا حسب العرض */
@@ -74,16 +95,23 @@ export function SectionStats({ items }: { items: SectionStat[] }) {
   if (!items.length) return null;
   return (
     <div className="sx-stats">
-      {items.map((s) => (
-        <button key={s.key} type="button" className="sx-stat" onClick={() => s.to && nav(s.to)} disabled={!s.to}>
-          <span className={`sx-stat-ic c-${s.color}`} aria-hidden="true">{s.icon}</span>
-          <span className="sx-stat-t">
-            <span className="sx-stat-l">{s.label}</span>
-            <b className={`sx-stat-v num ${s.valueTone ?? ''}`}>{s.value}</b>
-            {s.sub && <span className="sx-stat-s">{s.sub}</span>}
-          </span>
-        </button>
-      ))}
+      {items.map((s) => {
+        const hint = s.hint ?? STAT_HINTS[s.label];
+        const ch = s.change;
+        const good = ch && ch.pct != null && (ch.invert ? ch.pct <= 0 : ch.pct >= 0);
+        return (
+          <div key={s.key} className={`sx-stat ${s.to ? 'click' : ''}`}>
+            {s.to && <button type="button" className="hk-hit" aria-label={`افتح ${s.label}`} onClick={() => nav(s.to!)} />}
+            <span className={`sx-stat-ic c-${s.color}`} aria-hidden="true">{s.icon}</span>
+            <span className="sx-stat-t">
+              <span className="sx-stat-l">{s.label}{hint && <Hint side="start" text={hint} />}</span>
+              <b className={`sx-stat-v num ${s.valueTone ?? ''}`}>{s.value}</b>
+              {ch && ch.pct != null && <span className={`sx-stat-chg ${good ? 'up' : 'down'}`}>{ch.pct > 0 ? '+' : ''}{ch.pct}% {ch.vs}</span>}
+              {s.sub && <span className="sx-stat-s">{s.sub}</span>}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -135,7 +163,7 @@ export function QuickActions({ section, defaults }: { section: string; defaults:
   return (
     <section className={`sx-card sx-actions ${editing ? 'editing' : ''}`} aria-labelledby={`sx-qa-${section}`}>
       <div className="sx-card-h">
-        <h2 id={`sx-qa-${section}`}><Zap className="sx-h-ic c-orange" /> العمليات السريعة</h2>
+        <h2 id={`sx-qa-${section}`}><Zap className="sx-h-ic c-orange" /> العمليات السريعة <Hint side="start" text={CARD_HINTS['العمليات السريعة']} /></h2>
         {editing ? (
           <span className="sx-chips">
             <button type="button" className="mc-chip" onClick={() => setEditing(false)}>إلغاء</button>
@@ -176,12 +204,13 @@ export function QuickActions({ section, defaults }: { section: string; defaults:
 }
 
 /** كارت محتوى بعنوان وأيقونة ورابط «عرض الكل» */
-export function SectionCard({ icon, color = 'blue', title, moreTo, moreLabel = 'عرض الكل', className = '', children }: { icon: ReactNode; color?: SectionColor; title: string; moreTo?: string; moreLabel?: string; className?: string; children: ReactNode }) {
+export function SectionCard({ icon, color = 'blue', title, moreTo, moreLabel = 'عرض الكل', className = '', hint, children }: { icon: ReactNode; color?: SectionColor; title: string; moreTo?: string; moreLabel?: string; className?: string; hint?: string; children: ReactNode }) {
   const nav = useNavigate();
+  const text = hint ?? CARD_HINTS[title];
   return (
     <section className={`sx-card ${className}`}>
       <div className="sx-card-h">
-        <h2><span className={`sx-h-ic c-${color}`}>{icon}</span> {title}</h2>
+        <h2><span className={`sx-h-ic c-${color}`}>{icon}</span> {title}{text && <Hint side="start" text={text} />}</h2>
         {moreTo && <button type="button" className="mc-chip sx-more" onClick={() => nav(moreTo)}>{moreLabel} <ChevronLeft /></button>}
       </div>
       {children}

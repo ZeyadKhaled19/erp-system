@@ -459,3 +459,13 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
   .hk-periods { width: 100%; }
   .hk-periods button { flex: 1; padding: 0 0.25rem; font-size: 0.78rem; }
 }
+
+/* ---------- 12) شرح ومقارنة كروت الأقسام ---------- */
+.sx-stat { position: relative; }
+.sx-stat.click:hover { border-color: var(--border-strong); background: var(--card-2); }
+.sx-stat .hint { z-index: 2; }
+.sx-stat-l { display: inline-flex; align-items: center; overflow: visible; }
+.sx-stat-chg { font-size: max(11px, 0.75rem); font-weight: 600; white-space: nowrap; }
+.sx-stat-chg.up { color: var(--green-text); }
+.sx-stat-chg.down { color: var(--red-text); }
+.sx-card-h h2 { flex-wrap: nowrap; }

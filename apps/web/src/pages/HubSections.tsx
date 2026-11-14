@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RowActions } from '../components/ListParts';
 import { HUBS, type NavLink } from '../components/nav';
-import { FollowUpPanel, LinkGrid, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, type FollowUpItem, type SectionLink, type SectionStat } from '../components/Section';
+import { FollowUpPanel, LinkGrid, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, pctChange, prevSpans, type FollowUpItem, type SectionLink, type SectionStat } from '../components/Section';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useSession, useSyncCounts, useSyncState } from '../lib/hooks';
@@ -75,12 +75,17 @@ export function PurchasesSection() {
     const name = new Map(parties.map((p) => [p.id, p.name]));
     if (can('purchases.view')) {
       const inv = await db.documents.where('doc_type').equals('purchase_invoice').toArray();
-      const monthDocs = (await db.documents.where('date').between(month, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'purchase_invoice' || d.doc_type === 'purchase_return'));
+      const ps = prevSpans(today);
+      const span = (await db.documents.where('date').between(ps.pmFrom, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'purchase_invoice' || d.doc_type === 'purchase_return'));
+      const monthDocs = span.filter((d) => d.date >= month);
       const sign = (d: any) => (d.doc_type === 'purchase_invoice' ? d.total : -d.total);
+      const total = (xs: any[]) => xs.reduce((s, d) => s + sign(d), 0);
       const todayDocs = monthDocs.filter((d) => d.date === today);
+      const yDocs = span.filter((d) => d.date === ps.yesterday);
+      const pmDocs = span.filter((d) => d.date >= ps.pmFrom && d.date <= ps.pmTo);
       const open = inv.filter((d) => d.status === 'posted' && !d.closed && d.total > d.paid);
-      stats.push({ key: 'today', label: 'مشتريات اليوم', value: formatMoney(todayDocs.reduce((s, d) => s + sign(d), 0)), sub: `${todayDocs.filter((d) => d.doc_type === 'purchase_invoice').length} فاتورة`, icon: <ShoppingBag />, color: 'purple', to: '/docs/list/purchases' });
-      stats.push({ key: 'month', label: 'مشتريات الشهر', value: formatMoney(monthDocs.reduce((s, d) => s + sign(d), 0)), sub: 'بعد المرتجعات', icon: <BarChart3 />, color: 'blue', to: '/docs/list/purchases' });
+      stats.push({ key: 'today', label: 'مشتريات اليوم', value: formatMoney(total(todayDocs)), sub: `${todayDocs.filter((d) => d.doc_type === 'purchase_invoice').length} فاتورة`, change: { pct: pctChange(total(todayDocs), total(yDocs)), vs: 'عن امبارح', invert: true }, icon: <ShoppingBag />, color: 'purple', to: '/docs/list/purchases' });
+      stats.push({ key: 'month', label: 'مشتريات الشهر', value: formatMoney(total(monthDocs)), sub: 'بعد المرتجعات', change: { pct: pctChange(total(monthDocs), total(pmDocs)), vs: 'عن الشهر اللي فات', invert: true }, icon: <BarChart3 />, color: 'blue', to: '/docs/list/purchases' });
       stats.push({ key: 'open', label: 'فواتير شراء آجلة', value: open.length, sub: open.length ? `الباقي ${formatMoney(open.reduce((s, d) => s + (d.total - d.paid), 0))}` : 'كله مسدد', icon: <FileClock />, color: 'orange', to: '/docs/list/purchases' });
       recent = inv.sort(newest).slice(0, 6).map((d) => ({ ...d, party: d.party_id ? name.get(d.party_id) ?? '—' : 'مورد نقدي' }));
     }
@@ -203,15 +208,18 @@ export function TreasurySection() {
     const stats: SectionStat[] = [];
     const boxes = (await db.cashboxes.toArray()).filter((c) => c.active !== false);
     const docs = await db.documents.where('doc_type').anyOf(TREASURY_TYPES).toArray();
-    const posted = docs.filter((d) => d.status === 'posted' && d.date === today);
-    const inToday = posted.filter((d) => d.doc_type === 'receipt' || d.doc_type === 'income').reduce((s, d) => s + (d.total ?? d.amount ?? 0), 0);
-    const outToday = posted.filter((d) => d.doc_type === 'payment' || d.doc_type === 'expense').reduce((s, d) => s + (d.total ?? d.amount ?? 0), 0);
+    const { yesterday } = prevSpans(today);
+    const sumOf = (day: string, types: string[]) => docs.filter((d) => d.status === 'posted' && d.date === day && types.includes(d.doc_type)).reduce((s, d) => s + (d.total ?? d.amount ?? 0), 0);
+    const inToday = sumOf(today, ['receipt', 'income']);
+    const outToday = sumOf(today, ['payment', 'expense']);
+    const inY = sumOf(yesterday, ['receipt', 'income']);
+    const outY = sumOf(yesterday, ['payment', 'expense']);
     const week = new Date();
     week.setDate(week.getDate() + 7);
     const due = (await db.instruments.where('status').equals('open').toArray()).filter((x) => x.due_date <= todayISO(week));
     stats.push({ key: 'cash', label: 'النقدية بالخزائن والبنوك', value: formatMoney(boxes.reduce((s, c) => s + (c.balance ?? 0), 0)), sub: `${boxes.length} خزينة`, icon: <Wallet />, color: 'blue', to: '/cashboxes' });
-    stats.push({ key: 'in', label: 'مقبوضات اليوم', value: formatMoney(inToday), icon: <ArrowDownLeft />, color: 'green', valueTone: 'green', to: '/docs/list/treasury' });
-    stats.push({ key: 'out', label: 'مدفوعات اليوم', value: formatMoney(outToday), sub: 'صرف ومصروفات', icon: <ArrowUpRight />, color: 'red', to: '/docs/list/treasury' });
+    stats.push({ key: 'in', label: 'مقبوضات اليوم', value: formatMoney(inToday), change: { pct: pctChange(inToday, inY), vs: 'عن امبارح' }, icon: <ArrowDownLeft />, color: 'green', valueTone: 'green', to: '/docs/list/treasury' });
+    stats.push({ key: 'out', label: 'مدفوعات اليوم', value: formatMoney(outToday), sub: 'صرف ومصروفات', change: { pct: pctChange(outToday, outY), vs: 'عن امبارح', invert: true }, icon: <ArrowUpRight />, color: 'red', to: '/docs/list/treasury' });
     stats.push({ key: 'due', label: 'شيكات وأقساط خلال أسبوع', value: due.length, icon: <CalendarClock />, color: 'purple', valueTone: due.length ? 'orange' : undefined, to: '/instruments' });
     const parties = new Map((await db.parties.toArray()).map((p) => [p.id, p.name]));
     const boxName = new Map(boxes.map((b) => [b.id, b.name]));
@@ -263,8 +271,12 @@ export function ReportsSection() {
     const stats: SectionStat[] = [];
     const sumBal = async (kind: string) => (await db.parties.where('kind').equals(kind).toArray()).reduce((s, p) => s + (p.balance ?? 0), 0);
     if (can('sales.view')) {
-      const docs = (await db.documents.where('date').between(month, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'sale_invoice' || d.doc_type === 'sale_return'));
-      stats.push({ key: 'sales', label: 'مبيعات الشهر', value: formatMoney(docs.reduce((s, d) => s + (d.doc_type === 'sale_invoice' ? d.total : -d.total), 0)), sub: 'بعد المرتجعات', icon: <ShoppingCart />, color: 'green', valueTone: 'green', to: '/reports/analysis' });
+      const ps = prevSpans(today);
+      const span = (await db.documents.where('date').between(ps.pmFrom, today, true, true).toArray()).filter((d) => d.status === 'posted' && (d.doc_type === 'sale_invoice' || d.doc_type === 'sale_return'));
+      const total = (xs: any[]) => xs.reduce((s, d) => s + (d.doc_type === 'sale_invoice' ? d.total : -d.total), 0);
+      const cur = total(span.filter((d) => d.date >= month));
+      const prev = total(span.filter((d) => d.date >= ps.pmFrom && d.date <= ps.pmTo));
+      stats.push({ key: 'sales', label: 'مبيعات الشهر', value: formatMoney(cur), sub: 'بعد المرتجعات', change: { pct: pctChange(cur, prev), vs: 'عن الشهر اللي فات' }, icon: <ShoppingCart />, color: 'green', valueTone: 'green', to: '/reports/analysis' });
     }
     const week = new Date();
     week.setDate(week.getDate() + 7);
