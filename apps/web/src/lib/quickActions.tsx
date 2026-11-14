@@ -1,7 +1,7 @@
 import { hasPermission, type WorkspaceId } from '@erp/shared';
 import {
   ArrowDownLeft, ArrowLeftRight, Fingerprint, HandCoins, ArrowUpRight, BookPlus, ClipboardCheck, Clock, FileText, PackagePlus, PackageSearch, Receipt, RotateCcw, ShoppingBag,
-  ShoppingCart, Undo2, UserPlus, Zap,
+  ShoppingCart, TrendingUp, Undo2, UserPlus, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSession } from './hooks';
@@ -33,15 +33,18 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { key: 'receipt', label: 'قبض من عميل', icon: <ArrowDownLeft />, to: '/docs/new/receipt', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['dashboard', 'accounting', 'sales'] },
   { key: 'payment', label: 'صرف لمورد', icon: <ArrowUpRight />, to: '/docs/new/payment', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['accounting'] },
   { key: 'expense', label: 'مصروف', icon: <Receipt />, to: '/docs/new/expense', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['dashboard', 'accounting'] },
+  { key: 'income', label: 'إيراد آخر', icon: <TrendingUp />, to: '/docs/new/income', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: [] },
   { key: 'cash_transfer', label: 'تحويل بين الخزائن', icon: <ArrowLeftRight />, to: '/docs/new/cash_transfer', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['accounting'] },
   { key: 'purchase_invoice', label: 'فاتورة شراء', icon: <ShoppingBag />, to: '/docs/new/purchase_invoice', perm: 'purchases.create', group: 'المشتريات', creates: true, ws: ['dashboard', 'inventory'] },
   { key: 'purchase_return', label: 'مرتجع شراء', icon: <Undo2 />, to: '/docs/new/purchase_return', perm: 'purchases.create', group: 'المشتريات', creates: true, ws: ['inventory'] },
   { key: 'item_new', label: 'صنف جديد', icon: <PackagePlus />, to: '/items?new=1', perm: 'items.create', group: 'المخزون', creates: true, ws: ['inventory'] },
   { key: 'stock_adjustment', label: 'جرد وتسوية', icon: <ClipboardCheck />, to: '/docs/new/stock_adjustment', perm: 'inventory.create', group: 'المخزون', creates: true, ws: ['inventory'] },
+  { key: 'opening_stock', label: 'بضاعة أول المدة', icon: <PackagePlus />, to: '/docs/new/opening_stock', perm: 'inventory.create', group: 'المخزون', creates: true, ws: [] },
   { key: 'stock_transfer', label: 'تحويل مخزني', icon: <ArrowLeftRight />, to: '/docs/new/stock_transfer', perm: 'inventory.create', group: 'المخزون', creates: true, ws: ['inventory'] },
   { key: 'item_inquiry', label: 'استعلام عن صنف', icon: <PackageSearch />, to: '/items/inquiry', perm: 'items.view', group: 'المخزون', creates: false, ws: ['pos', 'inventory', 'sales'] },
   { key: 'journal_voucher', label: 'قيد يومية', icon: <BookPlus />, to: '/docs/new/journal_voucher', perm: 'accounts.journal', group: 'الحسابات', creates: true, ws: ['accounting'] },
   { key: 'attendance', label: 'حضور وانصراف', icon: <Fingerprint />, to: '/employees/attendance', perm: 'employees.attendance', group: 'الموظفين', creates: false, ws: ['dashboard'] },
+  { key: 'payroll', label: 'الرواتب', icon: <Wallet />, to: '/employees/payroll', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
   { key: 'employee_advance', label: 'سلفة موظف', icon: <HandCoins />, to: '/employees/advances', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
   { key: 'shift', label: 'الوردية', icon: <Clock />, to: '/shift', perm: 'treasury.shift', group: 'الخزينة', creates: false, ws: ['pos'] },
 ];

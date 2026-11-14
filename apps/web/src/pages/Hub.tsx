@@ -7,6 +7,7 @@ const SC_COLORS: ShortcutColor[] = ['blue', 'purple', 'teal', 'orange', 'yellow'
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { HUBS } from '../components/nav';
 import { usePerm } from '../lib/hooks';
+import { InventorySection, PurchasesSection, TreasurySection } from './HubSections';
 import { SalesSection } from './SalesSection';
 
 /** صفحة قسم: الإجراءات الأهم كبطاقات كبيرة، ثم باقي الشاشات بشكل مرتب */
@@ -24,6 +25,9 @@ export function HubPage() {
   if (hub.to) return <Navigate to={hub.to} replace />;
   // الأقسام اللي اتنقلت للتصميم الموحد الجديد (صورة المبيعات المعتمدة)
   if (hub.key === 'sales') return <SalesSection />;
+  if (hub.key === 'purchases') return <PurchasesSection />;
+  if (hub.key === 'inventory') return <InventorySection />;
+  if (hub.key === 'treasury') return <TreasurySection />;
   // صفحة التقارير تجمع كمان تقارير المخزون والخزينة، وكل التقارير تظهر ككروت
   const isReports = hub.key === 'reports';
   const extra = isReports

@@ -1,6 +1,7 @@
 import { formatMoney, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarCheck, HandCoins, IdCard, Plus, Users, Wallet } from 'lucide-react';
+import { CalendarCheck, HandCoins, IdCard, Plus, Users, UserX, Wallet } from 'lucide-react';
+import { QuickActions, SectionStats } from '../components/Section';
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -53,6 +54,11 @@ export function EmployeesPage() {
   const active = list.filter((e) => e.active !== false);
   const salaries = active.reduce((s, e) => s + (e.salary ?? 0), 0);
   const advances = list.reduce((s, e) => s + Math.max(0, e.advance_balance ?? 0), 0);
+  // حضور النهارده للموظفين المعروضين (نفس فلتر الإدارة)
+  const todayRecs = useLiveQuery(() => db.attendance.where('date').equals(todayISO()).toArray(), []) ?? [];
+  const shownIds = new Set(active.map((e) => e.id));
+  const todayOf = (st: string[]) => todayRecs.filter((r) => shownIds.has(r.employee_id) && st.includes(r.status)).length;
+  const unmarked = active.filter((e) => !todayRecs.some((r) => r.employee_id === e.id)).length;
 
   return (
     <div className="page">
@@ -62,6 +68,16 @@ export function EmployeesPage() {
         sub={`${active.length} موظف نشط`}
         actions={can('employees.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> موظف جديد</button>}
       />
+      <div className="sx-top">
+        <SectionStats items={[
+          { key: 'active', label: 'الموظفين النشطين', value: active.length, sub: dept ? 'في الإدارة المختارة' : undefined, icon: <Users />, color: 'blue' },
+          { key: 'present', label: 'حاضرين النهارده', value: todayOf(['present', 'late']), sub: todayOf(['late']) ? `منهم ${todayOf(['late'])} متأخر` : unmarked ? `${unmarked} لسه ما اتسجلش` : undefined, icon: <CalendarCheck />, color: 'green', valueTone: 'green', to: '/employees/attendance' },
+          { key: 'absent', label: 'غياب وأجازات النهارده', value: todayOf(['absent', 'leave']), sub: `${todayOf(['absent'])} غياب · ${todayOf(['leave'])} أجازة`, icon: <UserX />, color: 'red', valueTone: todayOf(['absent']) ? 'red' : undefined, to: '/employees/attendance' },
+          { key: 'adv', label: 'السلف المستحقة', value: formatMoney(advances), icon: <HandCoins />, color: 'orange', to: '/employees/advances' },
+          { key: 'sal', label: 'الرواتب الشهرية', value: formatMoney(salaries), icon: <Wallet />, color: 'purple', to: '/employees/payroll' },
+        ]} />
+        <QuickActions section="employees" defaults={['attendance', 'employee_advance', 'payroll']} />
+      </div>
       <div className="row wrap" style={{ marginBottom: 12 }}>
         <div style={{ flex: 1, minWidth: 220 }}><SearchBox value={q} onChange={setQ} placeholder="ابحث عن موظف بالاسم أو الوظيفة أو الإدارة أو الهاتف" /></div>
         <DeptSelect value={dept} onChange={setDept} depts={depts} width={220} />
@@ -102,11 +118,6 @@ export function EmployeesPage() {
           </table>
         </div>
       )}
-      <TotalCards items={[
-        { label: 'عدد الموظفين النشطين', value: active.length, tone: 'blue' },
-        { label: 'إجمالي الرواتب الشهرية', value: formatMoney(salaries), tone: 'green' },
-        { label: 'إجمالي السلف المستحقة', value: formatMoney(advances), tone: 'orange' },
-      ]} />
       {edit && <EmployeeEditor emp={edit.id ? edit : null} onClose={() => setEdit(null)} />}
     </div>
   );
