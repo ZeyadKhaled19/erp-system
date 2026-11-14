@@ -9,6 +9,7 @@ import { HUBS } from '../components/nav';
 import { usePerm } from '../lib/hooks';
 import { InventorySection, PurchasesSection, TreasurySection } from './HubSections';
 import { SalesSection } from './SalesSection';
+import { SectionHeader } from '../components/Section';
 
 /** صفحة قسم: الإجراءات الأهم كبطاقات كبيرة، ثم باقي الشاشات بشكل مرتب */
 export function HubPage() {
@@ -43,12 +44,8 @@ export function HubPage() {
 
   return (
     <div className="page">
-      <div className="hub-head">
-        <div className="hub-icon">{hub.icon}</div>
-        <div>
-          <h1 className="large-title" style={{ margin: 0 }}>{hub.label}</h1>
-          <div className="page-sub" style={{ margin: 0 }}>{hub.sub}</div>
-        </div>
+      <div className="sx-top">
+        <SectionHeader icon={hub.icon} color={isReports ? 'green' : 'slate'} title={hub.label} sub={hub.sub} />
       </div>
       {HUB_WORKSPACE[hub.key] && !isReports && <WorkspaceSummary ws={HUB_WORKSPACE[hub.key]} />}
       {groups.map((g, gi) => {

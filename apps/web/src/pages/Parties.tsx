@@ -1,6 +1,7 @@
 import { DOC_TYPES, formatMoney, formatQty, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Pencil, Plus, Users } from 'lucide-react';
+import { Pencil, Plus, Users, Wallet, UserCheck, FileClock } from 'lucide-react';
+import { QuickActions, SectionStats } from '../components/Section';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -42,6 +43,14 @@ export function PartiesPage() {
     return parties.filter((p) => (!grp || p.group_id === grp) && (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s))) && (filter === 'all' || p.balance !== 0));
   }, [parties, dq, filter, grp]);
   const total = list.reduce((s, p) => s + (p.balance ?? 0), 0);
+  // مؤشرات القسم من كل العملاء/الموردين (مش من نتيجة البحث)
+  const activeParties = parties.filter((p) => p.active !== false);
+  const withBal = parties.filter((p) => (p.balance ?? 0) !== 0);
+  const allBal = parties.reduce((s, p) => s + (p.balance ?? 0), 0);
+  const openDocs = useLiveQuery(async () => {
+    const t = kind === 'customer' ? 'sale_invoice' : 'purchase_invoice';
+    return (await db.documents.where('doc_type').equals(t).toArray()).filter((d) => d.status === 'posted' && !d.closed && d.total > d.paid).length;
+  }, [kind]) ?? 0;
 
   return (
     <div className="page">
@@ -62,6 +71,15 @@ export function PartiesPage() {
           </>
         }
       />
+      <div className="sx-top">
+        <SectionStats items={[
+          { key: 'count', label: kind === 'customer' ? 'العملاء النشطين' : 'الموردين النشطين', value: activeParties.length, sub: `من ${parties.length}`, icon: <Users />, color: 'blue' },
+          { key: 'bal', label: kind === 'customer' ? 'مستحقات العملاء' : 'مستحقات الموردين', value: formatMoney(allBal), icon: <Wallet />, color: kind === 'customer' ? 'orange' : 'purple', valueTone: allBal < 0 ? 'red' : undefined },
+          { key: 'withbal', label: 'لهم رصيد', value: withBal.length, icon: <UserCheck />, color: 'teal' },
+          { key: 'open', label: kind === 'customer' ? 'فواتير بيع آجلة' : 'فواتير شراء آجلة', value: openDocs, sub: 'غير مسددة بالكامل', icon: <FileClock />, color: 'red', to: kind === 'customer' ? '/receivables' : undefined },
+        ]} />
+        <QuickActions section={`parties-${kind}`} defaults={kind === 'customer' ? ['customer_new', 'receipt', 'sale_invoice', 'quotation'] : ['supplier_new', 'payment', 'purchase_invoice', 'purchase_return']} />
+      </div>
       <div className="row wrap" style={{ marginBottom: 12 }}>
         <div style={{ flex: 1, minWidth: 220 }}>
           <SearchBox value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو الهاتف" />

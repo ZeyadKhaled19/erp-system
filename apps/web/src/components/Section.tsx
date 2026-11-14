@@ -92,7 +92,7 @@ export function SectionStats({ items }: { items: SectionStat[] }) {
 const ACTION_COLOR: Record<string, SectionColor> = {
   sale_invoice: 'blue', pos: 'green', sale_return: 'purple', quotation: 'orange', expense: 'purple', supplier_new: 'blue', customer_new: 'blue',
   receipt: 'green', payment: 'orange', purchase_invoice: 'purple', purchase_return: 'orange', item_new: 'blue', stock_adjustment: 'teal',
-  stock_transfer: 'indigo', item_inquiry: 'teal', journal_voucher: 'indigo', cash_transfer: 'teal', attendance: 'green', employee_advance: 'orange', shift: 'slate', income: 'green', opening_stock: 'slate', payroll: 'purple', employee_new: 'blue',
+  stock_transfer: 'indigo', item_inquiry: 'teal', journal_voucher: 'indigo', cash_transfer: 'teal', attendance: 'green', employee_advance: 'orange', shift: 'slate', income: 'green', opening_stock: 'slate', payroll: 'purple', employee_new: 'blue', partner_capital: 'green', partner_withdrawal: 'orange',
 };
 const MAX_ACTIONS = 6;
 const actionsKey = (uid: string, section: string) => `erp.section-actions.v1.${uid}.${section}`;

@@ -1,10 +1,11 @@
 import { bpToPercent, formatMoney, parsePercentBp, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowDownLeft, ArrowUpRight, PieChart, Plus } from 'lucide-react';
+import { Landmark, PieChart, Plus, Users, Wallet, ArrowUpRight } from 'lucide-react';
+import { QuickActions, SectionStats } from '../components/Section';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { ActiveBadge, Avatar, InlineTabs, RowActions, TotalCards } from '../components/ListParts';
+import { ActiveBadge, Avatar, InlineTabs, RowActions } from '../components/ListParts';
 import { Banner, DocStatusBadge, Empty, Field, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
@@ -35,13 +36,20 @@ export function PartnersPage() {
         sub="نسبة الملكية ونسبة توزيع الأرباح منفصلتان"
         actions={
           <>
-            {can('partners.create') && <button className="btn" onClick={() => nav('/docs/new/partner_capital')}><ArrowDownLeft /> إيداع رأس مال</button>}
-            {can('partners.create') && <button className="btn" onClick={() => nav('/docs/new/partner_withdrawal')}><ArrowUpRight /> مسحوبات</button>}
             {can('partners.create') && <button className="btn" onClick={() => setDist(true)}><PieChart /> توزيع أرباح</button>}
             {can('partners.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> شريك</button>}
           </>
         }
       />
+      <div className="sx-top">
+        <SectionStats items={[
+          { key: 'count', label: 'الشركاء النشطين', value: active.length, sub: `ملكية ${bpToPercent(sumOwn)}% · أرباح ${bpToPercent(sumProfit)}%`, icon: <Users />, color: 'blue' },
+          { key: 'capital', label: 'إجمالي رأس المال', value: rep.data ? formatMoney(totals.capital) : '—', icon: <Landmark />, color: 'purple' },
+          { key: 'current', label: 'الحساب الجاري للشركاء', value: rep.data ? formatMoney(totals.current) : '—', sub: 'أرباح موزعة لم تُسحب', icon: <Wallet />, color: 'green', valueTone: rep.data && totals.current >= 0 ? 'green' : 'red' },
+          { key: 'withdrawals', label: 'مسحوبات الفترة', value: rep.data ? formatMoney(totals.withdrawals) : '—', icon: <ArrowUpRight />, color: 'orange' },
+        ]} />
+        <QuickActions section="partners" defaults={['partner_capital', 'partner_withdrawal']} />
+      </div>
       {active.length > 0 && (sumOwn !== 10000 || sumProfit !== 10000) && (
         <div style={{ marginBottom: 12 }}>
           <Banner kind="warn">
@@ -90,13 +98,6 @@ export function PartnersPage() {
       )}
       <div className="footnote" style={{ marginTop: 8 }}>الحساب الجاري الموجب = مستحق للشريك من أرباح موزعة لم تُسحب. المسحوبات تُخصم من الحساب الجاري. رأس المال لا يُعتبر ربحًا.</div>
 
-          {rep.data && (
-            <TotalCards items={[
-              { label: 'إجمالي رأس المال', value: formatMoney(totals.capital), tone: 'blue' },
-              { label: 'الحساب الجاري للشركاء', value: formatMoney(totals.current), tone: 'green' },
-              { label: 'مسحوبات الفترة', value: formatMoney(totals.withdrawals), tone: 'red' },
-            ]} />
-          )}
         </>
       )}
 

@@ -16,7 +16,7 @@ export interface QuickAction {
   icon: ReactNode;
   to: string;
   perm: string;
-  group: 'المبيعات' | 'المشتريات' | 'الخزينة' | 'المخزون' | 'الأطراف' | 'الحسابات' | 'الموظفين';
+  group: 'المبيعات' | 'المشتريات' | 'الخزينة' | 'المخزون' | 'الأطراف' | 'الحسابات' | 'الموظفين' | 'الشركاء';
   /** إنشاء مستند/سجل جديد (يظهر في قائمة «جديد») */
   creates: boolean;
   /** المساحات التي يكون فيها هذا الإجراء من الأساسيات */
@@ -46,6 +46,8 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { key: 'attendance', label: 'حضور وانصراف', icon: <Fingerprint />, to: '/employees/attendance', perm: 'employees.attendance', group: 'الموظفين', creates: false, ws: ['dashboard'] },
   { key: 'payroll', label: 'الرواتب', icon: <Wallet />, to: '/employees/payroll', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
   { key: 'employee_advance', label: 'سلفة موظف', icon: <HandCoins />, to: '/employees/advances', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
+  { key: 'partner_capital', label: 'إيداع رأس مال', icon: <ArrowDownLeft />, to: '/docs/new/partner_capital', perm: 'partners.create', group: 'الشركاء', creates: true, ws: [] },
+  { key: 'partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, to: '/docs/new/partner_withdrawal', perm: 'partners.create', group: 'الشركاء', creates: true, ws: [] },
   { key: 'shift', label: 'الوردية', icon: <Clock />, to: '/shift', perm: 'treasury.shift', group: 'الخزينة', creates: false, ws: ['pos'] },
 ];
 
