@@ -242,8 +242,10 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
   const prev = series.slice(0, 14);
   const labels = days.slice(14);
   const max = Math.max(1, ...cur.map(Math.abs), ...prev.map(Math.abs));
+  // خطوة مقربة ونهاية المحور أقرب مضاعف فوق أعلى قيمة (من غير فراغ كبير فوق الأعمدة)
   const step = niceStep(max / 4);
-  const top = step * 4;
+  const ticks = Math.max(1, Math.ceil(max / step));
+  const top = step * ticks;
   const W = 700, H = 220, padL = 44, padB = 26, padT = 8;
   const cw = (W - padL) / 14;
   const y = (v: number) => padT + (H - padT - padB) * (1 - Math.max(0, v) / top);
@@ -251,10 +253,10 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
   const line = prev.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   return (
     <svg className="hk-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`مبيعات آخر 14 يوم: ${formatMoney(cur.reduce((a, b) => a + b, 0))}`}>
-      {[0, 1, 2, 3, 4].map((k) => (
+      {Array.from({ length: ticks + 1 }, (_, k) => k).map((k) => (
         <g key={k}>
           <line x1={0} x2={W - padL} y1={y(step * k)} y2={y(step * k)} className="hk-grid-l" />
-          <text x={W - padL + 6} y={y(step * k) + 4} className="hk-axis" textAnchor="start">{Math.round(step * k).toLocaleString('en-US')}</text>
+          <text x={W - padL + 6} y={y(step * k) + 4} className="hk-axis" textAnchor="start">{axisLabel(step * k)}</text>
         </g>
       ))}
       {cur.map((v, i) => {
@@ -271,6 +273,11 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
       ))}
     </svg>
   );
+}
+
+/** المبالغ متخزنة بالقرش: المحور يعرضها بالجنيه من غير كسور */
+function axisLabel(v: number) {
+  return formatMoney(Math.round(v)).replace(/\.00$/, '');
 }
 
 function niceStep(v: number) {
