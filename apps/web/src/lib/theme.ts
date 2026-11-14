@@ -34,25 +34,26 @@ export const FONTS: { id: FontName; label: string; family: string }[] = [
 ];
 
 export const THEMES: { id: ThemeMode; label: string; desc: string }[] = [
-  { id: 'light', label: 'فاتح', desc: 'خلفية هادئة وأسطح بيضاء' },
-  { id: 'navy', label: 'كحلي عاجي', desc: 'كحلي وأزرق رمادي على خلفية عاجية' },
-  { id: 'amber', label: 'بروسي برتقالي', desc: 'أزرق بروسي وبرتقالي على رمادي فاتح' },
-  { id: 'teal', label: 'تركوازي غروب', desc: 'تركواز وذهبي وخوخي' },
-  { id: 'paprika', label: 'فحمي بابريكا', desc: 'فحمي ورملي وبرتقالي بابريكا' },
-  { id: 'sage', label: 'مريمي هادئ', desc: 'رمادي مخضر وتيل وفحمي مزرق' },
-  { id: 'coral', label: 'استوائي مرجاني', desc: 'أزرق سماوي وتركواز ومشمشي ومرجاني' },
-  { id: 'dark', label: 'غامق', desc: 'كحلي داكن مريح ليلًا' },
+  { id: 'light', label: 'فاتح', desc: 'رمادي فاتح وشريط علوي فحمي' },
+  { id: 'navy', label: 'كحلي', desc: 'شريط كحلي وخلفية رمادي مزرق' },
+  { id: 'teal', label: 'بترولي', desc: 'شريط بترولي وخلفية مايلة للأزرق المخضر' },
+  { id: 'sage', label: 'أخضر غابة', desc: 'شريط أخضر غامق وخلفية مايلة للأخضر' },
+  { id: 'coral', label: 'نيلي', desc: 'شريط نيلي وخلفية مايلة للبنفسجي' },
+  { id: 'paprika', label: 'عنابي', desc: 'شريط عنابي وخلفية دافية' },
+  { id: 'amber', label: 'رملي', desc: 'شريط بني فحمي وخلفية رملي وتمييز كهرماني' },
+  { id: 'dark', label: 'غامق', desc: 'رمادي غامق مريح ليلًا' },
   { id: 'system', label: 'حسب الجهاز', desc: 'يتبع إعداد ويندوز أو الموبايل' },
 ];
 
+/** ألوان التمييز: طقم غامق متناسق مع الشريط الداكن، والكتابة البيضا بتتقري على كلهم */
 export const ACCENTS: { id: Accent; color: string; label: string }[] = [
-  { id: 'sky', color: '#0284C7', label: 'أزرق سماوي' },
-  { id: 'blue', color: '#2563EB', label: 'أزرق ملكي' },
-  { id: 'teal', color: '#0F8A80', label: 'فيروزي' },
-  { id: 'purple', color: '#7047E0', label: 'بنفسجي' },
-  { id: 'green', color: '#16803A', label: 'أخضر' },
-  { id: 'orange', color: '#D9530F', label: 'برتقالي' },
-  { id: 'pink', color: '#CC2E6E', label: 'وردي' },
+  { id: 'blue', color: '#1D4ED8', label: 'أزرق' },
+  { id: 'sky', color: '#0E7490', label: 'بترولي' },
+  { id: 'teal', color: '#047857', label: 'زمردي' },
+  { id: 'purple', color: '#4338CA', label: 'نيلي' },
+  { id: 'green', color: '#334155', label: 'جرافيت' },
+  { id: 'orange', color: '#C2410C', label: 'برتقالي محروق' },
+  { id: 'pink', color: '#9F1239', label: 'عنابي' },
 ];
 
 function currentUserId(): string | null {
@@ -103,7 +104,7 @@ export function applyAppearance(a: Appearance = loadAppearance()) {
   el.dataset.density = a.density;
   el.dataset.font = a.font;
   loadFont(a.font);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0A1020' : theme === 'navy' ? '#1D2D44' : theme === 'amber' ? '#14213D' : theme === 'teal' ? '#264653' : theme === 'paprika' ? '#252422' : theme === 'sage' ? '#2F3E46' : theme === 'coral' ? '#004D65' : '#F4F6F9');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#18191D' : theme === 'navy' ? '#0F1D35' : theme === 'amber' ? '#1F1B16' : theme === 'teal' ? '#0B2A30' : theme === 'paprika' ? '#2A1418' : theme === 'sage' ? '#14261D' : theme === 'coral' ? '#1A1838' : '#15171C');
 }
 
 export function saveAppearance(a: Appearance) {

@@ -555,3 +555,74 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 /* البيع السريع: خانة سعر صغيرة على كل سطر في السلة */
 .pos-line .pl-price { display: inline-block; width: 6.5rem; vertical-align: middle; margin-top: 0.25rem; }
 .pos-line .pl-price .input { height: 1.875rem; padding: 0 0.5rem; font-size: 0.8125rem; font-weight: 600; text-align: left; }
+
+/* ---------- 17) ألوان التمييز وأوضاع الألوان (طقم متناسق مع الشكل الحاد) ----------
+   كل لون غامق كفاية إن الكتابة البيضا عليه تتقري. الأحمر والأخضر والبرتقالي (تحذير/نجاح)
+   ثابتين في كل الأوضاع عشان معناهم ما يتغيرش. */
+:root[data-accent="blue"], :root:not([data-accent]) { --tint: #1D4ED8; --tint-press: #1E40AF; }
+:root[data-accent="sky"]    { --tint: #0E7490; --tint-press: #155E75; }
+:root[data-accent="teal"]   { --tint: #047857; --tint-press: #065F46; }
+:root[data-accent="purple"] { --tint: #4338CA; --tint-press: #3730A3; }
+:root[data-accent="green"]  { --tint: #334155; --tint-press: #1E293B; }
+:root[data-accent="orange"] { --tint: #C2410C; --tint-press: #9A3412; }
+:root[data-accent="pink"]   { --tint: #9F1239; --tint-press: #881337; }
+:root[data-theme="dark"][data-accent="blue"], :root[data-theme="dark"]:not([data-accent]) { --tint: #60A5FA; --tint-press: #93C5FD; }
+:root[data-theme="dark"][data-accent="sky"]    { --tint: #22B8CF; --tint-press: #67D3E3; }
+:root[data-theme="dark"][data-accent="teal"]   { --tint: #34D399; --tint-press: #6EE7B7; }
+:root[data-theme="dark"][data-accent="purple"] { --tint: #818CF8; --tint-press: #A5B4FC; }
+:root[data-theme="dark"][data-accent="green"]  { --tint: #CBD5E1; --tint-press: #E2E8F0; }
+:root[data-theme="dark"][data-accent="orange"] { --tint: #FB923C; --tint-press: #FDBA74; }
+:root[data-theme="dark"][data-accent="pink"]   { --tint: #FB7185; --tint-press: #FDA4AF; }
+
+/* أوضاع الألوان: شريط علوي داكن بلون الوضع + خلفية مايلة له + لون تمييز مناسب */
+:root[data-theme="navy"], :root[data-theme="navy"][data-accent] {
+  --bg: #ECEFF4; --app-bg: #ECEFF4; --bg-tertiary: #ECEFF4; --card-2: #F3F5F9; --hover: #F3F5F9;
+  --separator: #D9DEE8; --separator-opaque: #D9DEE8; --border-strong: #BFC7D6; --input-border: #BFC7D6;
+  --nav-bg: #0F1D35; --nav-2: #172843; --nav-hover: #1B2E4D; --nav-active: #233A5E; --nav-border: #22365A; --nav-muted: #A3B1C9;
+  --tint: #1D4ED8; --tint-press: #1E40AF; color-scheme: light;
+}
+:root[data-theme="amber"], :root[data-theme="amber"][data-accent] {
+  --bg: #F1EEE9; --app-bg: #F1EEE9; --bg-tertiary: #F1EEE9; --card-2: #F7F5F1; --hover: #F7F5F1;
+  --separator: #E2DCD2; --separator-opaque: #E2DCD2; --border-strong: #CBC2B4; --input-border: #CBC2B4;
+  --nav-bg: #1F1B16; --nav-2: #2A251F; --nav-hover: #312B24; --nav-active: #3B342C; --nav-border: #3A332B; --nav-muted: #B8AE9F;
+  --tint: #B45309; --tint-press: #92400E; color-scheme: light;
+}
+:root[data-theme="teal"], :root[data-theme="teal"][data-accent] {
+  --bg: #EBF1F2; --app-bg: #EBF1F2; --bg-tertiary: #EBF1F2; --card-2: #F2F7F7; --hover: #F2F7F7;
+  --separator: #D4E0E2; --separator-opaque: #D4E0E2; --border-strong: #B8CACD; --input-border: #B8CACD;
+  --nav-bg: #0B2A30; --nav-2: #12363D; --nav-hover: #163F47; --nav-active: #1D4C55; --nav-border: #1C4850; --nav-muted: #9DBDC2;
+  --tint: #0E7490; --tint-press: #155E75; color-scheme: light;
+}
+:root[data-theme="paprika"], :root[data-theme="paprika"][data-accent] {
+  --bg: #F3EEEF; --app-bg: #F3EEEF; --bg-tertiary: #F3EEEF; --card-2: #F8F4F5; --hover: #F8F4F5;
+  --separator: #E5D9DB; --separator-opaque: #E5D9DB; --border-strong: #CFBDC0; --input-border: #CFBDC0;
+  --nav-bg: #2A1418; --nav-2: #361B20; --nav-hover: #3F2026; --nav-active: #4C2830; --nav-border: #4A262D; --nav-muted: #C7A9AE;
+  --tint: #9F1239; --tint-press: #881337; color-scheme: light;
+}
+:root[data-theme="sage"], :root[data-theme="sage"][data-accent] {
+  --bg: #ECF1EE; --app-bg: #ECF1EE; --bg-tertiary: #ECF1EE; --card-2: #F3F7F4; --hover: #F3F7F4;
+  --separator: #D6E1DA; --separator-opaque: #D6E1DA; --border-strong: #BACBC0; --input-border: #BACBC0;
+  --nav-bg: #14261D; --nav-2: #1B3227; --nav-hover: #203A2D; --nav-active: #284738; --nav-border: #274536; --nav-muted: #A3BFB0;
+  --tint: #047857; --tint-press: #065F46; color-scheme: light;
+}
+:root[data-theme="coral"], :root[data-theme="coral"][data-accent] {
+  --bg: #EFEFF6; --app-bg: #EFEFF6; --bg-tertiary: #EFEFF6; --card-2: #F5F5FA; --hover: #F5F5FA;
+  --separator: #DCDCEA; --separator-opaque: #DCDCEA; --border-strong: #C3C3D9; --input-border: #C3C3D9;
+  --nav-bg: #1A1838; --nav-2: #232046; --nav-hover: #292650; --nav-active: #332F5F; --nav-border: #322E5C; --nav-muted: #ACA9CC;
+  --tint: #4338CA; --tint-press: #3730A3; color-scheme: light;
+}
+
+/* معاينات أوضاع الألوان في شاشة المظهر: الشريط فوق + سطح أبيض فيه لون التمييز */
+.ap-prev { grid-template-columns: 1fr; grid-template-rows: 30% 1fr; }
+.ap-prev b { grid-row: 1; border: 0 !important; }
+.ap-prev i { grid-row: 2; margin: 0.5rem; border-radius: 0.375rem; background: #FFFFFF; position: relative; }
+.ap-prev i::after { content: ''; position: absolute; inset-inline-start: 0.375rem; top: 0.375rem; width: 32%; height: 0.375rem; border-radius: 999px; background: var(--pv, #1D4ED8); }
+.ap-prev.light { background: #EEEFF3; border-color: #DEE0E7; } .ap-prev.light b { background: #15171C; } .ap-prev.light i { --pv: #1D4ED8; }
+.ap-prev.dark { background: #202227; border-color: #3A3D45; } .ap-prev.dark b { background: #18191D; } .ap-prev.dark i { background: #2A2D33; --pv: #60A5FA; }
+.ap-prev.system { background: linear-gradient(90deg, #202227 50%, #EEEFF3 50%); } .ap-prev.system b { background: linear-gradient(90deg, #18191D 50%, #15171C 50%); } .ap-prev.system i { background: linear-gradient(90deg, #2A2D33 50%, #FFFFFF 50%); }
+.ap-prev.navy { background: #ECEFF4; border-color: #D9DEE8; } .ap-prev.navy b { background: #0F1D35; } .ap-prev.navy i { --pv: #1D4ED8; }
+.ap-prev.amber { background: #F1EEE9; border-color: #E2DCD2; } .ap-prev.amber b { background: #1F1B16; } .ap-prev.amber i { --pv: #B45309; }
+.ap-prev.teal { background: #EBF1F2; border-color: #D4E0E2; } .ap-prev.teal b { background: #0B2A30; } .ap-prev.teal i { --pv: #0E7490; }
+.ap-prev.paprika { background: #F3EEEF; border-color: #E5D9DB; } .ap-prev.paprika b { background: #2A1418; } .ap-prev.paprika i { --pv: #9F1239; }
+.ap-prev.sage { background: #ECF1EE; border-color: #D6E1DA; } .ap-prev.sage b { background: #14261D; } .ap-prev.sage i { --pv: #047857; }
+.ap-prev.coral { background: #EFEFF6; border-color: #DCDCEA; } .ap-prev.coral b { background: #1A1838; } .ap-prev.coral i { --pv: #4338CA; }
