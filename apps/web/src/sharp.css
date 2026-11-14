@@ -236,3 +236,66 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
   .si .si-meta-field + .si-meta-field { border-inline-start: 0; }
   .si .si-meta-field { border-bottom: 1px solid var(--separator); }
 }
+
+/* ---------- 8) صفحات الأقسام (المبيعات، المشتريات، المخزون، ...) ---------- */
+.sx-title h1 { font-size: clamp(1.25rem, 1.6vw, 1.5rem); font-weight: 700; letter-spacing: -0.2px; }
+.sx-title-ic { width: 2.5rem; height: 2.5rem; border-radius: 0.625rem; background: var(--card); border: 1px solid var(--separator); color: var(--heading); }
+.sx-title-ic svg { width: 1.25rem; height: 1.25rem; stroke-width: 1.9; }
+.sx-when { border-radius: 0.625rem; box-shadow: none; font-weight: 600; font-size: 0.875rem; }
+
+/* المؤشرات: نفس الارتفاع والمقاس، أيقونة في مربع محايد */
+.sx-stats { gap: 0.75rem; grid-auto-rows: 1fr; }
+.sx-stat { border-radius: 0.75rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); height: 100%; }
+.sx-stat:not(:disabled):hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
+.sx-stat-ic { border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); color: var(--heading); width: 2.5rem; height: 2.5rem; }
+.sx-stat-ic svg { width: 1.125rem; height: 1.125rem; }
+.sx-stat-l { font-weight: 600; font-size: 0.8125rem; }
+.sx-stat-v { font-weight: 700; letter-spacing: -0.4px; }
+.sx-stat-s { font-weight: 500; }
+
+/* الكروت */
+.sx-card { border-radius: 0.75rem; background: var(--card); border: 1px solid var(--separator); box-shadow: none; }
+.sx-card-h { padding-bottom: 0.625rem; border-bottom: 1px solid var(--separator); margin-bottom: 0.625rem; }
+.sx-card-h h2 { font-size: 1rem; font-weight: 700; }
+.sx-h-ic { color: var(--heading); }
+.sx-h-ic svg, svg.sx-h-ic { width: 1.25rem; height: 1.25rem; }
+.sx-more { border-radius: 0.5rem; font-weight: 600; }
+@media (min-width: 1181px) {
+  .sx-actions:not(.editing) > .sx-card-h { padding-bottom: 0; border-bottom: 0; margin-bottom: 0; }
+  .sx-actions:not(.editing) h2 { font-size: 0.9375rem; }
+}
+
+/* العمليات السريعة: أزرار متساوية بحد رفيع */
+.sx-action-row { grid-auto-rows: 1fr; gap: 0.625rem; }
+.sx-action { border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); font-weight: 600; font-size: 0.9375rem; min-height: 3rem; }
+.sx-action:hover { transform: none; box-shadow: none; border-color: var(--border-strong); background: var(--card-2); }
+.sx-action-ic { color: var(--heading); }
+.sx-action-ic svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.9; }
+.sx-action.primary { background: var(--tint); border-color: var(--tint); color: #FFFFFF; box-shadow: none; }
+.sx-action.primary:hover { background: var(--tint-press); }
+:root[data-theme="dark"] .sx-action.primary { background: var(--mc-active); border-color: transparent; }
+
+/* المتابعة + الجدول: نفس الارتفاع جنب بعض */
+.sx-body { align-items: stretch; gap: 1rem; }
+.sx-main, .sx-side { gap: 1rem; }
+.sx-main > :last-child, .sx-side > :last-child { flex: 1 1 auto; }
+.sx-body .sx-card { display: flex; flex-direction: column; }
+.sx-body .sx-card > .sx-follow-list, .sx-body .sx-card > .sx-table { flex: 1 1 auto; }
+.sx-follow-list { border: 0; box-shadow: none; padding: 0; background: transparent; border-radius: 0; }
+.sx-follow-row { min-height: 3rem; border-radius: 0; }
+.sx-follow-row:hover { background: var(--card-2); }
+.sx-follow-ic { width: 2.125rem; height: 2.125rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
+.sx-follow-ic svg { width: 1.0625rem; height: 1.0625rem; }
+.sx-follow-l { font-size: 0.875rem; font-weight: 600; }
+.sx-table { border-radius: 0.625rem; box-shadow: none; border: 1px solid var(--separator); background: var(--card); }
+.sx-table .table th { background: var(--card-2); color: var(--label-2); font-weight: 600; font-size: 0.8125rem; }
+.sx-table .table tbody tr:hover td { background: var(--card-2); }
+.sx-empty { color: var(--label-2); }
+@media (max-width: 980px) {
+  .sx-main > :last-child, .sx-side > :last-child { flex: none; }
+}
+@media (max-width: 700px) {
+  .sx-stat { border-radius: 0.75rem; }
+  .sx-action { border-radius: 0.625rem; background: var(--card); font-weight: 600; }
+  .sx-card { border-radius: 0.75rem; }
+}
