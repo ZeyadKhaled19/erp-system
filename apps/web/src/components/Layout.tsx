@@ -322,7 +322,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <MainNav can={can} />
         </header>
         <ScreenTabs userId={session.user.id} scrollRef={contentRef} />
-        <div className="content" ref={contentRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 30)} style={isPos ? { overflow: 'hidden' } : undefined}>
+        <div className={`content ${isPos ? 'is-pos' : ''}`} ref={contentRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 30)}>
           {children}
         </div>
       </main>

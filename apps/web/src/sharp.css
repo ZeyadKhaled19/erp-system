@@ -668,3 +668,21 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 @media (min-width: 1181px) and (max-width: 1280px) {
   .mc-top .mc-brand-sep, .mc-top .mc-system { display: none; }
 }
+
+/* ---------- 18) فاتورة البيع/الشراء على الموبايل والتابلت: صفحة عادية بتتحرك لتحت ----------
+   تصميم «شاشة ثابتة من غير سكرول» معمول للكمبيوتر بس. على الشاشات الأصغر كان بيقفل الطول على
+   طول الشاشة فالأجزاء بتركب فوق بعض والملخص وزرار الحفظ مش بيتوصلوا. */
+@media (max-width: 1100px) {
+  .content:has(.ss.si) { display: block; overflow-y: auto; overflow-x: hidden; }
+  .ss.si { height: auto; min-height: 0; overflow: visible; grid-template-rows: none; grid-auto-rows: auto; }
+  .si-main { height: auto; grid-template-rows: none; min-height: 0; }
+  .si-main > .si-grid, .si-main > .ss-side, .si-main > .ss-side > .card { height: auto; max-height: none; min-height: 0; }
+  .si-main > .ss-side > .card { overflow: visible; }
+  .si-tw { overflow: auto; max-height: none; }
+  .si .si-paid-field .si-rest { position: static; inset: auto; box-shadow: none; }
+  .si .ss-side .card > .si-bar { position: static; margin: 0; }
+}
+
+/* البيع السريع: على الكمبيوتر الشاشة ثابتة والأصناف بتتحرك جواها؛ على الموبايل الصفحة كلها بتتحرك لتحت
+   (كان السكرول مقفول على كل المقاسات فالأصناف اللي تحت مكانتش بتتوصل على الموبايل) */
+@media (min-width: 761px) { .content.is-pos { overflow: hidden; } }
