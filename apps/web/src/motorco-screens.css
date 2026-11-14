@@ -56,7 +56,7 @@
 .card .input, .card .select, .card .textarea,
 .sheet .input, .sheet .select, .sheet .textarea { border-radius: 0.75rem; }
 .search { height: 2.75rem; border-radius: 0.8125rem; border-color: var(--mc-line); background: var(--mc-surface); box-shadow: var(--shadow-card); }
-.field > label { font-weight: 700; color: var(--label-2); font-size: 0.7812rem; }
+.field > label { font-weight: 700; color: var(--label-2); font-size: max(11px, 0.7812rem); }
 
 /* التبويبات داخل الصفحة: شريط خفيف، والنشط أبيض بنص أزرق وخط سفلي */
 .segmented { height: 2.625rem; padding: 0.25rem; border-radius: 0.8125rem; background: color-mix(in srgb, var(--tint) 6%, var(--bg)); border: 1px solid var(--mc-line); }
@@ -73,7 +73,7 @@
 .table tfoot td { background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); font-weight: 800; }
 
 /* شارات الحالة: كبسولة ناعمة */
-.badge { font-size: 0.7812rem; font-weight: 700; padding: 0.1875rem 0.75rem; border-radius: 62.4375rem; }
+.badge { font-size: max(11px, 0.7812rem); font-weight: 700; padding: 0.1875rem 0.75rem; border-radius: 62.4375rem; }
 .badge.green { background: color-mix(in srgb, #22C55E 15%, var(--mc-surface)); color: #15803D; }
 .badge.orange { background: color-mix(in srgb, #F59E0B 18%, var(--mc-surface)); color: #B45309; }
 .badge.red { background: color-mix(in srgb, #EF4444 13%, var(--mc-surface)); color: #DC2626; }
@@ -101,7 +101,7 @@
 .sc .sc-mark { display: none; }
 .sc .sc-text { margin: 0; align-items: center; }
 .sc .sc-label { font-size: 1.0312rem; font-weight: 800; text-shadow: none; color: var(--heading); }
-.sc .sc-sub { font-size: 0.7812rem; color: var(--label-2); opacity: 1; max-width: none; text-align: center; }
+.sc .sc-sub { font-size: max(11px, 0.7812rem); color: var(--label-2); opacity: 1; max-width: none; text-align: center; }
 .sc .sc-badge { top: 0.75rem; left: 0.75rem; right: auto; height: 1.625rem; min-width: 1.625rem; padding: 0 0.5rem; font-size: 0.8125rem; background: color-mix(in srgb, var(--sc-c) 14%, var(--mc-surface)); color: var(--sc-c); box-shadow: none; }
 .sc-blue { --sc-b: #2563EB; } .sc-purple { --sc-b: #7C3AED; } .sc-teal { --sc-b: #0D9488; } .sc-orange { --sc-b: #F59E0B; } .sc-red { --sc-b: #DC2626; }
 .sc-yellow { --sc-b: #CA8A04; } .sc-pink { --sc-b: #DB2777; } .sc-indigo { --sc-b: #4F46E5; } .sc-green { --sc-b: #16A34A; } .sc-slate { --sc-b: #475569; }
@@ -125,7 +125,7 @@
 /* بيانات الفاتورة: كل خانة كارت مستقل (العميل، المخزن، التاريخ) */
 .si .si-meta { background: transparent; border: 0; box-shadow: none; padding: 0; gap: 0.75rem; flex: 1 1 auto; align-items: stretch; }
 .si .si-meta-field { background: var(--mc-surface); border: 1px solid var(--mc-line); border-radius: 1rem; box-shadow: var(--mc-shadow); padding: 0.5rem 0.875rem; min-height: 4rem; display: flex; flex-direction: column; justify-content: center; gap: 0.25rem; }
-.si .si-meta-field > span, .si .si-meta-field > label { font-size: 0.7812rem; font-weight: 700; color: var(--label-2); }
+.si .si-meta-field > span, .si .si-meta-field > label { font-size: max(11px, 0.7812rem); font-weight: 700; color: var(--label-2); }
 .si .si-meta-field b { font-size: 0.875rem; font-weight: 700; color: var(--heading); }
 .si .si-date, .si .si-wh { background: transparent; border: 0; padding: 0; font-weight: 700; color: var(--heading); font-size: 0.9062rem; }
 .si .si-meta-party { flex: 1 1 20rem; }
@@ -223,7 +223,7 @@
 .stg-menu button.on .stg-menu-ic { color: var(--tint); }
 .stg-menu-ic svg { width: 1.1875rem; height: 1.1875rem; }
 .stg-menu-go { width: 1rem; height: 1rem; margin-inline-start: auto; color: var(--label-3); }
-.stg-menu-sep { font-size: 0.75rem; font-weight: 700; color: var(--label-3); padding: 0.75rem 0.75rem 0.25rem; border-top: 1px solid var(--separator); margin-top: 0.375rem; }
+.stg-menu-sep { font-size: max(11px, 0.75rem); font-weight: 700; color: var(--label-3); padding: 0.75rem 0.75rem 0.25rem; border-top: 1px solid var(--separator); margin-top: 0.375rem; }
 .stg-body { min-width: 0; display: flex; flex-direction: column; gap: 0.875rem; }
 .stg-title { font-size: 1.125rem; font-weight: 800; color: var(--heading); }
 .stg-title span { font-size: 0.8125rem; font-weight: 600; color: var(--label-3); }
@@ -254,7 +254,7 @@
 /* مسير الرواتب */
 .table td.pay-in { min-width: 6.875rem; }
 .table td.pay-in .input { height: 2.25rem; text-align: left; }
-.pay-all { display: block; margin-top: 0.25rem; border: 0; background: none; color: var(--tint); font: inherit; font-size: 0.7188rem; font-weight: 700; cursor: pointer; padding: 0; }
+.pay-all { display: block; margin-top: 0.25rem; border: 0; background: none; color: var(--tint); font: inherit; font-size: max(11px, 0.7188rem); font-weight: 700; cursor: pointer; padding: 0; }
 .pay-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.875rem; margin: 1rem 0 0.375rem; }
 .pay-bar .pay-grand { flex: 1 1 20rem; }
 .pay-bar .field { flex: 0 1 17.5rem; margin: 0; }
