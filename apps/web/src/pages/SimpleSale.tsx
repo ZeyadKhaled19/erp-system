@@ -294,15 +294,23 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
     }
     let idx = -1;
     setLines((ls) => {
+      // الصنف بيروح آخر الجدول دايمًا: لو موجود بنفس الوحدة والسعر بتزيد كميته وبيتنقل للآخر
       const same = ls.findIndex((l) => l.item_id === it.id && l.unit_name === unit.name && l.price === entryPrice);
       if (same >= 0) {
-        idx = same;
-        return ls.map((l, i) => (i === same ? { ...l, qty: l.qty + entryQty } : l));
+        const merged = { ...ls[same], qty: ls[same].qty + entryQty };
+        const rest = ls.filter((_, i) => i !== same);
+        idx = rest.length;
+        return [...rest, merged];
       }
       idx = ls.length;
       return [...ls, { id: uuid(), item_id: it.id, unit_name: unit.name, unit_factor: unit.factor, qty: entryQty, price: entryPrice, discount: 0, tax_rate_bp: it.tax_rate_bp ?? 0 }];
     });
-    setTimeout(() => setSel(Math.max(0, idx)), 0);
+    setTimeout(() => {
+      setSel(Math.max(0, idx));
+      // انزل لآخر الجدول عشان السطر الجديد يبان
+      const rows = gridRef.current?.querySelectorAll('tbody tr');
+      rows?.[rows.length - 1]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 30);
     setEntryItem(null);
     setEntryUnit(null);
     setQ('');

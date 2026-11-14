@@ -547,3 +547,11 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .picker-opt.picker-create:hover { background: var(--tint-soft); }
 .picker-opt.picker-create svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 .picker-opt.picker-create kbd { font-size: max(11px, 0.6875rem); }
+
+/* «+ إضافة جديد»: خلفية مصمتة حتى وانت واقف عليها (كانت شفافة فالسطر اللي تحتها بيبان) */
+.picker-opt.picker-create { z-index: 2; box-shadow: 0 -6px 8px -6px rgba(16, 18, 24, .12); }
+.picker-opt.picker-create:hover, .picker-opt.picker-create.hl { background: color-mix(in srgb, var(--tint) 10%, var(--card)); }
+
+/* البيع السريع: خانة سعر صغيرة على كل سطر في السلة */
+.pos-line .pl-price { display: inline-block; width: 6.5rem; vertical-align: middle; margin-top: 0.25rem; }
+.pos-line .pl-price .input { height: 1.875rem; padding: 0 0.5rem; font-size: 0.8125rem; font-weight: 600; text-align: left; }

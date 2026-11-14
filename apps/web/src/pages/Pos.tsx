@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Banknote, Check, ChevronDown, ChevronUp, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Banner, DocStatusBadge, Picker, Sheet, useUi } from '../components/ui';
+import { Banner, DocStatusBadge, MoneyInput, Picker, Sheet, useUi } from '../components/ui';
 import { CategoryFilter } from '../components/Categories';
 import { searchItems } from '../lib/search';
 import { CustomerFields } from '../components/CustomerFields';
@@ -410,9 +410,16 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             const short = it && !it.is_service && l.qty > have;
             return (
               <div key={l.item_id} className="pos-line">
-                <div className="pl-name" onClick={() => { hover.hide(); setEditLine(l.item_id); }} style={{ cursor: 'pointer' }} {...costHover(l.item_id, it?.base_unit)}>
-                  <div>{it?.name}</div>
-                  <div className="pl-sub num">{formatMoney(l.price)} {l.discount ? `· خصم ${formatMoney(l.discount)}` : ''} {short ? <span className="red">· الرصيد {formatQty(have)}</span> : null}</div>
+                <div className="pl-name">
+                  <div onClick={() => { hover.hide(); setEditLine(l.item_id); }} style={{ cursor: 'pointer' }} title="اضغط لتعديل الكمية والسعر والخصم" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</div>
+                  <div className="pl-sub num">
+                    {can('sales.price_change') ? (
+                      <span className="pl-price" title="سعر الوحدة — اكتب السعر الجديد">
+                        <MoneyInput value={l.price} onChange={(v) => setCart((c) => c.map((x) => (x.item_id === l.item_id ? { ...x, price: Math.max(0, v) } : x)))} />
+                      </span>
+                    ) : formatMoney(l.price)}
+                    {l.discount ? ` · خصم ${formatMoney(l.discount)}` : ''} {short ? <span className="red">· الرصيد {formatQty(have)}</span> : null}
+                  </div>
                 </div>
                 <div className="stepper">
                   <button onClick={() => setQty(l.item_id, l.qty + 1000)}>+</button>
