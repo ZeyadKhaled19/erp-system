@@ -489,3 +489,17 @@ kbd { border-bottom-width: 1px; border-radius: 0.4375rem; background: var(--card
 .si .si-paid-field { flex-wrap: wrap; }
 .si .si-paid-field .si-rest { position: static; inset: auto; z-index: auto; flex: 1 1 100%; margin-top: 0.25rem; padding: 0.625rem; background: var(--card-2); box-shadow: none; border: 1px solid var(--separator); border-radius: 0.75rem; }
 .si .si-rest .pay-line.warn { border-radius: 0.625rem; }
+
+/* ---------- 15) المحتوى بياخد عرض الشاشة كله (زي المرجع) ----------
+   كان فيه حد أقصى للعرض (117.5rem) فعلى الشاشات العريضة بيفضل فراغ كبير على الجنبين. */
+.page, .page.mc-home, .page.sx-page, .ss.si { max-width: none; margin-inline: 0; }
+.ss.si { width: 100%; }
+.page, .page.sx-page { padding-inline: 0.75rem; }
+.page.mc-home { padding-inline: 0.75rem; }
+.ss.si { padding-inline: 0.75rem; }
+.page.narrow { max-width: 56.25rem; margin-inline: auto; }
+.screen-tabs.mc-tabs { padding-inline: 0.75rem; }
+.nav-bar.mc-top { padding-inline: 0.75rem; }
+@media (max-width: 760px) {
+  .page, .page.mc-home, .page.sx-page, .ss.si { padding-inline: 0.625rem; }
+}
