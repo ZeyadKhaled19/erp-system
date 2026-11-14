@@ -652,7 +652,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 }
 /* لاب توب: نفس الصف، بس البحث أيقونة والمزامنة نقطة واسم النظام مستخبي علشان الأقسام تاخد مكانها */
 @media (min-width: 1181px) and (max-width: 1599px) {
-  .mc-top .mc-brand-sep, .mc-top .mc-system { display: none; }
+  .mc-top .mc-system { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; }
   .mc-top .mc-search > span, .mc-top .mc-search > kbd { display: none; }
   .mc-top .mc-search { width: 2.75rem; padding: 0; justify-content: center; }
   .mc-top .sync-pill.online > span:not(.dot) { display: none; }
@@ -663,4 +663,8 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 @media (min-width: 1181px) and (max-width: 1365px) {
   .mc-top .mc-nav-item { padding: 0 0.5rem; font-size: 0.9062rem; }
   .mc-top .mc-company { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }
+}
+/* شاشات ضيقة جدًا (1181–1280): اسم النظام بيستخبى علشان الأقسام تكفي، واللوجو بيفضل */
+@media (min-width: 1181px) and (max-width: 1280px) {
+  .mc-top .mc-brand-sep, .mc-top .mc-system { display: none; }
 }
