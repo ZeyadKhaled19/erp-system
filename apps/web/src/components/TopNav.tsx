@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, Wallet, FileWarning } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, FileWarning } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -127,7 +127,15 @@ export function MainNav({ can }: { can: Can }) {
   );
 }
 
-/** أيقونات الشريط العلوي: الإعدادات (وفيها الحسابات والخزينة والتقارير)، المساعدة، الإشعارات */
+/** روابط إضافية لأقسام الترس اللي مالهاش مجموعات */
+const GEAR_EXTRA: Record<string, NavLink[]> = {
+  partners: [
+    { to: '/docs/new/partner_capital', label: 'إيداع رأس مال', icon: <ArrowDownLeft />, grad: '', perm: 'partners.create' },
+    { to: '/docs/new/partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
+  ],
+};
+
+/** أيقونات الشريط العلوي: الإعدادات (وفيها الشركاء والإعدادات)، المساعدة، الإشعارات */
 export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onSearch, userName, roleName, syncProblems }: {
   can: Can; dark: boolean; onToggleTheme: () => void; onAppearance: () => void; onLogout: () => void; onSearch: () => void; userName: string; roleName: string; syncProblems: number;
 }) {
@@ -141,7 +149,8 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
   };
   const gearGroups = GEAR_HUBS.map((k) => HUBS.find((h) => h.key === k)!)
     .filter((h) => h && (!h.perm || can(h.perm)))
-    .map((h) => ({ title: h.label, links: linksOf(can, h.groups.flatMap((g) => g.links)) }))
+    // قسم من غير مجموعات (زي الشركاء) بيظهر كرابط واحد لصفحته، ومعاه روابطه الإضافية لو ليه
+    .map((h) => ({ title: h.label, links: linksOf(can, h.groups.length ? h.groups.flatMap((g) => g.links) : [{ to: h.to!, label: h.label, icon: h.icon, grad: '', perm: h.perm }, ...(GEAR_EXTRA[h.key] ?? [])]) }))
     .filter((g) => g.links.length);
   const gearActive = GEAR_HUBS.includes(activeHubKey(loc.pathname));
   const alerts: { n: number; label: string; to: string; icon: ReactNode; tone: string }[] = [
@@ -190,7 +199,7 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
         <MenuPanel anchor={anchors.current.help} popRef={pop}>
           <div className="mc-help">
             <b>فين ألاقي…؟</b>
-            <p><Wallet /> <span><b>الخزينة والحسابات والتقارير والإعدادات</b> في زرار الترس <Settings className="inl" /> فوق.</span></p>
+            <p><Settings /> <span><b>الشركاء ورأس المال والإعدادات</b> في زرار الترس <Settings className="inl" /> فوق.</span></p>
             <p><Users /> <span>كل قسم في الشريط الأزرق: اضغط عليه يفتح صفحته، أو وقّف الماوس عليه تظهر كل شاشاته.</span></p>
             <b>اختصارات الكيبورد</b>
             <p><kbd>Ctrl</kbd>+<kbd>K</kbd> <span>بحث عن صنف أو عميل أو فاتورة</span></p>

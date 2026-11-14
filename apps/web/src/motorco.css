@@ -14,7 +14,7 @@
   --mc-active-shadow: 0 8px 18px -8px color-mix(in srgb, var(--tint) 70%, transparent);
   /* ألوان أيقونات الأقسام */
   --mc-blue: #2563EB; --mc-green: #16A34A; --mc-purple: #7C3AED; --mc-orange: #F59E0B;
-  --mc-teal: #0D9488; --mc-indigo: #2563EB; --mc-violet: #7C3AED;
+  --mc-teal: #0D9488; --mc-indigo: #2563EB; --mc-violet: #7C3AED; --mc-pink: #DB2777;
 }
 :root[data-theme="dark"] {
   --mc-panel: color-mix(in srgb, var(--card) 80%, var(--bg));
@@ -22,7 +22,7 @@
   --mc-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px -10px rgba(0, 0, 0, .6);
   --mc-shadow-lg: 0 2px 4px rgba(0, 0, 0, .35), 0 16px 32px -14px rgba(0, 0, 0, .7);
   --mc-blue: #60A5FA; --mc-green: #4ADE80; --mc-purple: #A78BFA; --mc-orange: #FBBF24;
-  --mc-teal: #2DD4BF; --mc-indigo: #60A5FA; --mc-violet: #A78BFA;
+  --mc-teal: #2DD4BF; --mc-indigo: #60A5FA; --mc-violet: #A78BFA; --mc-pink: #F472B6;
   /* لون التمييز في الغامق فاتح، فنغمّقه للأزرار الممتلئة حتى يقرأ النص الأبيض */
   --mc-active: linear-gradient(180deg, color-mix(in srgb, var(--tint) 72%, #000000) 0%, color-mix(in srgb, var(--tint) 55%, #000000) 100%);
 }
@@ -146,7 +146,7 @@
 .mc-card-l { font-size: clamp(14.5px, 1.25vw, 20px); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; max-width: 7.5em; }
 .mc-card.on { background: color-mix(in srgb, var(--tint) 11%, var(--mc-surface)); border: 1.5px solid color-mix(in srgb, var(--tint) 55%, transparent); --c: var(--tint); }
 .mc-blue { --c: var(--mc-blue); } .mc-green { --c: var(--mc-green); } .mc-purple { --c: var(--mc-purple); } .mc-orange { --c: var(--mc-orange); }
-.mc-teal { --c: var(--mc-teal); } .mc-indigo { --c: var(--mc-indigo); } .mc-violet { --c: var(--mc-violet); }
+.mc-teal { --c: var(--mc-teal); } .mc-indigo { --c: var(--mc-indigo); } .mc-violet { --c: var(--mc-violet); } .mc-pink { --c: var(--mc-pink); }
 
 /* اللوحتان السفليتان: المهام يمين والمفضلة يسار */
 .mc-panels { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1fr); gap: clamp(14px, 1.8vw, 30px); align-items: stretch; }

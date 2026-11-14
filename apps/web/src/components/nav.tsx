@@ -3,7 +3,7 @@ import {
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
   IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
-import { Database, Fingerprint, HandCoins, Handshake, Network, ShoppingBasket } from 'lucide-react';
+import { Fingerprint, HandCoins, Network, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface NavLink {
@@ -268,11 +268,11 @@ export function activeHubKey(pathname: string): string {
 }
 
 /**
- * الأقسام السبعة في الشريط الأفقي وكروت الرئيسية (التصميم المعتمد).
+ * أقسام الشريط الأفقي وكروت الرئيسية (التصميم المعتمد، والخزينة والتقارير اتنقلوا للشريط بطلب المستخدم).
  * كل قسم يجمع أقسامًا من HUBS: قائمته المنسدلة = مجموعات تلك الأقسام، ويكون نشطًا عند فتح أي صفحة منها.
- * الحسابات والخزينة والتقارير والإعدادات في قائمة الترس (أعلى الشاشة).
+ * الشركاء والإعدادات في قائمة الترس (أعلى الشاشة).
  */
-export type SectionColor = 'blue' | 'green' | 'purple' | 'orange' | 'teal' | 'indigo' | 'violet';
+export type SectionColor = 'blue' | 'green' | 'purple' | 'orange' | 'teal' | 'indigo' | 'violet' | 'pink';
 export interface Section {
   key: string;
   label: string;
@@ -304,11 +304,12 @@ export const SECTIONS: Section[] = [
     ],
   },
   { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/employees', perms: ['employees.view'], hubs: ['employees'] },
-  { key: 'partners', label: 'الشركاء ورأس المال', icon: <Database />, cardIcon: <Handshake />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'] },
+  { key: 'treasury', label: 'الخزينة', icon: <Wallet />, cardIcon: <Wallet />, color: 'violet', to: '/hub/treasury', perms: ['treasury.view'], hubs: ['treasury'] },
+  { key: 'reports', label: 'التقارير', icon: <BarChart3 />, cardIcon: <BarChart3 />, color: 'pink', to: '/hub/reports', perms: ['reports.view'], hubs: ['reports'] },
 ];
 
 /** أقسام قائمة الترس (غير الظاهرة في الشريط) */
-export const GEAR_HUBS = ['treasury', 'reports', 'system'];
+export const GEAR_HUBS = ['partners', 'system'];
 
 /** القسم النشط في الشريط الأفقي ('' إن كانت الصفحة من أقسام قائمة الترس) */
 export function activeSectionKey(pathname: string): string {
