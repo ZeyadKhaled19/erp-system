@@ -1,0 +1,121 @@
+/* =====================================================================
+   صفحات الأقسام الموحدة — على صورة صفحة المبيعات المعتمدة
+   عنوان مدمج ← مؤشرات ← العمليات السريعة ← (متابعة ثلث + محتوى ثلثين)
+   كل الألوان من متغيرات الثيم فيشتغل الفاتح والغامق ولون التمييز.
+   ===================================================================== */
+
+.sx-page { display: flex; flex-direction: column; gap: clamp(12px, 1.8vh, 18px); }
+
+/* ألوان الأيقونات */
+.c-blue { --c: var(--mc-blue); } .c-green { --c: var(--mc-green); } .c-orange { --c: var(--mc-orange); }
+.c-purple { --c: var(--mc-purple); } .c-pink { --c: #DB2777; } .c-red { --c: #DC2626; } .c-teal { --c: var(--mc-teal); }
+.c-indigo { --c: #4F46E5; } .c-slate { --c: #475569; }
+:root[data-theme="dark"] .c-pink { --c: #F472B6; }
+:root[data-theme="dark"] .c-red { --c: #F87171; }
+:root[data-theme="dark"] .c-indigo { --c: #818CF8; }
+:root[data-theme="dark"] .c-slate { --c: #94A3B8; }
+
+/* ---------- 1) العنوان ---------- */
+.sx-head { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.sx-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.sx-title h1 { margin: 0; font-size: clamp(22px, 1.75vw, 28px); font-weight: 800; color: var(--heading); line-height: 1.25; }
+.sx-sub { font-size: 13.5px; color: var(--label-2); margin-top: 2px; }
+.sx-title-ic { display: grid; place-items: center; color: var(--c); flex-shrink: 0; }
+.sx-title-ic svg { width: clamp(34px, 2.6vw, 42px); height: clamp(34px, 2.6vw, 42px); stroke-width: 1.7; }
+.sx-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sx-when { display: inline-flex; align-items: center; gap: 14px; height: 46px; padding: 0 20px; border-radius: 999px; background: var(--mc-surface); box-shadow: var(--mc-shadow); border: 1px solid var(--mc-line); font-size: 14.5px; font-weight: 700; color: var(--heading); white-space: nowrap; }
+.sx-when span { display: inline-flex; align-items: center; gap: 8px; }
+.sx-when svg { width: 20px; height: 20px; stroke-width: 1.9; }
+.sx-when i { width: 1px; height: 20px; background: var(--border-strong); }
+
+/* ---------- 2) المؤشرات ---------- */
+.sx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: clamp(10px, 1.1vw, 18px); }
+.sx-stat {
+  display: flex; align-items: flex-start; justify-content: flex-start; gap: clamp(10px, 1vw, 16px); min-height: clamp(96px, 13vh, 124px);
+  padding: clamp(12px, 1.6vh, 18px) clamp(14px, 1.3vw, 22px); border-radius: 20px; border: 1px solid var(--mc-line);
+  background: var(--mc-surface); box-shadow: var(--mc-shadow); font: inherit; color: var(--heading); text-align: start; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.sx-stat:disabled { cursor: default; }
+.sx-stat:not(:disabled):hover { transform: translateY(-2px); box-shadow: var(--mc-shadow-lg); }
+.sx-stat-t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sx-stat-l { font-size: clamp(14px, 1.05vw, 16.5px); font-weight: 800; color: var(--heading); }
+.sx-stat-v { font-size: clamp(22px, 1.9vw, 30px); font-weight: 800; color: var(--heading); line-height: 1.2; white-space: nowrap; }
+.sx-stat-v.green { color: var(--mc-green); } .sx-stat-v.red { color: #DC2626; } .sx-stat-v.orange { color: #D97706; }
+.sx-stat-s { font-size: 13px; color: var(--label-2); font-weight: 600; }
+.sx-stat-ic { display: grid; place-items: center; color: var(--c); flex-shrink: 0; }
+.sx-stat-ic svg { width: clamp(34px, 2.8vw, 46px); height: clamp(34px, 2.8vw, 46px); stroke-width: 1.6; }
+
+/* ---------- كروت المحتوى ---------- */
+.sx-card { border-radius: 24px; background: var(--mc-panel); border: 1px solid color-mix(in srgb, var(--card) 70%, transparent); box-shadow: var(--mc-shadow-lg); padding: clamp(12px, 1.8vh, 20px) clamp(14px, 1.4vw, 22px); min-width: 0; }
+.sx-card-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: clamp(10px, 1.4vh, 14px); min-height: 38px; }
+.sx-card-h h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: clamp(17px, 1.35vw, 22px); font-weight: 800; color: var(--heading); }
+.sx-h-ic { display: inline-grid; place-items: center; color: var(--c); }
+.sx-h-ic svg, svg.sx-h-ic { width: 26px; height: 26px; stroke-width: 1.8; }
+.sx-chips { display: inline-flex; gap: 8px; }
+.sx-more { height: 36px; padding: 0 14px; font-size: 13.5px; font-weight: 700; color: var(--tint); }
+.sx-more svg { width: 16px; height: 16px; }
+
+/* ---------- 3) العمليات السريعة ---------- */
+.sx-action-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: clamp(8px, 1vw, 16px); }
+.sx-action {
+  display: flex; align-items: center; justify-content: center; gap: 12px; min-height: clamp(52px, 7.4vh, 70px); padding: 0 14px;
+  border-radius: 16px; border: 1px solid var(--mc-line); background: var(--mc-surface); box-shadow: var(--mc-shadow);
+  font: inherit; font-size: clamp(14.5px, 1.15vw, 17px); font-weight: 800; color: var(--heading); cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.sx-action-l { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-action:hover { transform: translateY(-2px); box-shadow: var(--mc-shadow-lg); }
+.sx-action-ic { display: grid; place-items: center; color: var(--c); flex-shrink: 0; }
+.sx-action-ic svg { width: clamp(24px, 2vw, 32px); height: clamp(24px, 2vw, 32px); stroke-width: 1.7; }
+.sx-action.primary { background: var(--mc-active); color: #fff; border-color: transparent; box-shadow: var(--mc-active-shadow); }
+.sx-action.primary .sx-action-ic { color: #fff; }
+.mc-fav-ic.c-blue, .mc-fav-ic.c-green, .mc-fav-ic.c-orange, .mc-fav-ic.c-purple, .mc-fav-ic.c-teal, .mc-fav-ic.c-indigo, .mc-fav-ic.c-slate { color: var(--c); }
+
+/* ---------- 4) المحتوى: متابعة (ثلث) + رئيسي (ثلثين) ---------- */
+.sx-body { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: clamp(12px, 1.4vw, 22px); align-items: start; }
+.sx-body.single { grid-template-columns: minmax(0, 1fr); }
+.sx-main, .sx-side { min-width: 0; display: flex; flex-direction: column; gap: clamp(12px, 1.4vw, 22px); }
+
+.sx-follow-list { background: var(--mc-surface); border-radius: 18px; border: 1px solid var(--mc-line); box-shadow: var(--shadow-card); padding: 4px 14px; }
+.sx-follow-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: clamp(44px, 6vh, 54px); padding: 0 4px; border: 0; background: transparent; color: var(--heading); font: inherit; text-align: start; cursor: pointer; border-radius: 10px; }
+.sx-follow-row + .sx-follow-row { border-top: 1px solid var(--separator); border-radius: 0; }
+.sx-follow-row:hover { background: var(--fill-3); }
+.sx-follow-ic { display: grid; place-items: center; color: var(--heading); flex-shrink: 0; }
+.sx-follow-ic svg { width: 23px; height: 23px; stroke-width: 1.6; }
+.sx-follow-l { flex: 1; min-width: 0; font-size: clamp(14px, 1.1vw, 16.5px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-chev { width: 18px; height: 18px; color: var(--label-2); flex-shrink: 0; }
+
+/* جدول آخر السجلات داخل الكارت */
+.sx-table { background: var(--mc-surface); border-radius: 18px; border: 1px solid var(--mc-line); box-shadow: var(--shadow-card); overflow: auto; }
+.sx-table .table { margin: 0; }
+.sx-table .table th { padding: 11px 14px; }
+.sx-table .table td { padding: 10px 14px; }
+.sx-table .table tbody tr { cursor: pointer; }
+.sx-empty { padding: 26px 16px; text-align: center; color: var(--label-2); font-size: 14px; }
+
+/* ---------- الاستجابة ---------- */
+@media (max-width: 980px) {
+  .sx-body { grid-template-columns: minmax(0, 1fr); }
+  .sx-main { order: -1; }
+}
+@media (min-width: 701px) and (max-width: 980px) {
+  .sx-stats { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; }
+  .sx-stat { flex-direction: column; gap: 6px; padding: 12px; }
+  .sx-stat-ic svg { width: 30px; height: 30px; }
+  .sx-stat-v { font-size: 21px; }
+  .sx-action-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .sx-when { height: 38px; padding: 0 12px; gap: 8px; font-size: 12.5px; max-width: 100%; }
+  .sx-when svg { width: 16px; height: 16px; }
+  .sx-tools { width: 100%; }
+  .sx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .sx-stat { min-height: 0; border-radius: 16px; padding: 12px; }
+  .sx-stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .sx-stat-ic svg { width: 28px; height: 28px; }
+  .sx-action-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .sx-action { min-height: 52px; border-radius: 14px; font-size: 14px; gap: 8px; padding: 0 10px; }
+  .sx-card { border-radius: 20px; padding: 12px; }
+  .sx-follow-list { padding: 2px 8px; }
+}
