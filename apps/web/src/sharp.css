@@ -169,7 +169,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
 .mc-fav { min-height: 0; height: auto; padding: 0.625rem 0.875rem; gap: 0.75rem; align-items: center; }
 .mc-fav .mc-fav-ic { width: 2.375rem; height: 2.375rem; border-radius: 0.5rem; background: var(--card-2); border: 1px solid var(--separator); }
 .mc-fav .mc-fav-ic svg { width: 1.125rem; height: 1.125rem; }
-.mc-fav > .mc-fav-t { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; -webkit-line-clamp: unset; overflow: visible; }
+.mc-fav > span.mc-fav-t:last-child { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; -webkit-line-clamp: none; overflow: visible; }
 .mc-fav-l { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-fav-g { font-size: max(11px, 0.75rem); font-weight: 500; color: var(--label-2); }
 .mc-fav.primary .mc-fav-ic { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .22); }
@@ -185,3 +185,9 @@ kbd { border-bottom-width: 1px; border-radius: 0.3125rem; background: var(--card
   .mc-fav .mc-fav-ic { width: 2rem; height: 2rem; }
   .mc-fav-l { white-space: normal; font-size: 0.8125rem; }
 }
+.mc-hello h1 { gap: 0.375rem; }
+/* الدارك: الأزرق الممتلئ أغمق عشان النص الأبيض يتقري، والكارت النشط مش أبيض */
+:root[data-theme="dark"] .mc-fav.primary, :root[data-theme="dark"] .btn.primary, :root[data-theme="dark"] .mc-chip.primary { background: var(--mc-active); border-color: transparent; color: #FFFFFF; }
+:root[data-theme="dark"] .mc-fav.primary:hover { background: color-mix(in srgb, var(--tint) 52%, #000000); }
+:root[data-theme="dark"] .mc-card.on { background: var(--nav-active); border-color: var(--border-strong); color: var(--heading); }
+:root[data-theme="dark"] .mc-card.on .mc-card-ic { background: var(--mc-active); border-color: transparent; }
