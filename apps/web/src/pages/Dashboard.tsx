@@ -6,7 +6,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
-import { SECTIONS } from '../components/nav';
+import { GEAR_HUBS, HUBS, SECTIONS, type SectionColor } from '../components/nav';
 import { db } from '../lib/db';
 import { useWorkCounts } from '../lib/alerts';
 import { QUICK_ACTIONS, recordUse } from '../lib/quickActions';
@@ -34,6 +34,7 @@ export function Dashboard() {
   const can = usePerm();
   const { session } = useSession();
   const settings = useSettings();
+  const [editCards, setEditCards] = useState(false);
   const today = todayISO();
   const days = useMemo(() => lastDays(14), []);
 
@@ -71,16 +72,9 @@ export function Dashboard() {
 
   return (
     <div className="page mc-home">
-      <HomeHeader name={session.user.full_name} company={settings.company_name || ''} />
+      <HomeHeader name={session.user.full_name} company={settings.company_name || ''} onCustomize={editCards ? undefined : () => setEditCards(true)} />
 
-      <div className="mc-cards" role="list">
-        {SECTIONS.filter((x) => !x.perms.length || x.perms.some((p) => can(p))).map((x) => (
-          <button key={x.key} type="button" role="listitem" className={`mc-card mc-${x.color} ${x.key === 'home' ? 'on' : ''}`} aria-current={x.key === 'home' ? 'page' : undefined} onClick={() => nav(x.to)}>
-            <span className="mc-card-ic">{x.cardIcon}</span>
-            <span className="mc-card-l">{x.label}</span>
-          </button>
-        ))}
-      </div>
+      <HomeCards editing={editCards} onDone={() => setEditCards(false)} />
 
       <div className="mc-panels">
         <QuickTasks />
@@ -166,7 +160,7 @@ function Bars({ values, labels }: { values: number[]; labels: string[] }) {
 }
 
 /** «مرحبًا بك، الاسم 👋» + سطر الشركة، وكبسولة التاريخ والوقت (تتحدث كل نصف دقيقة) */
-function HomeHeader({ name, company }: { name: string; company: string }) {
+function HomeHeader({ name, company, onCustomize }: { name: string; company: string; onCustomize?: () => void }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 30_000);
@@ -183,10 +177,13 @@ function HomeHeader({ name, company }: { name: string; company: string }) {
         </h1>
         {company && <div className="mc-hello-s">في نظام إدارة الأعمال {company}</div>}
       </div>
-      <div className="mc-when">
-        <span><CalendarDays /> {date}</span>
-        <i aria-hidden="true" />
-        <span className="num"><Clock3 /> {time}</span>
+      <div className="mc-hello-side">
+        {onCustomize && <button type="button" className="mc-chip" onClick={onCustomize} title="اختار الكروت اللي تظهر في الرئيسية"><SlidersHorizontal /> تخصيص الكروت</button>}
+        <div className="mc-when">
+          <span><CalendarDays /> {date}</span>
+          <i aria-hidden="true" />
+          <span className="num"><Clock3 /> {time}</span>
+        </div>
       </div>
     </div>
   );
@@ -238,7 +235,8 @@ const FAV_ICONS: Record<string, ReactNode> = {
 const FAV_LABEL: Record<string, string> = {
   sale_invoice: 'فاتورة بيع جديدة', purchase_invoice: 'فاتورة شراء جديدة', item_new: 'إضافة صنف جديد',
 };
-/** الافتراضي؛ ونكمل للأربعة من الباقي حسب صلاحيات المستخدم */
+/** الافتراضي؛ ونكمل للستة من الباقي حسب صلاحيات المستخدم */
+const MAX_FAVS = 6;
 const FAV_DEFAULT = ['sale_invoice', 'purchase_invoice', 'item_new', 'attendance', 'receipt', 'pos', 'payment', 'expense', 'customer_new'];
 const favKey = (uid: string) => `erp.favorites.v1.${uid}`;
 function readFavs(uid: string): string[] | null {
@@ -250,7 +248,7 @@ function readFavs(uid: string): string[] | null {
   }
 }
 
-/** «اختصاراتي المفضلة»: 4 أزرار، الأول أزرق ممتلئ، و«تخصيص» يحفظ اختيار كل مستخدم على الجهاز */
+/** «اختصاراتي المفضلة»: 6 أزرار، الأول أزرق ممتلئ، و«تخصيص» يحفظ اختيار كل مستخدم على الجهاز */
 function Favorites() {
   const nav = useNavigate();
   const { session } = useSession();
@@ -262,12 +260,12 @@ function Favorites() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
   const pick = (keys: string[]) => keys.map((k) => available.find((a) => a.key === k)).filter((a): a is (typeof available)[number] => !!a);
-  const chosen = (saved ? pick(saved) : pick(FAV_DEFAULT)).slice(0, 4);
+  const chosen = (saved ? pick(saved) : pick(FAV_DEFAULT)).slice(0, MAX_FAVS);
   const startEdit = () => {
     setDraft(chosen.map((a) => a.key));
     setEditing(true);
   };
-  const toggle = (k: string) => setDraft((d) => (d.includes(k) ? d.filter((x) => x !== k) : d.length >= 4 ? d : [...d, k]));
+  const toggle = (k: string) => setDraft((d) => (d.includes(k) ? d.filter((x) => x !== k) : d.length >= MAX_FAVS ? d : [...d, k]));
   const save = () => {
     try {
       localStorage.setItem(favKey(uid), JSON.stringify(draft));
@@ -292,12 +290,12 @@ function Favorites() {
       </div>
       {editing ? (
         <div className="mc-fav-pick">
-          <div className="mc-fav-hint">اختار لحد 4 اختصارات بالترتيب ({draft.length}/4) — الأول بيظهر أزرق.</div>
+          <div className="mc-fav-hint">اختار لحد {MAX_FAVS} اختصارات بالترتيب ({draft.length}/{MAX_FAVS}) — الأول بيظهر أزرق.</div>
           <div className="mc-fav-opts">
             {available.map((a) => {
               const i = draft.indexOf(a.key);
               return (
-                <button key={a.key} type="button" className={`mc-fav-opt ${i >= 0 ? 'on' : ''}`} aria-pressed={i >= 0} onClick={() => toggle(a.key)} disabled={i < 0 && draft.length >= 4}>
+                <button key={a.key} type="button" className={`mc-fav-opt ${i >= 0 ? 'on' : ''}`} aria-pressed={i >= 0} onClick={() => toggle(a.key)} disabled={i < 0 && draft.length >= MAX_FAVS}>
                   {i >= 0 && <b className="num">{i + 1}</b>}
                   <span className="mc-fav-ic">{FAV_ICONS[a.key] ?? a.icon}</span>
                   {FAV_LABEL[a.key] ?? a.label}
@@ -319,5 +317,115 @@ function Favorites() {
         <div className="mc-empty">مفيش اختصارات متاحة لصلاحياتك.</div>
       )}
     </section>
+  );
+}
+
+/** كل الشاشات اللي ينفع تبقى كارت في الرئيسية: الأقسام أولًا، ثم صفحات كل قسم بلونه */
+interface CardOpt { key: string; label: string; icon: ReactNode; color: SectionColor; to: string; perms: string[]; group: string }
+const CARD_OPTIONS: CardOpt[] = (() => {
+  const out: CardOpt[] = SECTIONS.map((s) => ({ key: `sec:${s.key}`, label: s.label, icon: s.cardIcon, color: s.color, to: s.to, perms: s.perms, group: 'الأقسام' }));
+  const seen = new Set(out.map((o) => o.to));
+  const add = (hubKey: string, color: SectionColor, group: string) => {
+    const h = HUBS.find((x) => x.key === hubKey);
+    if (!h) return;
+    if (h.to && !seen.has(h.to)) {
+      seen.add(h.to);
+      out.push({ key: h.to, label: h.label, icon: h.icon, color, to: h.to, perms: h.perm ? [h.perm] : [], group });
+    }
+    for (const g of h.groups) for (const l of g.links) {
+      if (seen.has(l.to)) continue;
+      seen.add(l.to);
+      out.push({ key: l.to, label: l.label, icon: l.icon, color, to: l.to, perms: l.perm ? [l.perm] : [], group });
+    }
+  };
+  for (const s of SECTIONS) for (const hk of s.hubs) add(hk, s.color, s.label);
+  for (const hk of GEAR_HUBS) add(hk, 'indigo', HUBS.find((x) => x.key === hk)?.label ?? '');
+  return out;
+})();
+const MAX_CARDS = 8;
+const CARDS_DEFAULT = SECTIONS.map((s) => `sec:${s.key}`);
+const cardsKey = (uid: string) => `erp.homeCards.v1.${uid}`;
+function readCards(uid: string): string[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(cardsKey(uid)) ?? 'null');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** كروت الرئيسية: افتراضيًا أقسام الشريط، و«تخصيص الكروت» يخلي كل مستخدم يختار لحد 8 شاشات بالترتيب (تتحفظ على الجهاز) */
+function HomeCards({ editing, onDone }: { editing: boolean; onDone: () => void }) {
+  const nav = useNavigate();
+  const { session } = useSession();
+  const uid = session.user.id;
+  const perms = session.user.permissions;
+  const available = useMemo(() => CARD_OPTIONS.filter((o) => !o.perms.length || o.perms.some((p) => hasPermission(perms, p))), [perms]);
+  const [saved, setSaved] = useState<string[] | null>(() => readCards(uid));
+  useEffect(() => setSaved(readCards(uid)), [uid]);
+  const pick = (keys: string[]) => keys.map((k) => available.find((o) => o.key === k)).filter((o): o is CardOpt => !!o);
+  const chosen = (saved ? pick(saved) : pick(CARDS_DEFAULT)).slice(0, MAX_CARDS);
+  const [draft, setDraft] = useState<string[]>([]);
+  useEffect(() => {
+    if (editing) setDraft(chosen.map((o) => o.key));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+  const toggle = (k: string) => setDraft((d) => (d.includes(k) ? d.filter((x) => x !== k) : d.length >= MAX_CARDS ? d : [...d, k]));
+  const save = (keys: string[] | null) => {
+    try {
+      if (keys) localStorage.setItem(cardsKey(uid), JSON.stringify(keys));
+      else localStorage.removeItem(cardsKey(uid));
+    } catch {
+      /* التخزين غير متاح: يُحفظ للجلسة الحالية فقط */
+    }
+    setSaved(keys);
+    onDone();
+  };
+
+  if (editing) {
+    const groups = [...new Set(available.map((o) => o.group))];
+    return (
+      <section className="mc-panel mc-cards-pick" aria-labelledby="mc-cards-t">
+        <div className="mc-panel-h">
+          <h2 id="mc-cards-t"><SlidersHorizontal className="mc-panel-ic" /> تخصيص الكروت</h2>
+          <span className="mc-fav-tools">
+            <button type="button" className="mc-chip" onClick={() => save(null)}><RotateCcw /> الافتراضي</button>
+            <button type="button" className="mc-chip" onClick={onDone}>إلغاء</button>
+            <button type="button" className="mc-chip primary" onClick={() => save(draft)} disabled={!draft.length}><Check /> حفظ</button>
+          </span>
+        </div>
+        <div className="mc-fav-pick">
+          <div className="mc-fav-hint">اختار لحد {MAX_CARDS} كروت بالترتيب ({draft.length}/{MAX_CARDS}). ممكن تحط شاشات بتستخدمها كتير بدل الأقسام اللي موجودة في الشريط فوق.</div>
+          {groups.map((g) => (
+            <div key={g} className="mc-fav-pick">
+              <div className="mc-pick-group">{g}</div>
+              <div className="mc-fav-opts">
+                {available.filter((o) => o.group === g).map((o) => {
+                  const i = draft.indexOf(o.key);
+                  return (
+                    <button key={o.key} type="button" className={`mc-fav-opt mc-${o.color} ${i >= 0 ? 'on' : ''}`} aria-pressed={i >= 0} onClick={() => toggle(o.key)} disabled={i < 0 && draft.length >= MAX_CARDS}>
+                      {i >= 0 && <b className="num">{i + 1}</b>}
+                      <span className="mc-fav-ic" style={{ color: 'var(--c)' }}>{o.icon}</span>
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <div className="mc-cards" role="list">
+      {chosen.map((o) => (
+        <button key={o.key} type="button" role="listitem" className={`mc-card mc-${o.color} ${o.key === 'sec:home' ? 'on' : ''}`} aria-current={o.key === 'sec:home' ? 'page' : undefined} onClick={() => nav(o.to)}>
+          <span className="mc-card-ic">{o.icon}</span>
+          <span className="mc-card-l">{o.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }

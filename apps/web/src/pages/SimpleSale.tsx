@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, mulDiv, parseMoney, todayISO, toBaseQty, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, ChevronDown, ChevronRight, ChevronUp, ChevronsRight, Clock3, CreditCard, FileSpreadsheet, Hash, Info, Minus, Percent, Pin, PinOff, Plus, Printer, Search, Settings2, Share2, Tag, Trash2, UserPlus, Wifi, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, Banknote, Check, ChevronDown, ChevronRight, ChevronUp, ChevronsRight, Clock3, CreditCard, FileSpreadsheet, Hash, Info, Minus, Percent, Pin, PinOff, Plus, Printer, Search, Settings2, Share2, Tag, Trash2, UserPlus, Wifi, WifiOff, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
@@ -420,6 +420,13 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
   useEffect(() => {
     if (sel > lines.length - 1) setSel(Math.max(0, lines.length - 1));
   }, [lines.length, sel]);
+  // أصناف الفاتورة اللي كميتها أكبر من رصيد المخزن المختار (لكل صنف بكل وحداته)
+  const shortLines = useMemo(() => {
+    if (P) return [] as { id: string; name: string; have: number; need: number }[];
+    const need = new Map<string, number>();
+    for (const l of lines) if (!itemMap.get(l.item_id)?.is_service) need.set(l.item_id, (need.get(l.item_id) ?? 0) + toBaseQty(l.qty, l.unit_factor));
+    return [...need].filter(([id, n]) => n > (stock.get(id) ?? 0)).map(([id, n]) => ({ id, name: itemMap.get(id)?.name ?? '', have: stock.get(id) ?? 0, need: n }));
+  }, [P, lines, itemMap, stock]);
   const entryAvail = entryItem ? mulDiv(stock.get(entryItem) ?? 0, 1000, entryUnit?.factor ?? 1000) : null;
 
   const reset = () => {
@@ -476,6 +483,16 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       for (const l of lines) if (!itemMap.get(l.item_id)?.is_service) need.set(l.item_id, (need.get(l.item_id) ?? 0) + toBaseQty(l.qty, l.unit_factor));
       const short = [...need].filter(([id, q]) => q > (stock.get(id) ?? 0)).map(([id]) => `«${itemMap.get(id)?.name}» (المتاح ${formatQty(stock.get(id) ?? 0)})`);
       if (short.length) return setErr(`الرصيد غير كافٍ في المخزن: ${short.join('، ')}. عدّل الكمية أو احذف الصنف، أو أضف رصيدًا بفاتورة شراء أولًا.`);
+    }
+    // البيع بالسالب مسموح في الإعدادات، لكن لازم تأكيد صريح قبل الحفظ
+    if (!P && settings.allow_negative_stock && shortLines.length) {
+      const ok = await ui.confirm({
+        title: 'الكمية أكبر من المتاح',
+        message: `${shortLines.map((s) => `«${s.name}»: المتاح ${formatQty(s.have)} والمطلوب ${formatQty(s.need)}`).join('، ')}. لو كملت، الرصيد هيبقى بالسالب لحد ما توصل بضاعة.`,
+        confirmLabel: 'بيع رغم كده',
+        destructive: true,
+      });
+      if (!ok) return;
     }
     if (P && !partyId) return setErr('اختر المورد');
     if (credit > 0 && isCash) return setErr('الجزء الآجل يُسجل على عميل: اختر العميل (أو أضف عميلًا جديدًا)');
@@ -671,7 +688,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       <div className="si-page-heading">
         <div>
           <h1>{P ? 'فاتورة شراء جديدة' : 'فاتورة بيع جديدة'}</h1>
-          <span>مسودة · تصدر بيانات الفاتورة عند الحفظ</span>
+          <span>{lines.length ? 'مسودة · محفوظة على الجهاز لحد ما تحفظها' : 'مسودة · رقم الفاتورة يصدر عند الحفظ'}</span>
         </div>
         <div className="si-heading-actions">
           <span className={`si-connect ${online ? 'online' : 'offline'}`}><i />{online ? 'متصل' : 'أوفلاين'}</span>
@@ -831,7 +848,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                   return (
                     <tr key={l.id} className={i === sel ? 'sel' : undefined} onClick={() => setSel(i)} onFocusCapture={() => setSel(i)}>
                       <td className="code num c-code">{it?.code}</td>
-                      <td className="bold si-name c-name" title={it?.name}><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span></td>
+                      <td className="bold si-name c-name" title={it?.name}><span className="hc-target" {...costHover(l.item_id, it?.base_unit)}>{it?.name}</span>{it?.is_service && <span className="si-svc">خدمة</span>}</td>
                       <td className="c-unit" data-label="الوحدة">
                         {uopts.length > 1 ? (
                           <select className="select" style={{ height: 36, width: '100%' }} value={l.unit_name} onChange={async (e) => {
@@ -868,6 +885,15 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
               )}
             </table>
           </div>
+          {shortLines.length > 0 && (
+            <div className="si-short" role="status">
+              <AlertTriangle aria-hidden="true" />
+              <span>
+                {shortLines.map((s) => `«${s.name}» المتاح ${formatQty(s.have)}`).join('، ')}.{' '}
+                {settings.allow_negative_stock ? 'هيتطلب منك تأكيد عند الحفظ، والرصيد هيبقى بالسالب.' : 'البيع بالسالب مقفول في الإعدادات: قلّل الكمية أو غيّر المخزن.'}
+              </span>
+            </div>
+          )}
           <div className="si-grid-foot">
             {can('items.create') && <button className="btn plain sm" onClick={() => setNewItem(true)}><Plus /> صنف جديد غير موجود</button>}
             <span className="muted small">اختر سطرًا بالأسهم ↑↓ أو بالضغط عليه، ثم F5 الكمية · F6 السعر · F7 الخصم · F8 حذف. اسحب حافة عنوان أي عمود لتغيير عرضه.</span>
@@ -933,6 +959,25 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
               </Banner>
             )}
 
+            {!P && !isCash && party && (() => {
+              const after = (party.balance ?? 0) + credit;
+              const limit = party.credit_limit ?? 0;
+              const ratio = limit > 0 ? Math.min(100, Math.max(0, Math.round((after * 100) / limit))) : 0;
+              const over = limit > 0 && after > limit;
+              return (
+                <div className={`si-credit ${over ? 'over' : ratio >= 80 ? 'near' : ''}`}>
+                  <div className="row"><span>رصيد العميل بعد الفاتورة</span><b className="num">{formatMoney(after)}{limit > 0 ? <span className="muted"> من {formatMoney(limit)}</span> : null}</b></div>
+                  {limit > 0 ? (
+                    <>
+                      <div className="si-credit-bar" role="meter" aria-label="استخدام الحد الائتماني" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ratio}><i style={{ width: `${ratio}%` }} /></div>
+                      <span className="si-credit-note">{over ? 'هيعدّي الحد الائتماني' : `مستخدم ${ratio}% من الحد الائتماني`}</span>
+                    </>
+                  ) : (
+                    <span className="si-credit-note">بدون حد ائتماني · الرصيد الحالي {formatMoney(party.balance ?? 0)}</span>
+                  )}
+                </div>
+              );
+            })()}
             <div className="si-pay-sum">
               <div className="row"><span>المدفوع</span><b className="num green">{formatMoney(method === 'credit' ? 0 : total - credit)}</b></div>
               <div className="row"><span>{credit > 0 ? (P ? 'المتبقي (آجل للمورد)' : 'المتبقي (آجل على العميل)') : 'المتبقي'}</span><b className={`num ${credit > 0 ? 'orange' : ''}`}>{formatMoney(credit)}</b></div>

@@ -1970,3 +1970,17 @@ kbd { font-weight: 500; }
   .si-main > .si-grid { grid-row: 2; }
   .si-main > .ss-side { grid-row: 3; height: auto; }
 }
+
+/* فاتورة البيع: شارة الخدمة، تنبيه الرصيد، ورصيد العميل مقابل الحد الائتماني */
+.si-svc { display: inline-block; margin-inline-start: 0.5rem; padding: 1px 0.4375rem; border-radius: 0.375rem; font-size: max(11px, 0.6875rem); font-weight: 800; background: var(--purple-soft, #EDE9FE); color: var(--purple-text, #5B21B6); vertical-align: middle; }
+.si-short { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0.5rem 0.75rem 0; padding: 0.625rem 0.875rem; border-radius: 0.75rem; background: var(--orange-soft); color: var(--orange-text); font-size: 0.875rem; font-weight: 600; line-height: 1.5; }
+.si-short svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-top: 0.125rem; }
+.si-credit { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.75rem; border-radius: 0.75rem; background: var(--fill-3); font-size: 0.8125rem; }
+.si-credit .row { display: flex; justify-content: space-between; gap: 0.5rem; color: var(--label); }
+.si-credit .row b { color: var(--heading); }
+.si-credit-bar { height: 0.5rem; border-radius: 0.25rem; background: var(--separator); overflow: hidden; }
+.si-credit-bar i { display: block; height: 100%; border-radius: 0.25rem; background: var(--green); }
+.si-credit.near .si-credit-bar i { background: var(--orange); }
+.si-credit.over .si-credit-bar i { background: var(--red); }
+.si-credit-note { font-size: max(11px, 0.75rem); color: var(--label-2); }
+.si-credit.over .si-credit-note { color: var(--red-text); font-weight: 700; }
