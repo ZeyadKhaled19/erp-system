@@ -1,7 +1,7 @@
 {
   "name": "erp-desktop",
   "productName": "نظام إدارة الأعمال",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "نظام إدارة الأعمال ERP — برنامج ويندوز للتشغيل على جهاز المحل",
   "private": true,
   "main": "main.cjs",
@@ -32,7 +32,8 @@
     "files": [
       "main.cjs",
       "app/**/*",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "asar": false,
     "win": {
@@ -40,9 +41,10 @@
       "icon": "build/icon.png"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "allowElevation": false,
+      "runAfterFinish": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "نظام إدارة الأعمال",

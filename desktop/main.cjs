@@ -11,6 +11,9 @@ const path = require('node:path');
 
 const APP_NAME = 'نظام إدارة الأعمال';
 app.setName(APP_NAME);
+// هوية المتصفح لازم تكون حروف إنجليزي بس: Electron بيحط اسم البرنامج فيها، والاسم العربي كان بيخلي
+// طبقة الشغل من غير نت (Service Worker) ترفض الطلبات، فالشباك ما بيفتحش من تاني مرة.
+app.userAgentFallback = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36 ERP-Desktop/${app.getVersion()}`;
 
 // نسخة واحدة بس من البرنامج (التانية بتفتح الشباك الموجود)
 if (!app.requestSingleInstanceLock()) {
@@ -51,6 +54,17 @@ function writeLog(line) {
     if (fs.existsSync(logFile) && fs.statSync(logFile).size > 5 * 1024 * 1024) fs.renameSync(logFile, logFile + '.old');
     fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${line}\n`);
   } catch { /* السجل مش أساسي */ }
+}
+
+// كل الرسائل بتعدي من هنا. للتجربة الآلية بس: ERP_DESKTOP_AUTOCLICK=1 بيكتب الرسالة في السجل ويختار الزرار الافتراضي
+function showBox(a, b) {
+  const opts = b || a;
+  if (process.env.ERP_DESKTOP_AUTOCLICK === '1') {
+    const choice = opts.defaultId ?? 0;
+    writeLog(`[رسالة] ${opts.message} | ${String(opts.detail || '').replace(/\n+/g, ' / ')} | اختيار: ${(opts.buttons || [])[choice]}`);
+    return Promise.resolve({ response: choice, checkboxChecked: false });
+  }
+  return b ? dialog.showMessageBox(a, b) : dialog.showMessageBox(a);
 }
 
 // ---------- الخادم ----------
@@ -163,7 +177,7 @@ function createWindow() {
 // ask=false: من غير سؤال (مثلًا «حدّث دلوقتي» من رسالة التحديث)
 async function confirmAndQuit({ ask = true } = {}) {
   if (ask) {
-    const { response } = await dialog.showMessageBox(win, {
+    const { response } = await showBox(win, {
       type: 'question',
       title: APP_NAME,
       message: 'قفل البرنامج؟',
@@ -187,18 +201,19 @@ async function confirmAndQuit({ ask = true } = {}) {
       const failed = waitFor('error', 120000).then((m) => { throw new Error(m.message); });
       server.send({ type: 'shutdown' });
       result = await Promise.race([done, failed]);
-      await waitFor('closed', 30000).catch(() => {});
+      // السيرفر بيقفل قاعدة البيانات بعد النسخة؛ لو اتأخر (اتصالات مفتوحة) ما نستناش أكتر من 5 ثواني
+      await waitFor('closed', 5000).catch(() => {});
     } catch (e) {
       error = e;
     }
   }
   const opts = { type: error ? 'warning' : 'info', title: APP_NAME, buttons: ['تمام'], noLink: true };
   if (error) {
-    await dialog.showMessageBox({ ...opts, message: 'ما قدرتش أعمل نسخة احتياطية', detail: `${error.message}\nآخر نسخة تلقائية موجودة في:\n${config.backupDir}` });
+    await showBox({ ...opts, message: 'ما قدرتش أعمل نسخة احتياطية', detail: `${error.message}\nآخر نسخة تلقائية موجودة في:\n${config.backupDir}` });
   } else if (result && result.file) {
-    await dialog.showMessageBox({ ...opts, message: 'تم عمل نسخة احتياطية بآخر البيانات ✓', detail: `${path.basename(result.file)}\n\nفي الفولدر:\n${config.backupDir}${config.backupCopyDir ? `\n\nواتنسخت كمان في:\n${config.backupCopyDir}` : ''}` });
+    await showBox({ ...opts, message: 'تم عمل نسخة احتياطية بآخر البيانات ✓', detail: `${path.basename(result.file)}\n\nفي الفولدر:\n${config.backupDir}${config.backupCopyDir ? `\n\nواتنسخت كمان في:\n${config.backupCopyDir}` : ''}` });
   } else if (result) {
-    await dialog.showMessageBox({ ...opts, message: 'البيانات محفوظة ✓', detail: `مفيش أي تغيير من آخر نسخة احتياطية، فآخر نسخة هي نفس البيانات.\n\nالنسخ في:\n${config.backupDir}` });
+    await showBox({ ...opts, message: 'البيانات محفوظة ✓', detail: `مفيش أي تغيير من آخر نسخة احتياطية، فآخر نسخة هي نفس البيانات.\n\nالنسخ في:\n${config.backupDir}` });
   }
   if (server) server.kill();
   if (updateReady && autoUpdater) {
@@ -231,23 +246,23 @@ function setupUpdates() {
   autoUpdater.logger = { info: (m) => writeLog('update: ' + m), warn: (m) => writeLog('update WARN: ' + m), error: (m) => writeLog('update ERROR: ' + m), debug: () => {} };
   autoUpdater.on('update-available', (info) => {
     writeLog(`نسخة جديدة متاحة: ${info.version} — بتنزل في الخلفية`);
-    if (manualCheck) void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: `فيه نسخة جديدة (${info.version})`, detail: 'بتنزل دلوقتي في الخلفية، وهقولك أول ما تجهز. كمّل شغلك عادي.', buttons: ['تمام'], noLink: true });
+    if (manualCheck) void showBox(win, { type: 'info', title: APP_NAME, message: `فيه نسخة جديدة (${info.version})`, detail: 'بتنزل دلوقتي في الخلفية، وهقولك أول ما تجهز. كمّل شغلك عادي.', buttons: ['تمام'], noLink: true });
     manualCheck = false;
   });
   autoUpdater.on('update-not-available', () => {
-    if (manualCheck) void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: 'البرنامج محدّث ✓', detail: `انت على آخر نسخة (${app.getVersion()}).`, buttons: ['تمام'], noLink: true });
+    if (manualCheck) void showBox(win, { type: 'info', title: APP_NAME, message: 'البرنامج محدّث ✓', detail: `انت على آخر نسخة (${app.getVersion()}).`, buttons: ['تمام'], noLink: true });
     manualCheck = false;
   });
   autoUpdater.on('error', (e) => {
     writeLog('update error: ' + (e && e.message));
-    if (manualCheck) void dialog.showMessageBox(win, { type: 'warning', title: APP_NAME, message: 'ما قدرتش أشوف التحديثات', detail: 'اتأكد إن الجهاز متوصل بالنت وجرّب تاني.', buttons: ['تمام'], noLink: true });
+    if (manualCheck) void showBox(win, { type: 'warning', title: APP_NAME, message: 'ما قدرتش أشوف التحديثات', detail: 'اتأكد إن الجهاز متوصل بالنت وجرّب تاني.', buttons: ['تمام'], noLink: true });
     manualCheck = false;
   });
   autoUpdater.on('update-downloaded', async (info) => {
     updateReady = info.version;
     buildMenu();
     if (quitting || !win || win.isDestroyed()) return;
-    const { response } = await dialog.showMessageBox(win, {
+    const { response } = await showBox(win, {
       type: 'info',
       title: APP_NAME,
       message: `نسخة جديدة جاهزة (${info.version})`,
@@ -266,11 +281,11 @@ function setupUpdates() {
 
 function checkForUpdatesNow() {
   if (!autoUpdater) {
-    void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: 'التحديث التلقائي شغال في النسخة المتسطّبة بس', buttons: ['تمام'], noLink: true });
+    void showBox(win, { type: 'info', title: APP_NAME, message: 'التحديث التلقائي شغال في النسخة المتسطّبة بس', buttons: ['تمام'], noLink: true });
     return;
   }
   if (updateReady) {
-    void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: `التحديث ${updateReady} جاهز`, detail: 'هيتسطب لما تقفل البرنامج.', buttons: ['تمام'], noLink: true });
+    void showBox(win, { type: 'info', title: APP_NAME, message: `التحديث ${updateReady} جاهز`, detail: 'هيتسطب لما تقفل البرنامج.', buttons: ['تمام'], noLink: true });
     return;
   }
   manualCheck = true;
@@ -291,9 +306,9 @@ function buildMenu() {
               const done = waitFor('backup-done', 120000);
               server.send({ type: 'backup', reason: 'manual' });
               const r = await done;
-              await dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: 'تم عمل نسخة احتياطية ✓', detail: r.file ? path.basename(r.file) : '', buttons: ['تمام'], noLink: true });
+              await showBox(win, { type: 'info', title: APP_NAME, message: 'تم عمل نسخة احتياطية ✓', detail: r.file ? path.basename(r.file) : '', buttons: ['تمام'], noLink: true });
             } catch (e) {
-              dialog.showErrorBox(APP_NAME, `ما قدرتش أعمل نسخة: ${e.message}`);
+              void showBox(win, { type: 'error', title: APP_NAME, message: 'ما قدرتش أعمل نسخة احتياطية', detail: e.message, buttons: ['تمام'], noLink: true });
             }
           },
         },
@@ -306,7 +321,7 @@ function buildMenu() {
             if (r.canceled || !r.filePaths[0]) return;
             config = { ...config, backupCopyDir: r.filePaths[0] };
             saveConfig(config);
-            await dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: 'تمام ✓', detail: `كل نسخة هتتنسخ كمان في:\n${r.filePaths[0]}\n\n(بيتطبق من أول مرة تفتح فيها البرنامج تاني)`, buttons: ['تمام'], noLink: true });
+            await showBox(win, { type: 'info', title: APP_NAME, message: 'تمام ✓', detail: `كل نسخة هتتنسخ كمان في:\n${r.filePaths[0]}\n\n(بيتطبق من أول مرة تفتح فيها البرنامج تاني)`, buttons: ['تمام'], noLink: true });
           },
         },
       ],
@@ -330,14 +345,14 @@ function buildMenu() {
         },
         {
           label: 'عن البرنامج',
-          click: () => void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: APP_NAME, detail: `النسخة ${app.getVersion()}`, buttons: ['تمام'], noLink: true }),
+          click: () => void showBox(win, { type: 'info', title: APP_NAME, message: APP_NAME, detail: `النسخة ${app.getVersion()}`, buttons: ['تمام'], noLink: true }),
         },
         { type: 'separator' },
         {
           label: 'عنوان السيستم للأجهزة التانية',
           click: () => {
             const ips = lanAddresses();
-            void dialog.showMessageBox(win, {
+            void showBox(win, {
               type: 'info',
               title: APP_NAME,
               message: 'افتح العنوان ده من أي جهاز على نفس الشبكة:',
@@ -367,12 +382,30 @@ app.whenReady().then(async () => {
   setupUpdates();
   try {
     await waitFor('ready', 120000);
-    serverReady = true;
-    if (win && !win.isDestroyed()) await win.loadURL(`http://localhost:${config.port}/`);
   } catch {
-    if (!quitting) dialog.showErrorBox(APP_NAME, `السيستم أخد وقت طويل يشتغل.\nالسجل: ${logFile}`);
+    // رسالة مش بتوقف البرنامج (showErrorBox كانت بتجمّد كل حاجة لحد ما حد يدوس عليها)
+    if (!quitting) void showBox(win, { type: 'error', title: APP_NAME, message: 'السيستم أخد وقت طويل يشتغل', detail: `جرّب تقفل البرنامج وتفتحه تاني.\nالسجل: ${logFile}`, buttons: ['تمام'], noLink: true });
+    return;
   }
+  serverReady = true;
+  await loadApp();
 });
+
+// فتح السيستم في الشباك؛ لو الصفحة ما فتحتش بنحاول تاني (من غير ما نوقف البرنامج)
+async function loadApp(attempt = 1) {
+  if (!win || win.isDestroyed() || quitting) return;
+  try {
+    await win.loadURL(`http://localhost:${config.port}/`);
+  } catch (e) {
+    writeLog(`فتح الصفحة فشل (محاولة ${attempt}): ${e.message}`);
+    if (attempt === 2) {
+      // آخر حل: نمسح ملفات الواجهة المتخزنة (مش البيانات) ونحاول من الأول
+      try { await win.webContents.session.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] }); } catch { /* مش مهم */ }
+    }
+    if (attempt < 4) setTimeout(() => void loadApp(attempt + 1), 1500);
+    else void showBox(win, { type: 'error', title: APP_NAME, message: 'الصفحة مش راضية تفتح', detail: `السيستم شغال، بس الشباك ما قدرش يفتحه. جرّب «عرض ← تحديث الصفحة» أو اقفل البرنامج وافتحه تاني.\nالسجل: ${logFile}`, buttons: ['تمام'], noLink: true });
+  }
+}
 
 // قفل ويندوز نفسه (Shut down / Sign out): مفيش وقت لرسالة، بس بنحاول ناخد النسخة ونقفل قاعدة البيانات بأمان
 app.on('session-end', () => {

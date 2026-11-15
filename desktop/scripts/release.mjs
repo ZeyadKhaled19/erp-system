@@ -19,7 +19,10 @@ const version = process.argv[2] || pkg.version;
 if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`رقم نسخة غير صالح: ${version} (المفروض زي 1.0.1)`);
 
 const run = (cmd, args, cwd = root) => execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
-const gh = (args) => execFileSync('gh', args, { cwd: desktop, encoding: 'utf8', shell: process.platform === 'win32' }).trim();
+// gh من الـ PATH، أو من مكان تسطيبه العادي على ويندوز (لو الشباك اتفتح قبل ما يتسطب)
+const winGh = 'C:\\Program Files\\GitHub CLI\\gh.exe';
+const GH = process.env.GH_BIN || (process.platform === 'win32' && existsSync(winGh) ? winGh : 'gh');
+const gh = (args) => execFileSync(GH, args, { cwd: desktop, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
 // لازم gh يكون شغال قبل ما نضيع وقت في البناء
 try {

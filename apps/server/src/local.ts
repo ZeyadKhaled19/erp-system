@@ -61,7 +61,8 @@ export async function startLocalServer(o: LocalServerOptions): Promise<LocalServ
       if (closed) return;
       closed = true;
       backups?.stop();
-      await app.close();
+      // الخادم بيستنى الاتصالات المفتوحة (زي شباك البرنامج) تخلص؛ ما نستناش أكتر من ثانيتين، وبعدين نقفل قاعدة البيانات بأمان
+      await Promise.race([app.close(), new Promise((r) => setTimeout(r, 2000))]);
       await db.close();
     },
   };
