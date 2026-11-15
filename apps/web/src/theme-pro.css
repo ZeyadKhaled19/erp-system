@@ -1818,3 +1818,5 @@ kbd { font-weight: 500; }
 /* لوجو الشركة وصفحة الدخول (هوية العميل من الإعدادات) */
 .login-logo { display: block; margin: 0 auto; max-width: 9rem; max-height: 4.5rem; object-fit: contain; }
 .login-company { font-size: 0.9375rem; font-weight: 700; color: var(--label-2); margin-bottom: 2px; }
+.login-remember { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--label-2); cursor: pointer; user-select: none; margin-top: -0.25rem; }
+.login-remember input { width: 1.0625rem; height: 1.0625rem; accent-color: var(--tint); cursor: pointer; margin: 0; }

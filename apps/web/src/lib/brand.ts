@@ -10,8 +10,8 @@ export interface Brand {
   logo: string | null;
 }
 
-export const DEFAULT_SYSTEM_NAME = 'نظام إدارة الأعمال ERP';
-const DEFAULT_TITLE = 'الحسابات';
+export const DEFAULT_SYSTEM_NAME = 'Eco System';
+const DEFAULT_TITLE = 'Eco System';
 const KEY = 'erp.brand.v1';
 export const TITLE_SEP = ' — ';
 

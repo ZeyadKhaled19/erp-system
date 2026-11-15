@@ -1,8 +1,8 @@
 {
   "name": "erp-desktop",
-  "productName": "نظام إدارة الأعمال",
-  "version": "1.0.1",
-  "description": "نظام إدارة الأعمال ERP — برنامج ويندوز للتشغيل على جهاز المحل",
+  "productName": "Eco System",
+  "version": "1.0.2",
+  "description": "Eco System — برنامج ويندوز لإدارة الأعمال على جهاز المحل",
   "private": true,
   "main": "main.cjs",
   "author": "ERP",
@@ -23,7 +23,7 @@
   },
   "build": {
     "appId": "com.erp.desktop",
-    "productName": "نظام إدارة الأعمال",
+    "productName": "Eco System",
     "executableName": "ERP",
     "directories": {
       "output": "release",
@@ -47,7 +47,7 @@
       "runAfterFinish": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "نظام إدارة الأعمال",
+      "shortcutName": "Eco System",
       "artifactName": "ERP-Setup-${version}.exe"
     },
     "publish": [

@@ -9,8 +9,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const APP_NAME = 'نظام إدارة الأعمال';
+const APP_NAME = 'Eco System';
+// فولدر البيانات كان باسم البرنامج القديم: لو موجود بنفضل نستخدمه علشان البيانات ما تختفيش بعد التحديث
+const LEGACY_NAME = 'نظام إدارة الأعمال';
+const legacyUserData = path.join(app.getPath('appData'), LEGACY_NAME);
 app.setName(APP_NAME);
+if (!process.env.ERP_DESKTOP_DIR && fs.existsSync(path.join(legacyUserData, 'config.json'))) app.setPath('userData', legacyUserData);
 // هوية المتصفح لازم تكون حروف إنجليزي بس: Electron بيحط اسم البرنامج فيها، والاسم العربي كان بيخلي
 // طبقة الشغل من غير نت (Service Worker) ترفض الطلبات، فالشباك ما بيفتحش من تاني مرة.
 app.userAgentFallback = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36 ERP-Desktop/${app.getVersion()}`;
@@ -90,7 +94,12 @@ function startServer() {
   server.stderr.on('data', (d) => writeLog('ERR ' + String(d).trim()));
   server.on('message', (m) => {
     if (!m || typeof m !== 'object') return;
-    if (m.type === 'log') writeLog(m.message);
+    if (m.type === 'log') {
+      writeLog(m.message);
+      if (/قبل التحديث/.test(m.message)) setSplashStatus('بياخد نسخة احتياطية قبل تحديث قاعدة البيانات…');
+      else if (/تم تطبيق/.test(m.message)) setSplashStatus('بيحدّث قاعدة البيانات…');
+      else if (/الخادم يعمل/.test(m.message)) setSplashStatus('بيفتح السيستم…');
+    }
     if (m.type === 'error') writeLog('ERROR ' + m.message);
     const list = waiters.get(m.type);
     if (list && list.length) { waiters.set(m.type, []); list.forEach((fn) => fn(m)); }
@@ -136,9 +145,10 @@ let quitting = false;
 
 const page = (title, body) =>
   'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
-<style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#15171C;color:#F3F4F6;font:16px "Segoe UI",Tahoma,sans-serif}
-.b{text-align:center}.s{width:42px;height:42px;border:4px solid #3A3D45;border-top-color:#3B82F6;border-radius:50%;margin:0 auto 18px;animation:r 1s linear infinite}
-@keyframes r{to{transform:rotate(360deg)}}small{display:block;margin-top:8px;color:#9CA3AF}</style></head><body><div class="b"><div class="s"></div>${body}</div></body></html>`);
+<style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#1E293B 0%,#0F1115 60%);color:#E5E7EB;font:16px "Segoe UI",Tahoma,sans-serif}
+.b{text-align:center}.n{direction:ltr;font-size:26px;font-weight:800;letter-spacing:1px;margin-bottom:22px;background:linear-gradient(90deg,#60A5FA,#34D399,#A78BFA,#60A5FA);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 4s linear infinite}
+.s{width:40px;height:40px;border:4px solid #ffffff1a;border-top-color:#3B82F6;border-radius:50%;margin:0 auto 18px;animation:r 1s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}@keyframes sh{to{background-position:300% 0}}small{display:block;margin-top:8px;color:#9CA3AF}</style></head><body><div class="b"><div class="n">${APP_NAME}</div><div class="s"></div>${body}</div></body></html>`);
 
 function lanAddresses() {
   const out = [];
@@ -148,6 +158,84 @@ function lanAddresses() {
   return out;
 }
 
+// ---------- شاشة البداية المتحركة ----------
+// شباك صغير من غير إطار بيظهر فورًا لحد ما السيستم يفتح، وبعدين الشباك الأساسي يظهر مكانه
+let splash = null;
+let splashShownAt = 0;
+const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+function splashHtml() {
+  let logo = config.brand && typeof config.brand.logo === 'string' && config.brand.logo.startsWith('data:image/') ? config.brand.logo : '';
+  if (!logo) {
+    try { logo = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'build', 'icon.png')).toString('base64'); } catch { /* من غير لوجو */ }
+  }
+  const company = config.brand && config.brand.company_name ? esc(config.brand.company_name) : '';
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${APP_NAME}</title>
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;-webkit-user-select:none;user-select:none;cursor:default}
+body{display:grid;place-items:center;font-family:"Segoe UI",Tahoma,sans-serif;color:#E5E7EB;
+  background:radial-gradient(120% 90% at 50% 0%,#1E293B 0%,#0F1115 60%);-webkit-app-region:drag}
+.wrap{text-align:center;width:100%;padding:0 40px}
+.logo{position:relative;width:96px;height:96px;margin:0 auto 22px}
+.logo img{position:relative;z-index:2;width:96px;height:96px;object-fit:contain;border-radius:22px;background:#fff1;animation:pop .7s cubic-bezier(.2,.9,.3,1.3) both}
+.logo i{position:absolute;inset:-10px;border-radius:30px;border:2px solid #3B82F6;opacity:0;animation:ring 2.2s ease-out infinite}
+.logo i+i{animation-delay:1.1s}
+h1{margin:0;font-size:34px;font-weight:800;letter-spacing:1px;direction:ltr;
+  background:linear-gradient(90deg,#60A5FA,#34D399,#A78BFA,#60A5FA);background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 4s linear infinite, up .6s .15s ease-out both}
+.co{margin-top:6px;font-size:14px;color:#9CA3AF;animation:up .6s .25s ease-out both}
+.bar{position:relative;height:4px;margin:28px auto 12px;max-width:260px;border-radius:99px;background:#ffffff14;overflow:hidden}
+.bar b{position:absolute;inset:0 auto 0 0;width:40%;border-radius:99px;background:linear-gradient(90deg,#3B82F6,#34D399);animation:slide 1.3s ease-in-out infinite}
+#st{font-size:13px;color:#CBD5E1;min-height:18px;transition:opacity .25s}
+.v{position:fixed;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:#6B7280;direction:ltr}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes ring{0%{transform:scale(.85);opacity:.7}100%{transform:scale(1.35);opacity:0}}
+@keyframes shine{to{background-position:300% 0}}
+@keyframes up{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+@keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body><div class="wrap">
+<div class="logo">${logo ? `<i></i><i></i><img src="${logo}" alt="">` : ''}</div>
+<h1>${esc((config.brand && config.brand.system_name) || APP_NAME)}</h1>${company ? `<div class="co">${company}</div>` : ''}
+<div class="bar"><b></b></div><div id="st">بيجهّز البرنامج…</div></div>
+<div class="v">v${app.getVersion()}</div>
+<script>window.setStatus=function(t){var e=document.getElementById('st');e.style.opacity=0;setTimeout(function(){e.textContent=t;e.style.opacity=1},180)}</script>
+</body></html>`);
+}
+
+function showSplash() {
+  splash = new BrowserWindow({
+    width: 480,
+    height: 320,
+    frame: false,
+    resizable: false,
+    movable: true,
+    center: true,
+    show: false,
+    skipTaskbar: false,
+    title: APP_NAME,
+    backgroundColor: '#0F1115',
+    icon: path.join(__dirname, 'build', 'icon.png'),
+    webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false },
+  });
+  splash.once('ready-to-show', () => { splashShownAt = Date.now(); splash && splash.show(); });
+  splash.on('closed', () => { splash = null; });
+  void splash.loadURL(splashHtml());
+}
+
+function setSplashStatus(text) {
+  if (splash && !splash.isDestroyed()) splash.webContents.executeJavaScript(`window.setStatus && window.setStatus(${JSON.stringify(text)})`).catch(() => {});
+}
+
+/** الشباك الأساسي يظهر والشاشة المتحركة تختفي (بعد ثانية ونص على الأقل علشان ما تومضش) */
+function revealMain() {
+  const wait = Math.max(0, 1500 - (Date.now() - splashShownAt));
+  setTimeout(() => {
+    if (win && !win.isDestroyed() && !win.isVisible()) { win.maximize(); win.show(); win.focus(); }
+    if (splash && !splash.isDestroyed()) splash.close();
+  }, wait);
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1366,
@@ -155,13 +243,12 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 640,
     title: APP_NAME,
+    show: false,
     backgroundColor: '#15171C',
     autoHideMenuBar: false,
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false },
   });
-  win.maximize();
-  win.loadURL(page(APP_NAME, `جاري تشغيل السيستم…<small>${APP_NAME}</small>`));
   // روابط بره السيستم تفتح في المتصفح العادي
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith(`http://localhost:${config.port}`)) { void shell.openExternal(url); return { action: 'deny' }; }
@@ -377,25 +464,39 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   buildMenu();
+  showSplash();
   createWindow();
   startServer();
   setupUpdates();
+  setSplashStatus('بيشغّل قاعدة البيانات…');
   try {
     await waitFor('ready', 120000);
   } catch {
+    revealMain();
     // رسالة مش بتوقف البرنامج (showErrorBox كانت بتجمّد كل حاجة لحد ما حد يدوس عليها)
     if (!quitting) void showBox(win, { type: 'error', title: APP_NAME, message: 'السيستم أخد وقت طويل يشتغل', detail: `جرّب تقفل البرنامج وتفتحه تاني.\nالسجل: ${logFile}`, buttons: ['تمام'], noLink: true });
     return;
   }
   serverReady = true;
+  void rememberBrand();
   await loadApp();
 });
+
+// اسم ولوجو الشركة بيتحفظوا علشان الشاشة المتحركة تعرضهم من أول ثانية المرة الجاية
+async function rememberBrand() {
+  try {
+    const b = await (await fetch(`http://localhost:${config.port}/api/brand`)).json();
+    const brand = { company_name: b.company_name || '', system_name: b.system_name || '', logo: typeof b.logo === 'string' && b.logo.length < 400000 ? b.logo : null };
+    if (JSON.stringify(brand) !== JSON.stringify(config.brand || null)) { config = { ...config, brand }; saveConfig(config); }
+  } catch { /* مش مهم */ }
+}
 
 // فتح السيستم في الشباك؛ لو الصفحة ما فتحتش بنحاول تاني (من غير ما نوقف البرنامج)
 async function loadApp(attempt = 1) {
   if (!win || win.isDestroyed() || quitting) return;
   try {
     await win.loadURL(`http://localhost:${config.port}/`);
+    revealMain();
   } catch (e) {
     writeLog(`فتح الصفحة فشل (محاولة ${attempt}): ${e.message}`);
     if (attempt === 2) {
@@ -403,7 +504,7 @@ async function loadApp(attempt = 1) {
       try { await win.webContents.session.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] }); } catch { /* مش مهم */ }
     }
     if (attempt < 4) setTimeout(() => void loadApp(attempt + 1), 1500);
-    else void showBox(win, { type: 'error', title: APP_NAME, message: 'الصفحة مش راضية تفتح', detail: `السيستم شغال، بس الشباك ما قدرش يفتحه. جرّب «عرض ← تحديث الصفحة» أو اقفل البرنامج وافتحه تاني.\nالسجل: ${logFile}`, buttons: ['تمام'], noLink: true });
+    else if (revealMain() === undefined) void showBox(win, { type: 'error', title: APP_NAME, message: 'الصفحة مش راضية تفتح', detail: `السيستم شغال، بس الشباك ما قدرش يفتحه. جرّب «عرض ← تحديث الصفحة» أو اقفل البرنامج وافتحه تاني.\nالسجل: ${logFile}`, buttons: ['تمام'], noLink: true });
   }
 }
 

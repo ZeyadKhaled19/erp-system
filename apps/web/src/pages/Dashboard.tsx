@@ -13,7 +13,7 @@ import { db } from '../lib/db';
 import { useWorkCounts } from '../lib/alerts';
 import { QUICK_ACTIONS, recordUse } from '../lib/quickActions';
 import { usePerm, useSession, useSettings } from '../lib/hooks';
-import { setDocTitle } from '../lib/brand';
+import { setDocTitle, systemName } from '../lib/brand';
 
 export function Dashboard() {
   useEffect(() => {
@@ -35,7 +35,7 @@ export function Dashboard() {
 
   return (
     <div className="page mc-home">
-      <HomeHeader name={session.user.full_name} company={settings.company_name || ''} onCustomize={editCards ? undefined : () => setEditCards(true)} />
+      <HomeHeader name={session.user.full_name} company={settings.company_name || ''} system={systemName({ system_name: settings.system_name ?? '' })} onCustomize={editCards ? undefined : () => setEditCards(true)} />
 
       <HomeCards editing={editCards} onDone={() => setEditCards(false)} />
 
@@ -71,7 +71,7 @@ export function Dashboard() {
 }
 
 /** «مرحبًا بك، الاسم 👋» + سطر الشركة، وكبسولة التاريخ والوقت (تتحدث كل نصف دقيقة) */
-function HomeHeader({ name, company, onCustomize }: { name: string; company: string; onCustomize?: () => void }) {
+function HomeHeader({ name, company, system, onCustomize }: { name: string; company: string; system: string; onCustomize?: () => void }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 30_000);
@@ -86,7 +86,7 @@ function HomeHeader({ name, company, onCustomize }: { name: string; company: str
           <span className="mc-wave" aria-hidden="true">👋</span>
           مرحبًا بك، <span className="mc-hello-n">{name.trim()}</span>
         </h1>
-        {company && <div className="mc-hello-s">في نظام إدارة الأعمال {company}</div>}
+        <div className="mc-hello-s">{company ? <>{company} · <bdi>{system}</bdi></> : <bdi>{system}</bdi>}</div>
       </div>
       <div className="mc-hello-side">
         {onCustomize && <button type="button" className="mc-chip" onClick={onCustomize} title="اختار الكروت اللي تظهر في الرئيسية"><SlidersHorizontal /> تخصيص الكروت</button>}

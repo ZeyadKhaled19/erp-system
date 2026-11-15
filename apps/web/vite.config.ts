@@ -3,8 +3,8 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // اسم التطبيق لما يتثبت على الجهاز: يتغير لكل عميل من متغيرات Vercel (APP_NAME و APP_SHORT_NAME) من غير تعديل في الكود
-const APP_NAME = process.env.APP_NAME || 'نظام الحسابات والمخازن';
-const APP_SHORT_NAME = process.env.APP_SHORT_NAME || process.env.APP_NAME || 'الحسابات';
+const APP_NAME = process.env.APP_NAME || 'Eco System';
+const APP_SHORT_NAME = process.env.APP_SHORT_NAME || process.env.APP_NAME || 'Eco System';
 
 export default defineConfig({
   plugins: [
