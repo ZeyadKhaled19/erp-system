@@ -160,18 +160,23 @@ function createWindow() {
   });
 }
 
-async function confirmAndQuit() {
-  const { response } = await dialog.showMessageBox(win, {
-    type: 'question',
-    title: APP_NAME,
-    message: 'قفل البرنامج؟',
-    detail: 'هيتعمل نسخة احتياطية بآخر البيانات قبل القفل.\nالأجهزة التانية على الشبكة مش هتقدر تتصل لحد ما تفتح البرنامج تاني (وشغلها بيتحفظ عندها لحد ما ترجع).',
-    buttons: ['نسخ احتياطي وقفل', 'إلغاء'],
-    defaultId: 0,
-    cancelId: 1,
-    noLink: true,
-  });
-  if (response !== 0) return;
+// ask=false: من غير سؤال (مثلًا «حدّث دلوقتي» من رسالة التحديث)
+async function confirmAndQuit({ ask = true } = {}) {
+  if (ask) {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'question',
+      title: APP_NAME,
+      message: 'قفل البرنامج؟',
+      detail: 'هيتعمل نسخة احتياطية بآخر البيانات قبل القفل.' +
+        (updateReady ? `\nوهيتسطب التحديث الجديد (نسخة ${updateReady}) — البيانات مش هتتلمس.` : '') +
+        '\nالأجهزة التانية على الشبكة مش هتقدر تتصل لحد ما تفتح البرنامج تاني (وشغلها بيتحفظ عندها لحد ما ترجع).',
+      buttons: [updateReady ? 'نسخ احتياطي وتحديث وقفل' : 'نسخ احتياطي وقفل', 'إلغاء'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (response !== 0) return;
+  }
   quitting = true;
   if (win && !win.isDestroyed()) win.loadURL(page('نسخ احتياطي', 'جاري عمل نسخة احتياطية بآخر البيانات…<small>ما تقفلش الجهاز</small>'));
   let result = null;
@@ -196,7 +201,80 @@ async function confirmAndQuit() {
     await dialog.showMessageBox({ ...opts, message: 'البيانات محفوظة ✓', detail: `مفيش أي تغيير من آخر نسخة احتياطية، فآخر نسخة هي نفس البيانات.\n\nالنسخ في:\n${config.backupDir}` });
   }
   if (server) server.kill();
+  if (updateReady && autoUpdater) {
+    // التحديث بيتسطب في الخلفية والبرنامج بيفتح تاني لوحده بالنسخة الجديدة
+    writeLog(`تسطيب التحديث ${updateReady}`);
+    autoUpdater.quitAndInstall(true, true);
+    setTimeout(() => app.exit(0), 5000);
+    return;
+  }
   app.exit(0);
+}
+
+// ---------- التحديث التلقائي ----------
+// البرنامج بيشوف كل ما يفتح (وكل 4 ساعات) لو فيه نسخة جديدة على GitHub Releases، ينزّلها في الخلفية،
+// ويسأل: يحدّث دلوقتي (بعد نسخة احتياطية) ولا لما يتقفل. بيانات العميل في فولدر لوحده فما بتتلمسش.
+let autoUpdater = null;
+let updateReady = null; // رقم النسخة الجديدة لما تكون نزلت وجاهزة
+let manualCheck = false;
+
+function setupUpdates() {
+  if (!app.isPackaged || process.env.ERP_DESKTOP_NO_UPDATES === '1') return;
+  try {
+    autoUpdater = require('electron-updater').autoUpdater;
+  } catch (e) {
+    writeLog('التحديث التلقائي مش متاح: ' + e.message);
+    return;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = false; // التسطيب بيحصل من confirmAndQuit بعد النسخة الاحتياطية
+  autoUpdater.logger = { info: (m) => writeLog('update: ' + m), warn: (m) => writeLog('update WARN: ' + m), error: (m) => writeLog('update ERROR: ' + m), debug: () => {} };
+  autoUpdater.on('update-available', (info) => {
+    writeLog(`نسخة جديدة متاحة: ${info.version} — بتنزل في الخلفية`);
+    if (manualCheck) void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: `فيه نسخة جديدة (${info.version})`, detail: 'بتنزل دلوقتي في الخلفية، وهقولك أول ما تجهز. كمّل شغلك عادي.', buttons: ['تمام'], noLink: true });
+    manualCheck = false;
+  });
+  autoUpdater.on('update-not-available', () => {
+    if (manualCheck) void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: 'البرنامج محدّث ✓', detail: `انت على آخر نسخة (${app.getVersion()}).`, buttons: ['تمام'], noLink: true });
+    manualCheck = false;
+  });
+  autoUpdater.on('error', (e) => {
+    writeLog('update error: ' + (e && e.message));
+    if (manualCheck) void dialog.showMessageBox(win, { type: 'warning', title: APP_NAME, message: 'ما قدرتش أشوف التحديثات', detail: 'اتأكد إن الجهاز متوصل بالنت وجرّب تاني.', buttons: ['تمام'], noLink: true });
+    manualCheck = false;
+  });
+  autoUpdater.on('update-downloaded', async (info) => {
+    updateReady = info.version;
+    buildMenu();
+    if (quitting || !win || win.isDestroyed()) return;
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'info',
+      title: APP_NAME,
+      message: `نسخة جديدة جاهزة (${info.version})`,
+      detail: 'تحب تحدّث دلوقتي؟ هيتعمل نسخة احتياطية الأول، وبعدين البرنامج يقفل ويفتح تاني بالنسخة الجديدة (حوالي دقيقة).\nأو كمّل شغلك، والتحديث هيتسطب لوحده لما تقفل البرنامج.',
+      buttons: ['حدّث دلوقتي', 'لما أقفل البرنامج'],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (response === 0) void confirmAndQuit({ ask: false });
+  });
+  const check = () => autoUpdater.checkForUpdates().catch((e) => writeLog('update check failed: ' + e.message));
+  setTimeout(check, 15000);
+  setInterval(check, 4 * 3600 * 1000).unref?.();
+}
+
+function checkForUpdatesNow() {
+  if (!autoUpdater) {
+    void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: 'التحديث التلقائي شغال في النسخة المتسطّبة بس', buttons: ['تمام'], noLink: true });
+    return;
+  }
+  if (updateReady) {
+    void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: `التحديث ${updateReady} جاهز`, detail: 'هيتسطب لما تقفل البرنامج.', buttons: ['تمام'], noLink: true });
+    return;
+  }
+  manualCheck = true;
+  autoUpdater.checkForUpdates().catch(() => {});
 }
 
 // ---------- القايمة ----------
@@ -247,6 +325,15 @@ function buildMenu() {
       label: 'مساعدة',
       submenu: [
         {
+          label: updateReady ? `التحديث ${updateReady} جاهز — هيتسطب لما تقفل` : 'البحث عن تحديثات',
+          click: () => checkForUpdatesNow(),
+        },
+        {
+          label: 'عن البرنامج',
+          click: () => void dialog.showMessageBox(win, { type: 'info', title: APP_NAME, message: APP_NAME, detail: `النسخة ${app.getVersion()}`, buttons: ['تمام'], noLink: true }),
+        },
+        { type: 'separator' },
+        {
           label: 'عنوان السيستم للأجهزة التانية',
           click: () => {
             const ips = lanAddresses();
@@ -277,6 +364,7 @@ app.whenReady().then(async () => {
   buildMenu();
   createWindow();
   startServer();
+  setupUpdates();
   try {
     await waitFor('ready', 120000);
     serverReady = true;
