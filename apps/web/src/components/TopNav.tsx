@@ -1,8 +1,9 @@
-import { ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, FileWarning } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, FileWarning, Laptop } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWorkCounts } from '../lib/alerts';
+import { isDesktop } from '../lib/desktop';
 import { GEAR_HUBS, HUBS, SECTIONS, activeHubKey, activeSectionKey, type NavLink, type Section } from './nav';
 
 type Can = (p: string) => boolean;
@@ -152,6 +153,8 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
     // قسم من غير مجموعات (زي الشركاء) بيظهر كرابط واحد لصفحته، ومعاه روابطه الإضافية لو ليه
     .map((h) => ({ title: h.label, links: linksOf(can, h.groups.length ? h.groups.flatMap((g) => g.links) : [{ to: h.to!, label: h.label, icon: h.icon, grad: '', perm: h.perm }, ...(GEAR_EXTRA[h.key] ?? [])]) }))
     .filter((g) => g.links.length);
+  // جوه برنامج الويندوز بس: «برنامج الويندوز» (التحديثات والنسخ الاحتياطي) أول رابط في الإعدادات
+  if (isDesktop() && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [{ to: '/desktop', label: 'برنامج الويندوز', icon: <Laptop />, grad: '' }, ...gearGroups[0].links] };
   const gearActive = GEAR_HUBS.includes(activeHubKey(loc.pathname));
   const alerts: { n: number; label: string; to: string; icon: ReactNode; tone: string }[] = [
     { n: w.review, label: 'عمليات تحتاج مراجعة', to: '/sync', icon: <ShieldAlert />, tone: 'red' },

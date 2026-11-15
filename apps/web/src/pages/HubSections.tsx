@@ -2,7 +2,7 @@ import { DOC_TYPES, formatMoney, formatQty, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, BarChart3, BookOpen, Boxes, CalendarClock, CheckCircle2, ClipboardCheck, CloudOff, FileClock, FileText, Package, PackageX, RefreshCw, Settings,
-  ShoppingBag, ShoppingCart, Truck, UserCircle, Users, Wallet,
+  Laptop, ShoppingBag, ShoppingCart, Truck, UserCircle, Users, Wallet,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,7 @@ import { FollowUpPanel, LinkGrid, QuickActions, ResponsiveSectionLayout, Section
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useSession, useSyncCounts, useSyncState } from '../lib/hooks';
+import { isDesktop } from '../lib/desktop';
 
 /** روابط مجموعة من أقسام الشريط (للمتابعة)، مفلترة بالصلاحيات */
 function useHubLinks(hubKey: string, titles: string[]) {
@@ -335,11 +336,13 @@ export function SettingsSection() {
     { key: 'me', label: 'المستخدم الحالي', value: session.user.full_name || session.user.username || '—', sub: session.user.username, icon: <UserCircle />, color: 'purple' },
   ];
   const system = useHubLinks('system', ['النظام']);
+  // جوه برنامج الويندوز بس: صفحة التحديثات والنسخ الاحتياطي
+  const desktopLink: SectionLink[] = isDesktop() ? [{ key: '/desktop', label: 'برنامج الويندوز', desc: 'التحديثات والنسخ الاحتياطي والأجهزة التانية', icon: <Laptop />, to: '/desktop', color: 'blue' }] : [];
   return (
     <div className="page sx-page">
       <SectionHeader icon={<Settings />} color="slate" title="الإعدادات" sub="بيانات الشركة والمستخدمين والمزامنة والنسخ الاحتياطي" />
       <SectionStats items={stats} />
-      <ResponsiveSectionLayout main={<SectionCard icon={<Settings />} title="إعدادات النظام"><LinkGrid items={toLinks(system)} /></SectionCard>} />
+      <ResponsiveSectionLayout main={<SectionCard icon={<Settings />} title="إعدادات النظام"><LinkGrid items={[...desktopLink, ...toLinks(system)]} /></SectionCard>} />
     </div>
   );
 }

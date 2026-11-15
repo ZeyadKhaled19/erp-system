@@ -249,8 +249,11 @@ function createWindow() {
     backgroundColor: '#15171C',
     autoHideMenuBar: false,
     icon: path.join(__dirname, 'build', 'icon.png'),
-    webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false, preload: path.join(__dirname, 'preload.cjs') },
   });
+  setupShortcuts(win);
+  // الواجهة بتتحمّل من جديد (تحديث صفحة): نستنى تقول إنها جاهزة تاني
+  win.webContents.on('did-navigate', (_e, url) => { writeLog('did-navigate ' + url); rendererReady = false; cancelAsks(); });
   // روابط بره السيستم تفتح في المتصفح العادي
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith(`http://localhost:${config.port}`)) { void shell.openExternal(url); return { action: 'deny' }; }
@@ -263,25 +266,146 @@ function createWindow() {
   });
 }
 
-// ask=false: من غير سؤال (مثلًا «حدّث دلوقتي» من رسالة التحديث)
+// ---------- الجسر مع الواجهة ----------
+// لما الواجهة تكون فاتحة جوه الشباك، رسايل التحديث وتأكيد القفل وحالة النسخة بتظهر جوه السيستم نفسه
+// (بنفس شكله) بدل رسايل ويندوز. لو الواجهة مش جاهزة (أو في التجربة الآلية) بنرجع لرسايل ويندوز.
+let rendererReady = false;
+let askSeq = 0;
+const pendingAsks = new Map();
+const useRenderer = () => rendererReady && win && !win.isDestroyed();
+const toRenderer = (m) => { if (win && !win.isDestroyed()) win.webContents.send('eco:event', m); };
+
+/**
+ * سؤال للواجهة وانتظار الرد. لو الواجهة ما أكدتش إن الرسالة ظهرت خلال 3 ثواني (أو الصفحة اتحمّلت من جديد)
+ * بيرجع undefined، فبنعرض رسالة ويندوز بدالها. بعد التأكيد بنستنى رد المستخدم براحته (لحد `ms`).
+ */
+function askRenderer(type, payload, ms) {
+  return new Promise((resolve) => {
+    const id = ++askSeq;
+    let timer = setTimeout(() => finish(undefined), 3000);
+    const finish = (v) => { clearTimeout(timer); pendingAsks.delete(id); resolve(v); };
+    pendingAsks.set(id, { finish, ack: () => { clearTimeout(timer); timer = setTimeout(() => finish(undefined), ms); } });
+    toRenderer({ type, id, ...payload });
+  });
+}
+const cancelAsks = () => { for (const p of [...pendingAsks.values()]) p.finish(undefined); };
+
+/** الطلب جاي من شباك السيستم نفسه (مش من أي حاجة تانية) */
+function fromApp(e) {
+  try {
+    return !!win && e.sender === win.webContents && new URL(e.senderFrame.url).origin === `http://localhost:${config.port}`;
+  } catch {
+    return false;
+  }
+}
+
+function listLastBackup() {
+  try {
+    const files = fs.readdirSync(config.backupDir).filter((f) => /^erp-backup-.*\.json$/.test(f)).sort().reverse();
+    if (!files.length) return null;
+    return { file: files[0], at: fs.statSync(path.join(config.backupDir, files[0])).mtime.toISOString() };
+  } catch {
+    return null;
+  }
+}
+
+async function serverBackup(reason) {
+  if (!server || !serverReady) throw new Error('السيستم لسه بيشتغل');
+  const done = waitFor('backup-done', 120000);
+  const failed = waitFor('error', 120000).then((m) => { throw new Error(m.message); });
+  server.send({ type: 'backup', reason });
+  return Promise.race([done, failed]);
+}
+
+function setupBridge() {
+  ipcMain.on('eco:ready', (e) => {
+    if (!fromApp(e)) return;
+    rendererReady = true;
+    writeLog('الواجهة جاهزة (رسايل البرنامج هتظهر جوه السيستم)');
+    toRenderer({ type: 'update', ...updateState });
+  });
+  ipcMain.on('eco:ack', (e, m) => {
+    if (!fromApp(e) || !m) return;
+    const p = pendingAsks.get(m.id);
+    if (p) p.ack();
+  });
+  ipcMain.on('eco:reply', (e, m) => {
+    if (!fromApp(e) || !m) return;
+    const p = pendingAsks.get(m.id);
+    if (p) p.finish(m.value);
+  });
+  const handle = (name, fn) => ipcMain.handle(name, (e, ...args) => {
+    if (!fromApp(e)) throw new Error('غير مسموح');
+    return fn(...args);
+  });
+  handle('eco:info', () => ({
+    version: app.getVersion(),
+    port: config.port,
+    lan: lanAddresses().map((ip) => `http://${ip}:${config.port}`),
+    backupDir: config.backupDir,
+    backupCopyDir: config.backupCopyDir || '',
+    dataDir: userData,
+    lastBackup: listLastBackup(),
+    update: updateState,
+    packaged: app.isPackaged,
+  }));
+  handle('eco:backup', async () => {
+    const r = await serverBackup('manual');
+    return { file: r.file ? path.basename(r.file) : null, skipped: !!r.skipped, backupDir: config.backupDir };
+  });
+  handle('eco:open-backups', () => { fs.mkdirSync(config.backupDir, { recursive: true }); return shell.openPath(config.backupDir); });
+  handle('eco:open-data', () => shell.openPath(userData));
+  handle('eco:choose-copy', async () => {
+    const r = await dialog.showOpenDialog(win, { title: 'فولدر النسخة التانية', properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return null;
+    config = { ...config, backupCopyDir: r.filePaths[0] };
+    saveConfig(config);
+    if (server) server.send({ type: 'set-copy-dir', dir: r.filePaths[0] });
+    return r.filePaths[0];
+  });
+  handle('eco:clear-copy', () => {
+    config = { ...config, backupCopyDir: '' };
+    saveConfig(config);
+    if (server) server.send({ type: 'set-copy-dir', dir: '' });
+    return true;
+  });
+  handle('eco:check-updates', () => checkForUpdatesNow());
+  handle('eco:install-update', () => {
+    if (!updateReady) return false;
+    void confirmAndQuit({ ask: false });
+    return true;
+  });
+}
+
+// ---------- القفل: سؤال ← نسخة احتياطية ← رسالة بالنتيجة ← قفل (أو تسطيب التحديث) ----------
+// ask=false: من غير سؤال (مثلًا «حدّث دلوقتي»)
 async function confirmAndQuit({ ask = true } = {}) {
+  const viaApp = useRenderer();
+  writeLog(`قفل البرنامج: ${viaApp ? 'رسالة جوه السيستم' : 'رسالة ويندوز'} (rendererReady=${rendererReady})`);
   if (ask) {
-    const { response } = await showBox(win, {
-      type: 'question',
-      title: APP_NAME,
-      message: 'قفل البرنامج؟',
-      detail: 'هيتعمل نسخة احتياطية بآخر البيانات قبل القفل.' +
-        (updateReady ? `\nوهيتسطب التحديث الجديد (نسخة ${updateReady}) — البيانات مش هتتلمس.` : '') +
-        '\nالأجهزة التانية على الشبكة مش هتقدر تتصل لحد ما تفتح البرنامج تاني (وشغلها بيتحفظ عندها لحد ما ترجع).',
-      buttons: [updateReady ? 'نسخ احتياطي وتحديث وقفل' : 'نسخ احتياطي وقفل', 'إلغاء'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true,
-    });
-    if (response !== 0) return;
+    let ok;
+    if (viaApp) ok = await askRenderer('confirm-close', { updateVersion: updateReady }, 6 * 3600 * 1000);
+    if (viaApp && ok === undefined) writeLog('الواجهة ما أكدتش الرسالة — هعرض رسالة ويندوز');
+    if (ok === undefined) {
+      const { response } = await showBox(win, {
+        type: 'question',
+        title: APP_NAME,
+        message: 'قفل البرنامج؟',
+        detail: 'هيتعمل نسخة احتياطية بآخر البيانات قبل القفل.' +
+          (updateReady ? `\nوهيتسطب التحديث الجديد (نسخة ${updateReady}) — البيانات مش هتتلمس.` : '') +
+          '\nالأجهزة التانية على الشبكة مش هتقدر تتصل لحد ما تفتح البرنامج تاني (وشغلها بيتحفظ عندها لحد ما ترجع).',
+        buttons: [updateReady ? 'نسخ احتياطي وتحديث وقفل' : 'نسخ احتياطي وقفل', 'إلغاء'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      });
+      ok = response === 0;
+    }
+    if (!ok) return;
   }
   quitting = true;
-  if (win && !win.isDestroyed()) win.loadURL(page('نسخ احتياطي', 'جاري عمل نسخة احتياطية بآخر البيانات…<small>ما تقفلش الجهاز</small>'));
+  if (viaApp) toRenderer({ type: 'closing', stage: 'backup', updateVersion: updateReady });
+  else if (win && !win.isDestroyed()) win.loadURL(page('نسخ احتياطي', 'جاري عمل نسخة احتياطية بآخر البيانات…<small>ما تقفلش الجهاز</small>'));
   let result = null;
   let error = null;
   if (server && serverReady) {
@@ -296,13 +420,23 @@ async function confirmAndQuit({ ask = true } = {}) {
       error = e;
     }
   }
-  const opts = { type: error ? 'warning' : 'info', title: APP_NAME, buttons: ['تمام'], noLink: true };
-  if (error) {
-    await showBox({ ...opts, message: 'ما قدرتش أعمل نسخة احتياطية', detail: `${error.message}\nآخر نسخة تلقائية موجودة في:\n${config.backupDir}` });
-  } else if (result && result.file) {
-    await showBox({ ...opts, message: 'تم عمل نسخة احتياطية بآخر البيانات ✓', detail: `${path.basename(result.file)}\n\nفي الفولدر:\n${config.backupDir}${config.backupCopyDir ? `\n\nواتنسخت كمان في:\n${config.backupCopyDir}` : ''}` });
-  } else if (result) {
-    await showBox({ ...opts, message: 'البيانات محفوظة ✓', detail: `مفيش أي تغيير من آخر نسخة احتياطية، فآخر نسخة هي نفس البيانات.\n\nالنسخ في:\n${config.backupDir}` });
+  if (viaApp) {
+    // النتيجة بتظهر جوه السيستم؛ الواجهة بترد بعد ما المستخدم يشوفها (أو بعد ثانيتين ونص لوحدها)
+    await askRenderer('closing-done', {
+      result: { file: result && result.file ? path.basename(result.file) : null, skipped: !!(result && result.skipped), error: error ? error.message : null },
+      backupDir: config.backupDir,
+      copyDir: config.backupCopyDir || '',
+      updateVersion: updateReady,
+    }, 8000);
+  } else {
+    const opts = { type: error ? 'warning' : 'info', title: APP_NAME, buttons: ['تمام'], noLink: true };
+    if (error) {
+      await showBox({ ...opts, message: 'ما قدرتش أعمل نسخة احتياطية', detail: `${error.message}\nآخر نسخة تلقائية موجودة في:\n${config.backupDir}` });
+    } else if (result && result.file) {
+      await showBox({ ...opts, message: 'تم عمل نسخة احتياطية بآخر البيانات ✓', detail: `${path.basename(result.file)}\n\nفي الفولدر:\n${config.backupDir}${config.backupCopyDir ? `\n\nواتنسخت كمان في:\n${config.backupCopyDir}` : ''}` });
+    } else if (result) {
+      await showBox({ ...opts, message: 'البيانات محفوظة ✓', detail: `مفيش أي تغيير من آخر نسخة احتياطية، فآخر نسخة هي نفس البيانات.\n\nالنسخ في:\n${config.backupDir}` });
+    }
   }
   if (server) server.kill();
   if (updateReady && autoUpdater) {
@@ -317,10 +451,14 @@ async function confirmAndQuit({ ask = true } = {}) {
 
 // ---------- التحديث التلقائي ----------
 // البرنامج بيشوف كل ما يفتح (وكل 4 ساعات) لو فيه نسخة جديدة على GitHub Releases، ينزّلها في الخلفية،
-// ويسأل: يحدّث دلوقتي (بعد نسخة احتياطية) ولا لما يتقفل. بيانات العميل في فولدر لوحده فما بتتلمسش.
+// ويسأل (جوه السيستم): يحدّث دلوقتي (بعد نسخة احتياطية) ولا لما يتقفل. بيانات العميل في فولدر لوحده فما بتتلمسش.
 let autoUpdater = null;
 let updateReady = null; // رقم النسخة الجديدة لما تكون نزلت وجاهزة
-let manualCheck = false;
+let updateState = { state: app.isPackaged ? 'idle' : 'unavailable', version: null, percent: 0 };
+function setUpdateState(s) {
+  updateState = { ...updateState, ...s };
+  toRenderer({ type: 'update', ...updateState });
+}
 
 function setupUpdates() {
   if (!app.isPackaged || process.env.ERP_DESKTOP_NO_UPDATES === '1') return;
@@ -328,29 +466,28 @@ function setupUpdates() {
     autoUpdater = require('electron-updater').autoUpdater;
   } catch (e) {
     writeLog('التحديث التلقائي مش متاح: ' + e.message);
+    setUpdateState({ state: 'unavailable' });
     return;
   }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = false; // التسطيب بيحصل من confirmAndQuit بعد النسخة الاحتياطية
   autoUpdater.logger = { info: (m) => writeLog('update: ' + m), warn: (m) => writeLog('update WARN: ' + m), error: (m) => writeLog('update ERROR: ' + m), debug: () => {} };
+  autoUpdater.on('checking-for-update', () => { if (!updateReady) setUpdateState({ state: 'checking' }); });
   autoUpdater.on('update-available', (info) => {
     writeLog(`نسخة جديدة متاحة: ${info.version} — بتنزل في الخلفية`);
-    if (manualCheck) void showBox(win, { type: 'info', title: APP_NAME, message: `فيه نسخة جديدة (${info.version})`, detail: 'بتنزل دلوقتي في الخلفية، وهقولك أول ما تجهز. كمّل شغلك عادي.', buttons: ['تمام'], noLink: true });
-    manualCheck = false;
+    setUpdateState({ state: 'downloading', version: info.version, percent: 0 });
   });
-  autoUpdater.on('update-not-available', () => {
-    if (manualCheck) void showBox(win, { type: 'info', title: APP_NAME, message: 'البرنامج محدّث ✓', detail: `انت على آخر نسخة (${app.getVersion()}).`, buttons: ['تمام'], noLink: true });
-    manualCheck = false;
-  });
+  autoUpdater.on('download-progress', (p) => setUpdateState({ state: 'downloading', percent: Math.round(p.percent || 0) }));
+  autoUpdater.on('update-not-available', () => { if (!updateReady) setUpdateState({ state: 'none', version: null }); });
   autoUpdater.on('error', (e) => {
     writeLog('update error: ' + (e && e.message));
-    if (manualCheck) void showBox(win, { type: 'warning', title: APP_NAME, message: 'ما قدرتش أشوف التحديثات', detail: 'اتأكد إن الجهاز متوصل بالنت وجرّب تاني.', buttons: ['تمام'], noLink: true });
-    manualCheck = false;
+    if (!updateReady) setUpdateState({ state: 'error' });
   });
   autoUpdater.on('update-downloaded', async (info) => {
     updateReady = info.version;
-    buildMenu();
+    setUpdateState({ state: 'ready', version: info.version, percent: 100 });
     if (quitting || !win || win.isDestroyed()) return;
+    if (useRenderer()) return; // الواجهة بتعرض «نسخة جديدة جاهزة» بنفسها
     const { response } = await showBox(win, {
       type: 'info',
       title: APP_NAME,
@@ -368,95 +505,37 @@ function setupUpdates() {
   setInterval(check, 4 * 3600 * 1000).unref?.();
 }
 
-function checkForUpdatesNow() {
-  if (!autoUpdater) {
-    void showBox(win, { type: 'info', title: APP_NAME, message: 'التحديث التلقائي شغال في النسخة المتسطّبة بس', buttons: ['تمام'], noLink: true });
-    return;
+/** بحث يدوي (من صفحة «برنامج الويندوز» في السيستم): بيرجع الحالة */
+async function checkForUpdatesNow() {
+  if (!autoUpdater) return { state: 'unavailable', version: null };
+  if (updateReady) return { state: 'ready', version: updateReady };
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    const v = r && r.updateInfo && r.updateInfo.version;
+    if (v && v !== app.getVersion()) return { state: 'downloading', version: v };
+    return { state: 'none', version: null };
+  } catch (e) {
+    return { state: 'error', version: null, error: e.message };
   }
-  if (updateReady) {
-    void showBox(win, { type: 'info', title: APP_NAME, message: `التحديث ${updateReady} جاهز`, detail: 'هيتسطب لما تقفل البرنامج.', buttons: ['تمام'], noLink: true });
-    return;
-  }
-  manualCheck = true;
-  autoUpdater.checkForUpdates().catch(() => {});
 }
 
-// ---------- القايمة ----------
+// ---------- اختصارات الكيبورد (من غير شريط القوائم) ----------
 function buildMenu() {
-  const template = [
-    {
-      label: 'النسخ الاحتياطي',
-      submenu: [
-        {
-          label: 'نسخة احتياطية دلوقتي',
-          click: async () => {
-            if (!server || !serverReady) return;
-            try {
-              const done = waitFor('backup-done', 120000);
-              server.send({ type: 'backup', reason: 'manual' });
-              const r = await done;
-              await showBox(win, { type: 'info', title: APP_NAME, message: 'تم عمل نسخة احتياطية ✓', detail: r.file ? path.basename(r.file) : '', buttons: ['تمام'], noLink: true });
-            } catch (e) {
-              void showBox(win, { type: 'error', title: APP_NAME, message: 'ما قدرتش أعمل نسخة احتياطية', detail: e.message, buttons: ['تمام'], noLink: true });
-            }
-          },
-        },
-        { label: 'افتح فولدر النسخ', click: () => { fs.mkdirSync(config.backupDir, { recursive: true }); void shell.openPath(config.backupDir); } },
-        { type: 'separator' },
-        {
-          label: 'اختار فولدر نسخة تانية (فلاشة / هارد خارجي / Google Drive)…',
-          click: async () => {
-            const r = await dialog.showOpenDialog(win, { title: 'فولدر النسخة التانية', properties: ['openDirectory', 'createDirectory'] });
-            if (r.canceled || !r.filePaths[0]) return;
-            config = { ...config, backupCopyDir: r.filePaths[0] };
-            saveConfig(config);
-            await showBox(win, { type: 'info', title: APP_NAME, message: 'تمام ✓', detail: `كل نسخة هتتنسخ كمان في:\n${r.filePaths[0]}\n\n(بيتطبق من أول مرة تفتح فيها البرنامج تاني)`, buttons: ['تمام'], noLink: true });
-          },
-        },
-      ],
-    },
-    {
-      label: 'عرض',
-      submenu: [
-        { label: 'تحديث الصفحة', accelerator: 'F5', click: () => win && win.webContents.reload() },
-        { label: 'تكبير', accelerator: 'CmdOrCtrl+=', role: 'zoomIn' },
-        { label: 'تصغير', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
-        { label: 'الحجم العادي', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
-        { label: 'ملء الشاشة', accelerator: 'F11', role: 'togglefullscreen' },
-      ],
-    },
-    {
-      label: 'مساعدة',
-      submenu: [
-        {
-          label: updateReady ? `التحديث ${updateReady} جاهز — هيتسطب لما تقفل` : 'البحث عن تحديثات',
-          click: () => checkForUpdatesNow(),
-        },
-        {
-          label: 'عن البرنامج',
-          click: () => void showBox(win, { type: 'info', title: APP_NAME, message: APP_NAME, detail: `النسخة ${app.getVersion()}`, buttons: ['تمام'], noLink: true }),
-        },
-        { type: 'separator' },
-        {
-          label: 'عنوان السيستم للأجهزة التانية',
-          click: () => {
-            const ips = lanAddresses();
-            void showBox(win, {
-              type: 'info',
-              title: APP_NAME,
-              message: 'افتح العنوان ده من أي جهاز على نفس الشبكة:',
-              detail: (ips.length ? ips.map((ip) => `http://${ip}:${config.port}`).join('\n') : 'الجهاز مش متوصل بشبكة') + '\n\nلو الجهاز التاني مش شايفه: لما ويندوز يسألك «Allow access» للبرنامج اختار السماح.',
-              buttons: ['تمام'],
-              noLink: true,
-            });
-          },
-        },
-        { label: 'فولدر البيانات والسجل', click: () => void shell.openPath(userData) },
-        { label: 'أدوات المطوّر', accelerator: 'Ctrl+Shift+I', click: () => win && win.webContents.toggleDevTools() },
-      ],
-    },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  Menu.setApplicationMenu(null);
+}
+function setupShortcuts(w) {
+  w.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown') return;
+    const ctrl = input.control || input.meta;
+    const k = input.key;
+    const hit = (fn) => { e.preventDefault(); fn(); };
+    if (k === 'F5' || (ctrl && k.toLowerCase() === 'r')) hit(() => w.webContents.reload());
+    else if (k === 'F11') hit(() => w.setFullScreen(!w.isFullScreen()));
+    else if (ctrl && input.shift && k.toLowerCase() === 'i') hit(() => w.webContents.toggleDevTools());
+    else if (ctrl && (k === '=' || k === '+')) hit(() => w.webContents.setZoomLevel(Math.min(w.webContents.getZoomLevel() + 0.5, 4)));
+    else if (ctrl && k === '-') hit(() => w.webContents.setZoomLevel(Math.max(w.webContents.getZoomLevel() - 0.5, -3)));
+    else if (ctrl && k === '0') hit(() => w.webContents.setZoomLevel(0));
+  });
 }
 
 // ---------- التشغيل ----------
@@ -466,6 +545,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   buildMenu();
+  setupBridge();
   showSplash();
   createWindow();
   startServer();
@@ -519,4 +599,3 @@ app.on('session-end', () => {
 app.on('window-all-closed', () => {
   if (quitting) app.exit(0);
 });
-void ipcMain;

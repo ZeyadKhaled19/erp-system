@@ -44,6 +44,9 @@ process.on('message', async (m: any) => {
     } catch (e) {
       send({ type: 'error', message: (e as Error).message, fatal: true });
     }
+  } else if (m.type === 'set-copy-dir') {
+    server?.backups?.setCopyDir(typeof m.dir === 'string' && m.dir ? m.dir : undefined);
+    log(m.dir ? `فولدر النسخة التانية: ${m.dir}` : 'من غير فولدر نسخة تانية');
   } else if (m.type === 'backup') {
     try {
       const r = server?.backups ? await server.backups.backupNow({ reason: m.reason || 'manual' }) : { file: null, skipped: true };

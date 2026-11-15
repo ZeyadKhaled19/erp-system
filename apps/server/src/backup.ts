@@ -222,6 +222,8 @@ export interface AutoBackups {
   stop: () => void;
   /** نسخة فورية (مثلًا قبل قفل البرنامج). `onlyIfChanged` يتخطاها لو مفيش تغيير من آخر نسخة */
   backupNow: (opts?: { reason?: string; onlyIfChanged?: boolean }) => Promise<{ file: string | null; skipped: boolean }>;
+  /** تغيير فولدر النسخة التانية من غير إعادة تشغيل (فاضي = من غير نسخة تانية) */
+  setCopyDir: (dir: string | undefined) => void;
 }
 
 export function startAutoBackups(db: Db, opts: AutoBackupOptions): AutoBackups {
@@ -230,6 +232,7 @@ export function startAutoBackups(db: Db, opts: AutoBackupOptions): AutoBackups {
   const keepDaily = opts.keep ?? 30;
   const keepHourly = opts.keepHourly ?? 48;
   let lastPrint: string | null = null;
+  let copyDir = opts.copyDir;
   let lastAt = 0;
   let chain: Promise<unknown> = Promise.resolve();
 
@@ -238,13 +241,13 @@ export function startAutoBackups(db: Db, opts: AutoBackupOptions): AutoBackups {
     lastAt = Date.now();
     lastPrint = await dataFingerprint(db);
     log(`نسخة احتياطية (${reason}): ${file}`);
-    if (opts.copyDir) {
+    if (copyDir) {
       try {
-        await mkdir(opts.copyDir, { recursive: true });
-        await copyFile(file, path.join(opts.copyDir, path.basename(file)));
-        if (reason === 'daily' || reason === 'hourly') await pruneBackups(opts.copyDir, reason, reason === 'daily' ? keepDaily : keepHourly);
+        await mkdir(copyDir, { recursive: true });
+        await copyFile(file, path.join(copyDir, path.basename(file)));
+        if (reason === 'daily' || reason === 'hourly') await pruneBackups(copyDir, reason, reason === 'daily' ? keepDaily : keepHourly);
       } catch (e) {
-        log(`⚠ ما قدرتش أنسخها في ${opts.copyDir}: ${(e as Error).message} (النسخة الأساسية اتحفظت عادي)`);
+        log(`⚠ ما قدرتش أنسخها في ${copyDir}: ${(e as Error).message} (النسخة الأساسية اتحفظت عادي)`);
       }
     }
     if (reason === 'daily' || reason === 'hourly') await pruneBackups(opts.dir, reason, reason === 'daily' ? keepDaily : keepHourly);
@@ -292,6 +295,7 @@ export function startAutoBackups(db: Db, opts: AutoBackupOptions): AutoBackups {
 
   return {
     stop: () => clearInterval(timer),
+    setCopyDir: (dir) => { copyDir = dir || undefined; },
     backupNow: ({ reason = 'manual', onlyIfChanged = false } = {}) =>
       serial(async () => {
         if (onlyIfChanged && lastPrint !== null && (await dataFingerprint(db)) === lastPrint) return { file: null, skipped: true };

@@ -26,6 +26,7 @@ import {
 import { SettingsPage } from './pages/Settings';
 import { SyncCenter } from './pages/SyncCenter';
 import { IntegrityPage } from './pages/Integrity';
+import { DesktopAppPage } from './pages/DesktopApp';
 import { UsersPage } from './pages/Users';
 import { WarehousesPage } from './pages/Warehouses';
 import { CreditInvoicesPage, InstrumentsPage } from './pages/Followup';
@@ -191,6 +192,7 @@ export function App() {
           <Route path="/reports/balance-sheet" element={<RequirePerm any={['reports.financial']}><BalanceSheetReport /></RequirePerm>} />
           <Route path="/reports/documents" element={<RequirePerm any={['reports.view']}><DocumentsReport /></RequirePerm>} />
           <Route path="/sync" element={<SyncCenter />} />
+          <Route path="/desktop" element={<DesktopAppPage />} />
           <Route path="/integrity" element={<RequirePerm any={['reports.financial']}><IntegrityPage /></RequirePerm>} />
           <Route path="/instruments" element={<RequirePerm any={['treasury.view', 'treasury.instruments']}><InstrumentsPage /></RequirePerm>} />
           <Route path="/receivables" element={<RequirePerm any={['sales.view', 'purchases.view']}><CreditInvoicesPage /></RequirePerm>} />

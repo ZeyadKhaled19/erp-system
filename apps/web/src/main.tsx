@@ -22,6 +22,7 @@ import { App } from './App';
 // النسخة الحادة آخر ملف تصميم (بعد sections.css اللي بيتحمّل من داخل App)
 import './sharp.css';
 import { UiProvider } from './components/ui';
+import { DesktopBridge } from './components/DesktopBridge';
 import { initBrand } from './lib/brand';
 
 // أيقونة وعنوان المتصفح من آخر هوية شركة محفوظة على الجهاز
@@ -32,6 +33,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <UiProvider>
         <App />
+        <DesktopBridge />
       </UiProvider>
     </BrowserRouter>
   </StrictMode>,
