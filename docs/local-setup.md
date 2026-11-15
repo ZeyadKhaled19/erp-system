@@ -13,7 +13,7 @@
 2. **سطّب Git** من https://git-scm.com (علشان التحديثات توصل بسهولة).
 3. **نزّل النظام:** افتح PowerShell واكتب:
    ```
-   git clone https://github.com/<حسابك>/erp-system.git C:\ERP
+   git clone https://github.com/ZeyadKhaled19/erp-system.git C:\ERP
    ```
    (أو انسخ فولدر النظام كامل على الجهاز.)
 4. **شغّل التسطيب:** في فولدر النظام افتح `scripts\windows` ← كليك يمين على **`setup-server.ps1`** ← **Run with PowerShell**.
