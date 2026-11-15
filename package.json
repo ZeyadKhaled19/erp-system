@@ -16,7 +16,8 @@
     "migrate": "npm run migrate -w @erp/server",
     "backup": "npm run backup -w @erp/server",
     "restore": "npm run restore -w @erp/server --",
-    "build:vercel": "node scripts/gen-migrations.mjs && npm run build && node scripts/build-vercel.mjs"
+    "build:vercel": "node scripts/gen-migrations.mjs && npm run build && node scripts/build-vercel.mjs",
+    "desktop:dist": "npm run build && npm --prefix desktop install --no-audit --no-fund && npm --prefix desktop run dist"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

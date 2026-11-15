@@ -174,62 +174,128 @@ export async function listBackups(dir: string) {
 }
 
 // =====================================================================================
-// النسخ التلقائي اليومي (للتشغيل المحلي على جهاز المحل)
+// النسخ التلقائي (للتشغيل المحلي على جهاز المحل): كل ساعة لو فيه تغيير، وأول نسخة كل يوم بتتعلّم «daily»
 // =====================================================================================
 
-/** يمسح النسخ اليومية القديمة ويسيب آخر `keep` نسخة (النسخ اليدوية وما قبل التحديث ما بتتمسحش) */
-export async function pruneDailyBackups(dir: string, keep: number) {
-  const daily = (await listBackups(dir)).filter((f) => f.endsWith('-daily.json'));
-  for (const f of daily.slice(Math.max(1, keep))) {
+/** يمسح القديم من نوع معيّن (daily / hourly) ويسيب آخر `keep` نسخة؛ النسخ اليدوية وما قبل التحديث ما بتتمسحش */
+export async function pruneBackups(dir: string, reason: 'daily' | 'hourly', keep: number) {
+  const files = (await listBackups(dir)).filter((f) => f.endsWith(`-${reason}.json`));
+  for (const f of files.slice(Math.max(1, keep))) {
     await unlink(path.join(dir, f)).catch(() => {});
   }
 }
+/** للتوافق: مسح النسخ اليومية القديمة */
+export const pruneDailyBackups = (dir: string, keep: number) => pruneBackups(dir, 'daily', keep);
+
+/** بصمة لحالة البيانات: بتتغير مع أي كتابة (كل الجداول المتزامنة بتزوّد sync_seq، والعمليات بتتسجل في audit_log/processed_ops) */
+async function dataFingerprint(db: Db): Promise<string> {
+  const r = await db.one<{ f: string }>(
+    `select (select last_value from sync_seq)::text || '/' || (select coalesce(max(id), 0) from audit_log)::text || '/' || (select count(*) from processed_ops)::text as f`,
+  );
+  return r?.f ?? '';
+}
+
+/** وقت النسخة من اسم الملف: erp-backup-2026-11-15T11-02-04-282Z-daily.json */
+export function backupFileTime(file: string): Date | null {
+  const m = file.match(/^erp-backup-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/);
+  if (!m) return null;
+  const d = new Date(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export interface AutoBackupOptions {
   dir: string;
-  /** فولدر تاني تتنسخ فيه كل نسخة يومية (فلاشة أو هارد خارجي أو فولدر Google Drive) */
+  /** فولدر تاني تتنسخ فيه كل نسخة (فلاشة أو هارد خارجي أو فولدر Google Drive) */
   copyDir?: string;
+  /** كل كام دقيقة (افتراضي 60) */
+  everyMinutes?: number;
   /** عدد النسخ اليومية اللي تفضل (افتراضي 30) */
   keep?: number;
+  /** عدد نسخ الساعات اللي تفضل (افتراضي 48 = يومين) */
+  keepHourly?: number;
   log?: (m: string) => void;
 }
 
-/**
- * نسخة يومية تلقائية: أول ما الخادم يقوم لو آخر نسخة يومية أقدم من 20 ساعة، وبعدين بيتأكد كل ساعة.
- * بيرجع دالة توقف المؤقت.
- */
-export function startAutoBackups(db: Db, opts: AutoBackupOptions): () => void {
+export interface AutoBackups {
+  stop: () => void;
+  /** نسخة فورية (مثلًا قبل قفل البرنامج). `onlyIfChanged` يتخطاها لو مفيش تغيير من آخر نسخة */
+  backupNow: (opts?: { reason?: string; onlyIfChanged?: boolean }) => Promise<{ file: string | null; skipped: boolean }>;
+}
+
+export function startAutoBackups(db: Db, opts: AutoBackupOptions): AutoBackups {
   const log = opts.log ?? (() => {});
-  const keep = opts.keep ?? 30;
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const last = (await listBackups(opts.dir)).find((f) => f.endsWith('-daily.json'));
-      const lastAt = last ? (await stat(path.join(opts.dir, last))).mtimeMs : 0;
-      if (Date.now() - lastAt < 20 * 3600_000) return;
-      const file = await backupToFile(db, opts.dir, 'daily');
-      log(`نسخة احتياطية يومية: ${file}`);
-      if (opts.copyDir) {
-        try {
-          await mkdir(opts.copyDir, { recursive: true });
-          await copyFile(file, path.join(opts.copyDir, path.basename(file)));
-          await pruneDailyBackups(opts.copyDir, keep);
-          log(`اتنسخت كمان في: ${opts.copyDir}`);
-        } catch (e) {
-          log(`⚠ ما قدرتش أنسخها في ${opts.copyDir}: ${(e as Error).message} (النسخة الأساسية اتحفظت عادي)`);
-        }
+  const every = Math.max(1, opts.everyMinutes ?? 60) * 60_000;
+  const keepDaily = opts.keep ?? 30;
+  const keepHourly = opts.keepHourly ?? 48;
+  let lastPrint: string | null = null;
+  let lastAt = 0;
+  let chain: Promise<unknown> = Promise.resolve();
+
+  const take = async (reason: string) => {
+    const file = await backupToFile(db, opts.dir, reason);
+    lastAt = Date.now();
+    lastPrint = await dataFingerprint(db);
+    log(`نسخة احتياطية (${reason}): ${file}`);
+    if (opts.copyDir) {
+      try {
+        await mkdir(opts.copyDir, { recursive: true });
+        await copyFile(file, path.join(opts.copyDir, path.basename(file)));
+        if (reason === 'daily' || reason === 'hourly') await pruneBackups(opts.copyDir, reason, reason === 'daily' ? keepDaily : keepHourly);
+      } catch (e) {
+        log(`⚠ ما قدرتش أنسخها في ${opts.copyDir}: ${(e as Error).message} (النسخة الأساسية اتحفظت عادي)`);
       }
-      await pruneDailyBackups(opts.dir, keep);
-    } catch (e) {
-      log(`⚠ فشلت النسخة الاحتياطية اليومية: ${(e as Error).message}`);
-    } finally {
-      running = false;
     }
+    if (reason === 'daily' || reason === 'hourly') await pruneBackups(opts.dir, reason, reason === 'daily' ? keepDaily : keepHourly);
+    return file;
   };
+
+  // أول نسخة في اليوم «daily» (بتتحفظ 30 يوم)، والباقي «hourly» (بتتحفظ يومين)
+  const scheduledReason = async () => {
+    const today = localDay();
+    const hasToday = (await listBackups(opts.dir)).some((f) => {
+      if (!f.endsWith('-daily.json')) return false;
+      const t = backupFileTime(f);
+      return !!t && localDay(t) === today;
+    });
+    return hasToday ? 'hourly' : 'daily';
+  };
+
+  const serial = <T>(fn: () => Promise<T>): Promise<T> => {
+    const p = chain.then(fn, fn);
+    chain = p.catch(() => {});
+    return p;
+  };
+
+  const tick = () =>
+    serial(async () => {
+      try {
+        if (!lastAt) {
+          // بعد إعادة التشغيل: آخر نسخة موجودة بتحدد الميعاد
+          const last = (await listBackups(opts.dir)).find((f) => /-(daily|hourly)\.json$/.test(f));
+          lastAt = last ? (await stat(path.join(opts.dir, last))).mtimeMs : 0;
+        }
+        const reason = await scheduledReason();
+        if (reason !== 'daily' && Date.now() - lastAt < every) return;
+        const fp = await dataFingerprint(db);
+        if (reason !== 'daily' && lastPrint !== null && fp === lastPrint) return; // مفيش جديد من آخر نسخة
+        await take(reason);
+      } catch (e) {
+        log(`⚠ فشلت النسخة الاحتياطية التلقائية: ${(e as Error).message}`);
+      }
+    });
+
   void tick();
-  const timer = setInterval(() => void tick(), 3600_000);
+  const timer = setInterval(() => void tick(), Math.min(every, 5 * 60_000));
   timer.unref?.();
-  return () => clearInterval(timer);
+
+  return {
+    stop: () => clearInterval(timer),
+    backupNow: ({ reason = 'manual', onlyIfChanged = false } = {}) =>
+      serial(async () => {
+        if (onlyIfChanged && lastPrint !== null && (await dataFingerprint(db)) === lastPrint) return { file: null, skipped: true };
+        return { file: await take(reason), skipped: false };
+      }),
+  };
 }

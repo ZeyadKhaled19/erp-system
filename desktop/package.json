@@ -1,0 +1,54 @@
+{
+  "name": "erp-desktop",
+  "productName": "نظام إدارة الأعمال",
+  "version": "1.0.0",
+  "description": "نظام إدارة الأعمال ERP — برنامج ويندوز للتشغيل على جهاز المحل",
+  "private": true,
+  "main": "main.cjs",
+  "author": "ERP",
+  "scripts": {
+    "prepare-app": "node scripts/prepare.mjs",
+    "start": "npm run prepare-app && electron .",
+    "dist": "npm run prepare-app && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.16"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "esbuild": "0.25.0"
+  },
+  "build": {
+    "appId": "com.erp.desktop",
+    "productName": "نظام إدارة الأعمال",
+    "executableName": "ERP",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "app/**/*",
+      "package.json"
+    ],
+    "asar": false,
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "نظام إدارة الأعمال",
+      "artifactName": "ERP-Setup-${version}.exe"
+    }
+  },
+  "allowScripts": {
+    "electron@33.2.1": true,
+    "esbuild@0.25.0": true
+  }
+}
