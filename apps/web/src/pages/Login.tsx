@@ -1,7 +1,10 @@
+import { Boxes, Eye, EyeOff, Lock, LogIn, ShieldCheck, ShoppingCart, Store, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { EcoLogo, EcoMark } from '../components/EcoLogo';
 import { Banner } from '../components/ui';
 import { api, ApiError } from '../lib/api';
-import { readBrand, saveBrand, systemName, type Brand } from '../lib/brand';
+import { DEFAULT_SYSTEM_NAME, readBrand, saveBrand, systemName, type Brand } from '../lib/brand';
+import '../login.css';
 import { setLocalIdentity } from '../lib/db';
 import { getDeviceId, getDeviceName, type Session } from '../lib/session';
 
@@ -29,6 +32,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const [username, setUsername] = useState(saved.username);
   const [remember, setRemember] = useState(saved.remember);
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // اسم ولوجو الشركة: من آخر نسخة على الجهاز فورًا، وبعدين من الخادم
@@ -68,24 +72,60 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     }
   };
 
+  const custom = systemName(brand) !== DEFAULT_SYSTEM_NAME ? systemName(brand) : '';
   return (
-    <div className="login-wrap">
-      <form className="login-card stack" onSubmit={submit}>
-        {brand.logo ? <img className="login-logo" src={brand.logo} alt={brand.company_name} /> : <img className="app-icon" src="/icon.svg" alt="" />}
-        <div className="login-title">
-          {brand.company_name && <div className="login-company">{brand.company_name}</div>}
-          <h1>تسجيل الدخول</h1>
-          <div className="muted">{systemName(brand)}</div>
+    <div className="lg-page">
+      {/* لوحة Eco System */}
+      <aside className="lg-brand" aria-hidden="false">
+        <div className="lg-orb a" aria-hidden="true" />
+        <div className="lg-orb b" aria-hidden="true" />
+        <div className="lg-brand-in">
+          <EcoLogo size={52} light className="lg-eco" />
+          <h2 className="lg-tag">كل شغل محلك في مكان واحد</h2>
+          <p className="lg-sub">مبيعات ومشتريات ومخزون وحسابات وموظفين — بيشتغل حتى من غير نت.</p>
+          <ul className="lg-points">
+            <li><ShoppingCart aria-hidden="true" /> فواتير بيع سريعة وكاشير</li>
+            <li><Boxes aria-hidden="true" /> مخزون وأرصدة لحظة بلحظة</li>
+            <li><ShieldCheck aria-hidden="true" /> نسخ احتياطي تلقائي وصلاحيات</li>
+          </ul>
         </div>
-        {error && <Banner kind="err">{error}</Banner>}
-        <div className="field">
-          <label htmlFor="login-user">اسم المستخدم</label>
-          <input id="login-user" className="input" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!saved.username} required />
-        </div>
-        <div className="field">
-          <label htmlFor="login-pass">كلمة المرور</label>
-          <input id="login-pass" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={!!saved.username} required />
-        </div>
+        <div className="lg-brand-foot">© Eco System</div>
+      </aside>
+
+      {/* تسجيل الدخول */}
+      <main className="lg-main">
+        <form className="lg-card" onSubmit={submit}>
+          <EcoLogo size={40} className="lg-eco-mobile" />
+          <div className="lg-head">
+            {brand.logo ? (
+              <img className="lg-company-logo" src={brand.logo} alt={brand.company_name} />
+            ) : (
+              <span className="lg-company-mark" aria-hidden="true"><Store /></span>
+            )}
+            <div className="lg-head-t">
+              {brand.company_name && <div className="lg-company">{brand.company_name}</div>}
+              <h1>تسجيل الدخول</h1>
+              <div className="lg-hint">{custom ? custom : 'أهلًا بيك، ادخل ببيانات حسابك'}</div>
+            </div>
+          </div>
+          {error && <Banner kind="err">{error}</Banner>}
+          <div className="lg-field">
+            <label htmlFor="login-user">اسم المستخدم</label>
+            <div className="lg-input">
+              <User aria-hidden="true" />
+              <input id="login-user" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!saved.username} required placeholder="مثلًا: admin" dir="auto" />
+            </div>
+          </div>
+          <div className="lg-field">
+            <label htmlFor="login-pass">كلمة المرور</label>
+            <div className="lg-input">
+              <Lock aria-hidden="true" />
+              <input id="login-pass" type={showPass ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={!!saved.username} required placeholder="••••••••" dir="ltr" />
+              <button type="button" className="lg-eye" onClick={() => setShowPass((v) => !v)} aria-label={showPass ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} title={showPass ? 'إخفاء' : 'إظهار'}>
+                {showPass ? <EyeOff /> : <Eye />}
+              </button>
+            </div>
+          </div>
         <label className="login-remember">
           <input
             type="checkbox"
@@ -98,10 +138,15 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
           />
           تذكر اسم المستخدم على الجهاز ده
         </label>
-        <button className="btn primary lg block" disabled={busy || !username || !password}>
-          {busy ? 'جارٍ الدخول…' : 'دخول'}
-        </button>
-      </form>
+          <button className="lg-submit" disabled={busy || !username || !password}>
+            {busy ? <span className="lg-spin" aria-hidden="true" /> : <LogIn aria-hidden="true" />}
+            {busy ? 'جارٍ الدخول…' : 'دخول'}
+          </button>
+        </form>
+        <div className="lg-foot">
+          <EcoMark size={16} /> <bdi>Eco System</bdi>
+        </div>
+      </main>
     </div>
   );
 }

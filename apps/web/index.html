@@ -47,7 +47,7 @@
         @media (prefers-reduced-motion:reduce){.eco-splash *{animation:none!important}}
       </style>
       <div>
-        <div class="eco-logo"><i></i><i></i><img id="eco-logo" src="/icon.svg" alt="" /></div>
+        <div class="eco-logo"><i></i><i></i><img id="eco-logo" src="/eco-logo.svg" alt="" /></div>
         <div class="eco-name" id="eco-name">Eco System</div>
         <div class="eco-co" id="eco-co"></div>
         <div class="eco-bar"><b></b></div>
@@ -58,7 +58,6 @@
           try {
             var b = JSON.parse(localStorage.getItem('erp.brand.v1') || 'null');
             if (!b) return;
-            if (typeof b.logo === 'string' && b.logo.indexOf('data:image/') === 0) document.getElementById('eco-logo').src = b.logo;
             if (b.system_name) document.getElementById('eco-name').textContent = b.system_name;
             if (b.company_name) document.getElementById('eco-co').textContent = b.company_name;
           } catch (e) {}

@@ -165,7 +165,9 @@ let splashShownAt = 0;
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 function splashHtml() {
-  let logo = config.brand && typeof config.brand.logo === 'string' && config.brand.logo.startsWith('data:image/') ? config.brand.logo : '';
+  // شعار Eco System (من ملفات الواجهة)، ولو مش موجود أيقونة البرنامج
+  let logo = '';
+  try { logo = 'data:image/svg+xml;base64,' + fs.readFileSync(path.join(appDir, 'web', 'eco-logo.svg')).toString('base64'); } catch { /* نجرب الأيقونة */ }
   if (!logo) {
     try { logo = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'build', 'icon.png')).toString('base64'); } catch { /* من غير لوجو */ }
   }
@@ -177,7 +179,7 @@ body{display:grid;place-items:center;font-family:"Segoe UI",Tahoma,sans-serif;co
   background:radial-gradient(120% 90% at 50% 0%,#1E293B 0%,#0F1115 60%);-webkit-app-region:drag}
 .wrap{text-align:center;width:100%;padding:0 40px}
 .logo{position:relative;width:96px;height:96px;margin:0 auto 22px}
-.logo img{position:relative;z-index:2;width:96px;height:96px;object-fit:contain;border-radius:22px;background:#fff1;animation:pop .7s cubic-bezier(.2,.9,.3,1.3) both}
+.logo img{position:relative;z-index:2;width:96px;height:96px;object-fit:contain;border-radius:22px;animation:pop .7s cubic-bezier(.2,.9,.3,1.3) both}
 .logo i{position:absolute;inset:-10px;border-radius:30px;border:2px solid #3B82F6;opacity:0;animation:ring 2.2s ease-out infinite}
 .logo i+i{animation-delay:1.1s}
 h1{margin:0;font-size:34px;font-weight:800;letter-spacing:1px;direction:ltr;
