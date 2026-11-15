@@ -72,8 +72,8 @@
 .lg-card .login-remember { margin-top: -0.125rem; }
 .lg-submit {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem; height: 3.125rem; margin-top: 0.25rem;
-  border: 0; border-radius: 0.875rem; font: inherit; font-size: 1.0625rem; font-weight: 800; color: #fff; cursor: pointer;
-  background: linear-gradient(90deg, var(--tint), color-mix(in srgb, var(--tint) 70%, #22C55E));
+  border: 0; border-radius: 0.875rem; font: inherit; font-size: 1.0625rem; font-weight: 800; color: var(--on-tint, #fff); cursor: pointer;
+  background: linear-gradient(90deg, var(--tint), var(--tint-press));
   box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--tint) 70%, transparent);
   transition: transform .15s ease, box-shadow .15s ease, opacity .15s;
 }

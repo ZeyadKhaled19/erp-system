@@ -27,7 +27,7 @@
   --mc-blue: var(--tint); --mc-green: var(--tint); --mc-purple: var(--tint); --mc-orange: var(--tint);
   --mc-teal: var(--tint); --mc-indigo: var(--tint); --mc-violet: var(--tint); --mc-pink: var(--tint);
 }
-:root[data-accent="blue"], :root:not([data-accent]) { --tint: #1D4ED8; --tint-press: #1E40AF; }
+:root[data-accent="blue"] { --tint: #1D4ED8; --tint-press: #1E40AF; }
 :root[data-theme="dark"] {
   /* رمادي غامق مش أسود (طلب المستخدم 2026-11-14) */
   --bg: #202227; --app-bg: #202227; --bg-tertiary: #202227; --bg-elevated: #2A2D33; --bg-secondary: #2A2D33;
@@ -559,19 +559,19 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 /* ---------- 17) ألوان التمييز وأوضاع الألوان (طقم متناسق مع الشكل الحاد) ----------
    كل لون غامق كفاية إن الكتابة البيضا عليه تتقري. الأحمر والأخضر والبرتقالي (تحذير/نجاح)
    ثابتين في كل الأوضاع عشان معناهم ما يتغيرش. */
-:root[data-accent="blue"], :root:not([data-accent]) { --tint: #1D4ED8; --tint-press: #1E40AF; }
+:root[data-accent="blue"] { --tint: #1D4ED8; --tint-press: #1E40AF; }
 :root[data-accent="sky"]    { --tint: #0E7490; --tint-press: #155E75; }
 :root[data-accent="teal"]   { --tint: #047857; --tint-press: #065F46; }
 :root[data-accent="purple"] { --tint: #4338CA; --tint-press: #3730A3; }
 :root[data-accent="green"]  { --tint: #334155; --tint-press: #1E293B; }
-:root[data-accent="orange"] { --tint: #C2410C; --tint-press: #9A3412; }
+:root[data-accent="orange"], :root:not([data-accent]) { --tint: #C2410C; --tint-press: #9A3412; }
 :root[data-accent="pink"]   { --tint: #9F1239; --tint-press: #881337; }
-:root[data-theme="dark"][data-accent="blue"], :root[data-theme="dark"]:not([data-accent]) { --tint: #60A5FA; --tint-press: #93C5FD; }
+:root[data-theme="dark"][data-accent="blue"] { --tint: #60A5FA; --tint-press: #93C5FD; }
 :root[data-theme="dark"][data-accent="sky"]    { --tint: #22B8CF; --tint-press: #67D3E3; }
 :root[data-theme="dark"][data-accent="teal"]   { --tint: #34D399; --tint-press: #6EE7B7; }
 :root[data-theme="dark"][data-accent="purple"] { --tint: #818CF8; --tint-press: #A5B4FC; }
 :root[data-theme="dark"][data-accent="green"]  { --tint: #CBD5E1; --tint-press: #E2E8F0; }
-:root[data-theme="dark"][data-accent="orange"] { --tint: #FB923C; --tint-press: #FDBA74; }
+:root[data-theme="dark"][data-accent="orange"], :root[data-theme="dark"]:not([data-accent]) { --tint: #FB923C; --tint-press: #FDBA74; }
 :root[data-theme="dark"][data-accent="pink"]   { --tint: #FB7185; --tint-press: #FDA4AF; }
 
 /* أوضاع الألوان: شريط علوي داكن بلون الوضع + خلفية مايلة له + لون تمييز مناسب */
@@ -617,8 +617,8 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 .ap-prev b { grid-row: 1; border: 0 !important; }
 .ap-prev i { grid-row: 2; margin: 0.5rem; border-radius: 0.375rem; background: #FFFFFF; position: relative; }
 .ap-prev i::after { content: ''; position: absolute; inset-inline-start: 0.375rem; top: 0.375rem; width: 32%; height: 0.375rem; border-radius: 999px; background: var(--pv, #1D4ED8); }
-.ap-prev.light { background: #EEEFF3; border-color: #DEE0E7; } .ap-prev.light b { background: #15171C; } .ap-prev.light i { --pv: #1D4ED8; }
-.ap-prev.dark { background: #202227; border-color: #3A3D45; } .ap-prev.dark b { background: #18191D; } .ap-prev.dark i { background: #2A2D33; --pv: #60A5FA; }
+.ap-prev.light { background: #EEEFF3; border-color: #DEE0E7; } .ap-prev.light b { background: #15171C; } .ap-prev.light i { --pv: #C2410C; }
+.ap-prev.dark { background: #202227; border-color: #3A3D45; } .ap-prev.dark b { background: #18191D; } .ap-prev.dark i { background: #2A2D33; --pv: #FB923C; }
 .ap-prev.system { background: linear-gradient(90deg, #202227 50%, #EEEFF3 50%); } .ap-prev.system b { background: linear-gradient(90deg, #18191D 50%, #15171C 50%); } .ap-prev.system i { background: linear-gradient(90deg, #2A2D33 50%, #FFFFFF 50%); }
 .ap-prev.navy { background: #ECEFF4; border-color: #D9DEE8; } .ap-prev.navy b { background: #0F1D35; } .ap-prev.navy i { --pv: #1D4ED8; }
 .ap-prev.amber { background: #F1EEE9; border-color: #E2DCD2; } .ap-prev.amber b { background: #1F1B16; } .ap-prev.amber i { --pv: #B45309; }

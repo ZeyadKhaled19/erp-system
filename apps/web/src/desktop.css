@@ -23,7 +23,7 @@
 }
 .dk-btn:hover { background: var(--card-2, var(--hover)); }
 .dk-btn svg { width: 1.125rem; height: 1.125rem; }
-.dk-btn.primary { border-color: transparent; color: #fff; background: linear-gradient(90deg, var(--tint), color-mix(in srgb, var(--tint) 70%, #22C55E)); }
+.dk-btn.primary { border-color: transparent; color: var(--on-tint, #fff); background: linear-gradient(90deg, var(--tint), var(--tint-press)); }
 .dk-btn.primary:hover { filter: brightness(1.06); }
 .dk-btn:disabled { opacity: .55; cursor: default; }
 
