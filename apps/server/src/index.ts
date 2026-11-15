@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildApp } from './app';
+import { startAutoBackups } from './backup';
 import { openDb } from './db';
 import { migrate } from './migrate';
 import { seed } from './seed';
@@ -26,7 +27,18 @@ const app = await buildApp({ db, jwtSecret: JWT_SECRET, backupDir: BACKUP_DIR, w
 await app.listen({ port: PORT, host: '0.0.0.0' });
 console.log(`✓ الخادم يعمل على http://localhost:${PORT} (قاعدة البيانات: ${db.kind === 'pglite' ? `PGlite في ${PGLITE_DIR}` : 'PostgreSQL'})`);
 
+// نسخة احتياطية يومية تلقائية (AUTO_BACKUP=0 يقفلها). BACKUP_COPY_DIR = فولدر تاني تتنسخ فيه (فلاشة/هارد خارجي/Google Drive)
+const stopBackups = process.env.AUTO_BACKUP === '0'
+  ? () => {}
+  : startAutoBackups(db, {
+      dir: BACKUP_DIR,
+      copyDir: process.env.BACKUP_COPY_DIR ? resolve(process.env.BACKUP_COPY_DIR) : undefined,
+      keep: Number(process.env.BACKUP_KEEP) || 30,
+      log: console.log,
+    });
+
 const shutdown = async () => {
+  stopBackups();
   await app.close();
   await db.close();
   process.exit(0);

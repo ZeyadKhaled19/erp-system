@@ -1,4 +1,5 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import type { Db } from './db';
 
@@ -156,7 +157,10 @@ export async function backupToFile(db: Db, dir: string, reason = 'manual'): Prom
 }
 
 export async function restoreFromFile(db: Db, file: string) {
-  const data = JSON.parse(await readFile(file, 'utf8')) as BackupFile;
+  // يقبل الملف عادي أو مضغوط (gzip) — زي اللي بينزل من «تنزيل نسخة على جهازي» لو المتصفح ما فكّهوش
+  const raw = await readFile(file);
+  const text = raw[0] === 0x1f && raw[1] === 0x8b ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
+  const data = JSON.parse(text.replace(/^﻿/, '')) as BackupFile;
   return importData(db, data);
 }
 
@@ -167,4 +171,65 @@ export async function listBackups(dir: string) {
   } catch {
     return [];
   }
+}
+
+// =====================================================================================
+// النسخ التلقائي اليومي (للتشغيل المحلي على جهاز المحل)
+// =====================================================================================
+
+/** يمسح النسخ اليومية القديمة ويسيب آخر `keep` نسخة (النسخ اليدوية وما قبل التحديث ما بتتمسحش) */
+export async function pruneDailyBackups(dir: string, keep: number) {
+  const daily = (await listBackups(dir)).filter((f) => f.endsWith('-daily.json'));
+  for (const f of daily.slice(Math.max(1, keep))) {
+    await unlink(path.join(dir, f)).catch(() => {});
+  }
+}
+
+export interface AutoBackupOptions {
+  dir: string;
+  /** فولدر تاني تتنسخ فيه كل نسخة يومية (فلاشة أو هارد خارجي أو فولدر Google Drive) */
+  copyDir?: string;
+  /** عدد النسخ اليومية اللي تفضل (افتراضي 30) */
+  keep?: number;
+  log?: (m: string) => void;
+}
+
+/**
+ * نسخة يومية تلقائية: أول ما الخادم يقوم لو آخر نسخة يومية أقدم من 20 ساعة، وبعدين بيتأكد كل ساعة.
+ * بيرجع دالة توقف المؤقت.
+ */
+export function startAutoBackups(db: Db, opts: AutoBackupOptions): () => void {
+  const log = opts.log ?? (() => {});
+  const keep = opts.keep ?? 30;
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const last = (await listBackups(opts.dir)).find((f) => f.endsWith('-daily.json'));
+      const lastAt = last ? (await stat(path.join(opts.dir, last))).mtimeMs : 0;
+      if (Date.now() - lastAt < 20 * 3600_000) return;
+      const file = await backupToFile(db, opts.dir, 'daily');
+      log(`نسخة احتياطية يومية: ${file}`);
+      if (opts.copyDir) {
+        try {
+          await mkdir(opts.copyDir, { recursive: true });
+          await copyFile(file, path.join(opts.copyDir, path.basename(file)));
+          await pruneDailyBackups(opts.copyDir, keep);
+          log(`اتنسخت كمان في: ${opts.copyDir}`);
+        } catch (e) {
+          log(`⚠ ما قدرتش أنسخها في ${opts.copyDir}: ${(e as Error).message} (النسخة الأساسية اتحفظت عادي)`);
+        }
+      }
+      await pruneDailyBackups(opts.dir, keep);
+    } catch (e) {
+      log(`⚠ فشلت النسخة الاحتياطية اليومية: ${(e as Error).message}`);
+    } finally {
+      running = false;
+    }
+  };
+  void tick();
+  const timer = setInterval(() => void tick(), 3600_000);
+  timer.unref?.();
+  return () => clearInterval(timer);
 }
