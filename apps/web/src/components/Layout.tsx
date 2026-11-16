@@ -13,6 +13,7 @@ import { usePerm, useSession, useSettings, useSyncCounts, useSyncState } from '.
 import { syncNow } from '../lib/sync';
 import { activeHubKey, HUBS, hubPath } from './nav';
 import { ScreenTabs } from './ScreenTabs';
+import { ShortcutsSheet, useGlobalShortcuts } from './Shortcuts';
 import { MainNav, TopIcons } from './TopNav';
 import { searchItems } from '../lib/search';
 import { setDocTitle, systemName, useSyncBrand } from '../lib/brand';
@@ -164,6 +165,8 @@ export function Layout({ children }: { children: ReactNode }) {
     });
   // مظهر المستخدم الحالي (كل مستخدم له اختياراته)
   useEffect(() => applyAppearance(), [session.user.id]);
+  const keys = useGlobalShortcuts(session.user.permissions);
+  useEffect(() => keys.setOpen(false), [loc.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const [dark, setDark] = useState(() => resolvedTheme() === 'dark');
   useEffect(() => {
     const h = () => setDark(resolvedTheme() === 'dark');
@@ -308,6 +311,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <Search />
             </button>
             <TopIcons
+              onShortcuts={() => keys.setOpen(true)}
               can={can}
               dark={dark}
               onToggleTheme={toggleTheme}
@@ -347,6 +351,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </button>
       </nav>
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
+      {keys.open && <ShortcutsSheet permissions={session.user.permissions} onClose={() => keys.setOpen(false)} />}
       {appearance && <AppearanceSheet onClose={() => setAppearance(false)} />}
     </div>
   );

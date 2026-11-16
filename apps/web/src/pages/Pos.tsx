@@ -111,7 +111,7 @@ export function PosPage() {
             </div>
           );
         })}
-        <button className="ss-tab-add" title="عملية بيع جديدة (F3)" onClick={newTab}><Plus /> بيع آخر</button>
+        <button className="ss-tab-add" title="عملية بيع جديدة (F3)" onClick={newTab}><Plus /> بيع آخر <kbd>F3</kbd></button>
       </div>
       {tabs.map((id) => (
         <PosSale

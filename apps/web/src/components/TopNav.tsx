@@ -137,7 +137,8 @@ const GEAR_EXTRA: Record<string, NavLink[]> = {
 };
 
 /** أيقونات الشريط العلوي: الإعدادات، المساعدة، الإشعارات */
-export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onSearch, userName, roleName, syncProblems }: {
+export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onSearch, onShortcuts, userName, roleName, syncProblems }: {
+  onShortcuts: () => void;
   can: Can; dark: boolean; onToggleTheme: () => void; onAppearance: () => void; onLogout: () => void; onSearch: () => void; userName: string; roleName: string; syncProblems: number;
 }) {
   const nav = useNavigate();
@@ -206,7 +207,12 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
             <p><Users /> <span>كل قسم في الشريط الأزرق: اضغط عليه يفتح صفحته، أو وقّف الماوس عليه تظهر كل شاشاته.</span></p>
             <b>اختصارات الكيبورد</b>
             <p><kbd>Ctrl</kbd>+<kbd>K</kbd> <span>بحث عن صنف أو عميل أو فاتورة</span></p>
-            <button className="btn sm" onClick={() => { setOpen(null); onSearch(); }}>افتح البحث</button>
+            <p><kbd>F1</kbd> <span>كل الاختصارات (وفي الفاتورة: اختصارات الفاتورة)</span></p>
+            <p><kbd>Alt</kbd>+<kbd>N</kbd> <span>فاتورة بيع جديدة</span></p>
+            <div className="row" style={{ gap: '0.5rem' }}>
+              <button className="btn sm" onClick={() => { setOpen(null); onSearch(); }}>افتح البحث</button>
+              <button className="btn sm" onClick={() => { setOpen(null); onShortcuts(); }}>كل الاختصارات</button>
+            </div>
           </div>
         </MenuPanel>
       )}
