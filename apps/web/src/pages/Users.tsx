@@ -65,7 +65,7 @@ export function UsersPage() {
   return (
     <div className="page narrow">
       <PageHeader title="المستخدمون والصلاحيات" sub="تحتاج هذه الشاشة اتصالًا بالخادم للحفظ." />
-      <div className="row"><div className="section-title" style={{ flex: 1, margin: 0 }}>المستخدمون</div><button className="btn sm primary" onClick={() => { setErr(null); setU({ username: '', full_name: '', role_id: 'role-cashier', active: true, password: '', own_cashbox: true }); }}><Plus /> مستخدم</button></div>
+      <div className="row"><div className="section-title" style={{ flex: 1, margin: 0 }}>المستخدمون</div><button className="btn sm primary" onClick={() => { setErr(null); setU({ username: '', full_name: '', role_id: 'role-cashier', active: true, password: '', own_cashbox: false }); }}><Plus /> مستخدم</button></div>
       <div className="list" style={{ marginTop: 10 }}>
         {users.map((x) => (
           <div key={x.id} className="list-row tappable" onClick={() => { setErr(null); setU({ ...x, password: '' }); }}>
@@ -101,7 +101,7 @@ export function UsersPage() {
               </select>
             </Field>
             <div className="row"><Switch checked={u.active} onChange={(v) => setU({ ...u, active: v })} /> {u.active ? 'نشط' : 'موقوف'}</div>
-            {!u.id && <div className="row"><Switch checked={!!u.own_cashbox} onChange={(v) => setU({ ...u, own_cashbox: v })} /> إنشاء خزنة نقدية مستقلة باسمه ومسؤوليته</div>}
+            {!u.id && <div className="row"><Switch checked={!!u.own_cashbox} onChange={(v) => setU({ ...u, own_cashbox: v })} /> <span>إنشاء خزنة نقدية مستقلة باسمه ومسؤوليته<div className="footnote">سيبها مقفولة علشان يشتغل على الخزنة العامة؛ مبيعاته بتبان باسمه في التقارير برضه.</div></span></div>}
             {u.id && (() => {
               const own = cashboxes.filter((c) => c.user_id === u.id);
               return <div className="footnote">{own.length ? `خزنته: ${own.map((c) => c.name).join('، ')}` : 'ليس مسؤولًا عن أي خزنة — حدّد المسؤول من شاشة الخزائن.'}</div>;
