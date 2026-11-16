@@ -331,7 +331,7 @@ kbd { font-family: var(--font); font-size: var(--text-2xs); border: 1px solid va
 :root[data-accent="teal"] .print-root { --tint: #0F8A80; --tint-press: #0B6F67; }
 :root[data-accent="purple"] .print-root { --tint: #7047E0; --tint-press: #5B34C8; }
 :root[data-accent="green"] .print-root { --tint: #16803A; --tint-press: #11692F; }
-:root[data-accent="orange"] .print-root { --tint: #D9530F; --tint-press: #B9450B; }
+:root[data-accent="orange"] .print-root { --tint: #EA580C; --tint-press: #C2410C; }
 :root[data-accent="pink"] .print-root { --tint: #CC2E6E; --tint-press: #AE2459; }
 
 /* الدخول */

@@ -547,7 +547,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 .ap-prev b { grid-row: 1; border: 0 !important; }
 .ap-prev i { grid-row: 2; margin: 0.5rem; border-radius: 0.375rem; background: #FFFFFF; position: relative; }
 .ap-prev i::after { content: ''; position: absolute; inset-inline-start: 0.375rem; top: 0.375rem; width: 32%; height: 0.375rem; border-radius: 999px; background: var(--pv, #1D4ED8); }
-.ap-prev.light { background: #EEEFF3; border-color: #DEE0E7; } .ap-prev.light b { background: #15171C; } .ap-prev.light i { --pv: #C2410C; }
+.ap-prev.light { background: #EEEFF3; border-color: #DEE0E7; } .ap-prev.light b { background: #15171C; } .ap-prev.light i { --pv: #EA580C; }
 .ap-prev.dark { background: #202227; border-color: #3A3D45; } .ap-prev.dark b { background: #18191D; } .ap-prev.dark i { background: #2A2D33; --pv: #FB923C; }
 .ap-prev.system { background: linear-gradient(90deg, #202227 50%, #EEEFF3 50%); } .ap-prev.system b { background: linear-gradient(90deg, #18191D 50%, #15171C 50%); } .ap-prev.system i { background: linear-gradient(90deg, #2A2D33 50%, #FFFFFF 50%); }
 .ap-prev.navy { background: #ECEFF4; border-color: #D9DEE8; } .ap-prev.navy b { background: #0F1D35; } .ap-prev.navy i { --pv: #1D4ED8; }

@@ -52,7 +52,7 @@ export const ACCENTS: { id: Accent; color: string; label: string }[] = [
   { id: 'teal', color: '#047857', label: 'زمردي' },
   { id: 'purple', color: '#4338CA', label: 'نيلي' },
   { id: 'green', color: '#334155', label: 'جرافيت' },
-  { id: 'orange', color: '#C2410C', label: 'برتقالي محروق' },
+  { id: 'orange', color: '#EA580C', label: 'برتقالي محروق' },
   { id: 'pink', color: '#9F1239', label: 'عنابي' },
 ];
 
