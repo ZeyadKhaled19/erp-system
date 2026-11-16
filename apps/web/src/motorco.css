@@ -70,7 +70,7 @@
 .mc-bell { width: min(23.75rem, calc(100vw - 2rem)); }
 .mc-bell .tn-link { height: 2.625rem; }
 .mc-bell .tn-ic svg { width: 1.125rem; height: 1.125rem; }
-.mc-tone-red { color: #DC2626 !important; } .mc-tone-orange { color: #D97706 !important; } .mc-tone-purple { color: #7C3AED !important; } .mc-tone-blue { color: #2563EB !important; }
+.mc-tone-red { color: #DC2626 !important; } .mc-tone-orange { color: var(--orange-text) !important; } .mc-tone-purple { color: #7C3AED !important; } .mc-tone-blue { color: var(--tint) !important; }
 .mc-empty { padding: 1.125rem 0.75rem; text-align: center; color: var(--label-3); font-size: 0.8438rem; }
 
 /* ---------- 2) الشريط الأفقي للأقسام ---------- */
@@ -165,12 +165,12 @@
 .mc-task-l { flex: 1; min-width: 0; font-size: clamp(0.875rem, 1.15vw, 1.0938rem); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-count { min-width: 2.125rem; height: 1.75rem; padding: 0 0.5rem; border-radius: 0.5rem; display: inline-grid; place-items: center; font-weight: 800; font-size: 1rem; }
 .mc-count.red { background: #FDE2E2; color: #E11D48; }
-.mc-count.orange { background: #FDEFD3; color: #D97706; }
-.mc-count.blue { background: #DCE8FD; color: #2563EB; }
+.mc-count.orange { background: #FEF3C7; color: #A16207; }
+.mc-count.blue { background: color-mix(in srgb, var(--tint) 12%, transparent); color: var(--tint); }
 .mc-count.purple { background: #EDE6FE; color: #7C3AED; }
 :root[data-theme="dark"] .mc-count.red { background: #4A1D24; color: #FDA4AF; }
 :root[data-theme="dark"] .mc-count.orange { background: #43300D; color: #FCD34D; }
-:root[data-theme="dark"] .mc-count.blue { background: #172B54; color: #93C5FD; }
+:root[data-theme="dark"] .mc-count.blue { background: color-mix(in srgb, var(--tint) 18%, transparent); color: var(--tint); }
 :root[data-theme="dark"] .mc-count.purple { background: #2E2257; color: #C4B5FD; }
 .mc-chev { width: 1.375rem; height: 1.375rem; stroke-width: 2.4; color: var(--heading); flex-shrink: 0; margin-inline-start: 0.75rem; }
 

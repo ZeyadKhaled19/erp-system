@@ -17,7 +17,7 @@
   --zebra: rgba(15, 23, 42, 0.015);
   --green: #15803D; --green-soft: #E8F6EE; --green-text: #15803D;
   --red: #C42B2B; --red-soft: #FDECEC; --red-text: #B42323;
-  --orange: #B45309; --orange-soft: #FDF3E4; --orange-text: #A14A07;
+  --orange: #A16207; --orange-soft: #FEF6D8; --orange-text: #854D0E; /* كهرماني/أصفر عشان التحذير ما يتلخبطش مع اللون الأساسي البرتقالي */
   --yellow: #CA8A04; --gray: #8A94A6;
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-lift: 0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.05);

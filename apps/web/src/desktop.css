@@ -32,7 +32,7 @@
 .dk-closing-in { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 0 1.5rem; max-width: 34rem; }
 .dk-closing-logo { margin-bottom: 1.25rem; }
 .dk-closing-logo .eco-word { font-size: 1.75rem; }
-.dk-spin { width: 2.75rem; height: 2.75rem; border: 4px solid #ffffff1a; border-top-color: #3B82F6; border-radius: 50%; animation: dk-r 1s linear infinite; }
+.dk-spin { width: 2.75rem; height: 2.75rem; border: 4px solid #ffffff1a; border-top-color: var(--tint); border-radius: 50%; animation: dk-r 1s linear infinite; }
 .dk-done { display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: 50%; background: #22C55E22; color: #4ADE80; animation: dk-pop .35s cubic-bezier(.2, .9, .3, 1.4); }
 .dk-done.warn { background: #F59E0B22; color: #FBBF24; }
 .dk-done svg { width: 2.25rem; height: 2.25rem; }
