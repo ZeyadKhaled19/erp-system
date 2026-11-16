@@ -416,7 +416,7 @@ kbd { font-family: var(--font); font-size: max(11px, 0.6875rem); border: 1px sol
 .sc:focus-visible { outline: 3px solid var(--tint); outline-offset: 3px; }
 .sc-icon { position: absolute; top: 1.125rem; inset-inline-start: 1.125rem; display: grid; place-items: center; }
 .sc-icon svg { width: 2.25rem; height: 2.25rem; stroke-width: 2.2; color: #FFFFFF; }
-.sc-badge { position: absolute; top: 1rem; inset-inline-end: 1rem; min-width: 2.125rem; height: 2.125rem; padding: 0 0.625rem; border-radius: 62.4375rem; background: #EF5350; color: #FFFFFF; display: grid; place-items: center; font-weight: 700; font-size: 0.9375rem; box-shadow: 0 4px 10px rgba(0, 0, 0, .18); }
+.sc-badge { position: absolute; top: 1rem; inset-inline-end: 1rem; min-width: 2.125rem; height: 2.125rem; padding: 0 0.625rem; border-radius: 62.4375rem; background: var(--red); color: #FFFFFF; display: grid; place-items: center; font-weight: 700; font-size: 0.9375rem; box-shadow: 0 4px 10px rgba(0, 0, 0, .18); }
 .sc-mark { position: absolute; inset-inline-end: -18px; bottom: -22px; opacity: .16; pointer-events: none; }
 .sc-mark svg { width: 7.5rem; height: 7.5rem; stroke-width: 1.6; color: #FFFFFF; }
 .sc-text { margin-top: auto; position: relative; display: flex; flex-direction: column; gap: 2px; }
@@ -512,7 +512,7 @@ kbd { font-family: var(--font); font-size: max(11px, 0.6875rem); border: 1px sol
 .inv-kpi-l svg { width: 1rem; height: 1rem; color: var(--k); }
 .inv-kpi-v { font-size: 1.375rem; font-weight: 700; color: var(--heading); }
 .inv-kpi-s { font-size: max(11px, 0.75rem); color: var(--label-3); }
-.inv-kpi.green { --k: #22A06B; } .inv-kpi.red { --k: #E5484D; } .inv-kpi.amber { --k: #D9A21B; } .inv-kpi.teal { --k: #12A594; }
+.inv-kpi.green { --k: var(--green); } .inv-kpi.red { --k: var(--red); } .inv-kpi.amber { --k: var(--orange); } .inv-kpi.teal { --k: #12A594; }
 .inv-filters { padding: 0.625rem 0.75rem; margin-bottom: 0.875rem; display: flex; flex-direction: column; gap: 0.625rem; }
 .inv-tabs { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 1px solid var(--separator); margin: -2px -0.75rem 0; padding: 0 0.75rem; }
 .inv-tabs button { flex-shrink: 0; height: 2.5rem; padding: 0 0.75rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--label-2); font-weight: 600; font-size: 0.875rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.375rem; }
@@ -538,12 +538,12 @@ kbd { font-family: var(--font); font-size: max(11px, 0.6875rem); border: 1px sol
 .inv-ic svg { width: 1.125rem; height: 1.125rem; }
 .inv-ic.lg { width: 3rem; height: 3rem; border-radius: 0.75rem; }
 .inv-ic.lg svg { width: 1.375rem; height: 1.375rem; }
-.t-green { --c: #22A06B; } .t-purple { --c: #8E4EC6; } .t-amber { --c: #C68A12; } .t-orange { --c: #E5701A; } .t-teal { --c: #12A594; } .t-red { --c: #E5484D; } .t-pink { --c: #D6409F; } .t-slate { --c: #64748B; }
+.t-green { --c: var(--green); } .t-purple { --c: var(--purple); } .t-amber { --c: var(--orange); } .t-orange { --c: #E5701A; } .t-teal { --c: #12A594; } .t-red { --c: var(--red); } .t-pink { --c: #D6409F; } .t-slate { --c: #64748B; }
 .inv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .inv-title { font-weight: 700; font-size: 0.875rem; color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-meta { font-size: max(11px, 0.75rem); color: var(--label-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-progress { height: 0.25rem; border-radius: 0.25rem; background: var(--fill-2); overflow: hidden; margin-top: 0.25rem; max-width: 10rem; }
-.inv-progress i { display: block; height: 100%; background: #22A06B; border-radius: 0.25rem; }
+.inv-progress i { display: block; height: 100%; background: var(--green); border-radius: 0.25rem; }
 .inv-progress.lg { max-width: none; height: 0.375rem; margin: 0.625rem 0 2px; }
 .inv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
 .inv-amt { font-weight: 700; font-size: 0.9375rem; color: var(--heading); }
@@ -1672,8 +1672,8 @@ kbd { font-weight: 500; }
 .si-page-heading h1 { font-size: clamp(1.4375rem, 1.8vw, 1.8125rem); }
 .si-heading-actions { display: flex; align-items: center; gap: 0.5625rem; }
 .si-connect { display: inline-flex; align-items: center; gap: 0.375rem; color: var(--label-2); font-size: 0.8125rem; white-space: nowrap; }
-.si-connect i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--green, #258764); }
-.si-connect.offline i { background: var(--orange, #c78028); }
+.si-connect i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--green); }
+.si-connect.offline i { background: var(--orange); }
 .si-new-tab { min-height: 2.25rem; padding-inline: 0.75rem; border-radius: 0.6875rem; white-space: nowrap; }
 .si-new-tab svg { width: 1.0625rem; height: 1.0625rem; }
 .si-main {
@@ -1739,7 +1739,7 @@ kbd { font-weight: 500; }
 }
 
 /* فاتورة البيع: شارة الخدمة، تنبيه الرصيد، ورصيد العميل مقابل الحد الائتماني */
-.si-svc { display: inline-block; margin-inline-start: 0.5rem; padding: 1px 0.4375rem; border-radius: 0.375rem; font-size: max(11px, 0.6875rem); font-weight: 800; background: var(--purple-soft, #EDE9FE); color: var(--purple-text, #5B21B6); vertical-align: middle; }
+.si-svc { display: inline-block; margin-inline-start: 0.5rem; padding: 1px 0.4375rem; border-radius: 0.375rem; font-size: max(11px, 0.6875rem); font-weight: 800; background: var(--purple-soft); color: var(--purple-text); vertical-align: middle; }
 .si-short { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0.5rem 0.75rem 0; padding: 0.625rem 0.875rem; border-radius: 0.75rem; background: var(--orange-soft); color: var(--orange-text); font-size: 0.875rem; font-weight: 600; line-height: 1.5; }
 .si-short svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-top: 0.125rem; }
 .si-credit { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.75rem; border-radius: 0.75rem; background: var(--fill-3); font-size: 0.8125rem; }
