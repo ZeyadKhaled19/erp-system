@@ -1,9 +1,10 @@
-import { ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, FileWarning, Laptop } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, CircleHelp, LogOut, Moon, Package, Palette, ShieldAlert, Settings, Sun, Truck, Users, FileWarning, Laptop, KeyRound } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWorkCounts } from '../lib/alerts';
 import { isDesktop } from '../lib/desktop';
+import { useLicenseInfo } from '../lib/license';
 import { GEAR_HUBS, HUBS, SECTIONS, activeHubKey, activeSectionKey, type NavLink, type Section } from './nav';
 
 type Can = (p: string) => boolean;
@@ -145,6 +146,7 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
   const loc = useLocation();
   const { open, setOpen, anchors, pop } = useMenu<'gear' | 'help' | 'bell'>();
   const w = useWorkCounts();
+  const lic = useLicenseInfo();
   const go = (to: string) => {
     setOpen(null);
     nav(to);
@@ -156,6 +158,8 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
     .filter((g) => g.links.length);
   // جوه برنامج الويندوز بس: «برنامج الويندوز» (التحديثات والنسخ الاحتياطي) أول رابط في الإعدادات
   if (isDesktop() && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [{ to: '/desktop', label: 'برنامج الويندوز', icon: <Laptop />, grad: '' }, ...gearGroups[0].links] };
+  // موقع صاحب السيستم بس: «التراخيص والتجارب» (اللي سجلوا وأكواد التفعيل)
+  if (lic?.vendor && can('settings.manage') && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [...gearGroups[0].links, { to: '/licenses', label: 'التراخيص والتجارب', icon: <KeyRound />, grad: '' }] };
   const gearActive = GEAR_HUBS.includes(activeHubKey(loc.pathname));
   const alerts: { n: number; label: string; to: string; icon: ReactNode; tone: string }[] = [
     { n: w.review, label: 'عمليات تحتاج مراجعة', to: '/sync', icon: <ShieldAlert />, tone: 'red' },
