@@ -11,6 +11,7 @@ import { backupToFile, exportData, listBackups, restoreFromFile } from './backup
 import type { Db } from './db';
 import { AppError } from './errors';
 import { integrityCheck } from './integrity';
+import { registerLicensing, type LicenseGate } from './licensing';
 import { applyOp, shiftExpected } from './ops';
 import * as R from './reports';
 import { pull } from './sync';
@@ -23,6 +24,14 @@ export interface AppOptions {
   logger?: boolean;
   /** خادم بلا قرص دائم (Vercel): لا تُحفظ نسخ على الخادم، والنسخة تُنزَّل مباشرة على جهاز المستخدم */
   ephemeralBackups?: boolean;
+  /** برنامج الويندوز: التجربة 7 أيام والقفل وكود التفعيل */
+  license?: LicenseGate;
+  /** موقع صاحب السيستم: صفحة «جرّب مجانًا» وصفحة التراخيص */
+  vendor?: boolean;
+  /** مفتاح توقيع أكواد التفعيل (على موقع صاحب السيستم بس) */
+  licensePrivateKey?: string;
+  /** لينك تحميل برنامج الويندوز (اختياري) */
+  downloadUrl?: string;
 }
 
 declare module 'fastify' {
@@ -67,6 +76,8 @@ export async function buildApp(opts: AppOptions) {
     await auth(req);
     if (!hasPermission(req.user!.permissions, key)) throw new AppError('ليس لديك صلاحية', 'forbidden');
   };
+  // التراخيص قبل باقي المسارات، علشان القفل يتطبق على كل طلبات /api
+  registerLicensing(app, { db, gate: opts.license, vendor: opts.vendor, privateKey: opts.licensePrivateKey, downloadUrl: opts.downloadUrl, perm });
   const q = (req: FastifyRequest) => req.query as Record<string, string | undefined>;
   const range = (req: FastifyRequest) => ({ from: q(req).from || undefined, to: q(req).to || undefined });
   const assertWarehouseScope = (req: FastifyRequest, id: string | null | undefined) => {

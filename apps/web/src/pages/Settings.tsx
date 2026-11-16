@@ -6,6 +6,7 @@ import { ShortcutCard, type ShortcutColor } from '../components/ShortcutCard';
 import { PageHeader } from '../components/Layout';
 import { AppearancePanel } from '../components/Appearance';
 import { Banner, Field, Switch, useUi } from '../components/ui';
+import { useLicenseInfo } from '../lib/license';
 import { api } from '../lib/api';
 import { db } from '../lib/db';
 import { usePerm, useSettings } from '../lib/hooks';
@@ -21,6 +22,7 @@ export function SettingsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [storage, setStorage] = useState<string | null>(null);
   const nav = useNavigate();
+  const lic = useLicenseInfo();
   const [sp, setSp] = useSearchParams();
   useEffect(() => {
     if (!f && s.company_name !== undefined) setF({ work_start_time: '09:00', work_end_time: '17:00', late_grace_minutes: 15, weekly_off_days: [], monthly_leave_days: 4, ...s, tax_pct: bpToPercent(s.default_tax_rate_bp ?? 0) });
@@ -83,6 +85,7 @@ export function SettingsPage() {
     { to: '/sync', label: 'المزامنة', icon: <RefreshCw /> },
     { to: '/backups', label: 'النسخ الاحتياطي', icon: <HardDriveDownload />, perm: 'backup.manage' },
     { to: '/audit', label: 'سجل التدقيق', icon: <ScrollText />, perm: 'audit.view' },
+    ...(lic?.vendor ? [{ to: '/licenses', label: 'التراخيص والتجارب', icon: <KeyRound />, perm: 'settings.manage' }] : []),
   ].filter((l) => !l.perm || can(l.perm));
   const raw = sp.get('sec') as Sec | null;
   const sec: Sec = raw && secs.some((x) => x.id === raw && x.show) ? raw : 'general';

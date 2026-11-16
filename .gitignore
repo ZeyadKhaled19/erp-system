@@ -11,3 +11,6 @@ coverage/
 dev-dist/
 logs/
 .vercel/
+
+# مفاتيح سرية (مفتاح توقيع أكواد التفعيل) — ممنوع ترفع
+.secrets/

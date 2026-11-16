@@ -3,7 +3,7 @@
 // - نسخة احتياطية كل ساعة لو فيه تغيير (وأول نسخة كل يوم بتتحفظ 30 يوم).
 // - لما تقفل البرنامج: رسالة، وبعدين نسخة احتياطية بآخر البيانات، وبعدين يقفل.
 const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron');
-const { fork } = require('node:child_process');
+const { execFileSync, fork } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -30,6 +30,9 @@ if (!app.requestSingleInstanceLock()) {
 if (process.env.ERP_DESKTOP_DIR) app.setPath('userData', process.env.ERP_DESKTOP_DIR);
 const userData = app.getPath('userData');
 const configFile = path.join(userData, 'config.json');
+// قبل ما نعمل أي ملف: هل الجهاز ده كان شغال بالبرنامج قبل نظام التراخيص؟ (بيفضل مفتوح على طول)
+const hadConfigBefore = fs.existsSync(configFile);
+const hadDataBefore = fs.existsSync(path.join(userData, 'data', 'pg'));
 function loadConfig() {
   let c = {};
   try { c = JSON.parse(fs.readFileSync(configFile, 'utf8')); } catch { /* أول تشغيل */ }
@@ -49,6 +52,47 @@ function saveConfig(c) {
   fs.writeFileSync(configFile, JSON.stringify(c, null, 2));
 }
 let config = loadConfig();
+
+// ---------- الترخيص: تجربة 7 أيام ثم كود تفعيل ----------
+// الخادم هو اللي بيقرر مفتوح ولا مقفول (علشان القفل يشمل الأجهزة التانية اللي بتفتح من الشبكة كمان).
+// البرنامج بيدّيله: رقم الجهاز، أول يوم تجربة، آخر وقت اتشاف، والكود المتحفظ.
+const REG_KEY = 'HKCU\\Software\\EcoSystem';
+function regRead(key, name) {
+  try {
+    const out = execFileSync('reg', ['query', key, '/v', name], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    return (new RegExp(`${name}\\s+REG_\\w+\\s+(.+)`).exec(out) || [])[1]?.trim() || null;
+  } catch { return null; }
+}
+function regWrite(key, name, value) {
+  try { execFileSync('reg', ['add', key, '/v', name, '/t', 'REG_SZ', '/d', value, '/f'], { windowsHide: true, stdio: 'ignore' }); } catch { /* مش أساسي */ }
+}
+function machineId() {
+  // رقم ثابت للجهاز (ما بيتغيرش لو البرنامج اتشال واتسطب تاني)
+  let raw = process.platform === 'win32' ? regRead('HKLM\\SOFTWARE\\Microsoft\\Cryptography', 'MachineGuid') : null;
+  if (!raw) {
+    const mac = Object.values(os.networkInterfaces()).flat().find((a) => a && !a.internal && a.mac && a.mac !== '00:00:00:00:00:00');
+    raw = `${os.hostname()}|${mac ? mac.mac : ''}`;
+  }
+  return crypto.createHash('sha256').update('eco-machine:' + raw).digest('hex').slice(0, 16).toUpperCase().replace(/(.{4})(?=.)/g, '$1-');
+}
+function licenseInput() {
+  let changed = false;
+  if (config.licenseLegacy === undefined) {
+    config.licenseLegacy = hadConfigBefore && hadDataBefore;
+    changed = true;
+  }
+  // أول يوم تجربة: الأقدم بين الإعدادات والريجستري (علشان مسح البرنامج وتسطيبه تاني ما يبدأش تجربة جديدة)
+  const fromReg = regRead(REG_KEY, 'TrialStart');
+  const dates = [config.trialStart, fromReg].filter((d) => d && !Number.isNaN(Date.parse(d)));
+  const start = dates.length ? dates.sort()[0] : new Date().toISOString();
+  if (config.trialStart !== start) { config.trialStart = start; changed = true; }
+  if (fromReg !== start) regWrite(REG_KEY, 'TrialStart', start);
+  const now = new Date().toISOString();
+  const prevSeen = config.lastSeen || null;
+  if (!prevSeen || now > prevSeen) { config.lastSeen = now; changed = true; }
+  if (changed) saveConfig(config);
+  return { machineId: machineId(), trialStart: start, lastSeen: prevSeen, code: config.licenseCode || null, legacy: !!config.licenseLegacy };
+}
 
 const appDir = path.join(__dirname, 'app');
 const serverFile = path.join(appDir, 'server.mjs');
@@ -101,6 +145,11 @@ function startServer() {
       else if (/الخادم يعمل/.test(m.message)) setSplashStatus('بيفتح السيستم…');
     }
     if (m.type === 'error') writeLog('ERROR ' + m.message);
+    if (m.type === 'license-activated' && typeof m.code === 'string') {
+      config = { ...config, licenseCode: m.code };
+      saveConfig(config);
+      writeLog('اتفعّل البرنامج بكود جديد');
+    }
     const list = waiters.get(m.type);
     if (list && list.length) { waiters.set(m.type, []); list.forEach((fn) => fn(m)); }
     if (m.type === 'error' && m.fatal) {
@@ -135,8 +184,11 @@ function startServer() {
       backupEveryMinutes: 60,
       backupKeep: 30,
       backupKeepHourly: 48,
+      licenseInput: licenseInput(),
     },
   });
+  // آخر وقت اتشاف بيتحدث كل ساعة (لو حد رجّع ساعة الجهاز لورا)
+  setInterval(() => { if (server) server.send({ type: 'license', input: licenseInput() }); }, 3600000).unref();
 }
 
 // ---------- الشباك ----------

@@ -1,3 +1,4 @@
+import type { LicenseInput } from './license';
 import { startLocalServer, type LocalServerOptions } from './local';
 
 /**
@@ -5,6 +6,8 @@ import { startLocalServer, type LocalServerOptions } from './local';
  * وبيبعتله الإعدادات، وبيكلمه برسائل:
  *   ← { type: 'backup', reason }   نسخة فورية (زرار «نسخة دلوقتي»)
  *   ← { type: 'shutdown' }         نسخة لو فيه تغيير، وبعدين قفل
+ *   ← { type: 'license', input }    بيانات الترخيص اتغيرت (البرنامج بيبعتها مع start كمان في options.licenseInput)
+ *   → { type: 'license-activated', code }  اتحط كود تفعيل صحيح من الواجهة: البرنامج يحفظه
  *   → { type: 'ready', port } | { type: 'backup-done', file, skipped } | { type: 'error', message } | { type: 'log', message }
  */
 const send = (m: unknown) => process.send?.(m);
@@ -15,6 +18,8 @@ const log = (message: string) => {
 };
 
 let server: Awaited<ReturnType<typeof startLocalServer>> | null = null;
+// بيانات الترخيص بتيجي من البرنامج (رقم الجهاز وأول يوم تجربة والكود المتحفظ)
+let licenseInput: LicenseInput | null = null;
 
 async function shutdown() {
   try {
@@ -39,7 +44,21 @@ process.on('message', async (m: any) => {
   if (!m || typeof m !== 'object') return;
   if (m.type === 'start') {
     try {
-      server = await startLocalServer({ ...(m.options as LocalServerOptions), log });
+      const { licenseInput: li, ...options } = m.options as LocalServerOptions & { licenseInput?: LicenseInput };
+      licenseInput = li ?? null;
+      server = await startLocalServer({
+        ...options,
+        log,
+        license: licenseInput
+          ? {
+              get: () => licenseInput!,
+              activate: (code) => {
+                licenseInput = { ...licenseInput!, code };
+                send({ type: 'license-activated', code });
+              },
+            }
+          : undefined,
+      });
       send({ type: 'ready', port: m.options.port });
     } catch (e) {
       send({ type: 'error', message: (e as Error).message, fatal: true });
@@ -54,6 +73,8 @@ process.on('message', async (m: any) => {
     } catch (e) {
       send({ type: 'error', message: `فشلت النسخة الاحتياطية: ${(e as Error).message}` });
     }
+  } else if (m.type === 'license') {
+    if (m.input && typeof m.input === 'object') licenseInput = m.input;
   } else if (m.type === 'shutdown') {
     await shutdown();
   }

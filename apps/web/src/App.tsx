@@ -45,6 +45,10 @@ import { clearLanded } from './lib/home';
 import { CommissionsPage, YearEndPage } from './pages/YearEnd';
 import { DailyMovementReport, ExpiryReport, NegativeStockReport, SalesAnalysisReport, SerialSearchReport, TreasuryAnalysisReport } from './pages/Reports';
 import { CustomerFieldsReport } from './pages/reports/customerFields';
+import { SignupPage } from './pages/Signup';
+import { LicensesPage } from './pages/Licenses';
+import { LockScreen, TrialPill } from './components/LicenseGate';
+import { useLicenseInfo } from './lib/license';
 
 export function App() {
   const [session, setSession] = useState<Session | null>(() => {
@@ -56,6 +60,7 @@ export function App() {
   });
   const ui = useUi();
   const loc = useLocation();
+  const lic = useLicenseInfo();
 
   useEffect(() => {
     if (!session) return;
@@ -140,6 +145,14 @@ export function App() {
 
   const ctx = useMemo(() => (session ? { session, logout } : null), [session, logout]);
 
+  // صفحة «جرّب مجانًا» (من غير دخول، على موقع صاحب السيستم بس)
+  if (loc.pathname === '/signup') {
+    if (!lic) return null; // لسه بنسأل الخادم: ما نفتحش حاجة تانية تغيّر الرابط
+    if (lic.vendor) return <SignupPage />;
+  }
+  // برنامج الويندوز بعد ما التجربة أو الاشتراك يخلص: شاشة التفعيل بدل أي حاجة
+  if (lic?.license?.status === 'expired') return <LockScreen license={lic.license} />;
+
   if (!session || !ctx)
     return (
       <Login
@@ -163,6 +176,7 @@ export function App() {
 
   return (
     <SessionContext.Provider value={ctx}>
+      {lic?.license?.status === 'trial' && <TrialPill license={lic.license} />}
       <Layout>
         <Routes>
           <Route path="/" element={<HomeRoute><Dashboard /></HomeRoute>} />
@@ -216,6 +230,7 @@ export function App() {
           <Route path="/employees/payroll" element={<RequirePerm any={['employees.view']}><PayrollPage /></RequirePerm>} />
           <Route path="/users" element={<RequirePerm any={['users.manage']}><UsersPage /></RequirePerm>} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/licenses" element={<RequirePerm any={['settings.manage']}><LicensesPage /></RequirePerm>} />
           <Route path="/backups" element={<RequirePerm any={['backup.manage']}><BackupsPage /></RequirePerm>} />
           <Route path="/audit" element={<RequirePerm any={['audit.view']}><AuditPage /></RequirePerm>} />
           <Route path="*" element={<Navigate to="/" replace />} />

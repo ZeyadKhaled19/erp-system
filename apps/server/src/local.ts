@@ -1,3 +1,5 @@
+import type { LicenseGate } from './licensing';
+import type { LicenseInput } from './license';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { buildApp } from './app';
@@ -25,6 +27,11 @@ export interface LocalServerOptions {
   backupKeep?: number;
   backupKeepHourly?: number;
   log?: (m: string) => void;
+  /** برنامج الويندوز: التجربة والقفل */
+  license?: LicenseGate;
+  /** تشغيله كموقع صاحب السيستم (صفحة التسجيل والتراخيص) */
+  vendor?: boolean;
+  licensePrivateKey?: string;
 }
 
 export interface LocalServer {
@@ -39,7 +46,7 @@ export async function startLocalServer(o: LocalServerOptions): Promise<LocalServ
   await migrate(db, { backupDir: o.backupDir, log });
   await seed(db, { adminPassword: o.adminPassword });
 
-  const app = await buildApp({ db, jwtSecret: o.jwtSecret, backupDir: o.backupDir, webDist: o.webDist });
+  const app = await buildApp({ db, jwtSecret: o.jwtSecret, backupDir: o.backupDir, webDist: o.webDist, license: o.license, vendor: o.vendor, licensePrivateKey: o.licensePrivateKey });
   await app.listen({ port: o.port, host: '0.0.0.0' });
   log(`✓ الخادم يعمل على http://localhost:${o.port} (قاعدة البيانات: ${db.kind === 'pglite' ? `PGlite في ${o.dataDir}` : 'PostgreSQL'})`);
 
@@ -68,6 +75,16 @@ export async function startLocalServer(o: LocalServerOptions): Promise<LocalServ
   };
 }
 
+/**
+ * للتجربة بس (من غير برنامج الويندوز): ERP_LICENSE_TEST=trial أو expired بيشغّل القفل على جهاز وهمي،
+ * علشان نجرب شاشة القفل وكود التفعيل من المتصفح.
+ */
+function testGate(mode: string | undefined): LicenseGate | undefined {
+  if (mode !== 'trial' && mode !== 'expired') return undefined;
+  const input: LicenseInput = { machineId: 'ABCD-0000-0000-0001', trialStart: new Date(Date.now() - (mode === 'expired' ? 8 : 2) * 86400000).toISOString() };
+  return { get: () => input, activate: (code) => { input.code = code; } };
+}
+
 /** الإعدادات من متغيرات البيئة (ملف .env) */
 export function optionsFromEnv(root: string): LocalServerOptions {
   const resolve = (p: string) => (path.isAbsolute(p) ? p : path.resolve(root, p));
@@ -85,5 +102,8 @@ export function optionsFromEnv(root: string): LocalServerOptions {
     backupEveryMinutes: Number(env.BACKUP_EVERY_MINUTES) || 60,
     backupKeep: Number(env.BACKUP_KEEP) || 30,
     backupKeepHourly: Number(env.BACKUP_KEEP_HOURLY) || 48,
+    vendor: env.ERP_VENDOR === '1',
+    licensePrivateKey: env.LICENSE_PRIVATE_KEY || undefined,
+    license: testGate(env.ERP_LICENSE_TEST),
   };
 }

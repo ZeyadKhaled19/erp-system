@@ -22,7 +22,7 @@ async function init() {
   const db = await openDb({ url, maxConnections: 3 });
   await migrate(db, { log: console.log });
   await seed(db, { adminPassword: process.env.ADMIN_INITIAL_PASSWORD });
-  const app = await buildApp({ db, jwtSecret: secret, backupDir: '/tmp/erp-backups', ephemeralBackups: true });
+  const app = await buildApp({ db, jwtSecret: secret, backupDir: '/tmp/erp-backups', ephemeralBackups: true, vendor: true, licensePrivateKey: process.env.LICENSE_PRIVATE_KEY || undefined, downloadUrl: process.env.DESKTOP_DOWNLOAD_URL || undefined });
   await app.ready();
   return app;
 }

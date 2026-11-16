@@ -1,6 +1,7 @@
 import { Boxes, Calculator, Eye, EyeOff, Lock, LogIn, ShoppingCart, Store, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EcoCoverArt, EcoLogo, EcoMark } from '../components/EcoLogo';
+import { useLicenseInfo } from '../lib/license';
 import { Banner } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { DEFAULT_SYSTEM_NAME, readBrand, saveBrand, systemName, type Brand } from '../lib/brand';
@@ -73,6 +74,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   };
 
   const custom = systemName(brand) !== DEFAULT_SYSTEM_NAME ? systemName(brand) : '';
+  const lic = useLicenseInfo();
   return (
     <div className="lg-page">
       {/* لوحة Eco System */}
@@ -142,6 +144,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
             {busy ? 'جارٍ الدخول…' : 'دخول'}
           </button>
         </form>
+        {lic?.vendor && <a href="/signup" className="lic-try">مش عندك حساب؟ <b>جرّب Eco System مجانًا 7 أيام</b></a>}
         <div className="lg-foot">
           <EcoMark size={16} /> <bdi>Eco System</bdi>
         </div>

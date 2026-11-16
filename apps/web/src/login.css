@@ -98,3 +98,28 @@
   .lg-head h1 { font-size: 1.3125rem; }
 }
 @media (prefers-reduced-motion: reduce) { .lg-art .lg-bar { animation: none; } }
+
+/* ---------- التجربة المجانية والتفعيل ---------- */
+.lic-try { font-size: var(--text-sm); color: var(--label-2); text-decoration: none; }
+.lic-try b { color: var(--tint); }
+.lic-try:hover b { text-decoration: underline; }
+.lic-back { align-self: center; font-size: var(--text-sm); color: var(--label-2); }
+.lic-page { min-height: 100%; display: grid; place-items: center; padding: 1.5rem 1rem; background: radial-gradient(circle, #262a33 1.2px, transparent 1.4px) 0 0 / 16px 16px, #15171C; overflow: auto; }
+.lic-card { width: min(30rem, 100%); }
+.lic-logo { align-self: center; }
+.lic-title { margin: 0; text-align: center; font-size: var(--text-2xl); font-weight: 800; color: var(--heading); }
+.lic-msg { margin: 0; text-align: center; color: var(--label-2); line-height: 1.7; }
+.lic-steps { margin: 0; padding-inline-start: 1.25rem; display: grid; gap: 0.375rem; color: var(--label); font-size: var(--text-sm); line-height: 1.7; }
+.lic-machine { padding: 0.75rem 0.875rem; border-radius: 0.875rem; border: 1px dashed var(--tint); background: var(--tint-soft); }
+.lic-machine-l { font-size: var(--text-xs); font-weight: 700; color: var(--label-2); margin-bottom: 0.375rem; }
+.lic-machine-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.lic-machine-id { flex: 1; min-width: 12rem; font-family: ui-monospace, Consolas, monospace; font-size: var(--text-xl); font-weight: 700; letter-spacing: 1px; color: var(--heading); direction: ltr; }
+.lic-code-l { font-size: 0.875rem; font-weight: 700; color: var(--heading); }
+.lic-code { min-height: 5.5rem; font-family: ui-monospace, Consolas, monospace; font-size: var(--text-xs); word-break: break-all; }
+.lic-pill { position: fixed; z-index: 900; inset-inline-start: 1rem; bottom: 1rem; display: inline-flex; align-items: center; gap: 0.5rem; height: 2.375rem; padding: 0 0.375rem 0 0.875rem; border-radius: 999px; border: 1px solid var(--separator); background: var(--card); color: var(--label); font: inherit; font-size: var(--text-sm); font-weight: 600; box-shadow: var(--shadow-pop); cursor: pointer; }
+.lic-pill svg { width: 1rem; height: 1rem; color: var(--tint); }
+.lic-pill-a { padding: 0.25rem 0.75rem; border-radius: 999px; background: var(--tint); color: var(--on-tint, #fff); font-weight: 700; }
+.lic-pill.urgent { border-color: var(--red); }
+.lic-pill.urgent svg { color: var(--red-text); }
+@media print { .lic-pill { display: none; } }
+@media (max-width: 760px) { .lic-pill { bottom: calc(4.5rem + env(safe-area-inset-bottom)); } }

@@ -48,6 +48,8 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     if (res.status === 401 && sentToken && sentToken === token) onUnauthorized?.();
     // 502/503/504 من وسيط = الخادم غير متاح
     if (res.status >= 502 && res.status <= 504) throw new ApiError('الخادم غير متاح حاليًا', res.status, true);
+    // برنامج الويندوز اتقفل (التجربة أو الاشتراك خلص): الواجهة تعرض شاشة التفعيل
+    if (res.status === 402 && data?.code === 'license') window.dispatchEvent(new Event('erp:license'));
     throw new ApiError(data?.error ?? `خطأ ${res.status}`, res.status);
   }
   return data as T;
