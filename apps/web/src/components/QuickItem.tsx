@@ -8,6 +8,8 @@ import { usePerm, useSettings } from '../lib/hooks';
 import { Banner, Field, MoneyInput, QtyInput, Sheet, useUi } from './ui';
 import { CategoryField } from './Categories';
 import { normalizeAr } from '../lib/search';
+import { findSimilarNames } from '@erp/shared';
+import { similarItemsNow, similarNameMessage, useSimilarItems } from '../lib/similarItems';
 
 async function nextCode(offset = 0) {
   const all = await db.items.toArray();
@@ -45,12 +47,14 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
   const [err, setErr] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const canStock = can('inventory.create');
+  const nameErr = similarNameMessage(useSimilarItems(f.name));
 
   const save = async (andNext: boolean) => {
     setErr(null);
     const name = f.name.trim();
     if (!name) return setErr('اكتب اسم الصنف');
-    if ((await db.items.where('name').equals(name).count()) > 0) return setErr('يوجد صنف بنفس الاسم');
+    const sim = await similarItemsNow(name);
+    if (sim.length) return setErr('لا يمكن الحفظ: اسم الصنف قريب جدًا من صنف موجود (التفاصيل تحت خانة الاسم). غيّر الاسم.');
     if (f.barcode.trim() && ((await db.items.where('barcode').equals(f.barcode.trim()).count()) || (await db.item_units.where('barcode').equals(f.barcode.trim()).count()))) {
       return setErr('الباركود مستخدم لصنف آخر');
     }
@@ -98,15 +102,15 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
         <>
           {onAdvanced && <button className="btn plain" onClick={onAdvanced}>خيارات متقدمة</button>}
           <span className="spacer" />
-          <button className="btn" onClick={() => save(false)}>حفظ وإغلاق</button>
-          <button className="btn primary" onClick={() => save(true)}><Plus /> حفظ وأضف التالي</button>
+          <button className="btn" onClick={() => save(false)} disabled={!!nameErr}>حفظ وإغلاق</button>
+          <button className="btn primary" onClick={() => save(true)} disabled={!!nameErr}><Plus /> حفظ وأضف التالي</button>
         </>
       }
     >
       <div className="stack" onKeyDown={onKey}>
         {err && <Banner kind="err">{err}</Banner>}
-        <Field label="اسم الصنف" required>
-          <input ref={nameRef} className="input" style={{ fontSize: 17, height: 52 }} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus placeholder="مثال: شاي العروسة 250 جم" />
+        <Field label="اسم الصنف" required error={nameErr}>
+          <input ref={nameRef} aria-invalid={!!nameErr} className="input" style={{ fontSize: 17, height: 52 }} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus placeholder="مثال: شاي العروسة 250 جم" />
         </Field>
         <CategoryField value={f.cat} onChange={(id) => setF({ ...f, cat: id })} />
         <div className="grid grid-3">
@@ -198,7 +202,7 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
   const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
   const existing = useLiveQuery(async () => {
     const all = await db.items.toArray();
-    return { names: new Set(all.map((i) => i.name.trim())), barcodes: new Set(all.map((i) => i.barcode).filter(Boolean)), codes: new Set(all.map((i) => String(i.code))) };
+    return { list: all.map((i) => ({ id: i.id, name: i.name, code: i.code })), barcodes: new Set(all.map((i) => i.barcode).filter(Boolean)), codes: new Set(all.map((i) => String(i.code))) };
   }, []);
   const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
   const fileRef = useRef<HTMLInputElement>(null);
@@ -239,7 +243,7 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
 
   const rows = useMemo(() => {
     const out: { name: string; code: string; barcode: string; price: number; wholesale: number; cost: number; qty: number; unit: string; cat: string; error?: string }[] = [];
-    const seen = new Set<string>();
+    const seen: { id: string; name: string }[] = [];
     const seenCodes = new Set<string>();
     const get = (r: string[], k: FieldKey) => (col(k) >= 0 ? r[col(k)] ?? '' : '');
     for (const r of raw.slice(hasHeader ? 1 : 0)) {
@@ -258,10 +262,14 @@ export function ImportItemsSheet({ onClose }: { onClose: () => void }) {
       if (price < 0 || cost < 0 || wholesale < 0) error = 'سعر بالسالب';
       const code = get(r, 'code');
       const barcode = get(r, 'barcode');
-      if (!error && (existing?.names.has(name) || seen.has(name))) error = 'الاسم موجود';
+      // اسم مطابق أو قريب جدًا من صنف موجود أو من صف سابق في نفس الملف
+      const simOld = error ? [] : findSimilarNames(name, existing?.list ?? [], null, 1);
+      const simNew = error || simOld.length ? [] : findSimilarNames(name, seen, null, 1);
+      if (simOld.length) error = `يشبه «${simOld[0].name}»${simOld[0].code ? ` (كود ${simOld[0].code})` : ''}`;
+      else if (simNew.length) error = `مكرر في الملف: «${simNew[0].name}»`;
       else if (!error && code && (existing?.codes.has(code) || seenCodes.has(code))) error = 'الكود مستخدم';
       else if (!error && barcode && existing?.barcodes.has(barcode)) error = 'الباركود مستخدم';
-      seen.add(name);
+      seen.push({ id: String(seen.length), name });
       if (code) seenCodes.add(code);
       out.push({ name: name.slice(0, 200), code: code.slice(0, 50), barcode: barcode.slice(0, 64), price, wholesale, cost, qty, unit: (get(r, 'unit') || 'قطعة').slice(0, 30), cat: get(r, 'cat').slice(0, 100), error });
     }

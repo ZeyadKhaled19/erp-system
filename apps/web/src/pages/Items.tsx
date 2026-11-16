@@ -12,6 +12,7 @@ import { CategoryField, CategoryFilter } from '../components/Categories';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useSettings } from '../lib/hooks';
 import { searchItems } from '../lib/search';
+import { similarItemsNow, similarNameMessage, useSimilarItems } from '../lib/similarItems';
 
 export function ItemsPage() {
   const can = usePerm();
@@ -219,6 +220,8 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
   }, [item, settings.default_tax_rate_bp]);
   const [err, setErr] = useState<string | null>(null);
   const allUnits = units ?? existingUnits ?? [];
+  const similar = useSimilarItems(f.name, item);
+  const nameErr = similarNameMessage(similar);
   const set = (k: string, v: unknown) => setF((p: any) => ({ ...p, [k]: v }));
 
   const suggestCode = async () => {
@@ -230,6 +233,8 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
   const save = async () => {
     setErr(null);
     if (!f.code.trim() || !f.name.trim()) return setErr('الكود والاسم مطلوبان');
+    const sim = await similarItemsNow(f.name, item);
+    if (sim.length) return setErr('لا يمكن الحفظ: اسم الصنف قريب جدًا من صنف موجود (التفاصيل تحت خانة الاسم). غيّر الاسم.');
     const dupCode = await db.items.where('code').equals(f.code.trim()).first();
     if (dupCode && dupCode.id !== item?.id) return setErr('الكود مستخدم لصنف آخر');
     if (f.barcode) {
@@ -273,7 +278,7 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
       footer={
         <>
           <button className="btn" onClick={onClose}>إلغاء</button>
-          <button className="btn primary" onClick={save}>حفظ</button>
+          <button className="btn primary" onClick={save} disabled={!!nameErr} title={nameErr ? 'غيّر اسم الصنف أولًا' : undefined}>حفظ</button>
         </>
       }
     >
@@ -287,8 +292,8 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
               {!item && <button type="button" className="btn sm" onClick={suggestCode}>تلقائي</button>}
             </div>
           </Field>
-          <Field label="اسم الصنف *" className="span-2" >
-            <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} />
+          <Field label="اسم الصنف *" className="span-2" error={nameErr}>
+            <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} aria-invalid={!!nameErr} />
           </Field>
           <Field label="الباركود" hint="امسح الباركود بالماسح الضوئي داخل الحقل">
             <input className="input num" value={f.barcode} onChange={(e) => set('barcode', e.target.value)} />

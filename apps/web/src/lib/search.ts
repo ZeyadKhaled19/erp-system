@@ -1,20 +1,10 @@
 /**
  * بحث ذكي عن الأصناف بالكلام: أي جزء من الكلمة، أكثر من كلمة بأي ترتيب،
  * ومع توحيد الحروف العربية (أ/إ/آ/ا، ة/ه، ى/ي، والتشكيل) حتى لا تفشل كتابة سريعة.
+ * التوحيد نفسه في packages/shared (names.ts) ليستخدمه فحص الأسماء المتشابهة أيضًا.
  */
-export function normalizeAr(s: string | null | undefined): string {
-  return (s ?? '')
-    .toLowerCase()
-    .replace(/[ً-ٰٟـ]/g, '') // التشكيل والتطويل
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+import { normalizeAr } from '@erp/shared';
+export { normalizeAr };
 
 /** يعيد درجة التطابق (أكبر = أقرب) أو -1 إذا لم يطابق */
 export function matchScore(q: string, fields: (string | null | undefined)[]): number {
