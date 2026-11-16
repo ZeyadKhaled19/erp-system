@@ -500,7 +500,12 @@ export function DocumentEditor() {
     setBusy(true);
     try {
       await saveDocument(d, action, existing ?? null);
-      ui.toast(action === 'post' ? 'تم الحفظ' : 'تم حفظ المسودة');
+      ui.toast(action === 'post' ? `تم حفظ ${info.label}` : 'تم حفظ المسودة', 'ok', {
+        actions: action === 'post' ? [
+          ...(info.priced ? [{ label: 'طباعة', onClick: () => window.open(`/print/${d.id}?auto=1`, '_blank') }] : []),
+          { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
+        ] : [],
+      });
       nav(`/docs/view/${d.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
@@ -1084,8 +1089,8 @@ export function DocumentEditor() {
             </>
           ) : null}
         </div>
-        <button className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
-        <button className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
+        <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+        <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
           {info.noPosting ? 'اعتماد' : 'حفظ'}
         </button>
       </div>

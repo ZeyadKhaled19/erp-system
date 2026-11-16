@@ -9,17 +9,26 @@
 :root {
   /* الخطوط */
   --font: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
-  --fs-11: max(11px, .6875rem);
-  --fs-12: max(11px, .75rem);
-  --fs-13: .8125rem;
-  --fs-15: .875rem;
-  --fs-16: .9062rem;
-  --fs-17: .9375rem;
-  --fs-20: 1.25rem;
-  --fs-22: 1.375rem;
-  --fs-28: 1.75rem;
-  --fs-34: 2.125rem;
-  --fs-40: 2.5rem;
+  /* مقاسات الخط: كل الشاشات بتستخدم دول بس */
+  --text-2xs: max(11px, .6875rem);
+  --text-xs: max(11px, .75rem);
+  --text-sm: .8125rem;
+  --text-base: .875rem;
+  --text-md: .9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.75rem;
+  --text-4xl: 2.125rem;
+  --text-5xl: 2.5rem;
+  /* مقاسات بتكبر مع الشاشة */
+  --text-caption: clamp(.8125rem, .95vw, .9375rem);
+  --text-label: clamp(.875rem, 1.1vw, 1.0625rem);
+  --text-tile: clamp(.9375rem, 1.25vw, 1.25rem);
+  --text-card-title: clamp(1.0625rem, 1.35vw, 1.375rem);
+  --text-page-title: clamp(1.25rem, 1.6vw, 1.5rem);
+  --text-number: clamp(1.25rem, 1.6vw, 1.625rem);
+  --text-hero: clamp(1.375rem, 1.9vw, 1.75rem);
   /* اللون الأساسي (برتقالي) */
   --on-tint: #fff;
   --tint: #c2410c;

@@ -4,7 +4,7 @@ import { BarChart3, ClipboardCheck, FileClock, FileText, ShoppingCart, Tag, User
 import { useNavigate } from 'react-router-dom';
 import { RowActions } from '../components/ListParts';
 import { HUBS } from '../components/nav';
-import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, pctChange, prevSpans, type FollowUpItem, type SectionStat } from '../components/Section';
+import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, SkeletonRows, pctChange, prevSpans, type FollowUpItem, type SectionStat } from '../components/Section';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useSession } from '../lib/hooks';
@@ -78,13 +78,13 @@ export function SalesSection() {
   return (
     <div className="page sx-page">
       <SectionHeader icon={<ShoppingCart />} color="blue" title="المبيعات" sub="إدارة فواتير البيع والمرتجعات وعروض الأسعار" />
-      <SectionStats items={data?.stats ?? []} />
+      <SectionStats items={data?.stats} />
       <QuickActions section="sales" defaults={SALES_ACTIONS} />
       <ResponsiveSectionLayout
         side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
         main={can('sales.view') && (
           <SectionCard icon={<FileText />} title="آخر فواتير البيع" moreTo="/invoices" className="sx-recent">
-            {!data ? null : data.recent.length === 0 ? (
+            {!data ? <SkeletonRows /> : data.recent.length === 0 ? (
               <div className="sx-table"><div className="sx-empty">لسه مفيش فواتير بيع.</div></div>
             ) : (
               <div className="sx-table">

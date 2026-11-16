@@ -91,8 +91,30 @@ export function prevSpans(today: string) {
 }
 
 /** صف المؤشرات: كروت صغيرة متساوية تلتف تلقائيًا حسب العرض */
-export function SectionStats({ items }: { items: SectionStat[] }) {
+// مكان الكروت والجداول وهي بتحمّل: شكل رمادي بيلمع بدل ما الصفحة تبان فاضية وبعدين تتنطط
+export function SkeletonStats({ count = 5 }: { count?: number }) {
+  return (
+    <div className="sx-stats" aria-busy="true" aria-label="جاري التحميل">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="sx-stat sk-card">
+          <span className="sk sk-ic" />
+          <span className="sx-stat-t"><span className="sk sk-line" style={{ width: '55%' }} /><span className="sk sk-num" /></span>
+        </div>
+      ))}
+    </div>
+  );
+}
+export function SkeletonRows({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="sk-rows" aria-busy="true" aria-label="جاري التحميل">
+      {Array.from({ length: rows }, (_, i) => <span key={i} className="sk sk-row" />)}
+    </div>
+  );
+}
+
+export function SectionStats({ items }: { items: SectionStat[] | undefined }) {
   const nav = useNavigate();
+  if (!items) return <SkeletonStats />;
   if (!items.length) return null;
   return (
     <div className="sx-stats">

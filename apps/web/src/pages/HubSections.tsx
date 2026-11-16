@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RowActions } from '../components/ListParts';
 import { HUBS, type NavLink } from '../components/nav';
-import { FollowUpPanel, LinkGrid, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, pctChange, prevSpans, type FollowUpItem, type SectionLink, type SectionStat } from '../components/Section';
+import { FollowUpPanel, LinkGrid, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, SkeletonRows, pctChange, prevSpans, type FollowUpItem, type SectionLink, type SectionStat } from '../components/Section';
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useSession, useSyncCounts, useSyncState } from '../lib/hooks';
@@ -24,13 +24,13 @@ const toFollow = (links: NavLink[], counts: Record<string, { count: number; tone
   links.map((l) => ({ key: l.to, label: l.label, icon: l.icon, to: l.to, ...(counts[l.to] ?? {}) }));
 
 /** جدول آخر المستندات داخل كارت (الضغط على السطر يفتح المستند، والقلم للمسودات فقط) */
-function RecentDocs({ title, icon, moreTo, docs, partyHead, module, typeCol, empty }: { title: string; icon: ReactNode; moreTo?: string; docs: any[]; partyHead: string; module: string; typeCol?: boolean; empty: string }) {
+function RecentDocs({ title, icon, moreTo, docs, partyHead, module, typeCol, empty }: { title: string; icon: ReactNode; moreTo?: string; docs: any[] | undefined; partyHead: string; module: string; typeCol?: boolean; empty: string }) {
   const nav = useNavigate();
   const can = usePerm();
   return (
     <SectionCard icon={icon} title={title} moreTo={moreTo}>
       <div className="sx-table">
-        {docs.length === 0 ? <div className="sx-empty">{empty}</div> : (
+        {!docs ? <SkeletonRows /> : docs.length === 0 ? <div className="sx-empty">{empty}</div> : (
           <table className="table responsive">
             <thead><tr><th>الرقم</th><th>التاريخ</th>{typeCol && <th>النوع</th>}<th>{partyHead}</th><th className="n">الإجمالي</th><th>الحالة</th><th /></tr></thead>
             <tbody>
@@ -108,11 +108,11 @@ export function PurchasesSection() {
   return (
     <div className="page sx-page">
       <SectionHeader icon={<ShoppingBag />} color="purple" title="المشتريات" sub="فواتير الشراء والمرتجعات ومستحقات الموردين" />
-      <SectionStats items={data?.stats ?? []} />
+      <SectionStats items={data?.stats} />
       <QuickActions section="purchases" defaults={['purchase_invoice', 'purchase_return', 'payment', 'supplier_new', 'item_new', 'expense']} />
       <ResponsiveSectionLayout
         side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
-        main={can('purchases.view') && <RecentDocs title="آخر فواتير المشتريات" icon={<FileText />} moreTo="/docs/list/purchases" docs={data?.recent ?? []} partyHead="المورد" module="purchases" empty="لسه مفيش فواتير شراء." />}
+        main={can('purchases.view') && <RecentDocs title="آخر فواتير المشتريات" icon={<FileText />} moreTo="/docs/list/purchases" docs={data?.recent} partyHead="المورد" module="purchases" empty="لسه مفيش فواتير شراء." />}
       />
     </div>
   );
@@ -163,7 +163,7 @@ export function InventorySection() {
   return (
     <div className="page sx-page">
       <SectionHeader icon={<Package />} color="orange" title="المخزون" sub="الأصناف والأرصدة والجرد والتحويلات" />
-      <SectionStats items={data?.stats ?? []} />
+      <SectionStats items={data?.stats} />
       <QuickActions section="inventory" defaults={['item_new', 'stock_adjustment', 'stock_transfer', 'item_inquiry', 'purchase_invoice', 'opening_stock']} />
       <ResponsiveSectionLayout
         side={<>
@@ -191,7 +191,7 @@ export function InventorySection() {
               )}
             </div>
           </SectionCard>
-          <RecentDocs title="آخر حركات المخازن" icon={<FileText />} moreTo="/docs/list/inventory" docs={data?.moves ?? []} partyHead="المخزن" module="inventory" typeCol empty="لسه مفيش تحويلات أو جرد." />
+          <RecentDocs title="آخر حركات المخازن" icon={<FileText />} moreTo="/docs/list/inventory" docs={data?.moves} partyHead="المخزن" module="inventory" typeCol empty="لسه مفيش تحويلات أو جرد." />
         </>}
       />
     </div>
@@ -235,7 +235,7 @@ export function TreasurySection() {
   return (
     <div className="page sx-page">
       <SectionHeader icon={<Wallet />} color="blue" title="الخزائن والحسابات" sub="القبض والصرف والمصروفات وأرصدة الخزائن" />
-      <SectionStats items={data?.stats ?? []} />
+      <SectionStats items={data?.stats} />
       <QuickActions section="treasury" defaults={['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'shift']} />
       <ResponsiveSectionLayout
         side={<>
@@ -254,7 +254,7 @@ export function TreasurySection() {
             </SectionCard>
           )}
         </>}
-        main={<RecentDocs title="آخر السندات" icon={<FileText />} moreTo="/docs/list/treasury" docs={data?.recent ?? []} partyHead="الطرف / الخزينة" module="treasury" typeCol empty="لسه مفيش سندات قبض أو صرف." />}
+        main={<RecentDocs title="آخر السندات" icon={<FileText />} moreTo="/docs/list/treasury" docs={data?.recent} partyHead="الطرف / الخزينة" module="treasury" typeCol empty="لسه مفيش سندات قبض أو صرف." />}
       />
     </div>
   );
@@ -307,7 +307,7 @@ export function ReportsSection() {
   return (
     <div className="page sx-page">
       <SectionHeader icon={<BarChart3 />} color="pink" title="التقارير والحسابات" sub="الأرباح والميزانية وتحليل المبيعات وتقارير المخزون والخزينة" />
-      <SectionStats items={data?.stats ?? []} />
+      <SectionStats items={data?.stats} />
       <QuickActions section="reports" defaults={['journal_voucher', 'expense', 'receipt', 'payment', 'income', 'cash_transfer']} />
       <ResponsiveSectionLayout
         side={accounts.length > 0 && <FollowUpPanel title="الحسابات" icon={<BookOpen />} items={accounts} />}

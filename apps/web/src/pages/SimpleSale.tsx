@@ -540,8 +540,14 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
         retained_bp: 0,
       } as DocInput;
       await saveDocument(doc, 'post', null);
-      ui.toast(`تم حفظ الفاتورة${credit > 0 ? ` — آجل ${formatMoney(credit)} على ${party?.name}` : ''}`);
-      if (printAfter || mode === 'print') window.open(`/print/${id}?auto=1`, '_blank');
+      const printed = printAfter || mode === 'print';
+      ui.toast(`تم حفظ الفاتورة${credit > 0 ? ` — آجل ${formatMoney(credit)} على ${party?.name}` : ''}`, 'ok', {
+        actions: mode === 'view' ? [] : [
+          ...(!printed && can(P ? 'purchases.print' : 'sales.print') ? [{ label: 'طباعة', onClick: () => window.open(`/print/${id}?auto=1`, '_blank') }] : []),
+          { label: 'عرض', onClick: () => nav(`/docs/view/${id}`) },
+        ],
+      });
+      if (printed) window.open(`/print/${id}?auto=1`, '_blank');
       // الفاتورة اتحفظت: امسح المسودة دائمًا حتى لا تعود أصنافها عند الرجوع للشاشة
       reset();
       storeSet(draftKey(tabId), null);
@@ -1024,11 +1030,11 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
               </div>
             </details>
             <div className="si-bar">
-              <button className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ <kbd>F12</kbd></button>
-              <button className="btn primary" disabled={busy || !lines.length || !can(P ? 'purchases.print' : 'sales.print')} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
+              <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ <kbd>F12</kbd></button>
+              <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length || !can(P ? 'purchases.print' : 'sales.print')} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
               <button className="btn" onClick={onNewTab}><Plus /> فاتورة جديدة <kbd>F10</kbd></button>
               <details className="si-more-actions"><summary>المزيد</summary>
-                <button className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
+                <button aria-busy={busy} className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
                 <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
                 <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
                 <label className="btn"><input type="checkbox" checked={printAfter} disabled={!can(P ? 'purchases.print' : 'sales.print')} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>

@@ -8,12 +8,12 @@
 /* الصفحة والعناوين */
 .page { max-width: 117.5rem; padding: clamp(0.875rem, 2.2vh, 1.5rem) clamp(1rem, 2.2vw, 2.25rem) 2.5rem; }
 .page.narrow { max-width: 56.25rem; }
-.large-title { font-size: clamp(1.375rem, 1.8vw, 1.75rem); font-weight: 800; letter-spacing: 0; color: var(--heading); }
+.large-title { font-size: var(--text-page-title); font-weight: 800; letter-spacing: 0; color: var(--heading); }
 .page-head { margin-bottom: clamp(0.875rem, 2vh, 1.25rem); align-items: center; }
-.page-sub { font-size: 0.8438rem; color: var(--label-2); }
-.section-title { font-size: 1.0625rem; font-weight: 800; color: var(--heading); }
+.page-sub { font-size: var(--text-sm); color: var(--label-2); }
+.section-title { font-size: var(--text-lg); font-weight: 800; color: var(--heading); }
 
-.hub-group-title { font-size: 0.9375rem; font-weight: 800; color: var(--heading); margin: 1.375rem 2px 0.625rem; letter-spacing: 0; }
+.hub-group-title { font-size: var(--text-md); font-weight: 800; color: var(--heading); margin: 1.375rem 2px 0.625rem; letter-spacing: 0; }
 
 /* الأسطح */
 .card, .list, .table-wrap, .stat, .kpi, .ws-kpi, .ws-list {
@@ -30,11 +30,11 @@
 .stat .stat-icon { border-radius: 0.625rem; width: 2.125rem; height: 2.125rem; }
 .stat .stat-value { font-weight: 800; }
 .ws-kpi { padding: 1rem 1.125rem; }
-.ws-kpi-l { font-size: 0.8438rem; font-weight: 700; color: var(--heading); }
-.ws-kpi-v { font-size: 1.5rem; font-weight: 800; color: var(--tint); }
+.ws-kpi-l { font-size: var(--text-sm); font-weight: 700; color: var(--heading); }
+.ws-kpi-v { font-size: var(--text-2xl); font-weight: 800; color: var(--tint); }
 .ws-kpi.warn { background: color-mix(in srgb, var(--orange) 8%, var(--mc-surface)); }
 .ws-kpi.bad { background: color-mix(in srgb, var(--red) 7%, var(--mc-surface)); }
-.ws-list-h { padding: 0.875rem 1.125rem; font-size: 0.9375rem; font-weight: 800; color: var(--heading); }
+.ws-list-h { padding: 0.875rem 1.125rem; font-size: var(--text-md); font-weight: 800; color: var(--heading); }
 .ws-row { padding: 0.75rem 1.125rem; }
 
 /* الأزرار */
@@ -47,8 +47,8 @@
 .btn.plain, .btn.plain:hover:not(:disabled) { background: transparent; border-color: transparent; box-shadow: none; }
 .btn.plain:hover:not(:disabled) { background: var(--fill-3); }
 .btn.sm { height: 2.125rem; border-radius: 0.625rem; padding: 0 0.75rem; }
-.btn.lg { height: 3rem; border-radius: 0.8125rem; font-size: 0.9688rem; padding: 0 1.375rem; }
-.btn.xl { height: 3.5rem; border-radius: 0.875rem; font-size: 1.0625rem; padding: 0 1.625rem; }
+.btn.lg { height: 3rem; border-radius: 0.8125rem; font-size: var(--text-md); padding: 0 1.375rem; }
+.btn.xl { height: 3.5rem; border-radius: 0.875rem; font-size: var(--text-lg); padding: 0 1.625rem; }
 .icon-btn { border-radius: 0.625rem; }
 
 /* خانات الإدخال والبحث */
@@ -56,7 +56,7 @@
 .card .input, .card .select, .card .textarea,
 .sheet .input, .sheet .select, .sheet .textarea { border-radius: 0.75rem; }
 .search { height: 2.75rem; border-radius: 0.8125rem; border-color: var(--mc-line); background: var(--mc-surface); box-shadow: var(--shadow-card); }
-.field > label { font-weight: 700; color: var(--label-2); font-size: max(11px, 0.7812rem); }
+.field > label { font-weight: 700; color: var(--label-2); font-size: var(--text-xs); }
 
 /* التبويبات داخل الصفحة: شريط خفيف، والنشط أبيض بنص أزرق وخط سفلي */
 .segmented { height: 2.625rem; padding: 0.25rem; border-radius: 0.8125rem; background: color-mix(in srgb, var(--tint) 6%, var(--bg)); border: 1px solid var(--mc-line); }
@@ -65,15 +65,15 @@
 .segmented button.on::after { content: ""; position: absolute; inset-inline: 24%; bottom: 0.1875rem; height: 2.5px; border-radius: 2px; background: var(--tint); }
 
 /* الجداول */
-.table th { background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); color: var(--heading); font-size: 0.8125rem; font-weight: 800; padding: 0.8125rem 1rem; border-bottom: 1px solid var(--mc-line); }
-.table td { padding: 0.8125rem 1rem; font-size: 0.875rem; border-bottom: 1px solid var(--separator); }
+.table th { background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); color: var(--heading); font-size: var(--text-sm); font-weight: 800; padding: 0.8125rem 1rem; border-bottom: 1px solid var(--mc-line); }
+.table td { padding: 0.8125rem 1rem; font-size: var(--text-base); border-bottom: 1px solid var(--separator); }
 .table tbody tr:last-child td { border-bottom: 0; }
 .table tbody tr:hover td, .table tr.click:hover td { background: color-mix(in srgb, var(--tint) 4%, var(--mc-surface)); }
 .table td.bold, .table td .bold { font-weight: 700; }
 .table tfoot td { background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); font-weight: 800; }
 
 /* شارات الحالة: كبسولة ناعمة */
-.badge { font-size: max(11px, 0.7812rem); font-weight: 700; padding: 0.1875rem 0.75rem; border-radius: 62.4375rem; }
+.badge { font-size: var(--text-xs); font-weight: 700; padding: 0.1875rem 0.75rem; border-radius: 62.4375rem; }
 .badge.green { background: color-mix(in srgb, var(--green) 15%, var(--mc-surface)); color: var(--green-text); }
 .badge.orange { background: color-mix(in srgb, var(--orange) 18%, var(--mc-surface)); color: var(--orange-text); }
 .badge.red { background: color-mix(in srgb, var(--red) 13%, var(--mc-surface)); color: var(--red-text); }
@@ -97,9 +97,9 @@
 .sc .sc-icon svg { width: 2.875rem; height: 2.875rem; stroke-width: 1.6; color: var(--sc-c) !important; }
 .sc .sc-mark { display: none; }
 .sc .sc-text { margin: 0; align-items: center; }
-.sc .sc-label { font-size: 1.0312rem; font-weight: 800; text-shadow: none; color: var(--heading); }
-.sc .sc-sub { font-size: max(11px, 0.7812rem); color: var(--label-2); opacity: 1; max-width: none; text-align: center; }
-.sc .sc-badge { top: 0.75rem; left: 0.75rem; right: auto; height: 1.625rem; min-width: 1.625rem; padding: 0 0.5rem; font-size: 0.8125rem; background: color-mix(in srgb, var(--sc-c) 14%, var(--mc-surface)); color: var(--sc-c); box-shadow: none; }
+.sc .sc-label { font-size: var(--text-lg); font-weight: 800; text-shadow: none; color: var(--heading); }
+.sc .sc-sub { font-size: var(--text-xs); color: var(--label-2); opacity: 1; max-width: none; text-align: center; }
+.sc .sc-badge { top: 0.75rem; left: 0.75rem; right: auto; height: 1.625rem; min-width: 1.625rem; padding: 0 0.5rem; font-size: var(--text-sm); background: color-mix(in srgb, var(--sc-c) 14%, var(--mc-surface)); color: var(--sc-c); box-shadow: none; }
 .sc-blue { --sc-b: #2563EB; } .sc-purple { --sc-b: #7C3AED; } .sc-teal { --sc-b: #0D9488; } .sc-orange { --sc-b: #F59E0B; } .sc-red { --sc-b: #DC2626; }
 .sc-yellow { --sc-b: #CA8A04; } .sc-pink { --sc-b: #DB2777; } .sc-indigo { --sc-b: #4F46E5; } .sc-green { --sc-b: #16A34A; } .sc-slate { --sc-b: #475569; }
 :root[data-theme="dark"] .sc-blue { --sc-b: #60A5FA; } :root[data-theme="dark"] .sc-purple { --sc-b: #A78BFA; } :root[data-theme="dark"] .sc-teal { --sc-b: #2DD4BF; }
@@ -111,20 +111,20 @@
   .sc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.625rem; }
   .sc { min-height: 7rem; padding: 0.75rem 0.5rem 0.875rem; gap: 0.5rem; border-radius: 1rem; }
   .sc .sc-icon svg { width: 2.125rem; height: 2.125rem; }
-  .sc .sc-label { font-size: 0.875rem; }
+  .sc .sc-label { font-size: var(--text-base); }
   .sc .sc-sub { display: none; }
   .table th, .table td { padding: 0.625rem 0.75rem; }
 }
 
 /* ===================== المرحلة 2: فاتورة البيع والشراء ===================== */
 .ss.si { max-width: 117.5rem; }
-.si-page-heading h1 { font-size: clamp(1.375rem, 1.8vw, 1.75rem); font-weight: 800; }
+.si-page-heading h1 { font-size: var(--text-page-title); font-weight: 800; }
 /* بيانات الفاتورة: كل خانة كارت مستقل (العميل، المخزن، التاريخ) */
 .si .si-meta { background: transparent; border: 0; box-shadow: none; padding: 0; gap: 0.75rem; flex: 1 1 auto; align-items: stretch; }
 .si .si-meta-field { background: var(--mc-surface); border: 1px solid var(--mc-line); border-radius: 1rem; box-shadow: var(--mc-shadow); padding: 0.5rem 0.875rem; min-height: 4rem; display: flex; flex-direction: column; justify-content: center; gap: 0.25rem; }
-.si .si-meta-field > span, .si .si-meta-field > label { font-size: max(11px, 0.7812rem); font-weight: 700; color: var(--label-2); }
-.si .si-meta-field b { font-size: 0.875rem; font-weight: 700; color: var(--heading); }
-.si .si-date, .si .si-wh { background: transparent; border: 0; padding: 0; font-weight: 700; color: var(--heading); font-size: 0.9062rem; }
+.si .si-meta-field > span, .si .si-meta-field > label { font-size: var(--text-xs); font-weight: 700; color: var(--label-2); }
+.si .si-meta-field b { font-size: var(--text-base); font-weight: 700; color: var(--heading); }
+.si .si-date, .si .si-wh { background: transparent; border: 0; padding: 0; font-weight: 700; color: var(--heading); font-size: var(--text-base); }
 .si .si-meta-party { flex: 1 1 20rem; }
 /* البحث والجدول */
 .si .ss-entry { border-radius: 1.125rem; border: 1px solid var(--mc-line); box-shadow: var(--mc-shadow); background: var(--mc-surface); }
@@ -133,15 +133,15 @@
 .si-table td.c-name { font-weight: 700; color: var(--heading); }
 /* الملخص: صفوف هادئة ثم «الإجمالي النهائي» كبسولة زرقا */
 .si .ss-side > .card { border-radius: 1.25rem; border: 1px solid var(--mc-line); box-shadow: var(--mc-shadow-lg); }
-.si-summary-title { font-size: 1.125rem; font-weight: 800; color: var(--heading); }
+.si-summary-title { font-size: var(--text-xl); font-weight: 800; color: var(--heading); }
 .si .ss-sum { background: transparent; border: 0; padding: 0 2px; gap: 0.625rem; }
-.si .ss-sum .row, .si-pay-sum .row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9062rem; color: var(--label-2); }
+.si .ss-sum .row, .si-pay-sum .row { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-base); color: var(--label-2); }
 .si .ss-sum .row b, .si-pay-sum .row b { color: var(--heading); font-weight: 800; }
 .si-pay-sum { display: flex; flex-direction: column; gap: 0.625rem; padding: 0.75rem 2px 2px; border-top: 1px solid var(--separator); }
 .si-pay-sum .row b.green { color: var(--green-text); } .si-pay-sum .row b.orange { color: var(--orange-text); }
 .si-grand { display: flex; align-items: center; justify-content: space-between; gap: 0.625rem; padding: 0.875rem 1.125rem; border-radius: 1rem; background: var(--mc-active); color: #fff; box-shadow: var(--mc-active-shadow); }
-.si-grand span { font-size: 0.9688rem; font-weight: 800; }
-.si-grand b { font-size: clamp(1.375rem, 1.9vw, 1.875rem); font-weight: 800; letter-spacing: .2px; }
+.si-grand span { font-size: var(--text-md); font-weight: 800; }
+.si-grand b { font-size: var(--text-hero); font-weight: 800; letter-spacing: .2px; }
 .si .ss-pay button { border-radius: 0.75rem; font-weight: 700; }
 .si .ss-pay button.on { border-color: var(--tint); color: var(--tint); background: color-mix(in srgb, var(--tint) 8%, var(--mc-surface)); box-shadow: inset 0 0 0 1px var(--tint); }
 /* أزرار الحفظ: حفظ وحفظ وطباعة أزرق، فاتورة جديدة أبيض */
@@ -158,7 +158,7 @@
 .si .ss-side .card > .banner { order: 7; }
 .si .ss-side .card > .si-more-panel { order: 8; }
 .si .ss-side .card > .si-bar { order: 9; }
-.si .ss-side .card > .ss-sum .row { font-size: 0.9062rem; }
+.si .ss-side .card > .ss-sum .row { font-size: var(--text-base); }
 /* عرض أعمدة الجدول: اسم الصنف أعرض عمود، والمبالغ مساحتها تكفي الأرقام الكبيرة */
 .si-table th.si-col.code { width: 7%; } .si-table th.si-col.name { width: 20%; } .si-table th.si-col.unit { width: 7%; }
 .si-table th.si-col.avail { width: 7%; } .si-table th.si-col.qty { width: 9%; } .si-table th.si-col.price { width: 10%; }
@@ -169,17 +169,17 @@
   .si-table tbody td, .si-table tbody tr:hover td { background: transparent !important; }
   .si-table tbody tr.sel { background: color-mix(in srgb, var(--tint) 5%, var(--mc-surface)); }
   .si-grand { padding: 0.75rem 0.875rem; align-self: stretch; width: 100%; }
-  .si-grand span { white-space: nowrap; font-size: 0.9062rem; }
-  .si-grand b { font-size: 1.375rem; }
+  .si-grand span { white-space: nowrap; font-size: var(--text-base); }
+  .si-grand b { font-size: var(--text-2xl); }
   .si .si-bar .btn.primary { min-width: 0; }
-  .si .si-bar .btn { padding: 0 0.5rem; font-size: 0.8125rem; }
+  .si .si-bar .btn { padding: 0 0.5rem; font-size: var(--text-sm); }
 }
 
 /* ===================== المرحلة 3: صفحات القوائم ===================== */
 /* تبويبات أعلى القائمة: خط سفلي أزرق تحت النشط */
 .lp-tabs { display: flex; gap: 0.25rem; margin: 0 0 1rem; border-bottom: 1px solid var(--mc-line); overflow-x: auto; scrollbar-width: none; }
 .lp-tabs::-webkit-scrollbar { display: none; }
-.lp-tabs button { position: relative; flex-shrink: 0; height: 2.75rem; padding: 0 1.25rem; border: 0; background: transparent; color: var(--label-2); font: inherit; font-size: 0.9375rem; font-weight: 700; cursor: pointer; border-radius: 0.625rem 0.625rem 0 0; }
+.lp-tabs button { position: relative; flex-shrink: 0; height: 2.75rem; padding: 0 1.25rem; border: 0; background: transparent; color: var(--label-2); font: inherit; font-size: var(--text-md); font-weight: 700; cursor: pointer; border-radius: 0.625rem 0.625rem 0 0; }
 .lp-tabs button:hover { color: var(--heading); background: var(--fill-3); }
 .lp-tabs button.on { color: var(--tint); font-weight: 800; }
 .lp-tabs button.on::after { content: ""; position: absolute; inset-inline: 0.625rem; bottom: -1px; height: 0.1875rem; border-radius: 0.1875rem 0.1875rem 0 0; background: var(--tint); }
@@ -190,13 +190,13 @@
 .lp-act svg { width: 1rem; height: 1rem; }
 .table td.lp-act-cell { width: 1%; white-space: nowrap; }
 /* الصورة الرمزية */
-.lp-avatar { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: color-mix(in srgb, var(--tint) 12%, var(--mc-surface)); color: var(--tint); font-weight: 800; font-size: 0.875rem; vertical-align: middle; margin-inline-end: 0.625rem; flex-shrink: 0; }
+.lp-avatar { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: color-mix(in srgb, var(--tint) 12%, var(--mc-surface)); color: var(--tint); font-weight: 800; font-size: var(--text-base); vertical-align: middle; margin-inline-end: 0.625rem; flex-shrink: 0; }
 .lp-name { display: inline-flex; align-items: center; }
 /* كروت الإجماليات الملونة */
 .lp-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: 0.875rem; margin: 1rem 0; }
 .lp-total { --t: var(--tint); display: flex; flex-direction: column; gap: 0.375rem; padding: 1rem 1.25rem; border-radius: 1.125rem; border: 1px solid color-mix(in srgb, var(--t) 22%, transparent); background: color-mix(in srgb, var(--t) 7%, var(--mc-surface)); box-shadow: var(--mc-shadow); }
-.lp-total-l { font-size: 0.875rem; font-weight: 700; color: var(--heading); }
-.lp-total-v { font-size: clamp(1.25rem, 1.8vw, 1.625rem); font-weight: 800; color: var(--t); }
+.lp-total-l { font-size: var(--text-base); font-weight: 700; color: var(--heading); }
+.lp-total-v { font-size: var(--text-number); font-weight: 800; color: var(--t); }
 .lp-total.blue { --t: var(--info); } .lp-total.green { --t: var(--green); } .lp-total.red { --t: var(--red); } .lp-total.orange { --t: var(--orange); } .lp-total.purple { --t: var(--purple); }
 /* السطر المختار في جدول (مثل الخزنة المعروضة حركتها) */
 .table tbody tr.lp-sel td { background: color-mix(in srgb, var(--tint) 8%, var(--mc-surface)); }
@@ -204,24 +204,24 @@
 .lp-kind { display: inline-flex; align-items: center; gap: 0.5rem; }
 .lp-kind svg { width: 1.125rem; height: 1.125rem; color: var(--tint); }
 @media (max-width: 760px) {
-  .lp-tabs button { padding: 0 0.875rem; font-size: 0.875rem; }
+  .lp-tabs button { padding: 0 0.875rem; font-size: var(--text-base); }
   .lp-totals { grid-template-columns: 1fr; gap: 0.625rem; }
 }
 
 /* ===================== المرحلة 4: الإعدادات بقائمة جانبية ===================== */
 .stg-layout { display: grid; grid-template-columns: 16.875rem minmax(0, 1fr); gap: clamp(0.875rem, 1.8vw, 1.625rem); align-items: start; }
 .stg-menu { position: sticky; top: 0.5rem; display: flex; flex-direction: column; gap: 2px; padding: 0.625rem; border-radius: 1.25rem; border: 1px solid var(--mc-line); background: var(--mc-surface); box-shadow: var(--mc-shadow); }
-.stg-menu button { display: flex; align-items: center; gap: 0.75rem; height: 2.875rem; padding: 0 0.75rem; border: 0; border-radius: 0.75rem; background: transparent; color: var(--heading); font: inherit; font-size: 0.9062rem; font-weight: 700; text-align: start; cursor: pointer; }
+.stg-menu button { display: flex; align-items: center; gap: 0.75rem; height: 2.875rem; padding: 0 0.75rem; border: 0; border-radius: 0.75rem; background: transparent; color: var(--heading); font: inherit; font-size: var(--text-base); font-weight: 700; text-align: start; cursor: pointer; }
 .stg-menu button:hover { background: var(--fill-3); }
 .stg-menu button.on { background: color-mix(in srgb, var(--tint) 10%, var(--mc-surface)); color: var(--tint); box-shadow: inset -3px 0 0 var(--tint); }
 .stg-menu-ic { display: grid; place-items: center; color: var(--label-2); }
 .stg-menu button.on .stg-menu-ic { color: var(--tint); }
 .stg-menu-ic svg { width: 1.1875rem; height: 1.1875rem; }
 .stg-menu-go { width: 1rem; height: 1rem; margin-inline-start: auto; color: var(--label-3); }
-.stg-menu-sep { font-size: max(11px, 0.75rem); font-weight: 700; color: var(--label-3); padding: 0.75rem 0.75rem 0.25rem; border-top: 1px solid var(--separator); margin-top: 0.375rem; }
+.stg-menu-sep { font-size: var(--text-xs); font-weight: 700; color: var(--label-3); padding: 0.75rem 0.75rem 0.25rem; border-top: 1px solid var(--separator); margin-top: 0.375rem; }
 .stg-body { min-width: 0; display: flex; flex-direction: column; gap: 0.875rem; }
-.stg-title { font-size: 1.125rem; font-weight: 800; color: var(--heading); }
-.stg-title span { font-size: 0.8125rem; font-weight: 600; color: var(--label-3); }
+.stg-title { font-size: var(--text-xl); font-weight: 800; color: var(--heading); }
+.stg-title span { font-size: var(--text-sm); font-weight: 600; color: var(--label-3); }
 .stg-body .group-header { display: none; }
 .stg-cards { grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr)); }
 .stg-save { align-self: flex-start; min-width: 12.5rem; }
@@ -229,7 +229,7 @@
   .stg-layout { grid-template-columns: minmax(0, 1fr); }
   .stg-menu { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; padding: 0.375rem; border-radius: 1rem; }
   .stg-menu::-webkit-scrollbar { display: none; }
-  .stg-menu button { flex-shrink: 0; height: 2.5rem; font-size: 0.8438rem; }
+  .stg-menu button { flex-shrink: 0; height: 2.5rem; font-size: var(--text-sm); }
   .stg-menu button.on { box-shadow: inset 0 -3px 0 var(--tint); }
   .stg-menu-sep, .stg-menu-go { display: none; }
   .stg-save { align-self: stretch; }
@@ -239,7 +239,7 @@
 /* ===================== قسم الموظفين ===================== */
 /* أزرار حالة الحضور: الحالة المختارة ملونة */
 .att-opts { display: inline-flex; flex-wrap: wrap; gap: 0.375rem; }
-.att-opt { --c: var(--tint); height: 2.125rem; padding: 0 0.875rem; border-radius: 62.4375rem; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); font: inherit; font-size: 0.8438rem; font-weight: 700; cursor: pointer; }
+.att-opt { --c: var(--tint); height: 2.125rem; padding: 0 0.875rem; border-radius: 62.4375rem; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); font: inherit; font-size: var(--text-sm); font-weight: 700; cursor: pointer; }
 .att-opt:hover:not(:disabled) { border-color: color-mix(in srgb, var(--c) 45%, transparent); color: var(--c); }
 .att-opt.on { background: color-mix(in srgb, var(--c) 14%, var(--mc-surface)); border-color: color-mix(in srgb, var(--c) 55%, transparent); color: var(--c); }
 .att-opt:disabled { cursor: default; opacity: .75; }
@@ -247,14 +247,14 @@
 /* مسير الرواتب */
 .table td.pay-in { min-width: 6.875rem; }
 .table td.pay-in .input { height: 2.25rem; text-align: left; }
-.pay-all { display: block; margin-top: 0.25rem; border: 0; background: none; color: var(--tint); font: inherit; font-size: max(11px, 0.7188rem); font-weight: 700; cursor: pointer; padding: 0; }
+.pay-all { display: block; margin-top: 0.25rem; border: 0; background: none; color: var(--tint); font: inherit; font-size: var(--text-2xs); font-weight: 700; cursor: pointer; padding: 0; }
 .pay-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.875rem; margin: 1rem 0 0.375rem; }
 .pay-bar .pay-grand { flex: 1 1 20rem; }
 .pay-bar .field { flex: 0 1 17.5rem; margin: 0; }
 .pay-bar .btn.lg { min-width: 13.75rem; }
 @media (max-width: 760px) { .pay-bar > * { flex: 1 1 100% !important; } .table td.pay-in { min-width: 0; } }
 .table td .lp-name { white-space: nowrap; }
-@media (max-width: 760px) { .lp-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lp-total { padding: 0.75rem 0.875rem; } .lp-total-v { font-size: 1.1875rem; } }
+@media (max-width: 760px) { .lp-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lp-total { padding: 0.75rem 0.875rem; } .lp-total-v { font-size: var(--text-xl); } }
 /* أوقات الحضور والانصراف */
 .att-time { width: 8.125rem; height: 2.25rem; font-weight: 700; }
 .att-stamp { white-space: nowrap; }
@@ -262,7 +262,7 @@
 @media (max-width: 760px) { .att-time { width: 100%; } .att-stamp { width: 100%; } }
 /* أيام الأجازة الأسبوعية في الإعدادات */
 .stg-days { display: flex; flex-wrap: wrap; gap: 0.375rem; justify-content: flex-end; max-width: 28.75rem; }
-.stg-days button { height: 2.125rem; padding: 0 0.75rem; border-radius: 62.4375rem; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); font: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
+.stg-days button { height: 2.125rem; padding: 0 0.75rem; border-radius: 62.4375rem; border: 1px solid var(--mc-line); background: var(--mc-surface); color: var(--label-2); font: inherit; font-size: var(--text-sm); font-weight: 700; cursor: pointer; }
 .stg-days button.on { background: color-mix(in srgb, var(--tint) 12%, var(--mc-surface)); border-color: var(--tint); color: var(--tint); }
 .list-row.stg-sub-head { min-height: 2.5rem; background: color-mix(in srgb, var(--tint) 5%, var(--card-2)); }
 .list-row.stg-sub-head .title { font-weight: 800; color: var(--heading); }

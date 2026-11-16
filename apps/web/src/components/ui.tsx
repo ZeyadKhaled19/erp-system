@@ -127,8 +127,19 @@ export function SyncBadge({ sync, error }: { sync?: string; error?: string }) {
 
 export function Banner({ kind = 'info', children }: { kind?: 'info' | 'warn' | 'err' | 'ok'; children: ReactNode }) {
   const Icon = kind === 'ok' ? CheckCircle2 : kind === 'info' ? Info : AlertTriangle;
+  // رسالة الخطأ: تبان قدام العين وتهتز هزة خفيفة كل مرة يظهر خطأ جديد
+  const ref = useRef<HTMLDivElement>(null);
+  const text = typeof children === 'string' ? children : '';
+  useEffect(() => {
+    if (kind !== 'err' || !ref.current) return;
+    const el = ref.current;
+    el.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+  }, [kind, text]);
   return (
-    <div className={`banner ${kind}`}>
+    <div ref={ref} className={`banner ${kind}`} role={kind === 'err' ? 'alert' : undefined}>
       <Icon />
       <div>{children}</div>
     </div>
@@ -170,26 +181,43 @@ interface ConfirmOpts {
   cancelLabel?: string;
   destructive?: boolean;
 }
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 interface ToastItem {
   id: number;
   kind: 'ok' | 'err' | 'info' | 'warn';
   text: string;
+  actions?: ToastAction[];
 }
+type ToastOpts = { actions?: ToastAction[]; duration?: number };
 
 const UiCtx = createContext<{
   confirm: (o: ConfirmOpts) => Promise<boolean>;
-  toast: (text: string, kind?: ToastItem['kind']) => void;
+  toast: (text: string, kind?: ToastItem['kind'], opts?: ToastOpts) => void;
 } | null>(null);
 
 export function UiProvider({ children }: { children: ReactNode }) {
   const [dialog, setDialog] = useState<(ConfirmOpts & { resolve: (v: boolean) => void }) | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const confirm = useCallback((o: ConfirmOpts) => new Promise<boolean>((resolve) => setDialog({ ...o, resolve })), []);
-  const toast = useCallback((text: string, kind: ToastItem['kind'] = 'ok') => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, kind, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), kind === 'err' ? 6000 : 3200);
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const dismiss = useCallback((id: number) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
+  const arm = useCallback((id: number, ms: number) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.set(id, setTimeout(() => dismiss(id), ms));
+  }, [dismiss]);
+  const toast = useCallback((text: string, kind: ToastItem['kind'] = 'ok', opts?: ToastOpts) => {
+    const id = Date.now() + Math.random();
+    // آخر 3 إشعارات بس عشان ما تغطيش الشاشة
+    setToasts((t) => [...t.slice(-2), { id, kind, text, actions: opts?.actions }]);
+    arm(id, opts?.duration ?? (kind === 'err' ? 6000 : opts?.actions?.length ? 6000 : 3200));
+  }, [arm]);
   const value = useMemo(() => ({ confirm, toast }), [confirm, toast]);
   const close = (v: boolean) => {
     dialog?.resolve(v);
@@ -219,9 +247,19 @@ export function UiProvider({ children }: { children: ReactNode }) {
       {createPortal(
         <div className="toasts">
           {toasts.map((t) => (
-            <div key={t.id} className="toast">
+            <div
+              key={t.id}
+              className={`toast ${t.kind}`}
+              role={t.kind === 'err' ? 'alert' : 'status'}
+              onMouseEnter={() => clearTimeout(timers.current.get(t.id))}
+              onMouseLeave={() => arm(t.id, 2500)}
+            >
               {t.kind === 'ok' ? <CheckCircle2 color="var(--green)" /> : t.kind === 'err' ? <XCircle color="var(--red)" /> : t.kind === 'warn' ? <AlertTriangle color="var(--orange)" /> : <Info color="var(--tint)" />}
-              {t.text}
+              <span className="toast-t">{t.text}</span>
+              {t.actions?.map((a) => (
+                <button key={a.label} type="button" className="toast-act" onClick={() => { a.onClick(); dismiss(t.id); }}>{a.label}</button>
+              ))}
+              <button type="button" className="toast-x" aria-label="إغلاق" onClick={() => dismiss(t.id)}><X /></button>
             </div>
           ))}
         </div>,

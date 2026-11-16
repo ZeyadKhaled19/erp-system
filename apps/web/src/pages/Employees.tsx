@@ -754,7 +754,7 @@ export function PayrollPage() {
                   {boxes.map((b) => <option key={b.id} value={b.id}>{b.name} — رصيدها {formatMoney(b.balance ?? 0)}</option>)}
                 </select>
               </Field>
-              <button className="btn primary lg" disabled={busy} onClick={() => void approve()}>اعتماد وصرف الرواتب</button>
+              <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => void approve()}>اعتماد وصرف الرواتب</button>
             </div>
           )}
         </>

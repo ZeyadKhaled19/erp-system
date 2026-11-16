@@ -690,7 +690,7 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
             ))}
           </div>
         )}
-        <button className="btn success primary xl block" disabled={busy} onClick={confirm}><Check /> تأكيد البيع</button>
+        <button aria-busy={busy} className="btn success primary xl block" disabled={busy} onClick={confirm}><Check /> تأكيد البيع</button>
       </div>
     </Sheet>
   );
