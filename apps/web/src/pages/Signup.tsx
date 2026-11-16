@@ -92,6 +92,7 @@ export function SignupPage() {
             <div className="lg-field"><label htmlFor="su-city">المدينة أو المنطقة <span className="muted">(اختياري)</span></label><div className="lg-input"><input id="su-city" value={f.city} onChange={(e) => set('city', e.target.value)} /></div></div>
             {/* خانة مخفية للبرامج الآلية: الإنسان ما بيشوفهاش */}
             <input type="text" name="website" value={f.website} onChange={(e) => set('website', e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none', clipPath: 'inset(50%)' }} />
+            <Banner kind="info">اسم المستخدم وكلمة السر هتختارهم بنفسك أول ما تفتح البرنامج على جهازك، ومحدش غيرك هيعرفهم.</Banner>
             <button className="lg-submit" disabled={busy}>
               {busy ? <span className="lg-spin" aria-hidden="true" /> : <Download aria-hidden="true" />} سجّل ونزّل البرنامج
             </button>
