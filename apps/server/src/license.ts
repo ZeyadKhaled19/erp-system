@@ -81,6 +81,8 @@ export interface LicenseInput {
   legacy?: boolean;
   /** بيانات التواصل مع صاحب السيستم (آخر نسخة جت من موقعه) */
   contact?: VendorContact | null;
+  /** اتسجلت التجربة أونلاين برقم موبايل؟ (false = لازم يسجل الأول؛ مش موجودة = مش مطلوب) */
+  registered?: boolean;
 }
 
 /** بيانات التواصل اللي بتظهر للعميل في شاشة التفعيل وصفحة التسجيل (صاحب السيستم بيعدلها من لوحته) */
@@ -95,6 +97,7 @@ export const DEFAULT_CONTACT: VendorContact = { phone: '01279792522', whatsapp: 
 export type LicenseStatus =
   | { status: 'active'; machineId: string; customer: string; expiresAt: string | null }
   | { status: 'trial'; machineId: string; daysLeft: number; endsAt: string }
+  | { status: 'unregistered'; machineId: string; message: string }
   | { status: 'expired'; machineId: string; reason: 'trial' | 'license' | 'clock'; message: string };
 
 const dayOf = (d: Date) => d.toISOString().slice(0, 10);
@@ -112,6 +115,9 @@ export function licenseStatus(input: LicenseInput, now = new Date(), publicKeyBa
       if (!v.payload.e || dayOf(now) <= v.payload.e) return { status: 'active', machineId, customer: v.payload.n, expiresAt: v.payload.e };
       return { status: 'expired', machineId, reason: 'license', message: `اشتراك البرنامج خلص يوم ${v.payload.e}. كلّمنا علشان تجدده.` };
     }
+  }
+  if (input.registered === false) {
+    return { status: 'unregistered', machineId, message: 'علشان تبدأ التجربة المجانية (7 أيام) اكتب رقم موبايلك. أول مرة بس محتاج يكون الجهاز على النت.' };
   }
   const start = new Date(input.trialStart);
   const end = new Date(start.getTime() + TRIAL_DAYS * DAY);

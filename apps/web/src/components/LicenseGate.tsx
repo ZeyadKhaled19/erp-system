@@ -1,6 +1,7 @@
-import { Check, Copy, KeyRound, MessageCircle, Phone, PlaySquare, ThumbsUp } from 'lucide-react';
+import { EG_GOVERNORATES } from '@erp/shared';
+import { Check, Copy, KeyRound, MessageCircle, Phone, PlaySquare, Rocket, ThumbsUp } from 'lucide-react';
 import { useState } from 'react';
-import { activateLicense, DEFAULT_CONTACT, waUrl, type LicenseState, type VendorContact } from '../lib/license';
+import { activateLicense, DEFAULT_CONTACT, registerTrial, waUrl, type LicenseState, type VendorContact } from '../lib/license';
 import { EcoLogo } from './EcoLogo';
 import { Banner, Sheet } from './ui';
 
@@ -89,6 +90,64 @@ export function LockScreen({ license, contact }: { license: Extract<LicenseState
             </ol>
             <MachineId id={license.machineId} contact={contact} />
             <ActivateForm onDone={() => window.location.reload()} />
+          </>
+        )}
+        <div className="lic-contact-h">للتواصل معانا</div>
+        <ContactLinks contact={contact} waText={`استفسار عن Eco System. رقم الجهاز: ${license.machineId}`} />
+      </div>
+    </div>
+  );
+}
+
+/** أول مرة البرنامج يتفتح: يكتب رقم موبايله علشان التجربة تبدأ (تجربة واحدة لكل رقم) */
+export function RegisterScreen({ license, contact }: { license: Extract<LicenseState, { status: 'unregistered' }>; contact?: VendorContact | null }) {
+  const [f, setF] = useState({ phone: '', business: '', governorate: '' });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'trial' | 'code'>('trial');
+  const go = async () => {
+    setErr(null);
+    if (!/^0?1[0125][0-9]{8}$/.test(f.phone.replace(/[^0-9]/g, '').replace(/^20/, '0'))) return setErr('اكتب رقم موبايلك صح، زي 01xxxxxxxxx');
+    if (f.business.trim().length < 2) return setErr('اكتب اسم المحل');
+    if (!f.governorate) return setErr('اختار المحافظة');
+    setBusy(true);
+    try {
+      await registerTrial(f);
+      window.location.reload();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="lic-page">
+      <div className="lg-card lic-card">
+        <EcoLogo size={40} className="lic-logo" />
+        <h1 className="lic-title">أهلًا بيك في Eco System</h1>
+        <p className="lic-msg">{mode === 'trial' ? license.message : 'لو اشتريت البرنامج، ابعتلنا رقم الجهاز وهنبعتلك كود التفعيل.'}</p>
+        {mode === 'trial' ? (
+          <div className="stack">
+            {err && <Banner kind="err">{err}</Banner>}
+            <div className="lg-field"><label htmlFor="rg-phone">رقم الموبايل (واتساب)</label><div className="lg-input"><input id="rg-phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" dir="ltr" placeholder="01xxxxxxxxx" autoFocus /></div></div>
+            <div className="lg-field"><label htmlFor="rg-biz">اسم المحل أو الشركة</label><div className="lg-input"><input id="rg-biz" value={f.business} onChange={(e) => setF({ ...f, business: e.target.value })} /></div></div>
+            <div className="lg-field"><label htmlFor="rg-gov">المحافظة</label>
+              <select id="rg-gov" className="select" value={f.governorate} onChange={(e) => setF({ ...f, governorate: e.target.value })}>
+                <option value="">— اختار المحافظة —</option>
+                {EG_GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <button type="button" className="lg-submit" disabled={busy} onClick={go}>
+              {busy ? <span className="lg-spin" aria-hidden="true" /> : <Rocket aria-hidden="true" />} ابدأ التجربة المجانية
+            </button>
+            <div className="footnote" style={{ textAlign: 'center' }}>تجربة واحدة لكل رقم موبايل. البرنامج بيبعتلنا اسم المحل ورقم النسخة وحالة الاشتراك بس، وفواتيرك وعملاءك بيفضلوا على جهازك.</div>
+            <button type="button" className="lic-back btn plain" onClick={() => setMode('code')}>عندي كود تفعيل</button>
+          </div>
+        ) : (
+          <>
+            <MachineId id={license.machineId} contact={contact} />
+            <ActivateForm onDone={() => window.location.reload()} />
+            <button type="button" className="lic-back btn plain" onClick={() => setMode('trial')}>رجوع للتجربة المجانية</button>
           </>
         )}
         <div className="lic-contact-h">للتواصل معانا</div>

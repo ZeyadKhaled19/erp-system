@@ -15,3 +15,4 @@ export function todayISO(d = new Date()): string {
 export * from './tafqeet';
 export * from './workspaces';
 export * from './names';
+export * from './egypt';

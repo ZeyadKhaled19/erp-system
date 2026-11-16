@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 export type LicenseState =
   | { status: 'active'; machineId: string; customer: string; expiresAt: string | null }
   | { status: 'trial'; machineId: string; daysLeft: number; endsAt: string }
+  | { status: 'unregistered'; machineId: string; message: string }
   | { status: 'expired'; machineId: string; reason: 'trial' | 'license' | 'clock'; message: string };
 /** بيانات التواصل مع صاحب السيستم (بيعدلها من «لوحة صاحب السيستم») */
 export interface VendorContact {
@@ -67,6 +68,15 @@ export function useLicenseInfo(): LicenseInfo | null {
     };
   }, []);
   return info;
+}
+
+/** تسجيل التجربة أول مرة برقم الموبايل (برنامج الويندوز بيكلم موقع صاحب السيستم) */
+export async function registerTrial(body: { phone: string; business: string; governorate: string }): Promise<LicenseState> {
+  const r = await fetch('/api/license/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error ?? 'التسجيل ما نجحش');
+  await refreshLicense();
+  return j.license;
 }
 
 export async function activateLicense(code: string): Promise<LicenseState> {

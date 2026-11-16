@@ -3,13 +3,16 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Db } from './db';
 import { AppError } from './errors';
-import { DEFAULT_CONTACT, expiryFor, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
+import { EG_GOVERNORATES } from '@erp/shared';
+import { DEFAULT_CONTACT, TRIAL_DAYS, expiryFor, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
 
 /** القفل في برنامج الويندوز: البرنامج بيدّي الخادم بيانات الجهاز، والخادم بيقرر مفتوح ولا مقفول */
 export interface LicenseGate {
   get(): LicenseInput;
   /** اتحط كود صحيح: البرنامج بيحفظه */
   activate(code: string): void;
+  /** التجربة اتسجلت أونلاين برقم الموبايل (أو اتعرف تاريخ أقدم): البرنامج بيحفظ */
+  register?(trialStart: string, phone: string): void;
 }
 
 export interface LicensingOptions {
@@ -22,6 +25,8 @@ export interface LicensingOptions {
   privateKey?: string;
   /** لينك تحميل برنامج الويندوز (لو مش موجود بنجيبه من آخر نسخة على GitHub) */
   downloadUrl?: string;
+  /** موقع صاحب السيستم (برنامج الويندوز بيسجل التجربة عليه) */
+  vendorUrl?: string;
   perm: (key: string) => (req: FastifyRequest) => Promise<void>;
 }
 
@@ -29,8 +34,43 @@ const RELEASES = 'https://github.com/ZeyadKhaled19/erp-releases/releases';
 // الطلبات المسموحة والبرنامج مقفول: معرفة الحالة والتفعيل، وشكل صفحة الدخول
 const OPEN_WHEN_LOCKED = ['/api/license', '/api/brand', '/api/health'];
 
+/** رقم الموبايل بشكل واحد: 01xxxxxxxxx */
+export const normalizePhone = (s: string) => {
+  let d = String(s ?? '').replace(/[٠-٩]/g, (c) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(c))).replace(/[^0-9]/g, '');
+  if (d.startsWith('0020')) d = '0' + d.slice(4);
+  else if (d.startsWith('20') && d.length === 12) d = '0' + d.slice(2);
+  return d;
+};
+const minIso = (...xs: (string | null | undefined)[]) => xs.filter((x): x is string => !!x && !Number.isNaN(Date.parse(x))).sort((a, b) => Date.parse(a) - Date.parse(b))[0];
+
 export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
-  const status = (): LicenseStatus | null => (o.gate ? licenseStatus(o.gate.get()) : null);
+  // تاريخ بداية التجربة محفوظ كمان جوه البيانات نفسها (settings.trial_started_at):
+  // لو حد نقل نسخة بياناته (نفس اليوزر والباسورد) لجهاز تاني، التجربة ما تبدأش من الأول.
+  let dbStart: string | null = null;
+  const syncDbStart = async () => {
+    if (!o.gate) return;
+    try {
+      const row = await o.db.one<{ value: any }>(`select value from settings where key = 'trial_started_at'`);
+      const v = typeof row?.value === 'string' ? row.value : null;
+      const earliest = minIso(v, o.gate.get().trialStart) ?? null;
+      if (earliest && earliest !== v) await o.db.query(`insert into settings (key, value) values ('trial_started_at', $1) on conflict (key) do update set value = excluded.value`, [JSON.stringify(earliest)]);
+      dbStart = earliest;
+    } catch { /* المرة الجاية */ }
+  };
+  if (o.gate) {
+    void syncDbStart();
+    // بعد استرجاع نسخة احتياطية أو تسجيل التجربة، نقرا تاني
+    setInterval(() => void syncDbStart(), 5 * 60 * 1000).unref();
+  }
+  const input = (): LicenseInput | null => {
+    if (!o.gate) return null;
+    const i = o.gate.get();
+    return { ...i, trialStart: minIso(i.trialStart, dbStart) ?? i.trialStart };
+  };
+  const status = (): LicenseStatus | null => {
+    const i = input();
+    return i ? licenseStatus(i) : null;
+  };
 
   // ---------------- القفل ----------------
   if (o.gate) {
@@ -38,7 +78,7 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
       const url = req.url.split('?')[0];
       if (!url.startsWith('/api/') || OPEN_WHEN_LOCKED.some((p) => url === p || url.startsWith(p + '/'))) return;
       const s = status();
-      if (s?.status === 'expired') return reply.status(402).send({ error: s.message, code: 'license' });
+      if (s?.status === 'expired' || s?.status === 'unregistered') return reply.status(402).send({ error: s.message, code: 'license' });
     });
   }
 
@@ -58,16 +98,91 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
   app.post('/api/license/activate', async (req) => {
     if (!o.gate) throw new AppError('التفعيل بيتعمل من برنامج الويندوز', 'state');
     const { code } = z.object({ code: z.string().min(10).max(2000) }).parse(req.body);
-    const input = o.gate.get();
-    const v = verifyLicense(code, input.machineId);
+    const cur = input()!;
+    const v = verifyLicense(code, cur.machineId);
     if (!v.ok) throw new AppError(v.error);
-    const s = licenseStatus({ ...input, code: code.replace(/\s+/g, '') });
+    const s = licenseStatus({ ...cur, code: code.replace(/\s+/g, '') });
     if (s.status !== 'active') throw new AppError(s.status === 'expired' ? s.message : 'الكود ده مش شغال');
     o.gate.activate(code.replace(/\s+/g, ''));
     return { license: s };
   });
 
+  // ---------------- تسجيل التجربة أول مرة (من برنامج الويندوز) ----------------
+  app.post('/api/license/register', async (req) => {
+    if (!o.gate?.register || !o.vendorUrl) throw new AppError('التسجيل بيتعمل من برنامج الويندوز', 'state');
+    const b = z
+      .object({
+        phone: z.string().trim().min(8).max(20),
+        business: z.string().trim().min(2, 'اكتب اسم المحل').max(120),
+        governorate: z.string().refine((g) => (EG_GOVERNORATES as readonly string[]).includes(g), 'اختار المحافظة'),
+      })
+      .parse(req.body);
+    const phone = normalizePhone(b.phone);
+    if (!/^01[0125][0-9]{8}$/.test(phone)) throw new AppError('رقم الموبايل مش مظبوط. اكتبه زي 01xxxxxxxxx');
+    const cur = input()!;
+    let r: Response;
+    try {
+      r = await fetch(`${o.vendorUrl}/api/public/trial-start`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ machine_id: cur.machineId, phone, business: b.business, governorate: b.governorate, local_start: cur.trialStart }),
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new AppError('مفيش اتصال بالنت. أول مرة بس لازم الجهاز يكون على النت علشان التجربة تبدأ.');
+    }
+    const j = (await r.json().catch(() => ({}))) as { trial_start?: string; error?: string };
+    if (!r.ok || !j.trial_start) throw new AppError(j.error ?? 'التسجيل ما نجحش، جرب تاني بعد شوية');
+    const start = minIso(j.trial_start, cur.trialStart) ?? j.trial_start;
+    o.gate.register(start, phone);
+    dbStart = minIso(start, dbStart) ?? start;
+    await syncDbStart();
+    return { license: status() };
+  });
+
   if (!o.vendor) return;
+
+  // تجربة واحدة لكل رقم: لو الرقم أو الجهاز سجل قبل كده بنرجّع أقدم تاريخ بداية
+  const starts = new Map<string, number[]>();
+  app.post('/api/public/trial-start', async (req) => {
+    const b = z
+      .object({
+        machine_id: z.string().refine(validMachineId),
+        phone: z.string().trim().min(8).max(20),
+        business: z.string().trim().max(120).optional().nullable(),
+        governorate: z.string().max(40).optional().nullable(),
+        local_start: z.string().max(40).optional().nullable(),
+      })
+      .parse(req.body);
+    const phone = normalizePhone(b.phone);
+    if (!/^01[0125][0-9]{8}$/.test(phone)) throw new AppError('رقم الموبايل مش مظبوط');
+    const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim();
+    const now = Date.now();
+    const recent = (starts.get(ip) ?? []).filter((t) => now - t < 3600000);
+    if (recent.length >= 10) throw new AppError('محاولات كتير. استنى شوية وجرب تاني.');
+    starts.set(ip, [...recent, now]);
+    const machine = normalizeMachineId(b.machine_id);
+    const prevMachine = await o.db.one<{ trial_start: any }>(`select trial_start from trial_devices where machine_id = $1`, [machine]);
+    const prevPhone = await o.db.one<{ s: any }>(`select min(trial_start) as s from trial_devices where phone = $1`, [phone]);
+    const iso = (v: any) => (v ? new Date(v).toISOString() : null);
+    const localStart = b.local_start && !Number.isNaN(Date.parse(b.local_start)) && Date.parse(b.local_start) <= now ? b.local_start : null;
+    const start = minIso(iso(prevMachine?.trial_start), iso(prevPhone?.s), localStart, new Date(now).toISOString())!;
+    await o.db.query(
+      `insert into trial_devices (machine_id, phone, business, governorate, trial_start, ip) values ($1,$2,$3,$4,$5,$6)
+       on conflict (machine_id) do update set phone = excluded.phone, business = coalesce(excluded.business, trial_devices.business),
+         governorate = coalesce(excluded.governorate, trial_devices.governorate), trial_start = least(trial_devices.trial_start, excluded.trial_start)`,
+      [machine, phone, b.business || null, b.governorate || null, start, ip || null],
+    );
+    // لو الرقم ده مش متسجل في صفحة التسجيل، نضيفه علشان يظهر عند صاحب السيستم
+    const known = await o.db.one(`select 1 from trial_signups where phone = $1`, [phone]);
+    if (!known) {
+      await o.db.query(`insert into trial_signups (id, name, phone, business, governorate, notes, ip) values ($1,$2,$3,$4,$5,$6,$7)`, [
+        crypto.randomUUID(), b.business || 'من البرنامج', phone, b.business || 'من البرنامج', b.governorate || null, 'اتسجل من برنامج الويندوز مباشرة', ip || null,
+      ]);
+    }
+    const reused = !!(prevMachine || prevPhone?.s);
+    return { trial_start: start, trial_days: TRIAL_DAYS, reused, contact: await vendorContact() };
+  });
 
   // ---------------- التسجيل في التجربة (من غير دخول) ----------------
   // حماية بسيطة من الإزعاج: 5 تسجيلات بالكتير من نفس العنوان في الساعة
@@ -95,6 +210,7 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
         phone: z.string().trim().regex(/^[0-9+\s-]{8,20}$/, 'رقم الموبايل مش مظبوط'),
         business: z.string().trim().min(2, 'اكتب اسم النشاط أو المحل').max(120),
         activity: z.string().trim().max(80).optional().nullable(),
+        governorate: z.string().refine((g) => (EG_GOVERNORATES as readonly string[]).includes(g), 'اختار المحافظة'),
         city: z.string().trim().max(60).optional().nullable(),
         website: z.string().max(0).optional(), // خانة مخفية: لو اتملت يبقى برنامج آلي
       })
@@ -105,8 +221,8 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     if (recent.length >= 5) throw new AppError('سجلت كذا مرة. استنى شوية وجرب تاني، أو كلمنا على طول.');
     hits.set(ip, [...recent, now]);
     const id = crypto.randomUUID();
-    await o.db.query(`insert into trial_signups (id, name, phone, business, activity, city, ip) values ($1,$2,$3,$4,$5,$6,$7)`, [
-      id, b.name, b.phone.replace(/\s+/g, ''), b.business, b.activity || null, b.city || null, ip || null,
+    await o.db.query(`insert into trial_signups (id, name, phone, business, activity, governorate, city, ip) values ($1,$2,$3,$4,$5,$6,$7,$8)`, [
+      id, b.name, normalizePhone(b.phone) || b.phone.replace(/\s+/g, ''), b.business, b.activity || null, b.governorate, b.city || null, ip || null,
     ]);
     return { ok: true, download_url: await downloadUrl() };
   });
@@ -186,8 +302,9 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
       `select distinct on (machine_id) machine_id, customer, phone, expires_at from licenses where expires_at between current_date and current_date + 30 order by machine_id, expires_at desc limit 30`,
     );
     const installations = await o.db.query(
-      `select i.*, l.customer, l.phone from installations i
+      `select i.*, l.customer, coalesce(l.phone, td.phone) as phone, td.governorate from installations i
        left join lateral (select customer, phone from licenses where machine_id = i.machine_id order by created_at desc limit 1) l on true
+       left join trial_devices td on td.machine_id = i.machine_id
        order by i.last_seen desc limit 300`,
     );
     // التسجيلات والتفعيلات أسبوع بأسبوع (آخر 12 أسبوع)
@@ -197,7 +314,10 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
          (select count(*) from licenses where created_at >= w and created_at < w + interval '7 days')::int as activations
        from generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') as w order by w`,
     );
-    return { signups, licenses, revenue, devices, newSignups, endingTrials, expiringLicenses, installations, weekly, contact: await vendorContact() };
+    const byGovernorate = await o.db.query(
+      `select governorate, count(*)::int as n, count(*) filter (where status = 'activated')::int as activated from trial_signups where governorate is not null group by governorate order by n desc`,
+    );
+    return { byGovernorate, signups, licenses, revenue, devices, newSignups, endingTrials, expiringLicenses, installations, weekly, contact: await vendorContact() };
   });
 
   // ---------------- صفحة التراخيص (لصاحب السيستم) ----------------

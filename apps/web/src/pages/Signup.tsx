@@ -1,3 +1,4 @@
+import { EG_GOVERNORATES } from '@erp/shared';
 import { Boxes, Calculator, Download, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { EcoCoverArt, EcoLogo } from '../components/EcoLogo';
@@ -10,7 +11,7 @@ import { Banner } from '../components/ui';
  * العميل يكتب بياناته ← تتسجل عند صاحب السيستم في صفحة التراخيص ← يظهرله زرار تحميل برنامج الويندوز.
  */
 export function SignupPage() {
-  const [f, setF] = useState({ name: '', phone: '', business: '', activity: '', city: '', website: '' });
+  const [f, setF] = useState({ name: '', phone: '', business: '', activity: '', governorate: '', city: '', website: '' });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export function SignupPage() {
     if (f.name.trim().length < 2) return setErr('اكتب اسمك');
     if (!/^[0-9+\s-]{8,20}$/.test(f.phone.trim())) return setErr('رقم الموبايل مش مظبوط');
     if (f.business.trim().length < 2) return setErr('اكتب اسم النشاط أو المحل');
+    if (!f.governorate) return setErr('اختار المحافظة');
     setBusy(true);
     try {
       const r = await fetch('/api/public/trial-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(f) });
@@ -63,7 +65,7 @@ export function SignupPage() {
             </div>
             <a className="lg-submit" href={url} style={{ textDecoration: 'none' }}><Download aria-hidden="true" /> تحميل البرنامج للويندوز</a>
             <ol className="lic-steps">
-              <li>افتح الملف اللي نزل وسطّب البرنامج.</li>
+              <li>افتح الملف اللي نزل وسطّب البرنامج، واكتب نفس رقم الموبايل أول ما يفتح (لازم يكون على النت أول مرة).</li>
               <li>ادخل بـ <b dir="ltr">admin</b> وكلمة السر <b dir="ltr">admin123</b>، وغيّرها من الإعدادات.</li>
               <li>لو احتجت مساعدة كلمنا، وهنتواصل معاك على رقمك.</li>
             </ol>
@@ -81,7 +83,13 @@ export function SignupPage() {
             <div className="lg-field"><label htmlFor="su-phone">رقم الموبايل (واتساب)</label><div className="lg-input"><input id="su-phone" value={f.phone} onChange={(e) => set('phone', e.target.value)} inputMode="tel" dir="ltr" placeholder="01xxxxxxxxx" autoComplete="tel" required /></div></div>
             <div className="lg-field"><label htmlFor="su-biz">اسم المحل أو الشركة</label><div className="lg-input"><input id="su-biz" value={f.business} onChange={(e) => set('business', e.target.value)} autoComplete="organization" required /></div></div>
             <div className="lg-field"><label htmlFor="su-act">نوع النشاط <span className="muted">(اختياري)</span></label><div className="lg-input"><input id="su-act" value={f.activity} onChange={(e) => set('activity', e.target.value)} placeholder="مثلًا: قطع غيار، ملابس، سوبر ماركت" /></div></div>
-            <div className="lg-field"><label htmlFor="su-city">المدينة <span className="muted">(اختياري)</span></label><div className="lg-input"><input id="su-city" value={f.city} onChange={(e) => set('city', e.target.value)} /></div></div>
+            <div className="lg-field"><label htmlFor="su-gov">المحافظة</label>
+              <select id="su-gov" className="select" value={f.governorate} onChange={(e) => set('governorate', e.target.value)} required>
+                <option value="">— اختار المحافظة —</option>
+                {EG_GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="lg-field"><label htmlFor="su-city">المدينة أو المنطقة <span className="muted">(اختياري)</span></label><div className="lg-input"><input id="su-city" value={f.city} onChange={(e) => set('city', e.target.value)} /></div></div>
             {/* خانة مخفية للبرامج الآلية: الإنسان ما بيشوفهاش */}
             <input type="text" name="website" value={f.website} onChange={(e) => set('website', e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none', clipPath: 'inset(50%)' }} />
             <button className="lg-submit" disabled={busy}>

@@ -48,7 +48,7 @@ import { CustomerFieldsReport } from './pages/reports/customerFields';
 import { SignupPage } from './pages/Signup';
 import { LicensesPage } from './pages/Licenses';
 import { OwnerDashboard } from './pages/Owner';
-import { LockScreen, TrialPill } from './components/LicenseGate';
+import { LockScreen, RegisterScreen, TrialPill } from './components/LicenseGate';
 import { useLicenseInfo } from './lib/license';
 
 export function App() {
@@ -153,6 +153,8 @@ export function App() {
   }
   // برنامج الويندوز بعد ما التجربة أو الاشتراك يخلص: شاشة التفعيل بدل أي حاجة
   if (lic?.license?.status === 'expired') return <LockScreen license={lic.license} contact={lic.contact} />;
+  // أول مرة: تسجيل التجربة برقم الموبايل
+  if (lic?.license?.status === 'unregistered') return <RegisterScreen license={lic.license} contact={lic.contact} />;
 
   if (!session || !ctx)
     return (

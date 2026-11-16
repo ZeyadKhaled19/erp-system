@@ -56,8 +56,8 @@ describe('owner dashboard', () => {
   });
 
   it('dashboard numbers: signups, conversion, revenue, devices and who to call', async () => {
-    await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'سعيد', phone: '01011111111', business: 'محل سعيد' } });
-    await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'منى', phone: '01022222222', business: 'محل منى' } });
+    await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'سعيد', phone: '01011111111', business: 'محل سعيد', governorate: 'الجيزة' } });
+    await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'منى', phone: '01022222222', business: 'محل منى', governorate: 'القاهرة' } });
     const lic = await vendor.inject({ method: 'POST', url: '/api/admin/licenses', headers: h, payload: { machine_id: 'ABCD-0000-0000-0002', customer: 'محل النور', plan: 'month', amount: 150000, phone: '01033333333' } });
     expect(lic.statusCode).toBe(200);
     const d = (await vendor.inject({ method: 'GET', url: '/api/admin/owner-dashboard', headers: h })).json();

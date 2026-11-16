@@ -8,6 +8,7 @@ import { startLocalServer, type LocalServerOptions } from './local';
  *   ← { type: 'shutdown' }         نسخة لو فيه تغيير، وبعدين قفل
  *   ← { type: 'license', input }    بيانات الترخيص اتغيرت (البرنامج بيبعتها مع start كمان في options.licenseInput)
  *   → { type: 'license-activated', code }  اتحط كود تفعيل صحيح من الواجهة: البرنامج يحفظه
+ *   → { type: 'license-registered', trialStart, phone }  التجربة اتسجلت أونلاين برقم الموبايل: البرنامج يحفظ
  *   → { type: 'ready', port } | { type: 'backup-done', file, skipped } | { type: 'error', message } | { type: 'log', message }
  */
 const send = (m: unknown) => process.send?.(m);
@@ -55,6 +56,10 @@ process.on('message', async (m: any) => {
               activate: (code) => {
                 licenseInput = { ...licenseInput!, code };
                 send({ type: 'license-activated', code });
+              },
+              register: (trialStart, phone) => {
+                licenseInput = { ...licenseInput!, trialStart, registered: true };
+                send({ type: 'license-registered', trialStart, phone });
               },
             }
           : undefined,

@@ -6,7 +6,7 @@ import { Banner, Empty, Field, MoneyInput, Segmented, Sheet, useUi } from '../co
 import { api } from '../lib/api';
 import { waUrl } from '../lib/license';
 
-interface Signup { id: string; name: string; phone: string; business: string; activity: string | null; city: string | null; status: 'new' | 'contacted' | 'activated' | 'dropped'; notes: string | null; created_at: string }
+interface Signup { id: string; name: string; phone: string; business: string; activity: string | null; governorate: string | null; city: string | null; status: 'new' | 'contacted' | 'activated' | 'dropped'; notes: string | null; created_at: string }
 interface License { id: string; machine_id: string; customer: string; phone: string | null; plan: string; expires_at: string | null; code: string; amount: number | string; created_at: string; created_by_name: string | null }
 
 const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
@@ -136,7 +136,7 @@ export function LicensesPage() {
                   <tr key={s.id}>
                     <td data-label="التاريخ" className="muted">{fmtDate(s.created_at)}</td>
                     <td data-label="الاسم" className="bold">{s.name}</td>
-                    <td data-label="المحل">{s.business}{s.city ? <span className="muted"> · {s.city}</span> : null}</td>
+                    <td data-label="المحل">{s.business}{s.governorate || s.city ? <span className="muted"> · {[s.governorate, s.city].filter(Boolean).join('، ')}</span> : null}</td>
                     <td data-label="النشاط" className="muted">{s.activity ?? '—'}</td>
                     <td data-label="الموبايل" className="num"><a href={waLink(s.phone, `أهلًا ${s.name}، معاك Eco System بخصوص التجربة المجانية.`)} target="_blank" rel="noreferrer">{s.phone}</a></td>
                     <td data-label="الحالة">

@@ -32,6 +32,8 @@ export interface AppOptions {
   licensePrivateKey?: string;
   /** لينك تحميل برنامج الويندوز (اختياري) */
   downloadUrl?: string;
+  /** موقع صاحب السيستم (برنامج الويندوز بيسجل التجربة عليه) */
+  vendorUrl?: string;
 }
 
 declare module 'fastify' {
@@ -77,7 +79,7 @@ export async function buildApp(opts: AppOptions) {
     if (!hasPermission(req.user!.permissions, key)) throw new AppError('ليس لديك صلاحية', 'forbidden');
   };
   // التراخيص قبل باقي المسارات، علشان القفل يتطبق على كل طلبات /api
-  registerLicensing(app, { db, gate: opts.license, vendor: opts.vendor, privateKey: opts.licensePrivateKey, downloadUrl: opts.downloadUrl, perm });
+  registerLicensing(app, { db, gate: opts.license, vendor: opts.vendor, privateKey: opts.licensePrivateKey, downloadUrl: opts.downloadUrl, vendorUrl: opts.vendorUrl, perm });
   const q = (req: FastifyRequest) => req.query as Record<string, string | undefined>;
   const range = (req: FastifyRequest) => ({ from: q(req).from || undefined, to: q(req).to || undefined });
   const assertWarehouseScope = (req: FastifyRequest, id: string | null | undefined) => {

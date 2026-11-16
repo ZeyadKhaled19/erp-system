@@ -57,6 +57,7 @@ let config = loadConfig();
 // الخادم هو اللي بيقرر مفتوح ولا مقفول (علشان القفل يشمل الأجهزة التانية اللي بتفتح من الشبكة كمان).
 // البرنامج بيدّيله: رقم الجهاز، أول يوم تجربة، آخر وقت اتشاف، والكود المتحفظ.
 const REG_KEY = 'HKCU\\Software\\EcoSystem';
+const VENDOR_URL = process.env.ERP_VENDOR_URL || 'https://erp-system-psi-inky.vercel.app';
 function regRead(key, name) {
   try {
     const out = execFileSync('reg', ['query', key, '/v', name], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
@@ -91,13 +92,21 @@ function licenseInput() {
   const prevSeen = config.lastSeen || null;
   if (!prevSeen || now > prevSeen) { config.lastSeen = now; changed = true; }
   if (changed) saveConfig(config);
-  return { machineId: machineId(), trialStart: start, lastSeen: prevSeen, code: config.licenseCode || null, legacy: !!config.licenseLegacy, contact: config.vendorContact || null };
+  // التجربة لازم تتسجل أونلاين برقم موبايل أول مرة (تجربة واحدة لكل رقم) — إلا لو فيه كود أو الجهاز قديم
+  return { machineId: machineId(), trialStart: start, lastSeen: prevSeen, code: config.licenseCode || null, legacy: !!config.licenseLegacy, contact: config.vendorContact || null, registered: !!config.trialRegistered };
+}
+
+function onTrialRegistered(trialStart, phone) {
+  const earliest = [config.trialStart, trialStart].filter((d) => d && !Number.isNaN(Date.parse(d))).sort()[0] || trialStart;
+  config = { ...config, trialStart: earliest, trialRegistered: true, trialPhone: phone };
+  saveConfig(config);
+  regWrite(REG_KEY, 'TrialStart', earliest);
+  writeLog('التجربة اتسجلت برقم الموبايل');
 }
 
 // ---------- إشارة لموقع صاحب السيستم (لما يكون فيه نت) ----------
 // بتبعت: رقم الجهاز واسم المحل ورقم النسخة وحالة الترخيص بس (مفيش أي فواتير أو عملاء أو أرقام).
 // والرد فيه بيانات التواصل (التليفون والواتساب والفيسبوك واليوتيوب) علشان تظهر في شاشة التفعيل.
-const VENDOR_URL = process.env.ERP_VENDOR_URL || 'https://erp-system-psi-inky.vercel.app';
 async function pingVendor() {
   try {
     const lic = await (await fetch(`http://localhost:${config.port}/api/license`, { signal: AbortSignal.timeout(5000) })).json();
@@ -178,6 +187,7 @@ function startServer() {
       else if (/الخادم يعمل/.test(m.message)) setSplashStatus('بيفتح السيستم…');
     }
     if (m.type === 'error') writeLog('ERROR ' + m.message);
+    if (m.type === 'license-registered' && typeof m.trialStart === 'string') onTrialRegistered(m.trialStart, String(m.phone || ''));
     if (m.type === 'license-activated' && typeof m.code === 'string') {
       config = { ...config, licenseCode: m.code };
       saveConfig(config);
@@ -218,6 +228,7 @@ function startServer() {
       backupKeep: 30,
       backupKeepHourly: 48,
       licenseInput: licenseInput(),
+      vendorUrl: VENDOR_URL,
     },
   });
   // آخر وقت اتشاف بيتحدث كل ساعة (لو حد رجّع ساعة الجهاز لورا)

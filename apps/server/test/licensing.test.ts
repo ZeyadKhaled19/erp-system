@@ -19,6 +19,8 @@ let shop: Awaited<ReturnType<typeof buildApp>>;
 let vendor: Awaited<ReturnType<typeof buildApp>>;
 const input: LicenseInput = { machineId: 'ABCD-0000-0000-0001', trialStart: new Date(Date.now() - 8 * 86400000).toISOString() };
 let saved: string | null = null;
+let trialShop: Awaited<ReturnType<typeof buildApp>>;
+const extraDbs: Awaited<ReturnType<typeof openDb>>[] = [];
 
 beforeAll(async () => {
   db = await openDb({ memory: true });
@@ -29,6 +31,8 @@ beforeAll(async () => {
   vendor = await buildApp({ db, jwtSecret: 'test-secret', backupDir, vendor: true, licensePrivateKey: PRIV, downloadUrl: 'https://example.test/ERP-Setup.exe' });
 });
 afterAll(async () => {
+  await trialShop?.close();
+  for (const d of extraDbs) await d.close();
   await shop.close();
   await vendor.close();
   await db.close();
@@ -50,18 +54,24 @@ describe('licensing', () => {
   });
 
   it('during the trial everything works', async () => {
-    input.trialStart = new Date().toISOString();
-    const login = await shop.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-x-0001' } });
+    // جهاز جديد ببيانات جديدة (تاريخ التجربة بيتحفظ جوه البيانات، فلازم قاعدة بيانات تانية)
+    const db2 = await openDb({ memory: true });
+    await migrate(db2, { backupDir: os.tmpdir() });
+    await seed(db2, { adminPassword: 'admin123' });
+    const fresh: LicenseInput = { machineId: 'ABCD-0000-0000-0009', trialStart: new Date().toISOString() };
+    trialShop = await buildApp({ db: db2, jwtSecret: 'test-secret', backupDir: os.tmpdir(), license: { get: () => fresh, activate: () => {} } });
+    extraDbs.push(db2);
+    const login = await trialShop.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-x-0001' } });
     expect(login.statusCode).toBe(200);
-    expect((await shop.inject({ method: 'GET', url: '/api/license' })).json().license).toMatchObject({ status: 'trial', daysLeft: 7 });
+    expect((await trialShop.inject({ method: 'GET', url: '/api/license' })).json().license).toMatchObject({ status: 'trial', daysLeft: 7 });
   });
 
   it('vendor site: trial signup (public), then the owner sees it and issues a code for the machine', async () => {
-    const s = await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'أحمد علي', phone: '01012345678', business: 'محل النور', activity: 'قطع غيار' } });
+    const s = await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'أحمد علي', phone: '01012345678', business: 'محل النور', activity: 'قطع غيار', governorate: 'القاهرة' } });
     expect(s.statusCode).toBe(200);
     expect(s.json().download_url).toBe('https://example.test/ERP-Setup.exe');
     // خانة الفخ المخفية للبرامج الآلية
-    expect((await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'bot', phone: '01012345678', business: 'x x', website: 'spam' } })).statusCode).toBe(400);
+    expect((await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'bot', phone: '01012345678', business: 'x x', governorate: 'القاهرة', website: 'spam' } })).statusCode).toBe(400);
     // صفحة التراخيص محتاجة دخول وصلاحية
     expect((await vendor.inject({ method: 'GET', url: '/api/admin/licensing' })).statusCode).toBe(401);
     const token = (await vendor.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-v-0001' } })).json().token;
@@ -82,7 +92,7 @@ describe('licensing', () => {
   });
 
   it('a normal (non-vendor, non-desktop) server has no signup page and no lock', async () => {
-    const st = (await shop.inject({ method: 'POST', url: '/api/public/trial-signup', payload: {} })).statusCode;
+    const st = (await trialShop.inject({ method: 'POST', url: '/api/public/trial-signup', payload: {} })).statusCode;
     expect(st).toBe(404);
   });
 });

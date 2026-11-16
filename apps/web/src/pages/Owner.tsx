@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { DEFAULT_CONTACT, refreshLicense, waUrl, type VendorContact } from '../lib/license';
 import '../owner.css';
 
-interface Device { machine_id: string; company_name: string | null; version: string | null; status: string | null; days_left: number | null; expires_at: string | null; legacy: boolean; last_seen: string; first_seen: string; customer: string | null; phone: string | null }
+interface Device { machine_id: string; governorate?: string | null; company_name: string | null; version: string | null; status: string | null; days_left: number | null; expires_at: string | null; legacy: boolean; last_seen: string; first_seen: string; customer: string | null; phone: string | null }
 interface Dash {
   signups: { today: number; week: number; month: number; total: number; activated: number };
   licenses: { total: number; active: number; expiring: number };
@@ -19,6 +19,7 @@ interface Dash {
   expiringLicenses: { machine_id: string; customer: string; phone: string | null; expires_at: string }[];
   installations: Device[];
   weekly: { week: string; signups: number; activations: number }[];
+  byGovernorate: { governorate: string; n: number; activated: number }[];
   contact: VendorContact;
 }
 
@@ -178,6 +179,22 @@ export function OwnerDashboard() {
             </section>
           </div>
 
+          {d.byGovernorate.length > 0 && (
+            <section className="card own-card" style={{ marginBottom: 14 }}>
+              <h3 className="own-h">التسجيلات حسب المحافظة</h3>
+              <div className="own-govs">
+                {d.byGovernorate.map((g) => (
+                  <div key={g.governorate} className="own-gov">
+                    <span className="own-gov-n">{g.governorate}</span>
+                    <span className="brand-bar" aria-hidden="true"><i style={{ width: `${(g.n / Math.max(...d.byGovernorate.map((x) => x.n))) * 100}%` }} /></span>
+                    <span className="num">{g.n}</span>
+                    <span className="muted small">{g.activated ? `فعّل ${g.activated}` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="card own-card">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <h3 className="own-h">بيانات التواصل اللي بتظهر للعملاء</h3>
@@ -197,11 +214,12 @@ export function OwnerDashboard() {
           ) : (
             <div className="table-wrap">
               <table className="table responsive">
-                <thead><tr><th>المحل</th><th>رقم الجهاز</th><th>الحالة</th><th>آخر مرة اتفتح</th><th>النسخة</th><th>أول مرة</th></tr></thead>
+                <thead><tr><th>المحل</th><th>الموبايل</th><th>رقم الجهاز</th><th>الحالة</th><th>آخر مرة اتفتح</th><th>النسخة</th><th>أول مرة</th></tr></thead>
                 <tbody>
                   {d.installations.map((x) => (
                     <tr key={x.machine_id}>
                       <td data-label="المحل" className="bold">{x.customer || x.company_name || <span className="muted">من غير اسم</span>}{x.customer && x.company_name && x.company_name !== x.customer ? <div className="muted small">{x.company_name}</div> : null}</td>
+                      <td data-label="الموبايل" className="num">{x.phone ? <a href={waUrl(x.phone)} target="_blank" rel="noreferrer">{x.phone}</a> : <span className="muted">—</span>}{x.governorate ? <div className="muted small">{x.governorate}</div> : null}</td>
                       <td data-label="رقم الجهاز" className="num" dir="ltr">{x.machine_id}</td>
                       <td data-label="الحالة"><DeviceStatus d={x} /></td>
                       <td data-label="آخر مرة اتفتح" className={Date.now() - new Date(x.last_seen).getTime() > 7 * 86400000 ? 'muted' : ''}>{ago(x.last_seen)}</td>
