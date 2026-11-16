@@ -53,13 +53,21 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     return () => { alive = false; };
   }, []);
 
+  // الموقع رفض كلمة سر ضعيفة/افتراضية: لازم كلمة سر جديدة قبل الدخول
+  const [mustChange, setMustChange] = useState(false);
+  const [newPass, setNewPass] = useState('');
+  const [newPass2, setNewPass2] = useState('');
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    if (mustChange) {
+      if (newPass.trim().length < 8) return setError('كلمة السر الجديدة 8 حروف أو أرقام على الأقل');
+      if (newPass !== newPass2) return setError('كلمتين السر الجديدة مش زي بعض');
+    }
+    setBusy(true);
     try {
       const r = await api<{ token: string; user: Session['user'] }>('/api/auth/login', {
-        body: { username, password, device_id: getDeviceId(), device_name: getDeviceName() },
+        body: { username, password, device_id: getDeviceId(), device_name: getDeviceName(), ...(mustChange ? { new_password: newPass } : {}) },
       });
       // كل حساب يفتح قاعدة بياناته وطابوره المحليين؛ عمليات الحسابات الأخرى تبقى معزولة.
       writeRemembered(remember, username.trim());
@@ -67,6 +75,11 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
       onLogin({ token: r.token, user: r.user, server_user_id: r.user.id });
     } catch (err) {
       const e2 = err as ApiError;
+      if (e2.code === 'weak_password') {
+        setMustChange(true);
+        setError(e2.message);
+        return;
+      }
       setError(e2.network ? 'لا يوجد اتصال بالخادم. أول تسجيل دخول على هذا الجهاز يحتاج اتصالًا، وبعدها يعمل البرنامج دون إنترنت.' : e2.message);
     } finally {
       setBusy(false);
@@ -127,6 +140,18 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
               </button>
             </div>
           </div>
+          {mustChange && (
+            <>
+              <div className="lg-field">
+                <label htmlFor="login-new">كلمة السر الجديدة</label>
+                <div className="lg-input"><Lock aria-hidden="true" /><input id="login-new" type="password" autoComplete="new-password" value={newPass} onChange={(e) => setNewPass(e.target.value)} autoFocus dir="ltr" placeholder="8 حروف أو أرقام على الأقل" /></div>
+              </div>
+              <div className="lg-field">
+                <label htmlFor="login-new2">اكتبها تاني</label>
+                <div className="lg-input"><Lock aria-hidden="true" /><input id="login-new2" type="password" autoComplete="new-password" value={newPass2} onChange={(e) => setNewPass2(e.target.value)} dir="ltr" /></div>
+              </div>
+            </>
+          )}
         <label className="login-remember">
           <input
             type="checkbox"

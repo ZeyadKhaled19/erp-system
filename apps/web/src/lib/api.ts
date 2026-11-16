@@ -1,7 +1,7 @@
 import { getDeviceId } from './session';
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public network = false) {
+  constructor(message: string, public status: number, public network = false, public code?: string) {
     super(message);
   }
 }
@@ -50,7 +50,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     if (res.status >= 502 && res.status <= 504) throw new ApiError('الخادم غير متاح حاليًا', res.status, true);
     // برنامج الويندوز اتقفل (التجربة أو الاشتراك خلص): الواجهة تعرض شاشة التفعيل
     if (res.status === 402 && data?.code === 'license') window.dispatchEvent(new Event('erp:license'));
-    throw new ApiError(data?.error ?? `خطأ ${res.status}`, res.status);
+    throw new ApiError(data?.error ?? `خطأ ${res.status}`, res.status, false, data?.code);
   }
   return data as T;
 }

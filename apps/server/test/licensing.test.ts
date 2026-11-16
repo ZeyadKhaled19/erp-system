@@ -74,7 +74,7 @@ describe('licensing', () => {
     expect((await vendor.inject({ method: 'POST', url: '/api/public/trial-signup', payload: { name: 'bot', phone: '01012345678', business: 'x x', governorate: 'القاهرة', website: 'spam' } })).statusCode).toBe(400);
     // صفحة التراخيص محتاجة دخول وصلاحية
     expect((await vendor.inject({ method: 'GET', url: '/api/admin/licensing' })).statusCode).toBe(401);
-    const token = (await vendor.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-v-0001' } })).json().token;
+    const token = (await vendor.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-v-0001', new_password: 'Strong-Pass-2026' } })).json().token;
     const h = { authorization: `Bearer ${token}`, 'x-device-id': 'device-v-0001' };
     const list = (await vendor.inject({ method: 'GET', url: '/api/admin/licensing', headers: h })).json();
     expect(list.canIssue).toBe(true);

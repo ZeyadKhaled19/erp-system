@@ -48,7 +48,7 @@ export function makeTokens(secret: string) {
     },
     async verify(token: string) {
       const { payload } = await jwtVerify(token, key);
-      return { userId: String(payload.sub), deviceId: String(payload.dev ?? '') };
+      return { userId: String(payload.sub), deviceId: String(payload.dev ?? ''), issuedAt: Number(payload.iat ?? 0) };
     },
   };
 }

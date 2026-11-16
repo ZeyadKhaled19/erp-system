@@ -71,6 +71,9 @@ export async function buildApp(opts: AppOptions) {
     }
     const user = await loadAuthUser(db, payload.userId);
     if (!user) throw new AppError('المستخدم موقوف أو غير موجود', 'auth');
+    // كلمة السر اتغيرت بعد الدخول ده: الجلسة القديمة تتلغي
+    const pc = await db.one<{ t: any }>(`select extract(epoch from password_changed_at) as t from users where id = $1`, [user.id]);
+    if (pc?.t && payload.issuedAt && payload.issuedAt < Math.floor(Number(pc.t))) throw new AppError('كلمة السر اتغيرت؛ سجّل الدخول مرة تانية', 'auth');
     req.user = user;
     req.deviceId = String(req.headers['x-device-id'] ?? payload.deviceId ?? '');
   };
@@ -117,9 +120,14 @@ export async function buildApp(opts: AppOptions) {
     return { company_name: typeof v.company_name === 'string' ? v.company_name : '', system_name: typeof v.system_name === 'string' ? v.system_name : '', logo: typeof v.print_logo === 'string' ? v.print_logo : null };
   });
 
-  app.post('/api/auth/login', async (req) => {
+  // كلمات سر معروفة وضعيفة: على موقع صاحب السيستم (المفتوح للناس) ممنوع الدخول بيها،
+  // لازم تتغير الأول (لأن كلمة السر الافتراضية مكتوبة للعملاء علشان برنامج الويندوز)
+  const WEAK_PASSWORDS = new Set(['admin123', 'admin', '123456', '12345678', '123456789', 'password', '00000000', '11111111', '1234', '0000', 'qwerty']);
+  const weakPassword = (p: string) => WEAK_PASSWORDS.has(p.trim().toLowerCase()) || p.trim().length < 8;
+
+  app.post('/api/auth/login', async (req, reply) => {
     const body = z
-      .object({ username: z.string().min(1), password: z.string().min(1), device_id: z.string().min(8).max(64), device_name: z.string().max(100).optional() })
+      .object({ username: z.string().min(1), password: z.string().min(1), device_id: z.string().min(8).max(64), device_name: z.string().max(100).optional(), new_password: z.string().max(200).optional() })
       .parse(req.body);
     const key = body.username.trim().toLowerCase();
     const wait = lockedFor(key);
@@ -134,6 +142,17 @@ export async function buildApp(opts: AppOptions) {
         body.device_id,
       ]);
       throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 'auth');
+    }
+    if (opts.vendor && weakPassword(body.password)) {
+      if (!body.new_password) {
+        return reply.status(428).send({ code: 'weak_password', error: 'كلمة السر دي ضعيفة أو افتراضية، ومينفعش تتستخدم على الموقع. اختار كلمة سر جديدة (8 حروف على الأقل).' });
+      }
+      if (weakPassword(body.new_password)) throw new AppError('كلمة السر الجديدة ضعيفة. خليها 8 حروف أو أرقام على الأقل، ومش زي admin123 أو 12345678');
+      if (body.new_password === body.password) throw new AppError('كلمة السر الجديدة لازم تختلف عن القديمة');
+      await db.query(`update users set password_hash = $2, password_changed_at = now() where id = $1`, [u.id, await hashPassword(body.new_password)]);
+      await db.query(`insert into audit_log (user_id, device_id, action, entity, entity_id) values ($1, $2, 'change_password', 'user', $1)`, [u.id, body.device_id]);
+      // التوكن الجديد لازم يبقى بعد وقت التغيير (الثانية الجاية)
+      await new Promise((r) => setTimeout(r, 1100));
     }
     await db.query(
       `insert into devices (id, name, user_id) values ($1, $2, $3) on conflict (id) do update set name = coalesce(excluded.name, devices.name), user_id = excluded.user_id, last_seen = now()`,
@@ -151,9 +170,12 @@ export async function buildApp(opts: AppOptions) {
     const b = z.object({ current: z.string(), next: z.string().min(6, 'كلمة المرور الجديدة 6 أحرف على الأقل') }).parse(req.body);
     const u = await db.one(`select password_hash from users where id = $1`, [req.user!.id]);
     if (!(await verifyPassword(b.current, u.password_hash))) throw new AppError('كلمة المرور الحالية غير صحيحة');
-    await db.query(`update users set password_hash = $2 where id = $1`, [req.user!.id, await hashPassword(b.next)]);
+    if (opts.vendor && weakPassword(b.next)) throw new AppError('كلمة السر الجديدة ضعيفة. خليها 8 حروف أو أرقام على الأقل، ومش زي admin123 أو 12345678');
+    await db.query(`update users set password_hash = $2, password_changed_at = now() where id = $1`, [req.user!.id, await hashPassword(b.next)]);
     await db.query(`insert into audit_log (user_id, device_id, action, entity, entity_id) values ($1, $2, 'change_password', 'user', $1)`, [req.user!.id, req.deviceId]);
-    return { ok: true };
+    // كل الجلسات القديمة اتلغت؛ نرجّع توكن جديد للجهاز ده علشان يكمل من غير ما يخرج
+    await new Promise((r) => setTimeout(r, 1100));
+    return { ok: true, token: await tokens.sign(req.user!.id, req.deviceId ?? '') };
   });
 
   // ---------------- المزامنة ----------------
@@ -365,7 +387,7 @@ export async function buildApp(opts: AppOptions) {
           id, b.username, b.full_name, b.role_id, b.active, b.warehouse_ids ? JSON.stringify(b.warehouse_ids) : null, b.cashbox_ids ? JSON.stringify(b.cashbox_ids) : null,
           JSON.stringify(extra), JSON.stringify(denied),
         ]);
-        if (b.password) await t.query(`update users set password_hash = $2 where id = $1`, [id, await hashPassword(b.password)]);
+        if (b.password) await t.query(`update users set password_hash = $2, password_changed_at = now() where id = $1`, [id, await hashPassword(b.password)]);
       } else {
         if (!b.password) throw new AppError('كلمة المرور مطلوب للمستخدم الجديد');
         id = crypto.randomUUID();

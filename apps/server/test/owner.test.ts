@@ -23,7 +23,7 @@ beforeAll(async () => {
   await seed(db, { adminPassword: 'admin123' });
   vendor = await buildApp({ db, jwtSecret: 'test-secret', backupDir, vendor: true, licensePrivateKey: PRIV, downloadUrl: 'https://example.test/x.exe' });
   shop = await buildApp({ db, jwtSecret: 'test-secret', backupDir, license: { get: () => input, activate: () => {} } });
-  const token = (await vendor.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-o-0001' } })).json().token;
+  const token = (await vendor.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-o-0001', new_password: 'Strong-Pass-2026' } })).json().token;
   h = { authorization: `Bearer ${token}`, 'x-device-id': 'device-o-0001' };
 });
 afterAll(async () => {

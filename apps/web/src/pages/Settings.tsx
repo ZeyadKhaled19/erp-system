@@ -7,7 +7,8 @@ import { PageHeader } from '../components/Layout';
 import { AppearancePanel } from '../components/Appearance';
 import { Banner, Field, Switch, useUi } from '../components/ui';
 import { useLicenseInfo } from '../lib/license';
-import { api } from '../lib/api';
+import { api, setToken } from '../lib/api';
+import { loadSession, saveSession } from '../lib/session';
 import { db } from '../lib/db';
 import { usePerm, useSettings } from '../lib/hooks';
 import { clearLocalData, syncNow } from '../lib/sync';
@@ -235,7 +236,13 @@ export function SettingsPage() {
           disabled={!pw.current || pw.next.length < 6}
           onClick={async () => {
             try {
-              await api('/api/auth/change-password', { body: pw });
+              const r = await api<{ ok: boolean; token?: string }>('/api/auth/change-password', { body: pw });
+              // الجلسات القديمة اتلغت: الجهاز ده ياخد التوكن الجديد علشان ما يخرجش
+              if (r.token) {
+                const cur = loadSession();
+                if (cur) saveSession({ ...cur, token: r.token });
+                setToken(r.token);
+              }
               setPw({ current: '', next: '' });
               ui.toast('تم تغيير كلمة المرور');
             } catch (e) {
