@@ -1,5 +1,5 @@
 import { formatMoney } from '@erp/shared';
-import { Banknote, CalendarClock, KeyRound, Laptop, MessageCircle, Pencil, RefreshCw, UserPlus, Users } from 'lucide-react';
+import { Banknote, CalendarClock, Check, Copy, KeyRound, Laptop, MessageCircle, Pencil, RefreshCw, Shuffle, UserCog, UserPlus, Users } from 'lucide-react';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -51,6 +51,62 @@ function DeviceStatus({ d }: { d: Device }) {
   return <span className="muted">—</span>;
 }
 
+/** باسورد عشوائي سهل يتقري ويتكتب (من غير حروف شبه بعض زي 0 و O) */
+function randomPassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const a = new Uint32Array(10);
+  crypto.getRandomValues(a);
+  return Array.from(a, (n) => chars[n % chars.length]).join('').replace(/(.{5})/, '$1-');
+}
+
+/** يوزر وباسورد جداد لجهاز عميل: بيطلع كود استرجاع يتبعتله */
+function ResetSheet({ device, onClose }: { device: Device | null; onClose: () => void }) {
+  const [f, setF] = useState({ machine_id: device?.machine_id ?? '', username: 'admin', password: randomPassword() });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<{ code: string; expires_at: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const issue = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      setRes(await api('/api/admin/reset-codes', { body: f }));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const msg = res ? `بيانات الدخول الجديدة لـ Eco System:\nاسم المستخدم: ${f.username}\nكلمة السر: ${f.password}\n\nفي شاشة الدخول دوس «نسيت اسم المستخدم أو كلمة السر؟» والصق الكود ده (شغال 24 ساعة):\n${res.code}` : '';
+  return (
+    <Sheet title={res ? 'كود الاسترجاع جاهز' : 'يوزر وباسورد جداد للعميل'} onClose={onClose} footer={res ? <button className="btn primary" onClick={onClose}>تمام</button> : <><button className="btn" onClick={onClose}>إلغاء</button><button className="btn primary" disabled={busy} onClick={issue}><KeyRound /> طلّع الكود</button></>}>
+      {res ? (
+        <div className="stack">
+          <Banner kind="ok">ابعت الرسالة دي للعميل. الكود شغال على الجهاز <bdi dir="ltr">{f.machine_id}</bdi> بس، لمدة 24 ساعة.</Banner>
+          <textarea className="textarea" readOnly value={msg} style={{ minHeight: 170, fontSize: 13, wordBreak: "break-all" }} onFocus={(e) => e.currentTarget.select()} />
+          <div className="row wrap" style={{ gap: 8 }}>
+            <button className="btn sm" onClick={async () => { try { await navigator.clipboard.writeText(msg); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* */ } }}>{copied ? <><Check /> اتنسخت</> : <><Copy /> نسخ الرسالة</>}</button>
+            {device?.phone && <a className="btn sm" href={waUrl(device.phone, msg)} target="_blank" rel="noreferrer"><MessageCircle /> ابعتها واتساب</a>}
+          </div>
+        </div>
+      ) : (
+        <div className="stack">
+          {err && <Banner kind="err">{err}</Banner>}
+          <div className="footnote">لو العميل نسي بيانات الدخول: اختار له يوزر وباسورد جداد، وابعتله الكود. هو بيحطه في شاشة الدخول عنده، والبيانات القديمة بتتلغي.</div>
+          <Field label="رقم الجهاز" required><input className="input num" dir="ltr" value={f.machine_id} onChange={(e) => setF({ ...f, machine_id: e.target.value })} placeholder="XXXX-XXXX-XXXX-XXXX" disabled={!!device} /></Field>
+          <Field label="اسم المستخدم" required><input className="input" dir="ltr" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} /></Field>
+          <Field label="كلمة السر" required hint="8 حروف أو أرقام على الأقل">
+            <div className="row" style={{ gap: 6 }}>
+              <input className="input num" dir="ltr" style={{ flex: 1 }} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+              <button type="button" className="btn" title="كلمة سر عشوائية" onClick={() => setF({ ...f, password: randomPassword() })}><Shuffle /></button>
+            </div>
+          </Field>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
 /** تعديل بيانات التواصل اللي بتظهر للعملاء */
 function ContactSheet({ contact, onClose, onSaved }: { contact: VendorContact; onClose: () => void; onSaved: () => void }) {
   const ui = useUi();
@@ -94,6 +150,7 @@ export function OwnerDashboard() {
   const [d, setD] = useState<Dash | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [editContact, setEditContact] = useState(false);
+  const [resetFor, setResetFor] = useState<Device | null | undefined>(undefined);
   const load = useCallback(async () => {
     setErr(null);
     try {
@@ -208,13 +265,17 @@ export function OwnerDashboard() {
             </div>
           </section>
 
-          <h3 className="own-h" style={{ marginTop: 18 }}><Laptop /> الأجهزة</h3>
+          <div className="row" style={{ justifyContent: 'space-between', marginTop: 18 }}>
+            <h3 className="own-h" style={{ margin: 0 }}><Laptop /> الأجهزة</h3>
+            <button className="btn sm" onClick={() => setResetFor(null)}><UserCog /> يوزر وباسورد لجهاز</button>
+          </div>
+          <div style={{ height: 10 }} />
           {d.installations.length === 0 ? (
             <div className="card"><Empty icon={<Laptop />} title="لسه مفيش أجهزة ظاهرة">الأجهزة بتظهر هنا أول ما برنامج الويندوز (من نسخة 1.0.13) يتفتح وهو على النت.</Empty></div>
           ) : (
             <div className="table-wrap">
               <table className="table responsive">
-                <thead><tr><th>المحل</th><th>الموبايل</th><th>رقم الجهاز</th><th>الحالة</th><th>آخر مرة اتفتح</th><th>النسخة</th><th>أول مرة</th></tr></thead>
+                <thead><tr><th>المحل</th><th>الموبايل</th><th>رقم الجهاز</th><th>الحالة</th><th>آخر مرة اتفتح</th><th>النسخة</th><th>أول مرة</th><th /></tr></thead>
                 <tbody>
                   {d.installations.map((x) => (
                     <tr key={x.machine_id}>
@@ -225,6 +286,7 @@ export function OwnerDashboard() {
                       <td data-label="آخر مرة اتفتح" className={Date.now() - new Date(x.last_seen).getTime() > 7 * 86400000 ? 'muted' : ''}>{ago(x.last_seen)}</td>
                       <td data-label="النسخة" className="num">{x.version ?? '—'}</td>
                       <td data-label="أول مرة" className="muted">{shortDate(x.first_seen)}</td>
+                      <td data-label=""><button className="btn sm" title="يوزر وباسورد جداد" onClick={() => setResetFor(x)}><UserCog /> يوزر وباسورد</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -233,6 +295,7 @@ export function OwnerDashboard() {
           )}
         </>
       )}
+      {resetFor !== undefined && <ResetSheet device={resetFor} onClose={() => setResetFor(undefined)} />}
       {editContact && d && <ContactSheet contact={d.contact} onClose={() => setEditContact(false)} onSaved={() => void load()} />}
     </div>
   );

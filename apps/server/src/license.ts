@@ -136,3 +136,48 @@ export function expiryFor(plan: 'month' | 'quarter' | 'year' | 'life' | 'days', 
   else d.setDate(d.getDate() + Math.max(1, Math.round(days)));
   return dayOf(d);
 }
+
+// ---------------- كود الاسترجاع (يوزر وباسورد المدير) ----------------
+// صاحب السيستم بيختار يوزر وباسورد جداد لجهاز عميل نسيهم. الكود فيه بصمة الباسورد (مش الباسورد نفسه)،
+// وبيشتغل على الجهاز ده بس ولمدة 24 ساعة، والعميل هو اللي بيحطه بنفسه في شاشة الدخول.
+const RESET_PREFIX = 'ECOR-';
+export interface ResetPayload {
+  /** رقم الجهاز */
+  m: string;
+  /** اسم المستخدم الجديد */
+  u: string;
+  /** بصمة الباسورد الجديد (hashPassword) */
+  h: string;
+  /** آخر وقت الكود شغال فيه (ISO) */
+  x: string;
+}
+
+export function signReset(privateKeyBase64: string, p: ResetPayload): string {
+  const body = Buffer.from(JSON.stringify({ k: 'reset', m: normalizeMachineId(p.m), u: p.u, h: p.h, x: p.x }), 'utf8');
+  const sig = crypto.sign(null, body, privateKey(privateKeyBase64));
+  return RESET_PREFIX + b64u(body) + '.' + b64u(sig);
+}
+
+export function verifyReset(code: string, machineId: string, now = new Date(), publicKeyBase64 = LICENSE_PUBLIC_KEY): { ok: true; payload: ResetPayload } | { ok: false; error: string } {
+  const c = String(code ?? '').replace(/\s+/g, '');
+  if (!c.startsWith(RESET_PREFIX) || !c.includes('.')) return { ok: false, error: 'كود الاسترجاع مش مكتوب صح. انسخه زي ما هو من الرسالة.' };
+  const [bodyPart, sigPart] = c.slice(RESET_PREFIX.length).split('.');
+  let body: Buffer;
+  let p: ResetPayload & { k?: string };
+  try {
+    body = fromB64u(bodyPart);
+    p = JSON.parse(body.toString('utf8'));
+  } catch {
+    return { ok: false, error: 'كود الاسترجاع مش مكتوب صح.' };
+  }
+  let good = false;
+  try {
+    good = crypto.verify(null, body, publicKey(publicKeyBase64), fromB64u(sigPart ?? ''));
+  } catch {
+    good = false;
+  }
+  if (!good || p.k !== 'reset') return { ok: false, error: 'كود الاسترجاع ده مش سليم.' };
+  if (normalizeMachineId(p.m) !== normalizeMachineId(machineId)) return { ok: false, error: 'الكود ده متعمل لجهاز تاني.' };
+  if (now.getTime() > Date.parse(p.x)) return { ok: false, error: 'كود الاسترجاع خلصت مدته (24 ساعة). اطلب كود جديد.' };
+  return { ok: true, payload: { m: p.m, u: p.u, h: p.h, x: p.x } };
+}

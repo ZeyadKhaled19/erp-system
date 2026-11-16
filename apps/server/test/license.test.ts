@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { expiryFor, licenseStatus, normalizeMachineId, signLicense, verifyLicense } from '../src/license';
+import { expiryFor, licenseStatus, normalizeMachineId, signLicense, signReset, verifyLicense, verifyReset } from '../src/license';
 
 const kp = crypto.generateKeyPairSync('ed25519');
 const PRIV = kp.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64');
@@ -53,5 +53,20 @@ describe('activation codes', () => {
     expect(expiryFor('year', 0, from)).toBe('2027-11-16');
     expect(expiryFor('days', 10, from)).toBe('2026-11-26');
     expect(expiryFor('life', 0, from)).toBeNull();
+  });
+});
+
+describe('recovery codes (new username and password for a forgotten login)', () => {
+  it('works only on its machine, only for 24 hours, and only if signed with our key', () => {
+    const exp = '2026-11-17T10:00:00Z';
+    const code = signReset(PRIV, { m: M, u: 'ahmed', h: 'scrypt$hash', x: exp });
+    expect(code.startsWith('ECOR-')).toBe(true);
+    const ok = verifyReset(code, M, new Date('2026-11-16T12:00:00Z'), PUB);
+    expect(ok.ok && ok.payload).toMatchObject({ u: 'ahmed', h: 'scrypt$hash' });
+    expect(verifyReset(code, 'FFFF-FFFF-FFFF-FFFF', new Date('2026-11-16T12:00:00Z'), PUB).ok).toBe(false);
+    expect(verifyReset(code, M, new Date('2026-11-17T10:00:01Z'), PUB)).toMatchObject({ ok: false });
+    expect(verifyReset(signReset(other, { m: M, u: 'x', h: 'y', x: exp }), M, new Date('2026-11-16T12:00:00Z'), PUB).ok).toBe(false);
+    // كود تفعيل مش بينفع ككود استرجاع
+    expect(verifyReset(signLicense(PRIV, { m: M, e: null, n: 'x', t: '2026-11-16' }), M, new Date('2026-11-16T12:00:00Z'), PUB).ok).toBe(false);
   });
 });

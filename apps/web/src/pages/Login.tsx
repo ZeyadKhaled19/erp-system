@@ -2,6 +2,7 @@ import { Boxes, Calculator, Eye, EyeOff, Lock, LogIn, ShoppingCart, Store, User 
 import { useEffect, useState } from 'react';
 import { EcoCoverArt, EcoLogo, EcoMark } from '../components/EcoLogo';
 import { useLicenseInfo } from '../lib/license';
+import { ForgotPasswordSheet } from '../components/LicenseGate';
 import { Banner } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { DEFAULT_SYSTEM_NAME, readBrand, saveBrand, systemName, type Brand } from '../lib/brand';
@@ -88,6 +89,8 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
 
   const custom = systemName(brand) !== DEFAULT_SYSTEM_NAME ? systemName(brand) : '';
   const lic = useLicenseInfo();
+  const [forgot, setForgot] = useState(false);
+  const [resetDone, setResetDone] = useState<string | null>(null);
   return (
     <div className="lg-page">
       {/* لوحة Eco System */}
@@ -122,6 +125,7 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
               <div className="lg-hint">{custom ? custom : 'أهلًا بيك، ادخل ببيانات حسابك'}</div>
             </div>
           </div>
+          {resetDone && <Banner kind="ok">اتغيرت بيانات الدخول. ادخل باسم المستخدم «{resetDone}» وكلمة السر اللي اتبعتتلك.</Banner>}
           {error && <Banner kind="err">{error}</Banner>}
           <div className="lg-field">
             <label htmlFor="login-user">اسم المستخدم</label>
@@ -169,6 +173,12 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
             {busy ? 'جارٍ الدخول…' : 'دخول'}
           </button>
         </form>
+        {lic?.gated && lic.license && (
+          <button type="button" className="btn plain lic-try" onClick={() => setForgot(true)}>نسيت اسم المستخدم أو كلمة السر؟</button>
+        )}
+        {forgot && lic?.license && (
+          <ForgotPasswordSheet machineId={lic.license.machineId} contact={lic.contact} onClose={() => setForgot(false)} onDone={(u) => { setForgot(false); setResetDone(u); setUsername(u); setPassword(''); setError(null); }} />
+        )}
         {lic?.vendor && <a href="/signup" className="lic-try">مش عندك حساب؟ <b>جرّب Eco System مجانًا 7 أيام</b></a>}
         <div className="lg-foot">
           <EcoMark size={16} /> <bdi>Eco System</bdi>

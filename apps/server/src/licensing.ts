@@ -5,7 +5,7 @@ import type { Db } from './db';
 import { hashPassword, strongEnough, WEAK_PASSWORD_MESSAGE } from './auth';
 import { AppError } from './errors';
 import { EG_GOVERNORATES } from '@erp/shared';
-import { DEFAULT_CONTACT, TRIAL_DAYS, expiryFor, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
+import { DEFAULT_CONTACT, TRIAL_DAYS, expiryFor, signReset, verifyReset, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
 
 /** القفل في برنامج الويندوز: البرنامج بيدّي الخادم بيانات الجهاز، والخادم بيقرر مفتوح ولا مقفول */
 export interface LicenseGate {
@@ -117,12 +117,14 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
         business: z.string().trim().min(2, 'اكتب اسم المحل').max(120),
         governorate: z.string().refine((g) => (EG_GOVERNORATES as readonly string[]).includes(g), 'اختار المحافظة'),
         /** كلمة سر المدير الجديدة (بدل admin123) */
-        admin_password: z.string().max(200).optional(),
+        admin_password: z.string({ required_error: 'اختار كلمة السر' }).max(200),
+        /** اسم مستخدم المدير (لو عايز يغيره من admin) */
+        admin_username: z.string({ required_error: 'اكتب اسم المستخدم' }).trim().min(2, 'اسم المستخدم حرفين على الأقل').max(50).regex(/^[^\s]+$/, 'اسم المستخدم من غير مسافات'),
       })
       .parse(req.body);
     const phone = normalizePhone(b.phone);
     if (!/^01[0125][0-9]{8}$/.test(phone)) throw new AppError('رقم الموبايل مش مظبوط. اكتبه زي 01xxxxxxxxx');
-    if (b.admin_password !== undefined && !strongEnough(b.admin_password)) throw new AppError(WEAK_PASSWORD_MESSAGE);
+    if (!strongEnough(b.admin_password)) throw new AppError(WEAK_PASSWORD_MESSAGE);
     const cur = input()!;
     let r: Response;
     try {
@@ -139,8 +141,12 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     if (!r.ok || !j.trial_start) throw new AppError(j.error ?? 'التسجيل ما نجحش، جرب تاني بعد شوية');
     const start = minIso(j.trial_start, cur.trialStart) ?? j.trial_start;
     // كلمة سر المدير اللي اختارها العميل (كده مفيش جهاز فيه admin123)
+    if (b.admin_username) {
+      const taken = await o.db.one(`select 1 from users where lower(username) = lower($1) and id <> 'user-admin'`, [b.admin_username]);
+      if (taken) throw new AppError('اسم المستخدم ده مستخدم لحد تاني');
+    }
     if (b.admin_password) {
-      await o.db.query(`update users set password_hash = $1, password_changed_at = now() where id = 'user-admin'`, [await hashPassword(b.admin_password)]);
+      await o.db.query(`update users set password_hash = $1, password_changed_at = now(), username = coalesce($2, username) where id = 'user-admin'`, [await hashPassword(b.admin_password), b.admin_username || null]);
       await o.db.query(`insert into audit_log (user_id, action, entity, entity_id) values ('user-admin', 'change_password', 'user', 'user-admin')`);
     }
     o.gate.register(start, phone);
@@ -149,7 +155,39 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     return { license: status() };
   });
 
+  app.post('/api/license/reset', async (req) => {
+    if (!o.gate) throw new AppError('كود الاسترجاع بيتحط في برنامج الويندوز', 'state');
+    const { code } = z.object({ code: z.string().min(10).max(3000) }).parse(req.body);
+    const v = verifyReset(code, input()!.machineId);
+    if (!v.ok) throw new AppError(v.error);
+    const { u, h } = v.payload;
+    const taken = await o.db.one(`select 1 from users where lower(username) = lower($1) and id <> 'user-admin'`, [u]);
+    if (taken) throw new AppError(`اسم المستخدم «${u}» مستخدم لموظف تاني. اطلب كود باسم تاني.`);
+    const row = await o.db.one(`update users set username = $1, password_hash = $2, password_changed_at = now(), active = true where id = 'user-admin' returning username`, [u, h]);
+    if (!row) throw new AppError('حساب المدير مش موجود', 'not_found');
+    await o.db.query(`insert into audit_log (user_id, action, entity, entity_id, details) values ('user-admin', 'password_reset_code', 'user', 'user-admin', $1)`, [JSON.stringify({ username: u })]);
+    return { ok: true, username: u };
+  });
+
   if (!o.vendor) return;
+
+  // كود استرجاع يوزر وباسورد المدير لجهاز عميل (من لوحة صاحب السيستم)
+  app.post('/api/admin/reset-codes', { preHandler: o.perm('settings.manage') }, async (req) => {
+    if (!o.privateKey) throw new AppError('مفتاح التوقيع (LICENSE_PRIVATE_KEY) مش متضبط في إعدادات Vercel.', 'state');
+    const b = z
+      .object({
+        machine_id: z.string().refine(validMachineId, 'رقم الجهاز مش مظبوط'),
+        username: z.string().trim().min(2, 'اسم المستخدم حرفين على الأقل').max(50).regex(/^[^\s]+$/, 'اسم المستخدم من غير مسافات'),
+        password: z.string().max(200),
+      })
+      .parse(req.body);
+    if (!strongEnough(b.password)) throw new AppError(WEAK_PASSWORD_MESSAGE);
+    const machine = normalizeMachineId(b.machine_id);
+    const expires = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const code = signReset(o.privateKey, { m: machine, u: b.username, h: await hashPassword(b.password), x: expires });
+    await o.db.query(`insert into audit_log (user_id, action, entity, entity_id, details) values ($1, 'reset_code_issued', 'installation', $2, $3)`, [req.user!.id, machine, JSON.stringify({ username: b.username })]);
+    return { code, machine_id: machine, username: b.username, expires_at: expires };
+  });
 
   // تجربة واحدة لكل رقم: لو الرقم أو الجهاز سجل قبل كده بنرجّع أقدم تاريخ بداية
   const starts = new Map<string, number[]>();

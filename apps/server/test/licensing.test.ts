@@ -91,6 +91,19 @@ describe('licensing', () => {
     expect(after.signups.find((x: any) => x.id === signup.id).status).toBe('activated');
   });
 
+  it('the owner issues a recovery code for a device; a wrong code is refused on the device', async () => {
+    const token = (await vendor.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'Strong-Pass-2026', device_id: 'device-v-0001' } })).json().token;
+    const h = { authorization: `Bearer ${token}`, 'x-device-id': 'device-v-0001' };
+    expect((await vendor.inject({ method: 'POST', url: '/api/admin/reset-codes', headers: h, payload: { machine_id: 'ABCD-0000-0000-0001', username: 'ahmed', password: '1234' } })).statusCode).toBe(400);
+    const r = await vendor.inject({ method: 'POST', url: '/api/admin/reset-codes', headers: h, payload: { machine_id: 'abcd 0000 0000 0001', username: 'ahmed', password: 'New-Pass-2026' } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().code.startsWith('ECOR-')).toBe(true);
+    expect((await vendor.inject({ method: 'POST', url: '/api/admin/reset-codes', payload: { machine_id: 'ABCD-0000-0000-0001', username: 'a', password: 'x' } })).statusCode).toBe(401);
+    // على جهاز العميل: الكود ده متوقّع بمفتاح الاختبار مش المفتاح الحقيقي، فلازم يترفض (حتى والبرنامج مقفول)
+    const bad = await shop.inject({ method: 'POST', url: '/api/license/reset', payload: { code: r.json().code } });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it('a normal (non-vendor, non-desktop) server has no signup page and no lock', async () => {
     const st = (await trialShop.inject({ method: 'POST', url: '/api/public/trial-signup', payload: {} })).statusCode;
     expect(st).toBe(404);

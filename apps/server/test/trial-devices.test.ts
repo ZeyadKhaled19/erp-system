@@ -37,8 +37,8 @@ async function shopFor(machineId: string, db?: Awaited<ReturnType<typeof openDb>
   apps.push(app);
   return { app, input, saved };
 }
-const register = (app: App, phone = '01012345678', admin_password?: string) =>
-  app.inject({ method: 'POST', url: '/api/license/register', payload: { phone, business: 'محل التجربة', governorate: 'القاهرة', ...(admin_password ? { admin_password } : {}) } });
+const register = (app: App, phone = '01012345678', admin_password = 'Test-Pass-123', admin_username = 'admin') =>
+  app.inject({ method: 'POST', url: '/api/license/register', payload: { phone, business: 'محل التجربة', governorate: 'القاهرة', admin_password, admin_username } });
 
 beforeAll(async () => {
   vendorDb = await freshDb();
@@ -64,17 +64,20 @@ describe('one trial per phone number', () => {
     const { app, saved } = await shopFor('AAAA-0000-0000-0001');
     expect((await app.inject({ method: 'GET', url: '/api/license' })).json().license.status).toBe('unregistered');
     expect((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-t-0001' } })).statusCode).toBe(402);
-    expect((await app.inject({ method: 'POST', url: '/api/license/register', payload: { phone: '0101', business: 'محل', governorate: 'القاهرة' } })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'POST', url: '/api/license/register', payload: { phone: '0101', business: 'محل', governorate: 'القاهرة', admin_username: 'admin', admin_password: 'Test-Pass-123' } })).statusCode).toBe(400);
+    // اسم المستخدم وكلمة السر إجباريين
+    expect((await app.inject({ method: 'POST', url: '/api/license/register', payload: { phone: '01012345678', business: 'محل', governorate: 'القاهرة' } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'POST', url: '/api/license/register', payload: { phone: '01012345678', business: 'محل', governorate: 'مش محافظة' } })).statusCode).toBe(400);
     // كلمة سر ضعيفة مرفوضة من غير ما التجربة تتسجل
     expect((await register(app, '01012345678', '12345678')).statusCode).toBe(400);
-    const r = await register(app, '01012345678', 'My-Own-Pass-1');
+    const r = await register(app, '01012345678', 'My-Own-Pass-1', 'yasser');
     expect(r.statusCode).toBe(200);
     expect(r.json().license).toMatchObject({ status: 'trial', daysLeft: 7 });
     expect(saved.phone).toBe('01012345678');
     // admin123 ما بقتش شغالة، وكلمة السر اللي اختارها هي اللي شغالة
     expect((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-t-0001' } })).statusCode).toBe(401);
-    expect((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'My-Own-Pass-1', device_id: 'device-t-0001' } })).statusCode).toBe(200);
+    // اسم المستخدم اللي اختاره هو اللي شغال
+    expect((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'yasser', password: 'My-Own-Pass-1', device_id: 'device-t-0001' } })).statusCode).toBe(200);
     // اتسجل عند صاحب السيستم، وظهر في قايمة اللي سجلوا
     expect(await vendorDb.one(`select phone, governorate from trial_devices where machine_id = 'AAAA-0000-0000-0001'`)).toMatchObject({ phone: '01012345678', governorate: 'القاهرة' });
     expect(await vendorDb.one(`select 1 as ok from trial_signups where phone = '01012345678'`)).toBeTruthy();
