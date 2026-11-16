@@ -250,20 +250,21 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const setQty = (itemId: string, qty: number) => (qty > (cart.find((l) => l.item_id === itemId)?.qty ?? 0) && !fits(itemId, qty)) || setCart((c) => (qty <= 0 ? c.filter((l) => l.item_id !== itemId) : c.map((l) => (l.item_id === itemId ? { ...l, qty } : l))));
 
   const onSearchEnter = async () => {
-    const code = q.trim();
+    // «3*» قبل الاسم أو الباركود = كمية 3
+    const mm = /^\s*(\d+(?:[.,٫]\d+)?)\s*[*×xX]\s*(.*)$/.exec(q);
+    const n = mm ? Number(mm[1].replace(/[,٫]/, '.')) : 1;
+    const code = (mm ? mm[2] : q).trim();
     if (!code) return;
     const unit = await db.item_units.where('barcode').equals(code).first();
     if (unit) {
-      await add(unit.item_id, unit.factor);
+      await add(unit.item_id, Math.round(unit.factor * n));
       setQ('');
       return;
     }
     const it = (await db.items.where('barcode').equals(code).first()) ?? (await db.items.where('code').equals(code).first());
-    if (it) {
-      await add(it.id);
-      setQ('');
-    } else if (shown[sugHl]) {
-      await add(shown[sugHl].id);
+    const found = it ?? (mm ? searchItems(items, code)[0] : shown[sugHl]);
+    if (found) {
+      await add(found.id, Math.round(1000 * n));
       setQ('');
     } else ui.toast(`لا يوجد صنف باسم أو كود «${code}»`, 'err');
   };
@@ -291,11 +292,25 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
       if ((e.key === 'F9' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) && cart.length && !pay && !done) {
         e.preventDefault();
         setPay(true);
+        return;
+      }
+      // + و - يزودوا أو يقللوا آخر صنف في السلة، وDelete يشيله (لما خانة البحث فاضية)
+      const t = e.target as HTMLElement;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') && !(t === searchRef.current && !q);
+      const last = cart[cart.length - 1];
+      if (!typing && !pay && !done && last && document.querySelector('.overlay') === null) {
+        if (e.key === '+' || e.key === '-') {
+          e.preventDefault();
+          setQty(last.item_id, last.qty + (e.key === '+' ? 1000 : -1000));
+        } else if (e.key === 'Delete') {
+          e.preventDefault();
+          setQty(last.item_id, 0);
+        }
       }
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [cart.length, pay, done, active]);
+  });
 
   const newSale = () => {
     if (onFinished()) return;

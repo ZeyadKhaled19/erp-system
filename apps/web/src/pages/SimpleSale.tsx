@@ -269,26 +269,39 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
     return u ? { name: u.name, factor: u.factor, sale_price: u.sale_price, wholesale_price: u.wholesale_price } : { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price };
   };
   const unitPrice = async (it: any, unit: any) => (P ? mulDiv(costs.get(it.id)?.last ?? costs.get(it.id)?.avg ?? 0, unit.factor ?? 1000, 1000) : priceFor(it, unit, priceList));
-  const pick = async (itemId: string, unitName?: string) => {
+  const pick = async (itemId: string, unitName?: string, qty = 1000) => {
     const it = itemMap.get(itemId);
     if (!it) return;
     const unit = unitOf(it, unitName);
     setEntryItem(itemId);
     setListOpen(false);
     setQ(it.name);
-    setEntryQty(1000);
+    setEntryQty(qty);
     setEntryPrice(await unitPrice(it, unit));
     setEntryUnit(unit);
-    setTimeout(() => { const el = qtyRef.current?.querySelector('input'); el?.focus(); el?.select(); }, 30);
+    // لو خانة الكمية ظاهرة نروحلها، ولو مخفية (الشكل المختصر) المؤشر يفضل في البحث وEnter تاني يضيف
+    setTimeout(() => {
+      const el = qtyRef.current?.querySelector('input');
+      if (el && el.offsetParent !== null) { el.focus(); el.select(); } else searchRef.current?.focus();
+    }, 30);
   };
-  const addEntry = () => {
-    const it = entryItem ? itemMap.get(entryItem) : null;
-    if (!it || entryQty <= 0) return;
-    const unit = entryUnit ?? { name: it.base_unit, factor: 1000 };
+  /** الباركود أو الكود بالظبط: الصنف يتضاف على طول (زي الكاشير) */
+  const addDirect = async (itemId: string, unitName?: string, qty = 1000) => {
+    const it = itemMap.get(itemId);
+    if (!it) return;
+    const unit = unitOf(it, unitName);
+    addEntry({ it, unit, qty, price: await unitPrice(it, unit) });
+  };
+  const addEntry = (direct?: { it: any; unit: any; qty: number; price: number }) => {
+    const it = direct ? direct.it : entryItem ? itemMap.get(entryItem) : null;
+    const entryQty0 = direct ? direct.qty : entryQty;
+    const entryPrice0 = direct ? direct.price : entryPrice;
+    if (!it || entryQty0 <= 0) return;
+    const unit = direct ? direct.unit : entryUnit ?? { name: it.base_unit, factor: 1000 };
     if (!P && !it.is_service && !settings.allow_negative_stock) {
       const used = lines.filter((l) => l.item_id === it.id).reduce((a, l) => a + toBaseQty(l.qty, l.unit_factor), 0);
       const have = stock.get(it.id) ?? 0;
-      if (used + toBaseQty(entryQty, unit.factor) > have) {
+      if (used + toBaseQty(entryQty0, unit.factor) > have) {
         ui.toast(have - used > 0 ? `الرصيد غير كافٍ: المتاح من «${it.name}» ${formatQty(have - used)} فقط` : `«${it.name}» غير متوفر في المخزن (الرصيد صفر)`, 'err');
         return;
       }
@@ -296,15 +309,15 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
     let idx = -1;
     setLines((ls) => {
       // الصنف بيروح آخر الجدول دايمًا: لو موجود بنفس الوحدة والسعر بتزيد كميته وبيتنقل للآخر
-      const same = ls.findIndex((l) => l.item_id === it.id && l.unit_name === unit.name && l.price === entryPrice);
+      const same = ls.findIndex((l) => l.item_id === it.id && l.unit_name === unit.name && l.price === entryPrice0);
       if (same >= 0) {
-        const merged = { ...ls[same], qty: ls[same].qty + entryQty };
+        const merged = { ...ls[same], qty: ls[same].qty + entryQty0 };
         const rest = ls.filter((_, i) => i !== same);
         idx = rest.length;
         return [...rest, merged];
       }
       idx = ls.length;
-      return [...ls, { id: uuid(), item_id: it.id, unit_name: unit.name, unit_factor: unit.factor, qty: entryQty, price: entryPrice, discount: 0, tax_rate_bp: it.tax_rate_bp ?? 0 }];
+      return [...ls, { id: uuid(), item_id: it.id, unit_name: unit.name, unit_factor: unit.factor, qty: entryQty0, price: entryPrice0, discount: 0, tax_rate_bp: it.tax_rate_bp ?? 0 }];
     });
     setTimeout(() => {
       setSel(Math.max(0, idx));
@@ -335,16 +348,22 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       setHl((h) => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const code = q.trim();
-      if (!code || entryItem) {
-        if (!entryItem && matches[hl]) return pick(matches[hl].id);
+      // اخترت الصنف خلاص: Enter تاني = أضفه للفاتورة (من غير علامة الصح)
+      if (entryItem) return addEntry();
+      // «3*» قبل الاسم أو الباركود = كمية 3
+      const mm = /^\s*(\d+(?:[.,٫]\d+)?)\s*[*×xX]\s*(.*)$/.exec(q);
+      const qty = mm ? Math.round(Number(mm[1].replace(/[,٫]/, '.')) * 1000) : 1000;
+      const code = (mm ? mm[2] : q).trim();
+      if (!code) {
+        if (matches[hl]) return pick(matches[hl].id, undefined, qty);
         return;
       }
       const unit = await db.item_units.where('barcode').equals(code).first();
-      if (unit) return pick(unit.item_id, unit.name);
+      if (unit) return addDirect(unit.item_id, unit.name, qty);
       const exact = (await db.items.where('barcode').equals(code).first()) ?? (await db.items.where('code').equals(code).first());
-      if (exact) return pick(exact.id);
-      if (matches[hl]) return pick(matches[hl].id);
+      if (exact) return addDirect(exact.id, undefined, qty);
+      const found = mm ? searchItems(items.filter((i) => !catFilter || i.category_id === catFilter), code)[0] : matches[hl];
+      if (found) return pick(found.id, undefined, qty);
       ui.toast('لا يوجد صنف بهذا الاسم أو الكود', 'err');
     }
   };
@@ -635,6 +654,20 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
         void save('new');
         return;
       }
+      // + و - يزودوا أو يقللوا كمية السطر المختار، وDelete يحذفه (والمؤشر مش في خانة كتابة)
+      const typingText = typing && !(t === searchRef.current && !q);
+      if (!typingText && (e.key === '+' || e.key === '-') && lines[sel]) {
+        e.preventDefault();
+        const l = lines[sel];
+        const next = l.qty + (e.key === '+' ? 1000 : -1000);
+        if (next > 0) setLines((ls) => ls.map((x) => (x.id === l.id ? { ...x, qty: next } : x)));
+        return;
+      }
+      if (!typing && e.key === 'Delete' && lines[sel]) {
+        e.preventDefault();
+        void deleteSel();
+        return;
+      }
       if (!typing && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && lines.length) {
         e.preventDefault();
         setSel((s) => Math.max(0, Math.min(lines.length - 1, s + (e.key === 'ArrowDown' ? 1 : -1))));
@@ -759,7 +792,10 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                   onMouseDown={() => setListOpen(true)}
                   onBlur={() => setTimeout(() => setListOpen(false), 150)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape') setListOpen(false);
+                    if (e.key === 'Escape') {
+                      if (listOpen) setListOpen(false);
+                      else { setQ(''); setEntryItem(null); setEntryUnit(null); }
+                    }
                     else if (!listOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                       e.preventDefault();
                       setListOpen(true);
@@ -810,7 +846,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
           </div>
           <div className="ss-step" style={{ flex: 'none' }}>
             <label><b>4</b> أضف</label>
-            <button className="btn success primary ss-add" disabled={!entryItem} onClick={addEntry} aria-label="أضف"><Check /></button>
+            <button className="btn success primary ss-add" disabled={!entryItem} onClick={() => addEntry()} aria-label="أضف" title="أضف للفاتورة (Enter)"><Check /></button>
           </div>
         </div>
         <div className="ss-total">
