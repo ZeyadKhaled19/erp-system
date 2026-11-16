@@ -1,11 +1,13 @@
+import { formatMoney } from '@erp/shared';
 import { Check, Copy, KeyRound, MessageCircle, RefreshCw, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '../components/Layout';
-import { Banner, Empty, Field, Segmented, Sheet, useUi } from '../components/ui';
+import { Banner, Empty, Field, MoneyInput, Segmented, Sheet, useUi } from '../components/ui';
 import { api } from '../lib/api';
+import { waUrl } from '../lib/license';
 
 interface Signup { id: string; name: string; phone: string; business: string; activity: string | null; city: string | null; status: 'new' | 'contacted' | 'activated' | 'dropped'; notes: string | null; created_at: string }
-interface License { id: string; machine_id: string; customer: string; phone: string | null; plan: string; expires_at: string | null; code: string; created_at: string; created_by_name: string | null }
+interface License { id: string; machine_id: string; customer: string; phone: string | null; plan: string; expires_at: string | null; code: string; amount: number | string; created_at: string; created_by_name: string | null }
 
 const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
   new: { label: 'جديد', cls: 'orange' },
@@ -15,7 +17,7 @@ const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
 };
 const PLAN: Record<string, string> = { month: 'شهر', quarter: '3 شهور', year: 'سنة', life: 'مدى الحياة', days: 'أيام' };
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' });
-const waLink = (phone: string, text: string) => `https://wa.me/${phone.replace(/^0/, '20').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`;
+const waLink = (phone: string, text: string) => waUrl(phone, text);
 
 function CopyBtn({ text, label = 'نسخ' }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -28,7 +30,7 @@ function CopyBtn({ text, label = 'نسخ' }: { text: string; label?: string }) {
 
 /** إصدار كود تفعيل لجهاز */
 function IssueSheet({ signup, onClose, onDone }: { signup: Signup | null; onClose: () => void; onDone: () => void }) {
-  const [f, setF] = useState({ machine_id: '', customer: signup?.business ?? '', phone: signup?.phone ?? '', plan: 'year' as 'month' | 'quarter' | 'year' | 'life' | 'days', days: 30 });
+  const [f, setF] = useState({ machine_id: '', customer: signup?.business ?? '', phone: signup?.phone ?? '', plan: 'year' as 'month' | 'quarter' | 'year' | 'life' | 'days', days: 30, amount: 0 });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<{ code: string; machine_id: string; expires_at: string | null } | null>(null);
@@ -37,7 +39,7 @@ function IssueSheet({ signup, onClose, onDone }: { signup: Signup | null; onClos
     setBusy(true);
     try {
       const r = await api<{ code: string; machine_id: string; expires_at: string | null }>('/api/admin/licenses', {
-        body: { machine_id: f.machine_id, customer: f.customer, phone: f.phone || null, plan: f.plan, days: f.plan === 'days' ? Number(f.days) : undefined, signup_id: signup?.id ?? null },
+        body: { machine_id: f.machine_id, customer: f.customer, phone: f.phone || null, plan: f.plan, days: f.plan === 'days' ? Number(f.days) : undefined, signup_id: signup?.id ?? null, amount: f.amount },
       });
       setRes(r);
       onDone();
@@ -71,6 +73,7 @@ function IssueSheet({ signup, onClose, onDone }: { signup: Signup | null; onClos
           <Field label="المدة">
             <Segmented value={f.plan} onChange={(v) => setF({ ...f, plan: v })} options={[{ value: 'month', label: 'شهر' }, { value: 'quarter', label: '3 شهور' }, { value: 'year', label: 'سنة' }, { value: 'life', label: 'مدى الحياة' }, { value: 'days', label: 'أيام' }]} />
           </Field>
+          <Field label="المبلغ المدفوع" hint="علشان الدخل يتحسب في لوحة صاحب السيستم (0 لو مجاني)"><MoneyInput value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
           {f.plan === 'days' && <Field label="عدد الأيام"><input className="input num" type="number" min={1} max={3650} value={f.days} onChange={(e) => setF({ ...f, days: Number(e.target.value) || 1 })} /></Field>}
         </div>
       )}
@@ -153,7 +156,7 @@ export function LicensesPage() {
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
-            <thead><tr><th>التاريخ</th><th>العميل</th><th>رقم الجهاز</th><th>المدة</th><th>لحد</th><th /></tr></thead>
+            <thead><tr><th>التاريخ</th><th>العميل</th><th>رقم الجهاز</th><th>المدة</th><th>لحد</th><th className="n">المبلغ</th><th /></tr></thead>
             <tbody>
               {data.licenses.map((l) => (
                 <tr key={l.id}>
@@ -162,6 +165,7 @@ export function LicensesPage() {
                   <td data-label="رقم الجهاز" className="num" dir="ltr">{l.machine_id}</td>
                   <td data-label="المدة">{PLAN[l.plan] ?? l.plan}</td>
                   <td data-label="لحد">{l.expires_at ? <span className={`badge ${l.expires_at < new Date().toISOString().slice(0, 10) ? 'red' : 'green'}`}>{l.expires_at}</span> : <span className="badge green">مدى الحياة</span>}</td>
+                  <td data-label="المبلغ" className="n">{Number(l.amount) ? formatMoney(Number(l.amount)) : <span className="muted">—</span>}</td>
                   <td data-label=""><CopyBtn text={l.code} label="نسخ الكود" /></td>
                 </tr>
               ))}

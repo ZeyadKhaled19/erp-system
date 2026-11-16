@@ -1,6 +1,8 @@
 import { Boxes, Calculator, Download, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { EcoCoverArt, EcoLogo } from '../components/EcoLogo';
+import { ContactLinks } from '../components/LicenseGate';
+import { useLicenseInfo } from '../lib/license';
 import { Banner } from '../components/ui';
 
 /**
@@ -13,6 +15,7 @@ export function SignupPage() {
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const lic = useLicenseInfo();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +67,7 @@ export function SignupPage() {
               <li>ادخل بـ <b dir="ltr">admin</b> وكلمة السر <b dir="ltr">admin123</b>، وغيّرها من الإعدادات.</li>
               <li>لو احتجت مساعدة كلمنا، وهنتواصل معاك على رقمك.</li>
             </ol>
+            <ContactLinks contact={lic?.contact} waText={`أهلًا، سجلت في تجربة Eco System باسم ${f.name}`} />
           </div>
         ) : (
           <form className="lg-card" onSubmit={submit} noValidate>
@@ -83,6 +87,8 @@ export function SignupPage() {
             <button className="lg-submit" disabled={busy}>
               {busy ? <span className="lg-spin" aria-hidden="true" /> : <Download aria-hidden="true" />} سجّل ونزّل البرنامج
             </button>
+            <div className="footnote" style={{ textAlign: 'center' }}>البرنامج بيبعتلنا لما يكون على النت: اسم المحل ورقم النسخة وحالة الاشتراك بس. فواتيرك وعملاءك وأرقامك بتفضل على جهازك.</div>
+            <ContactLinks contact={lic?.contact} />
             <a href="/" className="lic-back">عندك حساب؟ تسجيل الدخول</a>
           </form>
         )}

@@ -79,7 +79,18 @@ export interface LicenseInput {
   code?: string | null;
   /** جهاز كان شغال بالبرنامج قبل نظام التراخيص: مفتوح على طول */
   legacy?: boolean;
+  /** بيانات التواصل مع صاحب السيستم (آخر نسخة جت من موقعه) */
+  contact?: VendorContact | null;
 }
+
+/** بيانات التواصل اللي بتظهر للعميل في شاشة التفعيل وصفحة التسجيل (صاحب السيستم بيعدلها من لوحته) */
+export interface VendorContact {
+  phone: string;
+  whatsapp: string;
+  facebook: string;
+  youtube: string;
+}
+export const DEFAULT_CONTACT: VendorContact = { phone: '01279792522', whatsapp: '01279792522', facebook: '', youtube: '' };
 
 export type LicenseStatus =
   | { status: 'active'; machineId: string; customer: string; expiresAt: string | null }

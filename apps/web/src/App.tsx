@@ -47,6 +47,7 @@ import { DailyMovementReport, ExpiryReport, NegativeStockReport, SalesAnalysisRe
 import { CustomerFieldsReport } from './pages/reports/customerFields';
 import { SignupPage } from './pages/Signup';
 import { LicensesPage } from './pages/Licenses';
+import { OwnerDashboard } from './pages/Owner';
 import { LockScreen, TrialPill } from './components/LicenseGate';
 import { useLicenseInfo } from './lib/license';
 
@@ -151,7 +152,7 @@ export function App() {
     if (lic.vendor) return <SignupPage />;
   }
   // برنامج الويندوز بعد ما التجربة أو الاشتراك يخلص: شاشة التفعيل بدل أي حاجة
-  if (lic?.license?.status === 'expired') return <LockScreen license={lic.license} />;
+  if (lic?.license?.status === 'expired') return <LockScreen license={lic.license} contact={lic.contact} />;
 
   if (!session || !ctx)
     return (
@@ -176,7 +177,7 @@ export function App() {
 
   return (
     <SessionContext.Provider value={ctx}>
-      {lic?.license?.status === 'trial' && <TrialPill license={lic.license} />}
+      {lic?.license?.status === 'trial' && <TrialPill license={lic.license} contact={lic.contact} />}
       <Layout>
         <Routes>
           <Route path="/" element={<HomeRoute><Dashboard /></HomeRoute>} />
@@ -231,6 +232,7 @@ export function App() {
           <Route path="/users" element={<RequirePerm any={['users.manage']}><UsersPage /></RequirePerm>} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/licenses" element={<RequirePerm any={['settings.manage']}><LicensesPage /></RequirePerm>} />
+          <Route path="/owner" element={<RequirePerm any={['settings.manage']}><OwnerDashboard /></RequirePerm>} />
           <Route path="/backups" element={<RequirePerm any={['backup.manage']}><BackupsPage /></RequirePerm>} />
           <Route path="/audit" element={<RequirePerm any={['audit.view']}><AuditPage /></RequirePerm>} />
           <Route path="*" element={<Navigate to="/" replace />} />

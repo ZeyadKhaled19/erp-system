@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Db } from './db';
 import { AppError } from './errors';
-import { expiryFor, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus } from './license';
+import { DEFAULT_CONTACT, expiryFor, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
 
 /** القفل في برنامج الويندوز: البرنامج بيدّي الخادم بيانات الجهاز، والخادم بيقرر مفتوح ولا مقفول */
 export interface LicenseGate {
@@ -42,9 +42,17 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     });
   }
 
+  // بيانات التواصل: على موقع صاحب السيستم من الإعدادات، وفي برنامج الويندوز آخر نسخة جت من الموقع
+  const vendorContact = async (): Promise<VendorContact> => {
+    const row = await o.db.one<{ value: any }>(`select value from settings where key = 'vendor_contact'`);
+    const v = typeof row?.value === 'string' ? JSON.parse(row.value) : row?.value;
+    return { ...DEFAULT_CONTACT, ...(v && typeof v === 'object' ? v : {}) };
+  };
+  const contact = async (): Promise<VendorContact> => (o.vendor ? vendorContact() : { ...DEFAULT_CONTACT, ...(o.gate?.get().contact ?? {}) });
+
   app.get('/api/license', async () => {
     const s = status();
-    return { gated: !!o.gate, vendor: !!o.vendor, canIssue: !!(o.vendor && o.privateKey), license: s };
+    return { gated: !!o.gate, vendor: !!o.vendor, canIssue: !!(o.vendor && o.privateKey), license: s, contact: await contact() };
   });
 
   app.post('/api/license/activate', async (req) => {
@@ -105,6 +113,93 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
 
   app.get('/api/public/download', async () => ({ download_url: await downloadUrl() }));
 
+  // ---------------- إشارة من برنامج الويندوز (لما يكون على النت) ----------------
+  // بتوصل: رقم الجهاز واسم المحل ورقم النسخة وحالة الترخيص بس. والرد فيه بيانات التواصل علشان شاشة التفعيل.
+  const pings = new Map<string, number>();
+  app.post('/api/public/ping', async (req) => {
+    const b = z
+      .object({
+        machine_id: z.string().refine(validMachineId),
+        company_name: z.string().trim().max(120).optional().nullable(),
+        version: z.string().trim().max(20).optional().nullable(),
+        status: z.enum(['trial', 'active', 'expired']).optional().nullable(),
+        days_left: z.number().int().min(0).max(36500).optional().nullable(),
+        expires_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+        legacy: z.boolean().optional(),
+      })
+      .parse(req.body);
+    const machine = normalizeMachineId(b.machine_id);
+    const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim();
+    // جهاز واحد مرة كل دقيقة بالكتير (حماية من الإزعاج)
+    if (Date.now() - (pings.get(machine) ?? 0) > 60000) {
+      pings.set(machine, Date.now());
+      await o.db.query(
+        `insert into installations (machine_id, company_name, version, status, days_left, expires_at, legacy, ip) values ($1,$2,$3,$4,$5,$6,$7,$8)
+         on conflict (machine_id) do update set company_name = coalesce(excluded.company_name, installations.company_name), version = excluded.version,
+           status = excluded.status, days_left = excluded.days_left, expires_at = excluded.expires_at, legacy = excluded.legacy, ip = excluded.ip,
+           last_seen = now(), pings = installations.pings + 1`,
+        [machine, b.company_name || null, b.version || null, b.status || null, b.days_left ?? null, b.expires_at || null, !!b.legacy, ip || null],
+      );
+    }
+    return { contact: await vendorContact() };
+  });
+
+  app.get('/api/public/contact', async () => ({ contact: await vendorContact() }));
+
+  app.post('/api/admin/vendor-contact', { preHandler: o.perm('settings.manage') }, async (req) => {
+    const link = z.string().trim().max(300).refine((v) => !v || /^https?:\/\//i.test(v), 'اللينك لازم يبدأ بـ https://');
+    const phone = z.string().trim().max(30).refine((v) => !v || /^[0-9+\s-]{8,20}$/.test(v), 'الرقم مش مظبوط');
+    const b = z.object({ phone, whatsapp: phone, facebook: link, youtube: link }).parse(req.body);
+    await o.db.query(`insert into settings (key, value) values ('vendor_contact', $1) on conflict (key) do update set value = excluded.value`, [JSON.stringify(b)]);
+    return { contact: await vendorContact() };
+  });
+
+  // ---------------- لوحة صاحب السيستم ----------------
+  app.get('/api/admin/owner-dashboard', { preHandler: o.perm('settings.manage') }, async () => {
+    const one = async (sql: string) => Number((await o.db.one<{ n: any }>(sql))?.n ?? 0);
+    const signups = {
+      today: await one(`select count(*) as n from trial_signups where created_at >= current_date`),
+      week: await one(`select count(*) as n from trial_signups where created_at >= now() - interval '7 days'`),
+      month: await one(`select count(*) as n from trial_signups where created_at >= date_trunc('month', now())`),
+      total: await one(`select count(*) as n from trial_signups`),
+      activated: await one(`select count(*) as n from trial_signups where status = 'activated'`),
+    };
+    const licenses = {
+      total: await one(`select count(distinct machine_id) as n from licenses`),
+      active: await one(`select count(distinct machine_id) as n from licenses where expires_at is null or expires_at >= current_date`),
+      expiring: await one(`select count(distinct machine_id) as n from licenses where expires_at between current_date and current_date + 30`),
+    };
+    const revenue = {
+      month: await one(`select coalesce(sum(amount), 0) as n from licenses where created_at >= date_trunc('month', now())`),
+      lastMonth: await one(`select coalesce(sum(amount), 0) as n from licenses where created_at >= date_trunc('month', now()) - interval '1 month' and created_at < date_trunc('month', now())`),
+      total: await one(`select coalesce(sum(amount), 0) as n from licenses`),
+    };
+    const devices = {
+      total: await one(`select count(*) as n from installations`),
+      trial: await one(`select count(*) as n from installations where status = 'trial'`),
+      seenWeek: await one(`select count(*) as n from installations where last_seen >= now() - interval '7 days'`),
+    };
+    // تكلم مين النهارده
+    const newSignups = await o.db.query(`select id, name, phone, business, created_at from trial_signups where status = 'new' order by created_at desc limit 30`);
+    const endingTrials = await o.db.query(`select machine_id, company_name, days_left, last_seen from installations where status = 'trial' and days_left <= 2 order by days_left, last_seen desc limit 30`);
+    const expiringLicenses = await o.db.query(
+      `select distinct on (machine_id) machine_id, customer, phone, expires_at from licenses where expires_at between current_date and current_date + 30 order by machine_id, expires_at desc limit 30`,
+    );
+    const installations = await o.db.query(
+      `select i.*, l.customer, l.phone from installations i
+       left join lateral (select customer, phone from licenses where machine_id = i.machine_id order by created_at desc limit 1) l on true
+       order by i.last_seen desc limit 300`,
+    );
+    // التسجيلات والتفعيلات أسبوع بأسبوع (آخر 12 أسبوع)
+    const weekly = await o.db.query(
+      `select to_char(w, 'YYYY-MM-DD') as week,
+         (select count(*) from trial_signups where created_at >= w and created_at < w + interval '7 days')::int as signups,
+         (select count(*) from licenses where created_at >= w and created_at < w + interval '7 days')::int as activations
+       from generate_series(date_trunc('week', now()) - interval '11 weeks', date_trunc('week', now()), interval '1 week') as w order by w`,
+    );
+    return { signups, licenses, revenue, devices, newSignups, endingTrials, expiringLicenses, installations, weekly, contact: await vendorContact() };
+  });
+
   // ---------------- صفحة التراخيص (لصاحب السيستم) ----------------
   app.get('/api/admin/licensing', { preHandler: o.perm('settings.manage') }, async () => {
     const signups = await o.db.query(`select * from trial_signups order by created_at desc limit 500`);
@@ -131,6 +226,8 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
         days: z.number().int().min(1).max(3650).optional(),
         signup_id: z.string().max(64).optional().nullable(),
         notes: z.string().max(500).optional().nullable(),
+        /** المبلغ المدفوع بالقرش */
+        amount: z.number().int().min(0).max(1e12).optional(),
       })
       .parse(req.body);
     const machine = normalizeMachineId(b.machine_id);
@@ -139,8 +236,8 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     const code = signLicense(o.privateKey, { m: machine, e: expires, n: b.customer, t: today });
     const id = crypto.randomUUID();
     await o.db.query(
-      `insert into licenses (id, machine_id, customer, phone, plan, expires_at, code, signup_id, notes, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, machine, b.customer, b.phone || null, b.plan, expires, code, b.signup_id || null, b.notes || null, req.user!.id],
+      `insert into licenses (id, machine_id, customer, phone, plan, expires_at, code, signup_id, notes, created_by, amount) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [id, machine, b.customer, b.phone || null, b.plan, expires, code, b.signup_id || null, b.notes || null, req.user!.id, b.amount ?? 0],
     );
     if (b.signup_id) await o.db.query(`update trial_signups set status = 'activated' where id = $1`, [b.signup_id]);
     return { id, code, machine_id: machine, expires_at: expires };

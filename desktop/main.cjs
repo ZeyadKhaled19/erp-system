@@ -91,7 +91,40 @@ function licenseInput() {
   const prevSeen = config.lastSeen || null;
   if (!prevSeen || now > prevSeen) { config.lastSeen = now; changed = true; }
   if (changed) saveConfig(config);
-  return { machineId: machineId(), trialStart: start, lastSeen: prevSeen, code: config.licenseCode || null, legacy: !!config.licenseLegacy };
+  return { machineId: machineId(), trialStart: start, lastSeen: prevSeen, code: config.licenseCode || null, legacy: !!config.licenseLegacy, contact: config.vendorContact || null };
+}
+
+// ---------- إشارة لموقع صاحب السيستم (لما يكون فيه نت) ----------
+// بتبعت: رقم الجهاز واسم المحل ورقم النسخة وحالة الترخيص بس (مفيش أي فواتير أو عملاء أو أرقام).
+// والرد فيه بيانات التواصل (التليفون والواتساب والفيسبوك واليوتيوب) علشان تظهر في شاشة التفعيل.
+const VENDOR_URL = process.env.ERP_VENDOR_URL || 'https://erp-system-psi-inky.vercel.app';
+async function pingVendor() {
+  try {
+    const lic = await (await fetch(`http://localhost:${config.port}/api/license`, { signal: AbortSignal.timeout(5000) })).json();
+    const s = (lic && lic.license) || {};
+    if (!s.machineId) return;
+    const r = await fetch(`${VENDOR_URL}/api/public/ping`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        machine_id: s.machineId,
+        company_name: (config.brand && config.brand.company_name) || null,
+        version: app.getVersion(),
+        status: s.status || null,
+        days_left: s.status === 'trial' ? s.daysLeft : null,
+        expires_at: s.status === 'active' ? s.expiresAt || null : null,
+        legacy: !!config.licenseLegacy,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j && j.contact && JSON.stringify(j.contact) !== JSON.stringify(config.vendorContact || null)) {
+      config = { ...config, vendorContact: j.contact };
+      saveConfig(config);
+      if (server) server.send({ type: 'license', input: licenseInput() });
+    }
+  } catch { /* مفيش نت: نجرب المرة الجاية */ }
 }
 
 const appDir = path.join(__dirname, 'app');
@@ -613,6 +646,9 @@ app.whenReady().then(async () => {
   }
   serverReady = true;
   void rememberBrand();
+  // بعد ما السيستم يفتح بشوية، وبعدين كل 6 ساعات
+  setTimeout(() => void pingVendor(), 20000);
+  setInterval(() => void pingVendor(), 6 * 3600000).unref();
   await loadApp();
 });
 

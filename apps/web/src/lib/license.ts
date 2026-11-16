@@ -10,15 +10,28 @@ export type LicenseState =
   | { status: 'active'; machineId: string; customer: string; expiresAt: string | null }
   | { status: 'trial'; machineId: string; daysLeft: number; endsAt: string }
   | { status: 'expired'; machineId: string; reason: 'trial' | 'license' | 'clock'; message: string };
+/** بيانات التواصل مع صاحب السيستم (بيعدلها من «لوحة صاحب السيستم») */
+export interface VendorContact {
+  phone: string;
+  whatsapp: string;
+  facebook: string;
+  youtube: string;
+}
+export const DEFAULT_CONTACT: VendorContact = { phone: '01279792522', whatsapp: '01279792522', facebook: '', youtube: '' };
+
 export interface LicenseInfo {
   gated: boolean;
   vendor: boolean;
   canIssue: boolean;
   license: LicenseState | null;
+  contact?: VendorContact;
 }
 
-/** رقم واتساب صاحب السيستم اللي العميل بيبعتله رقم الجهاز (فاضي = زرار واتساب مش بيظهر) */
-export const VENDOR_WHATSAPP = '201080001343';
+/** لينك واتساب من رقم مصري زي 01xxxxxxxxx */
+export function waUrl(phone: string, text = ''): string {
+  const digits = phone.replace(/[^0-9]/g, '').replace(/^00/, '').replace(/^0(?=1)/, '20');
+  return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+}
 
 let cache: LicenseInfo | null = null;
 let inflight: Promise<LicenseInfo | null> | null = null;

@@ -1,11 +1,25 @@
-import { Check, Copy, KeyRound, MessageCircle } from 'lucide-react';
+import { Check, Copy, KeyRound, MessageCircle, Phone, PlaySquare, ThumbsUp } from 'lucide-react';
 import { useState } from 'react';
-import { activateLicense, VENDOR_WHATSAPP, type LicenseState } from '../lib/license';
+import { activateLicense, DEFAULT_CONTACT, waUrl, type LicenseState, type VendorContact } from '../lib/license';
 import { EcoLogo } from './EcoLogo';
 import { Banner, Sheet } from './ui';
 
+/** أزرار التواصل مع صاحب السيستم: اتصال، واتساب، فيسبوك، يوتيوب (اللي متسجل بس بيظهر) */
+export function ContactLinks({ contact, waText = '' }: { contact?: VendorContact | null; waText?: string }) {
+  const c = { ...DEFAULT_CONTACT, ...(contact ?? {}) };
+  if (!c.phone && !c.whatsapp && !c.facebook && !c.youtube) return null;
+  return (
+    <div className="lic-contact">
+      {c.whatsapp && <a className="btn sm" href={waUrl(c.whatsapp, waText)} target="_blank" rel="noreferrer"><MessageCircle /> واتساب</a>}
+      {c.phone && <a className="btn sm" href={`tel:${c.phone.replace(/\s+/g, '')}`}><Phone /> <bdi dir="ltr">{c.phone}</bdi></a>}
+      {c.facebook && <a className="btn sm" href={c.facebook} target="_blank" rel="noreferrer"><ThumbsUp /> فيسبوك</a>}
+      {c.youtube && <a className="btn sm" href={c.youtube} target="_blank" rel="noreferrer"><PlaySquare /> يوتيوب</a>}
+    </div>
+  );
+}
+
 /** رقم الجهاز وزرار نسخه (والعميل بيبعته لصاحب السيستم علشان يطلعله كود) */
-function MachineId({ id }: { id: string }) {
+function MachineId({ id, contact }: { id: string; contact?: VendorContact | null }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -14,7 +28,8 @@ function MachineId({ id }: { id: string }) {
       setTimeout(() => setCopied(false), 1800);
     } catch { /* المتصفح رفض: الرقم ظاهر ويتنسخ باليد */ }
   };
-  const wa = VENDOR_WHATSAPP ? `https://wa.me/${VENDOR_WHATSAPP}?text=${encodeURIComponent(`عايز أفعّل Eco System. رقم الجهاز: ${id}`)}` : '';
+  const num = (contact ?? DEFAULT_CONTACT).whatsapp;
+  const wa = num ? waUrl(num, `عايز أفعّل Eco System. رقم الجهاز: ${id}`) : '';
   return (
     <div className="lic-machine">
       <div className="lic-machine-l">رقم الجهاز</div>
@@ -58,7 +73,7 @@ function ActivateForm({ onDone }: { onDone?: (s: LicenseState) => void }) {
 }
 
 /** شاشة القفل: بعد ما التجربة أو الاشتراك يخلص (أو لو ساعة الجهاز اترجعت لورا) */
-export function LockScreen({ license }: { license: Extract<LicenseState, { status: 'expired' }> }) {
+export function LockScreen({ license, contact }: { license: Extract<LicenseState, { status: 'expired' }>; contact?: VendorContact | null }) {
   return (
     <div className="lic-page">
       <div className="lg-card lic-card">
@@ -72,17 +87,19 @@ export function LockScreen({ license }: { license: Extract<LicenseState, { statu
               <li>هنبعتلك <b>كود التفعيل</b> بعد الدفع.</li>
               <li>الصق الكود هنا ودوس «تفعيل». بياناتك كلها زي ما هي.</li>
             </ol>
-            <MachineId id={license.machineId} />
+            <MachineId id={license.machineId} contact={contact} />
             <ActivateForm onDone={() => window.location.reload()} />
           </>
         )}
+        <div className="lic-contact-h">للتواصل معانا</div>
+        <ContactLinks contact={contact} waText={`استفسار عن Eco System. رقم الجهاز: ${license.machineId}`} />
       </div>
     </div>
   );
 }
 
 /** شريط صغير وقت التجربة: باقي كام يوم، وزرار تفعيل */
-export function TrialPill({ license }: { license: Extract<LicenseState, { status: 'trial' }> }) {
+export function TrialPill({ license, contact }: { license: Extract<LicenseState, { status: 'trial' }>; contact?: VendorContact | null }) {
   const [open, setOpen] = useState(false);
   const urgent = license.daysLeft <= 2;
   return (
@@ -95,8 +112,10 @@ export function TrialPill({ license }: { license: Extract<LicenseState, { status
         <Sheet title="تفعيل البرنامج" onClose={() => setOpen(false)}>
           <div className="stack">
             <div className="footnote">النسخة التجريبية شغالة {license.daysLeft === 1 ? 'لآخر النهارده' : `${license.daysLeft} أيام كمان`}. علشان تكمل بعدها: ابعتلنا رقم الجهاز، وهنبعتلك كود التفعيل.</div>
-            <MachineId id={license.machineId} />
+            <MachineId id={license.machineId} contact={contact} />
             <ActivateForm onDone={() => window.location.reload()} />
+            <div className="lic-contact-h">للتواصل معانا</div>
+            <ContactLinks contact={contact} waText={`استفسار عن Eco System. رقم الجهاز: ${license.machineId}`} />
           </div>
         </Sheet>
       )}

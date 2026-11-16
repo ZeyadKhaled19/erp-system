@@ -1,5 +1,5 @@
 import { bpToPercent, parsePercentBp } from '@erp/shared';
-import { Building2, ChevronLeft, HardDriveDownload, KeyRound, ListTree, MonitorSmartphone, Palette, Printer, RefreshCw, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Wallet, Warehouse } from 'lucide-react';
+import { Building2, ChevronLeft, Gauge, HardDriveDownload, KeyRound, ListTree, MonitorSmartphone, Palette, Printer, RefreshCw, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Wallet, Warehouse } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShortcutCard, type ShortcutColor } from '../components/ShortcutCard';
@@ -85,7 +85,7 @@ export function SettingsPage() {
     { to: '/sync', label: 'المزامنة', icon: <RefreshCw /> },
     { to: '/backups', label: 'النسخ الاحتياطي', icon: <HardDriveDownload />, perm: 'backup.manage' },
     { to: '/audit', label: 'سجل التدقيق', icon: <ScrollText />, perm: 'audit.view' },
-    ...(lic?.vendor ? [{ to: '/licenses', label: 'التراخيص والتجارب', icon: <KeyRound />, perm: 'settings.manage' }] : []),
+    ...(lic?.vendor ? [{ to: '/owner', label: 'لوحة صاحب السيستم', icon: <Gauge />, perm: 'settings.manage' }, { to: '/licenses', label: 'التراخيص والتجارب', icon: <KeyRound />, perm: 'settings.manage' }] : []),
   ].filter((l) => !l.perm || can(l.perm));
   const raw = sp.get('sec') as Sec | null;
   const sec: Sec = raw && secs.some((x) => x.id === raw && x.show) ? raw : 'general';

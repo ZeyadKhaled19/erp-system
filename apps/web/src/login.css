@@ -123,3 +123,6 @@
 .lic-pill.urgent svg { color: var(--red-text); }
 @media print { .lic-pill { display: none; } }
 @media (max-width: 760px) { .lic-pill { bottom: calc(4.5rem + env(safe-area-inset-bottom)); } }
+.lic-contact { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+.lic-contact .btn svg { width: 1rem; height: 1rem; }
+.lic-contact-h { text-align: center; font-size: var(--text-xs); font-weight: 700; color: var(--label-2); margin-top: 0.25rem; }
