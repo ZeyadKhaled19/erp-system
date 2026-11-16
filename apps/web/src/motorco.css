@@ -3,29 +3,6 @@
    شريط الهوية + الشريط الأفقي للأقسام + تبويبات الشاشات + الشاشة الرئيسية.
    يُحمّل بعد theme-pro.css. كل الألوان من متغيرات الثيم فيعمل الفاتح والغامق ولون التمييز.
    ===================================================================== */
-
-:root {
-  --mc-surface: var(--card);
-  --mc-panel: color-mix(in srgb, var(--card) 72%, var(--bg));
-  --mc-line: color-mix(in srgb, var(--label) 9%, transparent);
-  --mc-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 6px 18px -6px rgba(16, 24, 40, .12);
-  --mc-shadow-lg: 0 2px 4px rgba(16, 24, 40, .04), 0 14px 30px -12px rgba(16, 24, 40, .18);
-  --mc-active: linear-gradient(180deg, color-mix(in srgb, var(--tint) 78%, #ffffff) 0%, var(--tint) 45%, var(--tint-press) 100%);
-  --mc-active-shadow: 0 8px 18px -8px color-mix(in srgb, var(--tint) 70%, transparent);
-  /* ألوان أيقونات الأقسام */
-  --mc-blue: #2563EB; --mc-green: #16A34A; --mc-purple: #7C3AED; --mc-orange: #F59E0B;
-  --mc-teal: #0D9488; --mc-indigo: #2563EB; --mc-violet: #7C3AED; --mc-pink: #DB2777;
-}
-:root[data-theme="dark"] {
-  --mc-panel: color-mix(in srgb, var(--card) 80%, var(--bg));
-  --mc-line: color-mix(in srgb, var(--label) 12%, transparent);
-  --mc-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px -10px rgba(0, 0, 0, .6);
-  --mc-shadow-lg: 0 2px 4px rgba(0, 0, 0, .35), 0 16px 32px -14px rgba(0, 0, 0, .7);
-  --mc-blue: #60A5FA; --mc-green: #4ADE80; --mc-purple: #A78BFA; --mc-orange: #FBBF24;
-  --mc-teal: #2DD4BF; --mc-indigo: #60A5FA; --mc-violet: #A78BFA; --mc-pink: #F472B6;
-  /* لون التمييز في الغامق فاتح، فنغمّقه للأزرار الممتلئة حتى يقرأ النص الأبيض */
-  --mc-active: linear-gradient(180deg, color-mix(in srgb, var(--tint) 72%, #000000) 0%, color-mix(in srgb, var(--tint) 55%, #000000) 100%);
-}
 :root:not([data-theme="dark"]) .main { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 92%, #dfe4ec) 0%, var(--bg) 40%); }
 :root:not([data-theme="dark"]) .content { background: transparent; }
 

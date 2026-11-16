@@ -5,45 +5,6 @@
    ============================================================ */
 
 :root {
-  --bg: #f2f2f7;
-  --bg-elevated: #ffffff;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f2f2f7;
-  --fill: rgba(120, 120, 128, 0.12);
-  --fill-2: rgba(120, 120, 128, 0.16);
-  --fill-3: rgba(118, 118, 128, 0.08);
-  --label: #000000;
-  --label-2: rgba(60, 60, 67, 0.6);
-  --label-3: rgba(60, 60, 67, 0.3);
-  --separator: rgba(60, 60, 67, 0.18);
-  --separator-opaque: #c6c6c8;
-  --tint: #007aff;
-  --tint-press: #0062cc;
-  --tint-soft: rgba(0, 122, 255, 0.1);
-  --green: #34c759;
-  --green-soft: rgba(52, 199, 89, 0.14);
-  --red: #ff3b30;
-  --red-soft: rgba(255, 59, 48, 0.12);
-  --orange: #ff9500;
-  --orange-soft: rgba(255, 149, 0, 0.14);
-  --yellow: #ffcc00;
-  --indigo: #5856d6;
-  --purple: #af52de;
-  --teal: #30b0c7;
-  --pink: #ff2d55;
-  --gray: #8e8e93;
-  --brown: #a2845e;
-
-  --radius-s: 0.5rem;
-  --radius: 0.75rem;
-  --radius-l: 1rem;
-  --radius-xl: 1.375rem;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-pop: 0 10px 40px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
-  --sidebar-w: 18.75rem;
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
-
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Arabic', 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
   color-scheme: light;
 }
 
@@ -431,7 +392,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--fs-15); }
   .tabbar button svg { width: 1.5rem; height: 1.5rem; }
   .tabbar button.on { color: var(--tint); }
 }
-@media (min-width: 761px) and (max-width: 1100px) { :root { --sidebar-w: 16.25rem; } }
 .only-mobile { display: none; }
 @media (max-width: 760px) { .only-mobile { display: inline-grid; } .hide-mobile { display: none !important; } }
 
@@ -465,22 +425,6 @@ hr.sep { border: 0; border-top: 0.5px solid var(--separator); margin: 0.875rem 0
 /* ============================================================
    الإصدار 2 من التصميم: عمق وألوان أغنى بأسلوب iPadOS 17
    ============================================================ */
-:root {
-  --radius: 1rem;
-  --radius-l: 1.375rem;
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px rgba(15, 23, 42, 0.05);
-  --shadow-lift: 0 2px 6px rgba(15, 23, 42, 0.06), 0 16px 40px rgba(15, 23, 42, 0.10);
-  --grad-blue: linear-gradient(135deg, #3d9bff 0%, #0a6cff 100%);
-  --grad-green: linear-gradient(135deg, #4cd964 0%, #1fb34a 100%);
-  --grad-orange: linear-gradient(135deg, #ffb340 0%, #ff8a00 100%);
-  --grad-red: linear-gradient(135deg, #ff6b6b 0%, #ff3b30 100%);
-  --grad-purple: linear-gradient(135deg, #b86bff 0%, #8e44ef 100%);
-  --grad-indigo: linear-gradient(135deg, #7a78ff 0%, #5856d6 100%);
-  --grad-teal: linear-gradient(135deg, #4fd1e8 0%, #1aa3c2 100%);
-  --grad-pink: linear-gradient(135deg, #ff6f91 0%, #ff2d55 100%);
-  --grad-gray: linear-gradient(135deg, #b0b0b8 0%, #8e8e93 100%);
-  --grad-brown: linear-gradient(135deg, #c8a77a 0%, #a2845e 100%);
-}
 body {
   background:
     radial-gradient(75rem 37.5rem at 100% -10%, rgba(0, 122, 255, 0.06), transparent 60%),
@@ -613,19 +557,6 @@ body {
 /* ============================================================
    الثيمات والألوان الأساسية والكثافة (تُحفظ لكل جهاز)
    ============================================================ */
-:root {
-  --card: #ffffff;
-  --card-2: #fbfbfd;
-  --hover: #f5f5f8;
-  --field: #f3f3f7;
-  --bar: rgba(244, 244, 248, 0.78);
-  --grad-accent: linear-gradient(135deg, #3d9bff 0%, #0a6cff 100%);
-  --tint-glow: rgba(0, 122, 255, 0.28);
-  --app-bg:
-    radial-gradient(75rem 37.5rem at 100% -10%, rgba(0, 122, 255, 0.06), transparent 60%),
-    radial-gradient(56.25rem 31.25rem at -10% 110%, rgba(175, 82, 222, 0.05), transparent 60%),
-    #f2f2f7;
-}
 body { background: var(--app-bg); background-attachment: fixed; transition: background-color .3s, color .3s; }
 .card, .list, .table-wrap, .tile, .sheet, .pos-cart, .pos-item, .login-card { transition: background-color .3s, box-shadow .25s, transform .2s var(--ease); }
 .list-row, .table td { transition: background-color .15s; }
@@ -635,34 +566,10 @@ body { background: var(--app-bg); background-attachment: fixed; transition: back
 .list-row, .tile, .pos-item { color: var(--label); }
 
 /* الألوان الأساسية */
-[data-accent="indigo"] { --tint: #5856d6; --tint-press: #4644b8; --tint-soft: rgba(88,86,214,.12); --grad-accent: linear-gradient(135deg, #7a78ff, #5856d6); --tint-glow: rgba(88,86,214,.3); }
-[data-accent="purple"] { --tint: #af52de; --tint-press: #9440c2; --tint-soft: rgba(175,82,222,.12); --grad-accent: linear-gradient(135deg, #c77dff, #9b45d6); --tint-glow: rgba(175,82,222,.3); }
-[data-accent="pink"] { --tint: #ff2d55; --tint-press: #e0244a; --tint-soft: rgba(255,45,85,.11); --grad-accent: linear-gradient(135deg, #ff6f91, #ff2d55); --tint-glow: rgba(255,45,85,.28); }
-[data-accent="orange"] { --tint: #f57c00; --tint-press: #d96d00; --tint-soft: rgba(245,124,0,.12); --grad-accent: linear-gradient(135deg, #ffb340, #f57c00); --tint-glow: rgba(245,124,0,.3); }
-[data-accent="green"] { --tint: #1fa84a; --tint-press: #178a3c; --tint-soft: rgba(31,168,74,.12); --grad-accent: linear-gradient(135deg, #4cd964, #1fa84a); --tint-glow: rgba(31,168,74,.3); }
-[data-accent="teal"] { --tint: #0a9bb8; --tint-press: #0884a0; --tint-soft: rgba(10,155,184,.12); --grad-accent: linear-gradient(135deg, #4fd1e8, #0a9bb8); --tint-glow: rgba(10,155,184,.3); }
-[data-accent="graphite"] { --tint: #3a3a3c; --tint-press: #1c1c1e; --tint-soft: rgba(58,58,60,.1); --grad-accent: linear-gradient(135deg, #636366, #2c2c2e); --tint-glow: rgba(0,0,0,.2); }
 
 /* ثيم داكن */
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #000000;
-  --bg-elevated: #1c1c1e;
-  --card: #1c1c1e;
-  --card-2: #232325;
-  --hover: #2a2a2d;
-  --field: #2c2c2e;
-  --bar: rgba(22, 22, 24, 0.78);
-  --label: #ffffff;
-  --label-2: rgba(235, 235, 245, 0.6);
-  --label-3: rgba(235, 235, 245, 0.3);
-  --separator: rgba(84, 84, 88, 0.55);
-  --fill: rgba(120, 120, 128, 0.32);
-  --fill-2: rgba(120, 120, 128, 0.36);
-  --fill-3: rgba(118, 118, 128, 0.2);
-  --shadow-card: 0 1px 0 rgba(255,255,255,.04) inset, 0 8px 24px rgba(0,0,0,.45);
-  --shadow-lift: 0 1px 0 rgba(255,255,255,.05) inset, 0 18px 44px rgba(0,0,0,.6);
-  --app-bg: radial-gradient(62.5rem 37.5rem at 100% -10%, rgba(10,132,255,.14), transparent 60%), radial-gradient(56.25rem 31.25rem at -10% 110%, rgba(191,90,242,.12), transparent 60%), #000;
 }
 [data-theme="dark"] .sb-item.active { background: var(--card); }
 [data-theme="dark"] .segmented button.on { background: #636366; }
@@ -678,21 +585,6 @@ body { background: var(--app-bg); background-attachment: fixed; transition: back
 [data-theme="dark"] .select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23aeaeb2' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 
 /* ثيم زجاجي ملون */
-[data-theme="glass"] {
-  --card: rgba(255, 255, 255, 0.62);
-  --card-2: rgba(255, 255, 255, 0.5);
-  --hover: rgba(255, 255, 255, 0.75);
-  --field: rgba(255, 255, 255, 0.7);
-  --bar: rgba(255, 255, 255, 0.45);
-  --separator: rgba(60, 60, 90, 0.14);
-  --shadow-card: 0 1px 0 rgba(255,255,255,.7) inset, 0 8px 30px rgba(60, 40, 120, 0.12);
-  --shadow-lift: 0 1px 0 rgba(255,255,255,.8) inset, 0 20px 50px rgba(60, 40, 120, 0.2);
-  --app-bg:
-    radial-gradient(56.25rem 43.75rem at 90% 0%, rgba(120, 160, 255, 0.55), transparent 60%),
-    radial-gradient(50rem 43.75rem at 0% 30%, rgba(255, 140, 200, 0.45), transparent 60%),
-    radial-gradient(56.25rem 43.75rem at 60% 100%, rgba(120, 230, 210, 0.45), transparent 60%),
-    #eef0fb;
-}
 [data-theme="glass"] .card, [data-theme="glass"] .list, [data-theme="glass"] .table-wrap, [data-theme="glass"] .tile:not(.hero), [data-theme="glass"] .pos-item, [data-theme="glass"] .pos-cart, [data-theme="glass"] .sheet, [data-theme="glass"] .stat {
   backdrop-filter: blur(22px) saturate(170%);
   -webkit-backdrop-filter: blur(22px) saturate(170%);
@@ -703,18 +595,6 @@ body { background: var(--app-bg); background-attachment: fixed; transition: back
 [data-theme="glass"] .list-row { background: transparent; }
 
 /* ثيم دافئ */
-[data-theme="warm"] {
-  --bg: #f5efe6;
-  --card: #fffdf9;
-  --card-2: #fbf6ee;
-  --hover: #f7efe3;
-  --field: #f3eadd;
-  --bar: rgba(245, 239, 230, 0.8);
-  --label-2: rgba(80, 60, 40, 0.62);
-  --separator: rgba(120, 90, 60, 0.16);
-  --shadow-card: 0 1px 2px rgba(120, 80, 30, 0.05), 0 8px 22px rgba(120, 80, 30, 0.07);
-  --app-bg: radial-gradient(62.5rem 37.5rem at 100% -10%, rgba(255, 170, 80, 0.12), transparent 60%), radial-gradient(56.25rem 37.5rem at -10% 110%, rgba(200, 140, 90, 0.1), transparent 60%), #f5efe6;
-}
 [data-theme="warm"] .list-row { background: var(--card); }
 
 /* الكثافة المضغوطة لشاشات العمل المزدحمة */
@@ -762,7 +642,6 @@ body { background: var(--app-bg); background-attachment: fixed; transition: back
    ============================================================ */
 
 /* ---------- الخطوط (تختار من المظهر) ---------- */
-:root { --font: 'Readex Pro', -apple-system, 'SF Arabic', 'IBM Plex Sans Arabic', system-ui, sans-serif; }
 [data-font="plex"] { --font: 'IBM Plex Sans Arabic', -apple-system, 'SF Arabic', system-ui, sans-serif; }
 [data-font="cairo"] { --font: 'Cairo', -apple-system, 'SF Arabic', system-ui, sans-serif; }
 [data-font="tajawal"] { --font: 'Tajawal', -apple-system, 'SF Arabic', system-ui, sans-serif; }
@@ -773,39 +652,6 @@ body { font-size: var(--fs-16); letter-spacing: 0; line-height: 1.5; }
 .large-title { font-weight: 700; letter-spacing: -0.4px; }
 
 /* ---------- ألوان خانات الإدخال لكل ثيم ---------- */
-:root {
-  --input-bg: #ffffff;
-  --input-border: #d1d1d6;
-  --input-border-hover: #aeaeb2;
-  --input-disabled: #f2f2f5;
-  --label-field: #3a3a3c;
-  --label-icon: var(--tint);
-  --heading: #1c1c1e;
-  --zebra: rgba(0, 0, 0, 0.018);
-}
-[data-theme="dark"] {
-  --input-bg: #111113;
-  --input-border: #3a3a3c;
-  --input-border-hover: #545458;
-  --input-disabled: #1f1f22;
-  --label-field: #d1d1d6;
-  --heading: #ffffff;
-  --zebra: rgba(255, 255, 255, 0.025);
-}
-[data-theme="glass"] {
-  --input-bg: rgba(255, 255, 255, 0.92);
-  --input-border: rgba(80, 80, 120, 0.28);
-  --input-border-hover: rgba(80, 80, 120, 0.45);
-  --input-disabled: rgba(255, 255, 255, 0.5);
-}
-[data-theme="warm"] {
-  --input-bg: #ffffff;
-  --input-border: #ddd0bf;
-  --input-border-hover: #c4b29b;
-  --input-disabled: #f5efe6;
-  --label-field: #4a3a2a;
-  --heading: #2b2118;
-}
 
 /* ---------- خانات الإدخال: إطار واضح وخلفية مختلفة عن البطاقة ---------- */
 .input, .select, .textarea,
@@ -1003,17 +849,6 @@ body { font-size: var(--fs-16); letter-spacing: 0; line-height: 1.5; }
    طبقة التناسق: مقياس ثابت للخطوط والزوايا والارتفاعات والأيقونات
    كل الصفحات تستخدم نفس القيم، فلا يختلف شكل عنصر من صفحة لأخرى.
    ===================================================================== */
-:root {
-  /* الخطوط */
-  --fs-11: max(11px, 0.6875rem); --fs-12: max(11px, 0.75rem); --fs-13: 0.8125rem; --fs-15: 0.9375rem; --fs-16: 1rem; --fs-17: 1.0625rem;
-  --fs-20: 1.25rem; --fs-22: 1.375rem; --fs-28: 1.75rem; --fs-34: 2.125rem; --fs-40: 2.5rem;
-  /* الزوايا */
-  --r-xs: 0.375rem; --r-sm: 0.5rem; --r-md: 0.75rem; --r-lg: 1rem; --r-xl: 1.25rem; --r-2xl: 1.5rem; --r-pill: 62.4375rem;
-  /* الارتفاعات: كل عناصر الإدخال والأزرار في صف واحد بنفس الارتفاع */
-  --h-sm: 2.125rem; --h-control: 2.75rem; --h-lg: 3.25rem; --h-xl: 4rem;
-  /* الأيقونات */
-  --ic-sm: 1rem; --ic: 1.125rem; --ic-lg: 1.25rem; --ic-xl: 1.5rem;
-}
 
 /* ---------- الأرقام: داخل واجهة عربية تُحاذى يمينًا مثل باقي النص ---------- */
 :where(div, p, h1, h2, h3, h4, li, label, td, th).num { text-align: right; }

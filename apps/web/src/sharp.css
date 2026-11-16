@@ -4,44 +4,7 @@
    تباين عالي. يُحمّل بعد كل ملفات التصميم. عرض فقط: لا يغيّر أي منطق.
    ===================================================================== */
 
-/* ---------- 1) المتغيرات ---------- */
-:root {
-  --bg: #EEEFF3; --app-bg: #EEEFF3; --bg-tertiary: #EEEFF3;
-  --card: #FFFFFF; --card-2: #F4F5F8; --hover: #F4F5F8; --field: #FFFFFF;
-  --label: #15171C; --heading: #15171C; --label-2: #5A5F6B; --label-3: #6B707C; --label-field: #3A3F4A;
-  --separator: #DEE0E7; --separator-opaque: #DEE0E7; --border-strong: #C7CAD4;
-  --input-border: #C7CAD4; --input-border-hover: #A3A8B4;
-  --shadow-card: none;
-  --shadow-lift: 0 1px 2px rgba(16, 18, 24, .06);
-  --shadow-pop: 0 18px 48px rgba(16, 18, 24, .18);
-  --radius-s: 0.625rem; --radius: 0.875rem; --radius-l: 1rem; --radius-xl: 1rem;
-  --nav-bg: #15171C; --nav-2: #1C1F26; --nav-text: #F3F4F6; --nav-muted: #A0A5B1; --nav-hover: #22252D; --nav-active: #2C2F38; --nav-border: #2C2F38;
-
-  --mc-panel: var(--card);
-  --mc-line: var(--separator);
-  --mc-shadow: none;
-  --mc-shadow-lg: none;
-  --mc-active: var(--tint);
-  --mc-active-shadow: none;
-  /* لون واحد: أيقونات الأقسام كلها بلون التمييز */
-  --mc-blue: var(--tint); --mc-green: var(--tint); --mc-purple: var(--tint); --mc-orange: var(--tint);
-  --mc-teal: var(--tint); --mc-indigo: var(--tint); --mc-violet: var(--tint); --mc-pink: var(--tint);
-}
-:root[data-accent="blue"] { --tint: #1D4ED8; --tint-press: #1E40AF; }
-:root[data-theme="dark"] {
-  /* رمادي غامق مش أسود (طلب المستخدم 2026-11-14) */
-  --bg: #202227; --app-bg: #202227; --bg-tertiary: #202227; --bg-elevated: #2A2D33; --bg-secondary: #2A2D33;
-  --card: #2A2D33; --card-2: #31343B; --hover: #353840; --field: #26282E; --bar: #2A2D33; --sidebar-bg: #26282E;
-  --label: #ECEEF2; --heading: #F4F5F7; --label-2: #B4B8C2; --label-3: #9A9EA9; --label-field: #CDD0D7;
-  --separator: #3A3D45; --separator-opaque: #3A3D45; --border-strong: #4A4E58;
-  --input-bg: #26282E; --input-border: #4A4E58; --input-border-hover: #5A5F6A; --input-disabled: #2E3137;
-  --shadow-card: none; --shadow-lift: none; --shadow-pop: 0 18px 48px rgba(0, 0, 0, .45);
-  --nav-bg: #18191D; --nav-2: #222429; --nav-text: #F3F4F6; --nav-muted: #A9ADB8; --nav-hover: #26282E; --nav-active: #31343B; --nav-border: #2E3036;
-  --mc-panel: var(--card); --mc-line: var(--separator); --mc-shadow: none; --mc-shadow-lg: none;
-  --mc-active: color-mix(in srgb, var(--tint) 62%, #000000);
-  --mc-blue: var(--tint); --mc-green: var(--tint); --mc-purple: var(--tint); --mc-orange: var(--tint);
-  --mc-teal: var(--tint); --mc-indigo: var(--tint); --mc-violet: var(--tint); --mc-pink: var(--tint);
-}
+/* ---------- 1) المتغيرات: اتنقلت كلها لـ tokens.css ---------- */
 :root[data-theme="dark"] .main { background: var(--bg); }
 :root:not([data-theme="dark"]) .main { background: var(--bg); }
 
@@ -559,57 +522,19 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
 /* ---------- 17) ألوان التمييز وأوضاع الألوان (طقم متناسق مع الشكل الحاد) ----------
    كل لون غامق كفاية إن الكتابة البيضا عليه تتقري. الأحمر والأخضر والبرتقالي (تحذير/نجاح)
    ثابتين في كل الأوضاع عشان معناهم ما يتغيرش. */
-:root[data-accent="blue"] { --tint: #1D4ED8; --tint-press: #1E40AF; }
-:root[data-accent="sky"]    { --tint: #0E7490; --tint-press: #155E75; }
-:root[data-accent="teal"]   { --tint: #047857; --tint-press: #065F46; }
-:root[data-accent="purple"] { --tint: #4338CA; --tint-press: #3730A3; }
-:root[data-accent="green"]  { --tint: #334155; --tint-press: #1E293B; }
-:root[data-accent="orange"], :root:not([data-accent]) { --tint: #C2410C; --tint-press: #9A3412; }
-:root[data-accent="pink"]   { --tint: #9F1239; --tint-press: #881337; }
-:root[data-theme="dark"][data-accent="blue"] { --tint: #60A5FA; --tint-press: #93C5FD; }
-:root[data-theme="dark"][data-accent="sky"]    { --tint: #22B8CF; --tint-press: #67D3E3; }
-:root[data-theme="dark"][data-accent="teal"]   { --tint: #34D399; --tint-press: #6EE7B7; }
-:root[data-theme="dark"][data-accent="purple"] { --tint: #818CF8; --tint-press: #A5B4FC; }
-:root[data-theme="dark"][data-accent="green"]  { --tint: #CBD5E1; --tint-press: #E2E8F0; }
-:root[data-theme="dark"][data-accent="orange"], :root[data-theme="dark"]:not([data-accent]) { --tint: #FB923C; --tint-press: #FDBA74; }
-:root[data-theme="dark"][data-accent="pink"]   { --tint: #FB7185; --tint-press: #FDA4AF; }
 
 /* أوضاع الألوان: شريط علوي داكن بلون الوضع + خلفية مايلة له + لون تمييز مناسب */
-:root[data-theme="navy"], :root[data-theme="navy"][data-accent] {
-  --bg: #ECEFF4; --app-bg: #ECEFF4; --bg-tertiary: #ECEFF4; --card-2: #F3F5F9; --hover: #F3F5F9;
-  --separator: #D9DEE8; --separator-opaque: #D9DEE8; --border-strong: #BFC7D6; --input-border: #BFC7D6;
-  --nav-bg: #0F1D35; --nav-2: #172843; --nav-hover: #1B2E4D; --nav-active: #233A5E; --nav-border: #22365A; --nav-muted: #A3B1C9;
-  --tint: #1D4ED8; --tint-press: #1E40AF; color-scheme: light;
+:root[data-theme="navy"], :root[data-theme="navy"][data-accent] { color-scheme: light;
 }
-:root[data-theme="amber"], :root[data-theme="amber"][data-accent] {
-  --bg: #F1EEE9; --app-bg: #F1EEE9; --bg-tertiary: #F1EEE9; --card-2: #F7F5F1; --hover: #F7F5F1;
-  --separator: #E2DCD2; --separator-opaque: #E2DCD2; --border-strong: #CBC2B4; --input-border: #CBC2B4;
-  --nav-bg: #1F1B16; --nav-2: #2A251F; --nav-hover: #312B24; --nav-active: #3B342C; --nav-border: #3A332B; --nav-muted: #B8AE9F;
-  --tint: #B45309; --tint-press: #92400E; color-scheme: light;
+:root[data-theme="amber"], :root[data-theme="amber"][data-accent] { color-scheme: light;
 }
-:root[data-theme="teal"], :root[data-theme="teal"][data-accent] {
-  --bg: #EBF1F2; --app-bg: #EBF1F2; --bg-tertiary: #EBF1F2; --card-2: #F2F7F7; --hover: #F2F7F7;
-  --separator: #D4E0E2; --separator-opaque: #D4E0E2; --border-strong: #B8CACD; --input-border: #B8CACD;
-  --nav-bg: #0B2A30; --nav-2: #12363D; --nav-hover: #163F47; --nav-active: #1D4C55; --nav-border: #1C4850; --nav-muted: #9DBDC2;
-  --tint: #0E7490; --tint-press: #155E75; color-scheme: light;
+:root[data-theme="teal"], :root[data-theme="teal"][data-accent] { color-scheme: light;
 }
-:root[data-theme="paprika"], :root[data-theme="paprika"][data-accent] {
-  --bg: #F3EEEF; --app-bg: #F3EEEF; --bg-tertiary: #F3EEEF; --card-2: #F8F4F5; --hover: #F8F4F5;
-  --separator: #E5D9DB; --separator-opaque: #E5D9DB; --border-strong: #CFBDC0; --input-border: #CFBDC0;
-  --nav-bg: #2A1418; --nav-2: #361B20; --nav-hover: #3F2026; --nav-active: #4C2830; --nav-border: #4A262D; --nav-muted: #C7A9AE;
-  --tint: #9F1239; --tint-press: #881337; color-scheme: light;
+:root[data-theme="paprika"], :root[data-theme="paprika"][data-accent] { color-scheme: light;
 }
-:root[data-theme="sage"], :root[data-theme="sage"][data-accent] {
-  --bg: #ECF1EE; --app-bg: #ECF1EE; --bg-tertiary: #ECF1EE; --card-2: #F3F7F4; --hover: #F3F7F4;
-  --separator: #D6E1DA; --separator-opaque: #D6E1DA; --border-strong: #BACBC0; --input-border: #BACBC0;
-  --nav-bg: #14261D; --nav-2: #1B3227; --nav-hover: #203A2D; --nav-active: #284738; --nav-border: #274536; --nav-muted: #A3BFB0;
-  --tint: #047857; --tint-press: #065F46; color-scheme: light;
+:root[data-theme="sage"], :root[data-theme="sage"][data-accent] { color-scheme: light;
 }
-:root[data-theme="coral"], :root[data-theme="coral"][data-accent] {
-  --bg: #EFEFF6; --app-bg: #EFEFF6; --bg-tertiary: #EFEFF6; --card-2: #F5F5FA; --hover: #F5F5FA;
-  --separator: #DCDCEA; --separator-opaque: #DCDCEA; --border-strong: #C3C3D9; --input-border: #C3C3D9;
-  --nav-bg: #1A1838; --nav-2: #232046; --nav-hover: #292650; --nav-active: #332F5F; --nav-border: #322E5C; --nav-muted: #ACA9CC;
-  --tint: #4338CA; --tint-press: #3730A3; color-scheme: light;
+:root[data-theme="coral"], :root[data-theme="coral"][data-accent] { color-scheme: light;
 }
 
 /* معاينات أوضاع الألوان في شاشة المظهر: الشريط فوق + سطح أبيض فيه لون التمييز */

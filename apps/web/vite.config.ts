@@ -55,7 +55,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: 'index.html',
-        designPreview: 'design-preview.html',
       },
     },
   },

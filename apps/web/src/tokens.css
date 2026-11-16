@@ -1,0 +1,352 @@
+/* =====================================================================
+   tokens.css — المكان الوحيد لألوان ومقاسات النظام (Design Tokens)
+   أي لون أو مقاس عام يتغير من هنا بس. باقي ملفات الشكل بتستخدم var(--…) ومفيش فيها تعريفات عامة.
+   الوضع الفاتح هو الأساس، وكل وضع تاني بيكتب الفرق بس.
+   اللون الأساسي (--tint) برتقالي في كل الأوضاع اللي مالهاش لون خاص.
+   ===================================================================== */
+
+/* الوضع الفاتح (الأساس) */
+:root {
+  /* الخطوط */
+  --font: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
+  --fs-11: max(11px, .6875rem);
+  --fs-12: max(11px, .75rem);
+  --fs-13: .8125rem;
+  --fs-15: .875rem;
+  --fs-16: .9062rem;
+  --fs-17: .9375rem;
+  --fs-20: 1.25rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-34: 2.125rem;
+  --fs-40: 2.5rem;
+  /* اللون الأساسي (برتقالي) */
+  --on-tint: #fff;
+  --tint: #c2410c;
+  --tint-glow: transparent;
+  --tint-press: #9a3412;
+  --tint-ring: color-mix(in srgb, var(--tint) 26%, transparent);
+  --tint-soft: color-mix(in srgb, var(--tint) 11%, transparent);
+  /* ألوان المعاني: نجاح / خطر / تحذير / معلومة */
+  --gray: #8a94a6;
+  --green: #15803d;
+  --green-soft: #e8f6ee;
+  --green-text: #15803d;
+  --orange: #a16207;
+  --orange-soft: #fef6d8;
+  --orange-text: #854d0e;
+  --red: #c42b2b;
+  --red-soft: #fdecec;
+  --red-text: #b42323;
+  /* الخلفيات والأسطح */
+  --app-bg: #eeeff3;
+  --bg: #eeeff3;
+  --bg-elevated: #fff;
+  --card: #fff;
+  --card-2: #f4f5f8;
+  --fill: #0f172a0f;
+  --fill-2: #0f172a17;
+  --fill-3: #0f172a0a;
+  --hover: #f4f5f8;
+  --input-bg: #fff;
+  --input-border: #c7cad4;
+  --input-border-hover: #a3a8b4;
+  --input-disabled: #f4f6f9;
+  --sidebar-bg: #fff;
+  /* الكتابة */
+  --heading: #15171c;
+  --label: #15171c;
+  --label-2: #5a5f6b;
+  --label-3: #6b707c;
+  --label-field: #3a3f4a;
+  /* الحدود والفواصل */
+  --border-strong: #c7cad4;
+  --separator: #dee0e7;
+  /* الشريط العلوي الداكن */
+  --nav-2: #1c1f26;
+  --nav-active: #2c2f38;
+  --nav-bg: #15171c;
+  --nav-border: #2c2f38;
+  --nav-hover: #22252d;
+  --nav-muted: #a0a5b1;
+  --nav-text: #f3f4f6;
+  /* ألوان أيقونات الأقسام */
+  --mc-active: var(--tint);
+  --mc-active-shadow: none;
+  --mc-blue: var(--tint);
+  --mc-green: var(--tint);
+  --mc-indigo: var(--tint);
+  --mc-line: var(--separator);
+  --mc-orange: var(--tint);
+  --mc-panel: var(--card);
+  --mc-pink: var(--tint);
+  --mc-purple: var(--tint);
+  --mc-shadow: none;
+  --mc-shadow-lg: none;
+  --mc-surface: #fff;
+  --mc-teal: var(--tint);
+  --mc-violet: var(--tint);
+  /* الظلال */
+  --shadow-card: none;
+  --shadow-lift: 0 1px 2px #1012180f;
+  --shadow-pop: 0 18px 48px #1012182e;
+  /* المقاسات والزوايا والمسافات */
+  --h-control: 2.375rem;
+  --h-lg: 2.75rem;
+  --h-sm: 1.875rem;
+  --h-xl: 3.25rem;
+  --ic-lg: 1.25rem;
+  --ic-sm: 1rem;
+  --radius: .875rem;
+  --radius-l: 1rem;
+  --radius-xl: 1rem;
+  --sidebar-w: 16rem;
+  --sidebar-w-collapsed: 4.5rem;
+  /* متفرقات */
+  --bar: #fff;
+  --dur: .16s;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --field: #fff;
+  --grad-accent: #c2410c;
+  --grad-blue: #c2410c;
+  --grad-brown: #8b6b4a;
+  --grad-gray: #64748b;
+  --grad-green: #15803d;
+  --grad-indigo: #4f46e5;
+  --grad-orange: #b45309;
+  --grad-pink: #c2306e;
+  --grad-purple: #6d4ad6;
+  --grad-red: #c42b2b;
+  --grad-teal: #0f8a80;
+  --ic: 1.125rem;
+  --r-2xl: 1.5rem;
+  --r-lg: 1rem;
+  --r-md: .75rem;
+  --r-pill: 62.4375rem;
+  --r-sm: .5rem;
+  --r-xl: 1.25rem;
+  --r-xs: .375rem;
+  --zebra: #0f172a04;
+}
+
+/* الوضع الغامق (رمادي غامق) */
+:root[data-theme="dark"] {
+  /* اللون الأساسي (برتقالي) */
+  --on-tint: #0a1020;
+  --tint: #fb923c;
+  --tint-press: #fdba74;
+  /* ألوان المعاني: نجاح / خطر / تحذير / معلومة */
+  --gray: #6e7a92;
+  --green: #4ade80;
+  --green-soft: #12301f;
+  --green-text: #4ade80;
+  --orange: #fbbf24;
+  --orange-soft: #33270e;
+  --orange-text: #fbbf24;
+  --red: #f87171;
+  --red-soft: #3a1717;
+  --red-text: #f87171;
+  /* الخلفيات والأسطح */
+  --app-bg: #202227;
+  --bg: #202227;
+  --bg-elevated: #2a2d33;
+  --card: #2a2d33;
+  --card-2: #31343b;
+  --fill: #94a3b81a;
+  --fill-2: #94a3b824;
+  --fill-3: #94a3b80f;
+  --hover: #353840;
+  --input-bg: #26282e;
+  --input-border: #4a4e58;
+  --input-border-hover: #5a5f6a;
+  --input-disabled: #2e3137;
+  --sidebar-bg: #26282e;
+  /* الكتابة */
+  --heading: #f4f5f7;
+  --label: #eceef2;
+  --label-2: #b4b8c2;
+  --label-3: #9a9ea9;
+  --label-field: #cdd0d7;
+  /* الحدود والفواصل */
+  --border-strong: #4a4e58;
+  --separator: #3a3d45;
+  /* الشريط العلوي الداكن */
+  --nav-2: #222429;
+  --nav-active: #31343b;
+  --nav-bg: #18191d;
+  --nav-border: #2e3036;
+  --nav-hover: #26282e;
+  --nav-muted: #a9adb8;
+  /* ألوان أيقونات الأقسام */
+  --mc-active: color-mix(in srgb, var(--tint) 62%, #000);
+  --mc-surface: #2a2d33;
+  /* الظلال */
+  --shadow-lift: none;
+  --shadow-pop: 0 18px 48px #00000073;
+  /* متفرقات */
+  --bar: #2a2d33;
+  --field: #26282e;
+  --grad-accent: #fb923c;
+  --grad-blue: #fb923c;
+  --grad-green: #2f9e5b;
+  --grad-orange: #c98a1c;
+  --grad-red: #d04848;
+  --zebra: #ffffff05;
+}
+
+/* وضع كحلي */
+:root[data-theme="navy"] {
+  /* اللون الأساسي (برتقالي) */
+  --tint: #1d4ed8;
+  --tint-press: #1e40af;
+  /* الخلفيات والأسطح */
+  --app-bg: #eceff4;
+  --bg: #eceff4;
+  --card-2: #f3f5f9;
+  --hover: #f3f5f9;
+  --input-border: #bfc7d6;
+  /* الحدود والفواصل */
+  --border-strong: #bfc7d6;
+  --separator: #d9dee8;
+  /* الشريط العلوي الداكن */
+  --nav-2: #172843;
+  --nav-active: #233a5e;
+  --nav-bg: #0f1d35;
+  --nav-border: #22365a;
+  --nav-hover: #1b2e4d;
+  --nav-muted: #a3b1c9;
+  /* متفرقات */
+  --grad-accent: #1d4ed8;
+  --grad-blue: #1d4ed8;
+}
+
+/* وضع كهرماني */
+:root[data-theme="amber"] {
+  /* اللون الأساسي (برتقالي) */
+  --tint: #b45309;
+  --tint-press: #92400e;
+  /* الخلفيات والأسطح */
+  --app-bg: #f1eee9;
+  --bg: #f1eee9;
+  --card-2: #f7f5f1;
+  --hover: #f7f5f1;
+  --input-border: #cbc2b4;
+  /* الحدود والفواصل */
+  --border-strong: #cbc2b4;
+  --separator: #e2dcd2;
+  /* الشريط العلوي الداكن */
+  --nav-2: #2a251f;
+  --nav-active: #3b342c;
+  --nav-bg: #1f1b16;
+  --nav-border: #3a332b;
+  --nav-hover: #312b24;
+  --nav-muted: #b8ae9f;
+  /* متفرقات */
+  --grad-accent: #b45309;
+  --grad-blue: #b45309;
+}
+
+/* وضع أخضر مزرق */
+:root[data-theme="teal"] {
+  /* اللون الأساسي (برتقالي) */
+  --tint: #0e7490;
+  --tint-press: #155e75;
+  /* الخلفيات والأسطح */
+  --app-bg: #ebf1f2;
+  --bg: #ebf1f2;
+  --card-2: #f2f7f7;
+  --hover: #f2f7f7;
+  --input-border: #b8cacd;
+  /* الحدود والفواصل */
+  --border-strong: #b8cacd;
+  --separator: #d4e0e2;
+  /* الشريط العلوي الداكن */
+  --nav-2: #12363d;
+  --nav-active: #1d4c55;
+  --nav-bg: #0b2a30;
+  --nav-border: #1c4850;
+  --nav-hover: #163f47;
+  --nav-muted: #9dbdc2;
+  /* متفرقات */
+  --grad-accent: #0e7490;
+  --grad-blue: #0e7490;
+}
+
+/* وضع بابريكا */
+:root[data-theme="paprika"] {
+  /* اللون الأساسي (برتقالي) */
+  --tint: #9f1239;
+  --tint-press: #881337;
+  /* الخلفيات والأسطح */
+  --app-bg: #f3eeef;
+  --bg: #f3eeef;
+  --card-2: #f8f4f5;
+  --hover: #f8f4f5;
+  --input-border: #cfbdc0;
+  /* الحدود والفواصل */
+  --border-strong: #cfbdc0;
+  --separator: #e5d9db;
+  /* الشريط العلوي الداكن */
+  --nav-2: #361b20;
+  --nav-active: #4c2830;
+  --nav-bg: #2a1418;
+  --nav-border: #4a262d;
+  --nav-hover: #3f2026;
+  --nav-muted: #c7a9ae;
+  /* متفرقات */
+  --grad-accent: #9f1239;
+  --grad-blue: #9f1239;
+}
+
+/* وضع زيتوني */
+:root[data-theme="sage"] {
+  /* اللون الأساسي (برتقالي) */
+  --tint: #047857;
+  --tint-press: #065f46;
+  /* الخلفيات والأسطح */
+  --app-bg: #ecf1ee;
+  --bg: #ecf1ee;
+  --card-2: #f3f7f4;
+  --hover: #f3f7f4;
+  --input-border: #bacbc0;
+  /* الحدود والفواصل */
+  --border-strong: #bacbc0;
+  --separator: #d6e1da;
+  /* الشريط العلوي الداكن */
+  --nav-2: #1b3227;
+  --nav-active: #284738;
+  --nav-bg: #14261d;
+  --nav-border: #274536;
+  --nav-hover: #203a2d;
+  --nav-muted: #a3bfb0;
+  /* متفرقات */
+  --grad-accent: #047857;
+  --grad-blue: #047857;
+}
+
+/* وضع مرجاني */
+:root[data-theme="coral"] {
+  /* اللون الأساسي (برتقالي) */
+  --tint: #4338ca;
+  --tint-press: #3730a3;
+  /* الخلفيات والأسطح */
+  --app-bg: #efeff6;
+  --bg: #efeff6;
+  --card-2: #f5f5fa;
+  --hover: #f5f5fa;
+  --input-border: #c3c3d9;
+  /* الحدود والفواصل */
+  --border-strong: #c3c3d9;
+  --separator: #dcdcea;
+  /* الشريط العلوي الداكن */
+  --nav-2: #232046;
+  --nav-active: #332f5f;
+  --nav-bg: #1a1838;
+  --nav-border: #322e5c;
+  --nav-hover: #292650;
+  --nav-muted: #aca9cc;
+  /* متفرقات */
+  --grad-accent: #4338ca;
+  --grad-blue: #4338ca;
+}
+

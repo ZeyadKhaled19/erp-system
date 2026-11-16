@@ -5,77 +5,17 @@
    ===================================================================== */
 
 /* ---------- 1) الألوان: الوضع الفاتح ---------- */
-:root {
-  --bg: #F4F6F9; --bg-elevated: #FFFFFF; --bg-secondary: #FFFFFF; --bg-tertiary: #F4F6F9;
-  --app-bg: #F4F6F9;
-  --card: #FFFFFF; --card-2: #F8FAFC; --hover: #F1F4F8; --field: #F8FAFC;
-  --bar: #FFFFFF; --sidebar-bg: #FFFFFF;
-  --label: #0E1726; --label-2: #4A5568; --label-3: #8A94A6; --heading: #0E1726; --label-field: #344054;
-  --separator: #E3E8EF; --separator-opaque: #E3E8EF; --border-strong: #CDD5DF;
-  --fill: rgba(15, 23, 42, 0.06); --fill-2: rgba(15, 23, 42, 0.09); --fill-3: rgba(15, 23, 42, 0.04);
-  --input-bg: #FFFFFF; --input-border: #CDD5DF; --input-border-hover: #A9B4C3; --input-disabled: #F4F6F9;
-  --zebra: rgba(15, 23, 42, 0.015);
-  --green: #15803D; --green-soft: #E8F6EE; --green-text: #15803D;
-  --red: #C42B2B; --red-soft: #FDECEC; --red-text: #B42323;
-  --orange: #A16207; --orange-soft: #FEF6D8; --orange-text: #854D0E; /* كهرماني/أصفر عشان التحذير ما يتلخبطش مع اللون الأساسي البرتقالي */
-  --yellow: #CA8A04; --gray: #8A94A6;
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-lift: 0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.05);
-  --shadow-pop: 0 16px 40px rgba(16, 24, 40, 0.16), 0 2px 6px rgba(16, 24, 40, 0.06);
-  --radius-s: 0.5rem; --radius: 0.875rem; --radius-l: 1rem; --radius-xl: 1.125rem;
-  --sidebar-w: 16rem; --sidebar-w-collapsed: 4.5rem;
-  --h-sm: 2rem; --h-control: 2.5rem; --h-lg: 3rem; --h-xl: 3.5rem;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1); --dur: 0.16s;
-  --on-tint: #FFFFFF;
+:root { /* كهرماني/أصفر عشان التحذير ما يتلخبطش مع اللون الأساسي البرتقالي */
   /* لا تدرجات: كل القيم القديمة تصبح ألوانًا مسطحة */
-  --grad-blue: var(--tint); --grad-green: #15803D; --grad-orange: #B45309; --grad-red: #C42B2B;
-  --grad-purple: #6D4AD6; --grad-indigo: #4F46E5; --grad-teal: #0F8A80; --grad-pink: #C2306E;
-  --grad-gray: #64748B; --grad-brown: #8B6B4A;
-  --grad-accent: var(--tint); --tint-glow: transparent;
   color-scheme: light;
 }
 
 /* ---------- 2) الوضع الغامق (كحلي) ---------- */
 :root[data-theme="dark"] {
-  --bg: #0A1020; --bg-elevated: #111A2C; --bg-secondary: #111A2C; --bg-tertiary: #0E1626;
-  --app-bg: #0A1020;
-  --card: #111A2C; --card-2: #0E1626; --hover: #17223A; --field: #0E1626;
-  --bar: #0F1828; --sidebar-bg: #0D1526;
-  --label: #E8EDF5; --label-2: #A7B1C4; --label-3: #6E7A92; --heading: #F1F5FB; --label-field: #C3CCDB;
-  --separator: #1E2A40; --separator-opaque: #1E2A40; --border-strong: #2B3955;
-  --fill: rgba(148, 163, 184, 0.10); --fill-2: rgba(148, 163, 184, 0.14); --fill-3: rgba(148, 163, 184, 0.06);
-  --input-bg: #0E1626; --input-border: #2B3955; --input-border-hover: #3A4A6A; --input-disabled: #131C30;
-  --zebra: rgba(255, 255, 255, 0.02);
-  --green: #4ADE80; --green-soft: #12301F; --green-text: #4ADE80;
-  --red: #F87171; --red-soft: #3A1717; --red-text: #F87171;
-  --orange: #FBBF24; --orange-soft: #33270E; --orange-text: #FBBF24;
-  --gray: #6E7A92;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-lift: 0 6px 18px rgba(0, 0, 0, 0.35);
-  --shadow-pop: 0 18px 44px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
-  --grad-green: #2F9E5B; --grad-orange: #C98A1C; --grad-red: #D04848;
   color-scheme: dark;
 }
 
 /* ---------- 3) لون التمييز (لكل مستخدم) ---------- */
-:root[data-accent="blue"], :root:not([data-accent]) { --tint: #2563EB; --tint-press: #1D4ED8; }
-:root[data-accent="teal"]   { --tint: #0F8A80; --tint-press: #0B6F67; }
-:root[data-accent="purple"] { --tint: #7047E0; --tint-press: #5B34C8; }
-:root[data-accent="green"]  { --tint: #16803A; --tint-press: #11692F; }
-:root[data-accent="orange"] { --tint: #D9530F; --tint-press: #B9450B; }
-:root[data-accent="pink"]   { --tint: #CC2E6E; --tint-press: #AE2459; }
-:root[data-theme="dark"][data-accent="blue"], :root[data-theme="dark"]:not([data-accent]) { --tint: #5B93FF; --tint-press: #7AA7FF; }
-:root[data-theme="dark"][data-accent="teal"]   { --tint: #2DB5A8; --tint-press: #4CC7BB; }
-:root[data-theme="dark"][data-accent="purple"] { --tint: #9D80FF; --tint-press: #B39CFF; }
-:root[data-theme="dark"][data-accent="green"]  { --tint: #43C26E; --tint-press: #62D088; }
-:root[data-theme="dark"][data-accent="orange"] { --tint: #FF8B4D; --tint-press: #FFA36F; }
-:root[data-theme="dark"][data-accent="pink"]   { --tint: #F2679E; --tint-press: #F585B1; }
-:root[data-theme="dark"] { --on-tint: #0A1020; }
-:root {
-  --tint-soft: color-mix(in srgb, var(--tint) 11%, transparent);
-  --tint-ring: color-mix(in srgb, var(--tint) 26%, transparent);
-  --label-icon: var(--tint);
-}
 :root[data-font="plex"] { --font: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif; }
 
 /* ---------- 4) الأساس ---------- */
@@ -439,8 +379,6 @@ kbd { font-family: var(--font); font-size: max(11px, 0.6875rem); border: 1px sol
 @media (max-width: 640px) { .ws-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws-kpi-v { font-size: 1.125rem; } }
 
 /* أزرق سماوي (اللون الافتراضي) */
-:root[data-accent="sky"] { --tint: #0284C7; --tint-press: #0369A1; }
-:root[data-theme="dark"][data-accent="sky"] { --tint: #38BDF8; --tint-press: #7DD3FC; }
 :root[data-accent="sky"] .print-root { --tint: #0284C7; --tint-press: #0369A1; }
 
 /* التصنيفات */
@@ -1052,7 +990,6 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 }
 
 /* ===================== كثافة أخف للنظام كله: أحجام أصغر، أوزان أهدأ، مسافات أقل ===================== */
-:root { --h-sm: 1.875rem; --h-control: 2.375rem; --h-lg: 2.75rem; --h-xl: 3.25rem; --fs-16: 0.9062rem; --fs-17: 0.9375rem; --fs-15: 0.875rem; }
 body { font-size: 0.9062rem; }
 .btn { height: 2.25rem; padding: 0 0.875rem; font-weight: 500; }
 .btn.sm { height: 1.875rem; padding: 0 0.625rem; }

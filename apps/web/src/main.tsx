@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-sans-arabic/arabic-600.css';
 import '@fontsource/ibm-plex-sans-arabic/latin-600.css';
 import '@fontsource/ibm-plex-sans-arabic/arabic-700.css';
 import '@fontsource/ibm-plex-sans-arabic/latin-700.css';
+import './tokens.css';
 import './styles.css';
 import './theme-pro.css';
 import './motorco.css';
