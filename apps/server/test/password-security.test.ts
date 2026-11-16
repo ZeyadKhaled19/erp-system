@@ -63,7 +63,25 @@ describe('password security', () => {
     expect((await me(shop, ch.json().token)).statusCode).toBe(200);
   });
 
-  it('shops (Windows app) still accept the default password', async () => {
+  it('the Windows app (open to the shop network) refuses admin123 until a new password is chosen', async () => {
+    const db = await fresh();
+    const input = { machineId: 'ABCD-0000-0000-0042', trialStart: new Date().toISOString() };
+    const app = await buildApp({ db, jwtSecret: 'test-secret', backupDir: os.tmpdir(), license: { get: () => input, activate: () => {} } });
+    expect((await login(app, 'admin123')).statusCode).toBe(428);
+    const ok = await login(app, 'admin123', { new_password: 'Shop-Secret-7' });
+    expect(ok.statusCode).toBe(200);
+    expect((await login(app, 'admin123')).statusCode).toBe(401);
+    // موظف بكلمة سر قصيرة بس مش معروفة: بيدخل عادي في المحل
+    const token = ok.json().token;
+    const u = await app.inject({ method: 'POST', url: '/api/admin/users', headers: { authorization: `Bearer ${token}`, 'x-device-id': 'device-p-0001' }, payload: { username: 'cashier', full_name: 'كاشير', password: 'k7x9q2', role_id: 'role-cashier', active: true } });
+    if (u.statusCode === 200) {
+      expect((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'cashier', password: 'k7x9q2', device_id: 'device-p-0002' } })).statusCode).toBe(200);
+    }
+    await app.close();
+    await db.close();
+  });
+
+  it('a plain server (no vendor site, no Windows licensing) is unchanged', async () => {
     const db = await fresh();
     const app = await buildApp({ db, jwtSecret: 'test-secret', backupDir: os.tmpdir() });
     expect((await login(app, 'admin123')).statusCode).toBe(200);

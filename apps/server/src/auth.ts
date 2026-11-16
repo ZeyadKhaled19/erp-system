@@ -7,6 +7,13 @@ const scrypt = promisify(_scrypt) as (pw: string, salt: Buffer, len: number, opt
 const SCRYPT_OPTS = { N: 16384, r: 8, p: 1 };
 
 /** تخزين كلمة المرور كـ scrypt مع ملح عشوائي — لا تُخزّن أبدًا كنص صريح */
+/** كلمات سر معروفة جدًا (منها الافتراضية admin123): ممنوع الدخول بيها على موقع صاحب السيستم وبرنامج الويندوز */
+export const COMMON_PASSWORDS = new Set(['admin123', 'admin', '123456', '12345678', '123456789', '1234567890', 'password', '00000000', '11111111', '1234', '0000', 'qwerty', '123123', '111111']);
+export const isCommonPassword = (p: string) => COMMON_PASSWORDS.has(String(p ?? '').trim().toLowerCase());
+/** كلمة سر جديدة مقبولة: 8 حروف أو أرقام على الأقل ومش من المعروفة */
+export const strongEnough = (p: string) => String(p ?? '').trim().length >= 8 && !isCommonPassword(p);
+export const WEAK_PASSWORD_MESSAGE = 'كلمة السر الجديدة ضعيفة. خليها 8 حروف أو أرقام على الأقل، ومش زي admin123 أو 12345678';
+
 export async function hashPassword(pw: string): Promise<string> {
   const salt = randomBytes(16);
   const key = await scrypt(pw, salt, 64, SCRYPT_OPTS);

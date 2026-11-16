@@ -6,7 +6,7 @@ import fastifyStatic from '@fastify/static';
 import { ALL_PERMISSIONS, DOC_TYPES, hasPermission, todayISO, WORKSPACE_IDS } from '@erp/shared';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { hashPassword, loadAuthUser, makeTokens, verifyPassword, type AuthUser } from './auth';
+import { hashPassword, isCommonPassword, loadAuthUser, makeTokens, strongEnough, verifyPassword, WEAK_PASSWORD_MESSAGE, type AuthUser } from './auth';
 import { backupToFile, exportData, listBackups, restoreFromFile } from './backup';
 import type { Db } from './db';
 import { AppError } from './errors';
@@ -120,10 +120,10 @@ export async function buildApp(opts: AppOptions) {
     return { company_name: typeof v.company_name === 'string' ? v.company_name : '', system_name: typeof v.system_name === 'string' ? v.system_name : '', logo: typeof v.print_logo === 'string' ? v.print_logo : null };
   });
 
-  // كلمات سر معروفة وضعيفة: على موقع صاحب السيستم (المفتوح للناس) ممنوع الدخول بيها،
-  // لازم تتغير الأول (لأن كلمة السر الافتراضية مكتوبة للعملاء علشان برنامج الويندوز)
-  const WEAK_PASSWORDS = new Set(['admin123', 'admin', '123456', '12345678', '123456789', 'password', '00000000', '11111111', '1234', '0000', 'qwerty']);
-  const weakPassword = (p: string) => WEAK_PASSWORDS.has(p.trim().toLowerCase()) || p.trim().length < 8;
+  // كلمات السر الضعيفة لازم تتغير قبل الدخول:
+  // - موقع صاحب السيستم (مفتوح للناس): أي كلمة معروفة أو أقل من 8 حروف.
+  // - برنامج الويندوز (مفتوح لأجهزة شبكة المحل): الكلمات المعروفة بس زي admin123.
+  const mustChangePassword = (p: string) => (opts.vendor ? !strongEnough(p) : opts.license ? isCommonPassword(p) : false);
 
   app.post('/api/auth/login', async (req, reply) => {
     const body = z
@@ -143,11 +143,11 @@ export async function buildApp(opts: AppOptions) {
       ]);
       throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 'auth');
     }
-    if (opts.vendor && weakPassword(body.password)) {
+    if (mustChangePassword(body.password)) {
       if (!body.new_password) {
-        return reply.status(428).send({ code: 'weak_password', error: 'كلمة السر دي ضعيفة أو افتراضية، ومينفعش تتستخدم على الموقع. اختار كلمة سر جديدة (8 حروف على الأقل).' });
+        return reply.status(428).send({ code: 'weak_password', error: 'كلمة السر دي معروفة أو ضعيفة (زي admin123)، وأي حد ممكن يخمّنها. اختار كلمة سر جديدة خاصة بيك (8 حروف أو أرقام على الأقل).' });
       }
-      if (weakPassword(body.new_password)) throw new AppError('كلمة السر الجديدة ضعيفة. خليها 8 حروف أو أرقام على الأقل، ومش زي admin123 أو 12345678');
+      if (!strongEnough(body.new_password)) throw new AppError(WEAK_PASSWORD_MESSAGE);
       if (body.new_password === body.password) throw new AppError('كلمة السر الجديدة لازم تختلف عن القديمة');
       await db.query(`update users set password_hash = $2, password_changed_at = now() where id = $1`, [u.id, await hashPassword(body.new_password)]);
       await db.query(`insert into audit_log (user_id, device_id, action, entity, entity_id) values ($1, $2, 'change_password', 'user', $1)`, [u.id, body.device_id]);
@@ -170,7 +170,7 @@ export async function buildApp(opts: AppOptions) {
     const b = z.object({ current: z.string(), next: z.string().min(6, 'كلمة المرور الجديدة 6 أحرف على الأقل') }).parse(req.body);
     const u = await db.one(`select password_hash from users where id = $1`, [req.user!.id]);
     if (!(await verifyPassword(b.current, u.password_hash))) throw new AppError('كلمة المرور الحالية غير صحيحة');
-    if (opts.vendor && weakPassword(b.next)) throw new AppError('كلمة السر الجديدة ضعيفة. خليها 8 حروف أو أرقام على الأقل، ومش زي admin123 أو 12345678');
+    if ((opts.vendor || opts.license) && !strongEnough(b.next)) throw new AppError(WEAK_PASSWORD_MESSAGE);
     await db.query(`update users set password_hash = $2, password_changed_at = now() where id = $1`, [req.user!.id, await hashPassword(b.next)]);
     await db.query(`insert into audit_log (user_id, device_id, action, entity, entity_id) values ($1, $2, 'change_password', 'user', $1)`, [req.user!.id, req.deviceId]);
     // كل الجلسات القديمة اتلغت؛ نرجّع توكن جديد للجهاز ده علشان يكمل من غير ما يخرج

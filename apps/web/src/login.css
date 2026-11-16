@@ -126,3 +126,4 @@
 .lic-contact { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 .lic-contact .btn svg { width: 1rem; height: 1rem; }
 .lic-contact-h { text-align: center; font-size: var(--text-xs); font-weight: 700; color: var(--label-2); margin-top: 0.25rem; }
+.lic-pw-h { font-size: 0.875rem; font-weight: 700; color: var(--heading); margin-top: 0.25rem; }

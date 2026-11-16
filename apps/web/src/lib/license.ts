@@ -71,7 +71,7 @@ export function useLicenseInfo(): LicenseInfo | null {
 }
 
 /** تسجيل التجربة أول مرة برقم الموبايل (برنامج الويندوز بيكلم موقع صاحب السيستم) */
-export async function registerTrial(body: { phone: string; business: string; governorate: string }): Promise<LicenseState> {
+export async function registerTrial(body: { phone: string; business: string; governorate: string; admin_password?: string }): Promise<LicenseState> {
   const r = await fetch('/api/license/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j?.error ?? 'التسجيل ما نجحش');

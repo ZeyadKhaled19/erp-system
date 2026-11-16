@@ -101,7 +101,7 @@ export function LockScreen({ license, contact }: { license: Extract<LicenseState
 
 /** أول مرة البرنامج يتفتح: يكتب رقم موبايله علشان التجربة تبدأ (تجربة واحدة لكل رقم) */
 export function RegisterScreen({ license, contact }: { license: Extract<LicenseState, { status: 'unregistered' }>; contact?: VendorContact | null }) {
-  const [f, setF] = useState({ phone: '', business: '', governorate: '' });
+  const [f, setF] = useState({ phone: '', business: '', governorate: '', password: '', password2: '' });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'trial' | 'code'>('trial');
@@ -110,9 +110,11 @@ export function RegisterScreen({ license, contact }: { license: Extract<LicenseS
     if (!/^0?1[0125][0-9]{8}$/.test(f.phone.replace(/[^0-9]/g, '').replace(/^20/, '0'))) return setErr('اكتب رقم موبايلك صح، زي 01xxxxxxxxx');
     if (f.business.trim().length < 2) return setErr('اكتب اسم المحل');
     if (!f.governorate) return setErr('اختار المحافظة');
+    if (f.password.trim().length < 8) return setErr('اختار كلمة سر للدخول: 8 حروف أو أرقام على الأقل');
+    if (f.password !== f.password2) return setErr('كلمتين السر مش زي بعض');
     setBusy(true);
     try {
-      await registerTrial(f);
+      await registerTrial({ phone: f.phone, business: f.business, governorate: f.governorate, admin_password: f.password });
       window.location.reload();
     } catch (e) {
       setErr((e as Error).message);
@@ -136,6 +138,11 @@ export function RegisterScreen({ license, contact }: { license: Extract<LicenseS
                 <option value="">— اختار المحافظة —</option>
                 {EG_GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
+            </div>
+            <div className="lic-pw-h">كلمة السر بتاعتك للدخول (اسم المستخدم: <b dir="ltr">admin</b>)</div>
+            <div className="grid grid-2">
+              <div className="lg-field"><label htmlFor="rg-pw">كلمة السر</label><div className="lg-input"><input id="rg-pw" type="password" autoComplete="new-password" dir="ltr" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} placeholder="8 حروف أو أرقام" /></div></div>
+              <div className="lg-field"><label htmlFor="rg-pw2">اكتبها تاني</label><div className="lg-input"><input id="rg-pw2" type="password" autoComplete="new-password" dir="ltr" value={f.password2} onChange={(e) => setF({ ...f, password2: e.target.value })} /></div></div>
             </div>
             <button type="button" className="lg-submit" disabled={busy} onClick={go}>
               {busy ? <span className="lg-spin" aria-hidden="true" /> : <Rocket aria-hidden="true" />} ابدأ التجربة المجانية

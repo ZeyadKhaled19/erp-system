@@ -66,7 +66,7 @@ export function SignupPage() {
             <a className="lg-submit" href={url} style={{ textDecoration: 'none' }}><Download aria-hidden="true" /> تحميل البرنامج للويندوز</a>
             <ol className="lic-steps">
               <li>افتح الملف اللي نزل وسطّب البرنامج، واكتب نفس رقم الموبايل أول ما يفتح (لازم يكون على النت أول مرة).</li>
-              <li>جوه البرنامج على جهازك: ادخل بـ <b dir="ltr">admin</b> وكلمة السر <b dir="ltr">admin123</b>، وغيّرها على طول من الإعدادات.</li>
+              <li>أول ما البرنامج يفتح هتختار كلمة السر بتاعتك للدخول (اسم المستخدم <b dir="ltr">admin</b>)، ومحدش غيرك هيعرفها.</li>
               <li>لو احتجت مساعدة كلمنا، وهنتواصل معاك على رقمك.</li>
             </ol>
             <ContactLinks contact={lic?.contact} waText={`أهلًا، سجلت في تجربة Eco System باسم ${f.name}`} />

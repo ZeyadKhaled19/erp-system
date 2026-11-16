@@ -61,7 +61,7 @@ describe('licensing', () => {
     const fresh: LicenseInput = { machineId: 'ABCD-0000-0000-0009', trialStart: new Date().toISOString() };
     trialShop = await buildApp({ db: db2, jwtSecret: 'test-secret', backupDir: os.tmpdir(), license: { get: () => fresh, activate: () => {} } });
     extraDbs.push(db2);
-    const login = await trialShop.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-x-0001' } });
+    const login = await trialShop.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'admin', password: 'admin123', device_id: 'device-x-0001', new_password: 'Shop-Pass-2026' } });
     expect(login.statusCode).toBe(200);
     expect((await trialShop.inject({ method: 'GET', url: '/api/license' })).json().license).toMatchObject({ status: 'trial', daysLeft: 7 });
   });

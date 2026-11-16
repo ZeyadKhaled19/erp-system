@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Db } from './db';
+import { hashPassword, strongEnough, WEAK_PASSWORD_MESSAGE } from './auth';
 import { AppError } from './errors';
 import { EG_GOVERNORATES } from '@erp/shared';
 import { DEFAULT_CONTACT, TRIAL_DAYS, expiryFor, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
@@ -115,10 +116,13 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
         phone: z.string().trim().min(8).max(20),
         business: z.string().trim().min(2, 'اكتب اسم المحل').max(120),
         governorate: z.string().refine((g) => (EG_GOVERNORATES as readonly string[]).includes(g), 'اختار المحافظة'),
+        /** كلمة سر المدير الجديدة (بدل admin123) */
+        admin_password: z.string().max(200).optional(),
       })
       .parse(req.body);
     const phone = normalizePhone(b.phone);
     if (!/^01[0125][0-9]{8}$/.test(phone)) throw new AppError('رقم الموبايل مش مظبوط. اكتبه زي 01xxxxxxxxx');
+    if (b.admin_password !== undefined && !strongEnough(b.admin_password)) throw new AppError(WEAK_PASSWORD_MESSAGE);
     const cur = input()!;
     let r: Response;
     try {
@@ -134,6 +138,11 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     const j = (await r.json().catch(() => ({}))) as { trial_start?: string; error?: string };
     if (!r.ok || !j.trial_start) throw new AppError(j.error ?? 'التسجيل ما نجحش، جرب تاني بعد شوية');
     const start = minIso(j.trial_start, cur.trialStart) ?? j.trial_start;
+    // كلمة سر المدير اللي اختارها العميل (كده مفيش جهاز فيه admin123)
+    if (b.admin_password) {
+      await o.db.query(`update users set password_hash = $1, password_changed_at = now() where id = 'user-admin'`, [await hashPassword(b.admin_password)]);
+      await o.db.query(`insert into audit_log (user_id, action, entity, entity_id) values ('user-admin', 'change_password', 'user', 'user-admin')`);
+    }
     o.gate.register(start, phone);
     dbStart = minIso(start, dbStart) ?? start;
     await syncDbStart();
