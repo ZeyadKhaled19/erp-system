@@ -18,7 +18,7 @@ export interface LicenseInfo {
 }
 
 /** رقم واتساب صاحب السيستم اللي العميل بيبعتله رقم الجهاز (فاضي = زرار واتساب مش بيظهر) */
-export const VENDOR_WHATSAPP = '';
+export const VENDOR_WHATSAPP = '201080001343';
 
 let cache: LicenseInfo | null = null;
 let inflight: Promise<LicenseInfo | null> | null = null;
