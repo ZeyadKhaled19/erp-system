@@ -59,8 +59,10 @@ export const partySchema = z.object({
   price_list_id: id.nullish(),
   /** نوع العميل/المورد (نقدي، آجل، أون لاين...) */
   group_id: id.nullish(),
-  /** ماركة السكوتر (من قائمة يحددها صاحب النظام) */
+  /** قديم: ماركة السكوتر (اتنقلت لخانة حرة في custom). بيفضل مقبول من الأجهزة القديمة */
   scooter_brand_id: id.nullish(),
+  /** الخانات الحرة اللي بيضيفها المسئول: { id الخانة: id الاختيار (للقوائم) أو النص } */
+  custom: z.record(z.string().min(1).max(100), z.string().trim().max(300).nullable()).optional(),
   discount_bp: nonneg.max(10000).default(0),
   due_days: nonneg.max(3650).default(0),
   review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
@@ -107,6 +109,16 @@ export const partyGroupSchema = z.object({
 
 export const scooterBrandSchema = z.object({
   name: z.string().trim().min(1, 'الاسم مطلوب').max(60),
+  sort: int.default(0),
+  active: z.boolean().default(true),
+});
+
+/** خانة حرة لبيانات العميل/المورد: قائمة اختيارات أو كلام حر، باسم يختاره المسئول */
+export const partyFieldSchema = z.object({
+  name: z.string().trim().min(1, 'اسم الخانة مطلوب').max(60),
+  kind: z.enum(['list', 'text']).default('list'),
+  applies_to: z.enum(['customer', 'supplier', 'both']).default('customer'),
+  options: z.array(z.object({ id, name: z.string().trim().min(1, 'اسم الاختيار مطلوب').max(80), active: z.boolean().default(true) })).max(500).default([]),
   sort: int.default(0),
   active: z.boolean().default(true),
 });
@@ -206,6 +218,7 @@ export const MASTER_SCHEMAS = {
   partner: partnerSchema,
   party_group: partyGroupSchema,
   scooter_brand: scooterBrandSchema,
+  party_field: partyFieldSchema,
   employee: employeeSchema,
   attendance: attendanceSchema,
   department: departmentSchema,
@@ -327,7 +340,7 @@ export type DocInput = z.infer<typeof docSchema>;
 export const opSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('master.upsert'),
-    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group', 'scooter_brand', 'employee', 'attendance', 'department', 'job_title']),
+    entity: z.enum(['item', 'party', 'warehouse', 'category', 'cashbox', 'account', 'sales_rep', 'price_list', 'partner', 'party_group', 'scooter_brand', 'party_field', 'employee', 'attendance', 'department', 'job_title']),
     id,
     /** النسخة التي عدّل عليها الجهاز؛ null = إنشاء جديد */
     base_version: int.nullable(),
@@ -417,6 +430,7 @@ export const SYNC_TABLES = [
   'cashier_shifts',
   'party_groups',
   'scooter_brands',
+  'party_fields',
   'employees',
   'attendance',
   'departments',

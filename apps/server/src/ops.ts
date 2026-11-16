@@ -19,6 +19,7 @@ const MASTER_TABLE: Record<MasterEntity, string> = {
   partner: 'partners',
   party_group: 'party_groups',
   scooter_brand: 'scooter_brands',
+  party_field: 'party_fields',
   employee: 'employees',
   attendance: 'attendance',
   department: 'departments',
@@ -37,6 +38,7 @@ const MASTER_PERM: Record<MasterEntity, [create: string, edit: string]> = {
   partner: ['partners.manage', 'partners.manage'],
   party_group: ['parties.create', 'parties.edit'],
   scooter_brand: ['settings.manage', 'settings.manage'],
+  party_field: ['settings.manage', 'settings.manage'],
   employee: ['employees.manage', 'employees.manage'],
   attendance: ['employees.attendance', 'employees.attendance'],
   department: ['employees.manage', 'employees.manage'],
@@ -55,6 +57,7 @@ const ENTITY_LABEL: Record<MasterEntity, string> = {
   partner: 'الشريك',
   party_group: 'نوع العميل',
   scooter_brand: 'ماركة السكوتر',
+  party_field: 'خانة بيانات العملاء',
   employee: 'الموظف',
   attendance: 'سجل الحضور',
   department: 'الإدارة',
@@ -232,6 +235,30 @@ async function writeMaster(t: Db, ctx: Ctx, entity: MasterEntity, id: string, da
       const accId = crypto.randomUUID();
       await t.query(`insert into accounts (id, code, name, parent_id, type) values ($1,$2,$3,$4,'asset')`, [accId, code, fields.name, parent.id]);
       fields.account_id = accId;
+    }
+  }
+
+  if (entity === 'party_field') {
+    const seen = new Set<string>();
+    for (const o of fields.options as { id: string; name: string }[]) {
+      const k = o.name.trim().toLowerCase();
+      if (seen.has(k)) throw new AppError(`الاختيار «${o.name}» متكرر في الخانة`);
+      seen.add(k);
+    }
+    fields.options = JSON.stringify(fields.options);
+  }
+
+  if (entity === 'party') {
+    // جهاز قديم لسه بيبعت ماركة السكوتر بس: نحطها في الخانة الجديدة علشان ما تضيعش
+    if (!('custom' in fields) && 'scooter_brand_id' in fields && existing) {
+      const cur = typeof existing.custom === 'string' ? JSON.parse(existing.custom || '{}') : existing.custom ?? {};
+      const hasField = await t.one(`select 1 from party_fields where id = 'pf-scooter-brand'`);
+      if (hasField) fields.custom = { ...cur, 'pf-scooter-brand': fields.scooter_brand_id ?? null };
+    }
+    if ('custom' in fields) {
+      const clean: Record<string, string> = {};
+      for (const [k, v] of Object.entries((fields.custom ?? {}) as Record<string, string | null>)) if (v != null && String(v).trim()) clean[k] = String(v).trim();
+      fields.custom = JSON.stringify(clean);
     }
   }
 

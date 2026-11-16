@@ -2,7 +2,7 @@ import { computeDocument, DOC_TYPES, toBaseQty, type DocInput, type MasterEntity
 import { db } from './db';
 import { enqueue, nextLocalNumber } from './sync';
 
-const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners' | 'party_groups' | 'scooter_brands' | 'employees' | 'attendance' | 'departments' | 'job_titles'> = {
+const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categories' | 'cashboxes' | 'accounts' | 'sales_reps' | 'price_lists' | 'partners' | 'party_groups' | 'scooter_brands' | 'party_fields' | 'employees' | 'attendance' | 'departments' | 'job_titles'> = {
   item: 'items',
   party: 'parties',
   warehouse: 'warehouses',
@@ -14,13 +14,14 @@ const TABLE: Record<MasterEntity, 'items' | 'parties' | 'warehouses' | 'categori
   partner: 'partners',
   party_group: 'party_groups',
   scooter_brand: 'scooter_brands',
+  party_field: 'party_fields',
   employee: 'employees',
   attendance: 'attendance',
   department: 'departments',
   job_title: 'job_titles',
 };
 const LABEL: Record<MasterEntity, string> = {
-  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك', party_group: 'نوع عميل', scooter_brand: 'ماركة سكوتر', employee: 'موظف', attendance: 'حضور', department: 'إدارة', job_title: 'وظيفة',
+  item: 'صنف', party: 'طرف', warehouse: 'مخزن', category: 'تصنيف', cashbox: 'خزينة', account: 'حساب', sales_rep: 'مندوب', price_list: 'قائمة أسعار', partner: 'شريك', party_group: 'نوع عميل', scooter_brand: 'ماركة سكوتر', party_field: 'خانة عملاء', employee: 'موظف', attendance: 'حضور', department: 'إدارة', job_title: 'وظيفة',
 };
 
 /** حفظ بيانات أساسية: يظهر فورًا على الجهاز ويُرفع عند الاتصال */

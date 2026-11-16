@@ -44,7 +44,7 @@ import { DocGuard, HomeRoute, HubGuard, NewDocGuard, RequirePerm } from './compo
 import { clearLanded } from './lib/home';
 import { CommissionsPage, YearEndPage } from './pages/YearEnd';
 import { DailyMovementReport, ExpiryReport, NegativeStockReport, SalesAnalysisReport, SerialSearchReport, TreasuryAnalysisReport } from './pages/Reports';
-import { ScooterBrandsReport } from './pages/reports/brands';
+import { CustomerFieldsReport } from './pages/reports/customerFields';
 
 export function App() {
   const [session, setSession] = useState<Session | null>(() => {
@@ -201,7 +201,8 @@ export function App() {
           <Route path="/deliveries" element={<RequirePerm any={['sales.view', 'sales.deliver']}><DeliveriesPage /></RequirePerm>} />
           <Route path="/lists" element={<ListsPage />} />
           <Route path="/reports/analysis" element={<RequirePerm any={['reports.view']}><SalesAnalysisReport /></RequirePerm>} />
-          <Route path="/reports/scooter-brands" element={<RequirePerm any={['reports.view']}><ScooterBrandsReport /></RequirePerm>} />
+          <Route path="/reports/customer-fields" element={<RequirePerm any={['reports.view']}><CustomerFieldsReport /></RequirePerm>} />
+          <Route path="/reports/scooter-brands" element={<Navigate to="/reports/customer-fields?field=pf-scooter-brand" replace />} />
           <Route path="/reports/negative" element={<RequirePerm any={['inventory.view']}><NegativeStockReport /></RequirePerm>} />
           <Route path="/reports/daily" element={<RequirePerm any={['reports.view']}><DailyMovementReport /></RequirePerm>} />
           <Route path="/reports/treasury" element={<RequirePerm any={['treasury.view']}><TreasuryAnalysisReport /></RequirePerm>} />
