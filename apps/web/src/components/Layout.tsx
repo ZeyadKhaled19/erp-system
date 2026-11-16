@@ -17,6 +17,7 @@ import { ShortcutsSheet, useGlobalShortcuts } from './Shortcuts';
 import { MainNav, TopIcons } from './TopNav';
 import { searchItems } from '../lib/search';
 import { setDocTitle, systemName, useSyncBrand } from '../lib/brand';
+import { EcoMark } from './EcoLogo';
 
 export function SyncPill() {
   const s = useSyncState();
@@ -291,7 +292,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 <img className="mc-logo-img" src={settings.print_logo} alt={settings.company_name || ''} />
               ) : (
                 <>
-                  <span className="mc-logo">{(settings.company_name || 'ح').trim()[0]}</span>
+                  <EcoMark size={34} className="mc-logo-mark" />
                   <span className="mc-company">{settings.company_name || 'شركتي'}</span>
                 </>
               )}

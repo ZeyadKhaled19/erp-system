@@ -145,9 +145,9 @@ let quitting = false;
 
 const page = (title, body) =>
   'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
-<style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 0%,#1E293B 0%,#0F1115 60%);color:#E5E7EB;font:16px "Segoe UI",Tahoma,sans-serif}
-.b{text-align:center}.n{direction:ltr;font-size:26px;font-weight:800;letter-spacing:1px;margin-bottom:22px;background:linear-gradient(90deg,#60A5FA,#34D399,#A78BFA,#60A5FA);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 4s linear infinite}
-.s{width:40px;height:40px;border:4px solid #ffffff1a;border-top-color:#3B82F6;border-radius:50%;margin:0 auto 18px;animation:r 1s linear infinite}
+<style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#15171C;color:#E5E7EB;font:16px "Segoe UI",Tahoma,sans-serif}
+.b{text-align:center}.n{direction:ltr;font-size:26px;font-weight:800;letter-spacing:1px;margin-bottom:22px;background:linear-gradient(90deg,#FB923C,#FDBA74,#F3F4F6,#FB923C);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 4s linear infinite}
+.s{width:40px;height:40px;border:4px solid #ffffff1a;border-top-color:#EA580C;border-radius:50%;margin:0 auto 18px;animation:r 1s linear infinite}
 @keyframes r{to{transform:rotate(360deg)}}@keyframes sh{to{background-position:300% 0}}small{display:block;margin-top:8px;color:#9CA3AF}</style></head><body><div class="b"><div class="n">${APP_NAME}</div><div class="s"></div>${body}</div></body></html>`);
 
 function lanAddresses() {
@@ -176,18 +176,18 @@ function splashHtml() {
 <style>
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;-webkit-user-select:none;user-select:none;cursor:default}
 body{display:grid;place-items:center;font-family:"Segoe UI",Tahoma,sans-serif;color:#E5E7EB;
-  background:radial-gradient(120% 90% at 50% 0%,#1E293B 0%,#0F1115 60%);-webkit-app-region:drag}
+  background:#15171C;-webkit-app-region:drag}
 .wrap{text-align:center;width:100%;padding:0 40px}
 .logo{position:relative;width:96px;height:96px;margin:0 auto 22px}
 .logo img{position:relative;z-index:2;width:96px;height:96px;object-fit:contain;border-radius:22px;animation:pop .7s cubic-bezier(.2,.9,.3,1.3) both}
-.logo i{position:absolute;inset:-10px;border-radius:30px;border:2px solid #3B82F6;opacity:0;animation:ring 2.2s ease-out infinite}
+.logo i{position:absolute;inset:-10px;border-radius:30px;border:2px solid #EA580C;opacity:0;animation:ring 2.2s ease-out infinite}
 .logo i+i{animation-delay:1.1s}
 h1{margin:0;font-size:34px;font-weight:800;letter-spacing:1px;direction:ltr;
-  background:linear-gradient(90deg,#60A5FA,#34D399,#A78BFA,#60A5FA);background-size:300% 100%;
+  background:linear-gradient(90deg,#FB923C,#FDBA74,#F3F4F6,#FB923C);background-size:300% 100%;
   -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 4s linear infinite, up .6s .15s ease-out both}
 .co{margin-top:6px;font-size:14px;color:#9CA3AF;animation:up .6s .25s ease-out both}
 .bar{position:relative;height:4px;margin:28px auto 12px;max-width:260px;border-radius:99px;background:#ffffff14;overflow:hidden}
-.bar b{position:absolute;inset:0 auto 0 0;width:40%;border-radius:99px;background:linear-gradient(90deg,#3B82F6,#34D399);animation:slide 1.3s ease-in-out infinite}
+.bar b{position:absolute;inset:0 auto 0 0;width:40%;border-radius:99px;background:linear-gradient(90deg,#C2410C,#FB923C);animation:slide 1.3s ease-in-out infinite}
 #st{font-size:13px;color:#CBD5E1;min-height:18px;transition:opacity .25s}
 .v{position:fixed;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:#6B7280;direction:ltr}
 @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
@@ -216,7 +216,7 @@ function showSplash() {
     show: false,
     skipTaskbar: false,
     title: APP_NAME,
-    backgroundColor: '#0F1115',
+    backgroundColor: '#15171C',
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false },
   });

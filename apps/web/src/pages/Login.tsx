@@ -1,6 +1,6 @@
-import { Boxes, Eye, EyeOff, Lock, LogIn, ShieldCheck, ShoppingCart, Store, User } from 'lucide-react';
+import { Boxes, Calculator, Eye, EyeOff, Lock, LogIn, ShoppingCart, Store, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { EcoLogo, EcoMark } from '../components/EcoLogo';
+import { EcoCoverArt, EcoLogo, EcoMark } from '../components/EcoLogo';
 import { Banner } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { DEFAULT_SYSTEM_NAME, readBrand, saveBrand, systemName, type Brand } from '../lib/brand';
@@ -77,17 +77,16 @@ export function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     <div className="lg-page">
       {/* لوحة Eco System */}
       <aside className="lg-brand" aria-hidden="false">
-        <div className="lg-orb a" aria-hidden="true" />
-        <div className="lg-orb b" aria-hidden="true" />
         <div className="lg-brand-in">
           <EcoLogo size={52} light className="lg-eco" />
-          <h2 className="lg-tag">كل شغل محلك في مكان واحد</h2>
+          <h2 className="lg-tag">نظام واحد لإدارة محلك كله</h2>
           <p className="lg-sub">مبيعات ومشتريات ومخزون وحسابات وموظفين — بيشتغل حتى من غير نت.</p>
-          <ul className="lg-points">
-            <li><ShoppingCart aria-hidden="true" /> فواتير بيع سريعة وكاشير</li>
-            <li><Boxes aria-hidden="true" /> مخزون وأرصدة لحظة بلحظة</li>
-            <li><ShieldCheck aria-hidden="true" /> نسخ احتياطي تلقائي وصلاحيات</li>
+          <ul className="lg-chips" aria-label="أقسام السيستم">
+            <li><ShoppingCart aria-hidden="true" /> مبيعات</li>
+            <li><Boxes aria-hidden="true" /> مخزون</li>
+            <li><Calculator aria-hidden="true" /> حسابات</li>
           </ul>
+          <EcoCoverArt className="lg-art" />
         </div>
         <div className="lg-brand-foot">© Eco System</div>
       </aside>

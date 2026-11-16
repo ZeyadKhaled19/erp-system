@@ -28,7 +28,7 @@
 .dk-btn:disabled { opacity: .55; cursor: default; }
 
 /* شاشة القفل والنسخة الاحتياطية (بنفس شكل شاشة البداية) */
-.dk-closing { position: fixed; inset: 0; z-index: 3100; display: grid; place-items: center; text-align: center; color: #E5E7EB; background: radial-gradient(120% 90% at 50% 0%, #1E293B 0%, #0F1115 60%); animation: dk-fade .25s ease-out; }
+.dk-closing { position: fixed; inset: 0; z-index: 3100; display: grid; place-items: center; text-align: center; color: #E5E7EB; background: #15171C; animation: dk-fade .25s ease-out; }
 .dk-closing-in { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 0 1.5rem; max-width: 34rem; }
 .dk-closing-logo { margin-bottom: 1.25rem; }
 .dk-closing-logo .eco-word { font-size: 1.75rem; }

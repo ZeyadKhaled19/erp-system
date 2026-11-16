@@ -26,20 +26,29 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Eco System</title>
+    <meta name="description" content="Eco System — نظام واحد لإدارة محلك كله: مبيعات ومخزون وحسابات وموظفين، ويشتغل من غير نت." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Eco System" />
+    <meta property="og:description" content="نظام واحد لإدارة محلك كله: مبيعات ومخزون وحسابات وموظفين." />
+    <meta property="og:image" content="https://erp-system-psi-inky.vercel.app/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://erp-system-psi-inky.vercel.app/og-cover.png" />
   </head>
   <body>
     <!-- شاشة البداية: بتظهر لحد ما الواجهة تشتغل، وReact بيشيلها لوحده لما يرسم السيستم -->
     <div id="root"><div class="eco-splash" role="status" aria-label="جاري فتح السيستم">
       <style>
-        .eco-splash{position:fixed;inset:0;display:grid;place-items:center;text-align:center;font-family:"Segoe UI",Tahoma,sans-serif;color:#E5E7EB;background:radial-gradient(120% 90% at 50% 0%,#1E293B 0%,#0F1115 60%);z-index:9999}
+        .eco-splash{position:fixed;inset:0;display:grid;place-items:center;text-align:center;font-family:"Segoe UI",Tahoma,sans-serif;color:#E5E7EB;background:#15171C;z-index:9999}
         .eco-logo{position:relative;width:88px;height:88px;margin:0 auto 20px}
         .eco-logo img{position:relative;z-index:1;width:88px;height:88px;object-fit:contain;border-radius:20px;animation:eco-pop .7s cubic-bezier(.2,.9,.3,1.3) both}
-        .eco-logo i{position:absolute;inset:-9px;border-radius:28px;border:2px solid #3B82F6;opacity:0;animation:eco-ring 2.2s ease-out infinite}
+        .eco-logo i{position:absolute;inset:-9px;border-radius:28px;border:2px solid #EA580C;opacity:0;animation:eco-ring 2.2s ease-out infinite}
         .eco-logo i+i{animation-delay:1.1s}
-        .eco-name{margin:0;font-size:32px;font-weight:800;letter-spacing:1px;direction:ltr;background:linear-gradient(90deg,#60A5FA,#34D399,#A78BFA,#60A5FA);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:eco-shine 4s linear infinite}
+        .eco-name{margin:0;font-size:32px;font-weight:800;letter-spacing:1px;direction:ltr;background:linear-gradient(90deg,#FB923C,#FDBA74,#F3F4F6,#FB923C);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:eco-shine 4s linear infinite}
         .eco-co{margin-top:6px;font-size:14px;color:#9CA3AF;min-height:18px}
         .eco-bar{position:relative;height:4px;width:220px;margin:26px auto 0;border-radius:99px;background:#ffffff14;overflow:hidden}
-        .eco-bar b{position:absolute;inset:0 auto 0 0;width:40%;border-radius:99px;background:linear-gradient(90deg,#3B82F6,#34D399);animation:eco-slide 1.3s ease-in-out infinite}
+        .eco-bar b{position:absolute;inset:0 auto 0 0;width:40%;border-radius:99px;background:linear-gradient(90deg,#C2410C,#FB923C);animation:eco-slide 1.3s ease-in-out infinite}
         @keyframes eco-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
         @keyframes eco-ring{0%{transform:scale(.85);opacity:.7}100%{transform:scale(1.35);opacity:0}}
         @keyframes eco-shine{to{background-position:300% 0}}

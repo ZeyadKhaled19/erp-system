@@ -1,17 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Eco System">
-  <defs>
-    <linearGradient id="leaf" x1="14" y1="48" x2="50" y2="14" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3B82F6"/>
-      <stop offset="0.55" stop-color="#22C55E"/>
-      <stop offset="1" stop-color="#A3E635"/>
-    </linearGradient>
-    <linearGradient id="ring" x1="6" y1="10" x2="58" y2="54" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#A78BFA"/>
-      <stop offset="1" stop-color="#3B82F6"/>
-    </linearGradient>
-  </defs>
-  <circle cx="32" cy="32" r="26.5" fill="none" stroke="url(#ring)" stroke-width="4" stroke-linecap="round" stroke-dasharray="128 39" transform="rotate(-62 32 32)"/>
-  <path d="M18.5 45.5C17.5 29 29 17.5 46.5 17.5C47.5 34 36 45.5 18.5 45.5Z" fill="url(#leaf)"/>
-  <path d="M21 43C27 35.5 33.5 29 41 22.5" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="51" cy="14.5" r="3.6" fill="#A78BFA"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="Eco System">
+  <rect width="64" height="64" rx="15" fill="#EA580C"/>
+  <g fill="#15171C">
+    <rect x="12.8" y="12.8" width="9" height="38.4" rx="2"/>
+    <rect x="12.8" y="12.8" width="38.4" height="9" rx="2"/>
+    <rect x="12.8" y="27.5" width="31.6" height="9" rx="2"/>
+    <rect x="12.8" y="42.2" width="25.4" height="9" rx="2"/>
+  </g>
 </svg>

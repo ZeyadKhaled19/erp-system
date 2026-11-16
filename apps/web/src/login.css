@@ -8,9 +8,9 @@
 .eco-logo-full { display: inline-flex; align-items: center; gap: 0.625rem; direction: ltr; }
 .eco-logo-full svg { flex-shrink: 0; }
 .eco-word { font-family: "Segoe UI", system-ui, sans-serif; font-size: 1.5rem; font-weight: 600; letter-spacing: .3px; color: var(--heading); line-height: 1; white-space: nowrap; }
-.eco-word b { font-weight: 800; background: linear-gradient(90deg, #3B82F6, #22C55E); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.eco-word b { font-weight: 800; color: #EA580C; }
 .eco-logo-full.light .eco-word { color: #F3F4F6; }
-.eco-logo-full.light .eco-word b { background-image: linear-gradient(90deg, #60A5FA, #34D399); }
+.eco-logo-full.light .eco-word b { color: #FB923C; }
 
 .lg-page { min-height: 100%; height: 100%; display: grid; grid-template-columns: minmax(22rem, 42%) minmax(0, 1fr); background: var(--bg); overflow: auto; }
 
@@ -18,22 +18,21 @@
 .lg-brand {
   position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center;
   padding: clamp(2rem, 5vw, 4rem); color: #E5E7EB;
-  background: radial-gradient(120% 80% at 80% 0%, #1E293B 0%, #0F1115 62%);
+  background: radial-gradient(circle, #262a33 1.2px, transparent 1.4px) 0 0 / 16px 16px, #15171C;
 }
-.lg-orb { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .45; pointer-events: none; }
-.lg-orb.a { width: 22rem; height: 22rem; background: #2563EB; top: -6rem; inset-inline-start: -6rem; animation: lg-float 14s ease-in-out infinite; }
-.lg-orb.b { width: 18rem; height: 18rem; background: #16A34A; bottom: -5rem; inset-inline-end: -4rem; opacity: .35; animation: lg-float 16s ease-in-out infinite reverse; }
-@keyframes lg-float { 50% { transform: translate(2rem, 1.5rem) scale(1.08); } }
 .lg-brand-in { position: relative; z-index: 1; max-width: 30rem; }
 .lg-eco { margin-bottom: clamp(1.75rem, 5vh, 3rem); }
 .lg-eco .eco-word { font-size: 1.75rem; }
 .lg-tag { margin: 0 0 0.75rem; font-size: clamp(1.625rem, 2.4vw, 2.25rem); font-weight: 800; line-height: 1.3; color: #F9FAFB; }
 .lg-sub { margin: 0 0 1.75rem; font-size: 1rem; line-height: 1.8; color: #9CA3AF; }
-.lg-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
-.lg-points li { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9688rem; font-weight: 600; color: #D1D5DB; }
-.lg-points svg { width: 2.125rem; height: 2.125rem; padding: 0.5rem; border-radius: 0.75rem; background: #ffffff10; border: 1px solid #ffffff1a; color: #93C5FD; flex-shrink: 0; }
-.lg-points li:nth-child(2) svg { color: #86EFAC; }
-.lg-points li:nth-child(3) svg { color: #C4B5FD; }
+.lg-chips { list-style: none; margin: 0 0 clamp(1.5rem, 4vh, 2.5rem); padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.lg-chips li { display: inline-flex; align-items: center; gap: 0.375rem; height: 2rem; padding: 0 0.875rem; border-radius: 999px; border: 1px solid #EA580C; color: #FB923C; font-size: 0.875rem; font-weight: 600; }
+.lg-chips svg { width: 1rem; height: 1rem; }
+.lg-art { display: block; width: min(100%, 24rem); height: auto; font-family: inherit; direction: ltr; }
+.lg-art .lg-bar { transform-box: fill-box; transform-origin: bottom; animation: lg-grow .9s .2s cubic-bezier(.2,.9,.3,1.1) both; }
+.lg-art .lg-bar + .lg-bar { animation-delay: .35s; }
+@keyframes lg-grow { from { transform: scaleY(.2); } to { transform: none; } }
+@media (max-height: 640px) { .lg-art { display: none; } }
 .lg-brand-foot { position: absolute; z-index: 1; bottom: 1.25rem; inset-inline-start: clamp(2rem, 5vw, 4rem); font-size: 0.75rem; color: #6B7280; direction: ltr; }
 
 /* ---------- نموذج الدخول ---------- */
@@ -98,4 +97,4 @@
   .lg-card { border-radius: 1.125rem; padding: 1.375rem 1.125rem; box-shadow: none; }
   .lg-head h1 { font-size: 1.3125rem; }
 }
-@media (prefers-reduced-motion: reduce) { .lg-orb { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .lg-art .lg-bar { animation: none; } }

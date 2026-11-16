@@ -572,6 +572,7 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
   .mc-top .mc-nav-ic svg { width: 1.3125rem; height: 1.3125rem; }
   .mc-top .mc-logo-img { height: 2.625rem; max-width: 11rem; }
   .mc-top .mc-logo { width: 2.5rem; height: 2.5rem; font-size: var(--text-xl); }
+  .mc-top .mc-logo-mark { width: 2.5rem; height: 2.5rem; }
   .mc-top .mc-company { font-size: var(--text-2xl); }
   .mc-top .mc-system { font-size: var(--text-lg); }
   .mc-top .mc-icon-btn { width: 2.75rem; height: 2.75rem; }
