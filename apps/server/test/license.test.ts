@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { expiryFor, licenseStatus, normalizeMachineId, signLicense, signReset, verifyLicense, verifyReset } from '../src/license';
+import { expiryFor, extractCode, licenseStatus, normalizeMachineId, signLicense, signReset, verifyLicense, verifyReset } from '../src/license';
 
 const kp = crypto.generateKeyPairSync('ed25519');
 const PRIV = kp.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64');
@@ -68,5 +68,16 @@ describe('recovery codes (new username and password for a forgotten login)', () 
     expect(verifyReset(signReset(other, { m: M, u: 'x', h: 'y', x: exp }), M, new Date('2026-11-16T12:00:00Z'), PUB).ok).toBe(false);
     // كود تفعيل مش بينفع ككود استرجاع
     expect(verifyReset(signLicense(PRIV, { m: M, e: null, n: 'x', t: '2026-11-16' }), M, new Date('2026-11-16T12:00:00Z'), PUB).ok).toBe(false);
+  });
+});
+
+describe('pasting the whole message', () => {
+  it('finds the code inside the WhatsApp message (Arabic text, username and password around it, broken lines)', () => {
+    const code = signReset(PRIV, { m: M, u: 'yasser', h: 'h', x: '2026-11-17T10:00:00Z' });
+    const msg = `بيانات الدخول الجديدة لـ Eco System:\nاسم المستخدم: yasser\nكلمة السر: Reset-55\n\nفي شاشة الدخول دوس «نسيت» والصق الكود ده (شغال 24 ساعة):\n${code.slice(0, 40)}\n${code.slice(40)}`;
+    expect(extractCode(msg, 'ECOR-')).toBe(code);
+    expect(verifyReset(msg, M, new Date('2026-11-16T12:00:00Z'), PUB).ok).toBe(true);
+    const lic = signLicense(PRIV, { m: M, e: null, n: 'محل', t: '2026-11-16' });
+    expect(verifyLicense(`كود تفعيل Eco System لـ «محل»:\n${lic}\n\nافتح البرنامج`, M, PUB).ok).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import type { Db } from './db';
 import { hashPassword, strongEnough, WEAK_PASSWORD_MESSAGE } from './auth';
 import { AppError } from './errors';
 import { EG_GOVERNORATES } from '@erp/shared';
-import { DEFAULT_CONTACT, TRIAL_DAYS, expiryFor, signReset, verifyReset, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
+import { DEFAULT_CONTACT, TRIAL_DAYS, expiryFor, extractCode, signReset, verifyReset, licenseStatus, normalizeMachineId, signLicense, validMachineId, verifyLicense, type LicenseInput, type LicenseStatus, type VendorContact } from './license';
 
 /** القفل في برنامج الويندوز: البرنامج بيدّي الخادم بيانات الجهاز، والخادم بيقرر مفتوح ولا مقفول */
 export interface LicenseGate {
@@ -102,9 +102,10 @@ export function registerLicensing(app: FastifyInstance, o: LicensingOptions) {
     const cur = input()!;
     const v = verifyLicense(code, cur.machineId);
     if (!v.ok) throw new AppError(v.error);
-    const s = licenseStatus({ ...cur, code: code.replace(/\s+/g, '') });
+    const clean = extractCode(code, 'ECO1-');
+    const s = licenseStatus({ ...cur, code: clean });
     if (s.status !== 'active') throw new AppError(s.status === 'expired' ? s.message : 'الكود ده مش شغال');
-    o.gate.activate(code.replace(/\s+/g, ''));
+    o.gate.activate(clean);
     return { license: s };
   });
 

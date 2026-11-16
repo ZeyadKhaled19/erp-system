@@ -24,6 +24,16 @@ export interface LicensePayload {
   t: string;
 }
 
+/**
+ * بيلاقي الكود جوه أي كلام اتلصق (مثلًا رسالة الواتساب كلها بالعربي واليوزر والباسورد).
+ * المسافات والسطور الجديدة بتتشال الأول علشان الكود لو اتقطع على كذا سطر.
+ */
+export function extractCode(text: string, prefix: 'ECO1-' | 'ECOR-'): string {
+  const flat = String(text ?? '').replace(/\s+/g, '');
+  const m = new RegExp(`${prefix}[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+`).exec(flat);
+  return m ? m[0] : flat;
+}
+
 const b64u = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromB64u = (s: string) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
@@ -46,7 +56,7 @@ export function signLicense(privateKeyBase64: string, p: LicensePayload): string
 
 /** يتأكد من الكود: سليم، ومتوقّع بمفتاحنا، ومتعمل للجهاز ده. بيرجع البيانات أو رسالة الغلط */
 export function verifyLicense(code: string, machineId: string, publicKeyBase64 = LICENSE_PUBLIC_KEY): { ok: true; payload: LicensePayload } | { ok: false; error: string } {
-  const c = String(code ?? '').replace(/\s+/g, '');
+  const c = extractCode(code, 'ECO1-');
   if (!c.startsWith(PREFIX) || !c.includes('.')) return { ok: false, error: 'الكود مش مكتوب صح. انسخه زي ما هو من الرسالة.' };
   const [bodyPart, sigPart] = c.slice(PREFIX.length).split('.');
   let body: Buffer;
@@ -159,7 +169,7 @@ export function signReset(privateKeyBase64: string, p: ResetPayload): string {
 }
 
 export function verifyReset(code: string, machineId: string, now = new Date(), publicKeyBase64 = LICENSE_PUBLIC_KEY): { ok: true; payload: ResetPayload } | { ok: false; error: string } {
-  const c = String(code ?? '').replace(/\s+/g, '');
+  const c = extractCode(code, 'ECOR-');
   if (!c.startsWith(RESET_PREFIX) || !c.includes('.')) return { ok: false, error: 'كود الاسترجاع مش مكتوب صح. انسخه زي ما هو من الرسالة.' };
   const [bodyPart, sigPart] = c.slice(RESET_PREFIX.length).split('.');
   let body: Buffer;
