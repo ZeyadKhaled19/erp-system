@@ -46,7 +46,7 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
     actions: [
       { key: 'purchases.view', label: 'مشاهدة' },
       { key: 'purchases.create', label: 'إنشاء' },
-      { key: 'purchases.edit', label: 'تعديل المسودات' },
+      { key: 'purchases.edit', label: 'تعديل الفواتير المرحّلة' },
       { key: 'purchases.post', label: 'ترحيل' },
       { key: 'purchases.cancel', label: 'إلغاء' },
       { key: 'purchases.free_return', label: 'مرتجع بدون فاتورة' },
