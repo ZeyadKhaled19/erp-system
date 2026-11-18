@@ -128,6 +128,7 @@ async function markEntity(entry: OutboxEntry, r: OpResult) {
     if (entry.op.type === 'doc.amend') {
       patch.status = 'cancelled';
       patch.amended_to_id = res.id;
+      patch.number = null;
       patch.cancel_reason = entry.op.reason ? `تعديل: ${entry.op.reason}` : 'تم تعديل الفاتورة';
     } else {
       if (res.number) patch.number = res.number;

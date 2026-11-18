@@ -305,7 +305,7 @@ export function PartyDetail() {
   const [range, setRange] = useState({ from: `${todayISO().slice(0, 4)}-01-01`, to: todayISO() });
   const L = KIND_LABEL[kind];
   const party = useLiveQuery(() => db.parties.get(id), [id]);
-  const docs = useLiveQuery(async () => (await db.documents.where('party_id').equals(id).toArray()).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 50), [id]) ?? [];
+  const docs = useLiveQuery(async () => (await db.documents.where('party_id').equals(id).toArray()).filter((d) => !d.amended_to_id).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 50), [id]) ?? [];
   const [byItems, setByItems] = useState(false);
   const st = useRemote<any>(party && !party._sync ? `/api/reports/party/${id}?from=${range.from}&to=${range.to}${byItems ? '&items=1' : ''}` : null, [party?.row_version]);
   if (!party) return <div className="page"><Empty title="غير موجود" /></div>;

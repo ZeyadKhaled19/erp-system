@@ -68,7 +68,7 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
     const parties = (can('parties.view') ? await db.parties.filter((p) => match(p.name, p.code, p.phone)).limit(8).toArray() : []).map((p) => ({
       key: 'p' + p.id, label: p.name, sub: p.kind === 'customer' ? 'عميل' : 'مورد', to: `/parties/${p.kind}/${p.id}`,
     }));
-    const docs = (await db.documents.filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && can(`${m}.view`) && match(d.number, d.local_number); }).limit(8).toArray()).map((d) => ({
+    const docs = (await db.documents.filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && !d.amended_to_id && can(`${m}.view`) && match(d.number, d.local_number); }).limit(8).toArray()).map((d) => ({
       key: 'd' + d.id, label: d.number ?? d.local_number, sub: DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.label, to: `/docs/view/${d.id}`,
     }));
     const pg = pages.filter((n) => n.label.includes(q.trim())).slice(0, 6).map((n) => ({ key: 'n' + n.to, label: n.label, sub: 'صفحة', to: n.to }));

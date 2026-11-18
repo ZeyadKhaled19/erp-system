@@ -126,7 +126,7 @@ export function InvoicesPage() {
     // لا تظهر إلا مستندات الوحدات المسموح بمشاهدتها
     return list.filter((d) => {
       const m = DOC_TYPES[d.doc_type as DocType]?.module;
-      return !!m && hasPermission(session.user.permissions, `${m}.view`);
+      return !!m && !d.amended_to_id && hasPermission(session.user.permissions, `${m}.view`);
     });
   }, [start, end, period, session.user.permissions.join(',')]) ?? [];
 

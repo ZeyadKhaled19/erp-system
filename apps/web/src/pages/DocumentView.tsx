@@ -27,7 +27,11 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
   useEffect(() => setTab('items'), [id]);
 
   const doc = useLiveQuery(() => db.documents.get(id), [id]);
+  const amendedDocument = useLiveQuery(() => doc?.amended_to_id ? db.documents.get(doc.amended_to_id) : undefined, [doc?.amended_to_id]);
   const lines = useLiveQuery(() => db.document_lines.where('document_id').equals(id).sortBy('line_no'), [id]) ?? [];
+  useEffect(() => {
+    if (!embedded && doc?.amended_to_id && amendedDocument) nav(`/docs/view/${amendedDocument.id}`, { replace: true });
+  }, [embedded, doc?.amended_to_id, amendedDocument?.id, nav]);
   const lookups = useLiveQuery(async () => {
     if (!doc) return null;
     const [toCb, partner, rep, insts] = await Promise.all([
@@ -62,6 +66,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
 
   if (doc === undefined) return <div className="page muted">جارٍ التحميل…</div>;
   if (!doc) return <div className="page"><Empty title="المستند غير موجود على هذا الجهاز" /></div>;
+  if (doc.amended_to_id) return <div className="page"><Banner kind="info">تم تعديل الفاتورة بنجاح. جارٍ فتح بياناتها المحدّثة…</Banner></div>;
   const info = DOC_TYPES[doc.doc_type as keyof typeof DOC_TYPES];
   const L = lookups;
   const module = info.module;
@@ -106,7 +111,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
             <div className="dv-type">
               <span>{info.label}</span>
               <span className="num dv-no">{doc.number ?? doc.local_number}</span>
-              <DocStatusBadge status={doc.status} sync={doc._sync} />
+              <DocStatusBadge status={doc.amended_to_id ? 'posted' : doc.status} sync={doc._sync} />
               {ps && <span className={`inv-pay ${ps.key}`}>{ps.label}</span>}
             </div>
             {partyLabel && (
@@ -168,8 +173,6 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
         <div className="dv-actions no-print">
           {canEdit && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}`)}><Pencil /> تعديل</button>}
           {canAmendPurchase && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}?amend=1`)}><Pencil /> تعديل الفاتورة</button>}
-          {doc.amended_from_id && <button className="btn" onClick={() => nav(`/docs/view/${doc.amended_from_id}`)}>الفاتورة الأصلية</button>}
-          {doc.amended_to_id && <button className="btn" onClick={() => nav(`/docs/view/${doc.amended_to_id}`)}>الفاتورة البديلة</button>}
           {canPost && (
             <button
               className="btn primary"
@@ -209,7 +212,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
       {(doc.status === 'pending_review' || doc._sync === 'conflict') && (
         <div className="no-print dv-banner"><Banner kind="warn">{doc.review_reason ?? doc._error} — يمكن لمستخدم لديه صلاحية حل التعارضات معالجته من مركز المزامنة.</Banner></div>
       )}
-      {doc.status === 'cancelled' && <div className="dv-banner"><Banner kind={doc.amended_to_id ? 'info' : 'err'}>{doc.amended_to_id ? 'تم تعديل الفاتورة واستبدالها. أُبقيت النسخة الأصلية في السجل وعُكس أثرها بقيد عكسي. افتح «الفاتورة البديلة» لعرض النسخة المعدلة.' : `ملغي${doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.`}</Banner></div>}
+      {doc.status === 'cancelled' && <div className="dv-banner"><Banner kind="err">ملغي{doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.</Banner></div>}
 
       {/* رأس الطباعة */}
       <div className="print-only" style={{ marginBottom: 16 }}>
