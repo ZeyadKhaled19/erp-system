@@ -165,11 +165,11 @@ export function DocumentEditor() {
       setPayments((existing.data?.payments ?? []).map((p: Pay) => amendMode ? { ...p, id: uuid() } : p));
       setInsts((existing.data?.instruments ?? []).map((x: Inst) => amendMode ? { ...x, id: uuid() } : x));
       setCharges(existing.data?.charges ?? []);
-      setPayAuto(false);
       {
         const ps = existing.data?.payments ?? [];
         const ins = existing.data?.instruments ?? [];
         setPayMode(ins.length || ps.length > 1 ? 'split' : ps.length === 1 && ps[0].amount === existing.total ? 'full' : ps.length ? 'split' : 'credit');
+        setPayAuto(amendMode && ps.length === 1 && ps[0].amount === existing.total && ins.length === 0);
         setShowMore(!!(existing.sales_rep_id || existing.deliver_later || (existing.data?.charges ?? []).length || ins.length || (existing.price_list_id && existing.price_list_id !== 'pl-retail')));
       }
       setCounterMode(existing.account_id && !existing.party_id ? 'account' : 'party');
@@ -506,11 +506,18 @@ export function DocumentEditor() {
 
   const saveAmendment = async () => {
     if (!existing || !amendmentInfo.data) return;
-    const allocations = amendmentInfo.data.payment_allocations.map((p) => ({ source_id: p.source_id, amount: amendPaymentAllocations.find((x) => x.source_id === p.source_id)?.amount ?? 0 }));
+    let allocationWasLimited = false;
+    const allocations = amendmentInfo.data.payment_allocations.map((p) => {
+      const amount = amendPaymentAllocations.find((x) => x.source_id === p.source_id)?.amount ?? 0;
+      if (!Number.isFinite(amount) || amount < 0) return { source_id: p.source_id, amount: Number.NaN };
+      if (amount > p.max_amount) allocationWasLimited = true;
+      return { source_id: p.source_id, amount: Math.min(amount, p.max_amount) };
+    });
     for (const p of amendmentInfo.data.payment_allocations) {
       const amount = allocations.find((x) => x.source_id === p.source_id)?.amount ?? 0;
-      if (!Number.isFinite(amount) || amount < 0 || amount > p.max_amount) return setError(`المبلغ المخصص من سند ${p.number} لا يمكن أن يتجاوز ${formatMoney(p.max_amount)}.`);
+      if (!Number.isFinite(amount) || amount < 0) return setError(`أدخل مبلغًا صحيحًا لسند ${p.number}.`);
     }
+    if (allocationWasLimited) setAmendPaymentAllocations(allocations);
     const linkedTotal = allocations.reduce((sum, x) => sum + x.amount, 0);
     if (linkedTotal + cashPaid + instTotal > total) return setError('إجمالي المدفوعات أكبر من إجمالي الفاتورة.');
     if (amendReason.trim().length > 500) return setError('سبب التعديل يجب ألا يزيد عن 500 حرف.');
@@ -520,7 +527,7 @@ export function DocumentEditor() {
     if (v) return setError(v);
     const ok = await ui.confirm({
       title: 'تأكيد تعديل الفاتورة؟',
-      message: `سيتم حفظ التعديلات على الفاتورة بنفس رقمها، مع تسجيل أثر التعديل على المخزون والحسابات.${amendReason.trim() ? `\n\nالسبب: ${amendReason.trim()}` : ''}`,
+      message: `سيتم حفظ التعديلات على الفاتورة بنفس رقمها، مع تسجيل أثر التعديل على المخزون والحسابات. أي مبلغ غير مغطى بسداد فعلي سيبقى مستحقًا على المورد.${allocationWasLimited ? '\n\nتم ضبط تخصيص سند الصرف على المتاح فيه؛ الزيادة ستظل دينًا على المورد.' : ''}${amendReason.trim() ? `\n\nالسبب: ${amendReason.trim()}` : ''}`,
       confirmLabel: 'موافق',
     });
     if (!ok) return;
@@ -1188,20 +1195,24 @@ export function DocumentEditor() {
       {amendPaymentsOpen && amendmentInfo.data && (
         <Sheet title="مراجعة وتعديل المدفوعات" onClose={() => setAmendPaymentsOpen(false)} wide footer={<><button className="btn" onClick={() => setAmendPaymentsOpen(false)}>رجوع</button><button className="btn primary" disabled={busy} onClick={() => void saveAmendment()}>{busy ? 'جارٍ الحفظ…' : 'تأكيد التعديل'}</button></>}>
           <div className="stack">
-            <Banner kind="info">عدّل المبلغ المخصص من كل سند صرف لهذه الفاتورة. سند الصرف وحركة الخزينة يظلان كما هما. دفعات الفاتورة المباشرة تُعدّل من النموذج السابق.</Banner>
+            <Banner kind="info">زيادة إجمالي الفاتورة تُضاف للمستحق على المورد تلقائيًا. لا تخصّص من سند الصرف أكثر من المبلغ المتاح فيه؛ أي زيادة ستظل دينًا. سند الصرف وحركة الخزينة يظلان كما هما. الدفعات النقدية المباشرة تُعدّل من النموذج السابق.</Banner>
             {amendmentInfo.data.payment_allocations.length === 0 && <div className="card pad muted">لا توجد سندات صرف منفصلة مرتبطة بهذه الفاتورة.</div>}
             {amendmentInfo.data.payment_allocations.map((p) => {
               const allocation = amendPaymentAllocations.find((x) => x.source_id === p.source_id)?.amount ?? 0;
               return <div className="card pad stack" key={p.source_id}>
                 <div className="row wrap"><strong style={{ flex: 1 }}>سند صرف {p.number}</strong><span>{p.date}</span></div>
                 <div className="footnote">إجمالي السند {formatMoney(p.total)} · المخصص حاليًا {formatMoney(p.current_amount)} · الخزينة {p.cashbox_name ?? '—'}</div>
-                <Field label="المبلغ المخصص للفاتورة" hint={`الحد المتاح: ${formatMoney(p.max_amount)}`}>
-                  <MoneyInput value={allocation} onChange={(amount) => setAmendPaymentAllocations((rows) => rows.map((x) => x.source_id === p.source_id ? { ...x, amount } : x))} />
+                <Field label="المبلغ المخصص للفاتورة" hint={`المتاح في السند: ${formatMoney(p.max_amount)} · أي فرق يظل دينًا على المورد`}>
+                  <MoneyInput value={allocation} onChange={(amount) => setAmendPaymentAllocations((rows) => rows.map((x) => x.source_id === p.source_id ? { ...x, amount: Math.max(0, Math.min(amount, p.max_amount)) } : x))} />
                 </Field>
               </div>;
             })}
             <Field label="سبب التعديل (اختياري)"><input className="input" value={amendReason} maxLength={500} onChange={(e) => setAmendReason(e.target.value)} placeholder="مثال: تصحيح الكمية أو سعر الصنف" /></Field>
-            <div className="tr grand"><span>إجمالي الفاتورة</span><span className="num">{formatMoney(total)}</span></div>
+            <div className="card pad stack">
+              <div className="tr"><span>إجمالي الفاتورة</span><span className="num">{formatMoney(total)}</span></div>
+              <div className="tr"><span>المدفوع مباشرة + سندات الصرف</span><span className="num">{formatMoney(cashPaid + instTotal + amendPaymentAllocations.reduce((sum, x) => sum + x.amount, 0))}</span></div>
+              <div className="tr grand"><span>المتبقي المستحق على المورد</span><span className="num">{formatMoney(Math.max(0, total - cashPaid - instTotal - amendPaymentAllocations.reduce((sum, x) => sum + x.amount, 0)))}</span></div>
+            </div>
           </div>
         </Sheet>
       )}
