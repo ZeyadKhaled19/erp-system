@@ -154,9 +154,14 @@ export async function cancelDocument(doc: Record<string, any>, reason: string) {
 }
 
 /** تعديل فاتورة مرحّلة عبر إلغاء أثر الأصل وإنشاء فاتورة بديلة على الخادم. */
-export async function amendPurchaseInvoice(original: Record<string, any>, doc: DocInput, reason: string) {
+export async function amendPurchaseInvoice(
+  original: Record<string, any>,
+  doc: DocInput,
+  paymentAllocations: { source_id: string; amount: number }[],
+  reason?: string,
+) {
   return enqueue(
-    { type: 'doc.amend', id: original.id, doc, reason },
+    { type: 'doc.amend', id: original.id, doc, payment_allocations: paymentAllocations, reason: reason?.trim() || undefined },
     {
       label: `تعديل فاتورة شراء ${original.number ?? original.local_number ?? ''}`,
       entity: 'document',

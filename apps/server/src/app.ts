@@ -299,6 +299,47 @@ export async function buildApp(opts: AppOptions) {
     r.related = r.related.filter((row: any) => allowedRelated.has(row.id));
     return r;
   });
+  app.get('/api/documents/:id/amendment', { preHandler: auth }, async (req) => {
+    const id = (req.params as any).id;
+    const invoice = await db.one(`select id, doc_type, status, party_id, warehouse_id from documents where id = $1`, [id]);
+    if (!invoice) throw new AppError('الفاتورة غير موجودة', 'not_found');
+    if (invoice.doc_type !== 'purchase_invoice' || invoice.status !== 'posted') throw new AppError('تعديل الفاتورة متاح لفاتورة شراء مرحّلة فقط', 'state');
+    if (!hasPermission(req.user!.permissions, 'purchases.view') || !hasPermission(req.user!.permissions, 'purchases.edit') || !hasPermission(req.user!.permissions, 'purchases.post')) {
+      throw new AppError('تحتاج إلى صلاحيات مشاهدة وتعديل وترحيل المشتريات', 'forbidden');
+    }
+    assertWarehouseScope(req, invoice.warehouse_id);
+    const sources = await db.query(
+      `select p.id as source_id, p.number, p.date, p.total, p.allocated, p.cashbox_id, c.name as cashbox_name,
+              coalesce(sum(a.amount) filter (where a.invoice_id = $1 and not a.reversed), 0)::bigint as current_amount
+         from documents p
+         left join allocations a on a.source_id = p.id and not a.reversed
+         left join cashboxes c on c.id = p.cashbox_id
+        where p.doc_type = 'payment' and p.party_id = $2 and (p.ref_doc_id = $1 or a.invoice_id = $1)
+        group by p.id, c.name
+        order by p.date, p.created_at`,
+      [id, invoice.party_id],
+    );
+    if (sources.length && !hasPermission(req.user!.permissions, 'treasury.view')) {
+      throw new AppError('تعديل المدفوعات المرتبطة يحتاج صلاحية عرض الخزينة', 'forbidden');
+    }
+    for (const source of sources) assertCashboxScope(req, source.cashbox_id);
+    return {
+      payment_allocations: sources.map((source: any) => {
+        const current = Number(source.current_amount) || 0;
+        const total = Number(source.total) || 0;
+        const allocated = Number(source.allocated) || 0;
+        return {
+          source_id: source.source_id,
+          number: source.number,
+          date: source.date,
+          total,
+          current_amount: current,
+          max_amount: Math.max(0, total - Math.max(0, allocated - current)),
+          cashbox_name: source.cashbox_name,
+        };
+      }),
+    };
+  });
 
   app.get('/api/reports/commissions', { preHandler: perm('reports.view') }, async (req) => R.commissionsReport(db, range(req)));
   app.get('/api/admin/integrity', { preHandler: perm('reports.financial') }, async () => integrityCheck(db));

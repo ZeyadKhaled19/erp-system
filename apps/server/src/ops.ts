@@ -428,7 +428,7 @@ async function handleDocAmend(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.amen
   if (!original) throw new AppError('المستند الأصلي غير موجود', 'not_found');
   need(ctx.user, docPerm(original.doc_type, 'edit'));
   need(ctx.user, docPerm(original.doc_type, 'post'));
-  const r = await amendDocument(t, ctx, op.id, op.doc, op.reason);
+  const r = await amendDocument(t, ctx, op.id, op.doc, op.reason ?? '', op.payment_allocations);
   return { op_id: '', status: 'accepted', result: { id: r.id, number: r.number, status: 'posted', version: r.version } };
 }
 
