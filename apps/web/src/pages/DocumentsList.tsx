@@ -27,7 +27,10 @@ export function DocumentsList() {
 
   const docs = useLiveQuery(async () => {
     const all = await db.documents.where('date').between(from, to, true, true).toArray();
-    return all.filter((d) => DOC_TYPES[d.doc_type as DocType]?.module === module && !d.amended_to_id).sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
+    return all.filter((d) => {
+      const isAmendmentArchive = !!d.amended_to_id || (d.doc_type === 'purchase_invoice' && d.status === 'cancelled' && (d.cancel_reason === 'تم تعديل الفاتورة' || d.cancel_reason?.startsWith('تعديل:')));
+      return DOC_TYPES[d.doc_type as DocType]?.module === module && !isAmendmentArchive;
+    }).sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
   }, [module, from, to]) ?? [];
 
   const list = docs.filter((d) => {
