@@ -9,7 +9,7 @@ import { PageHeader } from '../components/Layout';
 import { Banner, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
 import { amendPurchaseInvoice, localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useSession, useSettings, userCashboxes } from '../lib/hooks';
+import { useRemote, useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { QuickAccountSheet } from '../components/QuickAccount';
@@ -50,6 +50,16 @@ interface Inst {
   cheque_no?: string | null;
   bank?: string | null;
 }
+interface AmendmentPayment {
+  source_id: string;
+  number: string;
+  date: string;
+  total: number;
+  current_amount: number;
+  max_amount: number;
+  cashbox_name: string | null;
+}
+interface AmendmentInfo { payment_allocations: AmendmentPayment[] }
 
 const EFFECT: Partial<Record<DocType, string>> = {
   sale_invoice: 'سيُخصم المخزون ويُسجل قيد المبيعات والتكلفة وتُحدّث الخزائن وحساب العميل والشيكات والأقساط.',
@@ -85,6 +95,7 @@ export function DocumentEditor() {
 
   const existing = useLiveQuery(async () => (params.id ? ((await db.documents.get(params.id)) ?? null) : null), [params.id]);
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
+  const amendmentInfo = useRemote<AmendmentInfo>(amendMode && params.id ? `/api/documents/${params.id}/amendment` : null, [params.id, existing?.row_version]);
   const type = (params.type ?? existing?.doc_type) as DocType;
   const info = DOC_TYPES[type];
 
@@ -125,6 +136,8 @@ export function DocumentEditor() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [amendReason, setAmendReason] = useState('');
+  const [amendPaymentsOpen, setAmendPaymentsOpen] = useState(false);
+  const [amendPaymentAllocations, setAmendPaymentAllocations] = useState<{ source_id: string; amount: number }[]>([]);
   const [avail, setAvail] = useState<Record<string, number>>({});
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
@@ -134,6 +147,12 @@ export function DocumentEditor() {
   const [planOpen, setPlanOpen] = useState(false);
   const [scan, setScan] = useState('');
   const scanRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (amendmentInfo.data) {
+      setAmendPaymentAllocations(amendmentInfo.data.payment_allocations.map((p) => ({ source_id: p.source_id, amount: p.current_amount })));
+    }
+  }, [amendmentInfo.data]);
 
   // ---------------- التحميل
   useEffect(() => {
@@ -485,14 +504,41 @@ export function DocumentEditor() {
     return null;
   };
 
+  const saveAmendment = async () => {
+    if (!existing || !amendmentInfo.data) return;
+    const allocations = amendmentInfo.data.payment_allocations.map((p) => ({ source_id: p.source_id, amount: amendPaymentAllocations.find((x) => x.source_id === p.source_id)?.amount ?? 0 }));
+    for (const p of amendmentInfo.data.payment_allocations) {
+      const amount = allocations.find((x) => x.source_id === p.source_id)?.amount ?? 0;
+      if (!Number.isFinite(amount) || amount < 0 || amount > p.max_amount) return setError(`المبلغ المخصص من سند ${p.number} لا يمكن أن يتجاوز ${formatMoney(p.max_amount)}.`);
+    }
+    const linkedTotal = allocations.reduce((sum, x) => sum + x.amount, 0);
+    if (linkedTotal + cashPaid + instTotal > total) return setError('إجمالي المدفوعات أكبر من إجمالي الفاتورة.');
+    if (amendReason.trim().length > 500) return setError('سبب التعديل يجب ألا يزيد عن 500 حرف.');
+    const d = buildDoc();
+    d.local_number = null;
+    const v = validate(d);
+    if (v) return setError(v);
+    setBusy(true);
+    setError(null);
+    try {
+      await amendPurchaseInvoice(existing, d, allocations, amendReason.trim() || undefined);
+      ui.toast('تم إرسال تعديل الفاتورة للمزامنة', 'ok');
+      nav(`/docs/view/${existing.id}`, { replace: true });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async (action: 'draft' | 'post') => {
     setError(null);
     if (amendMode && action !== 'post') return setError('تعديل الفاتورة المرحّلة يُحفظ ويرحّل كفاتورة بديلة في خطوة واحدة.');
-    if (amendMode && amendReason.trim().length < 3) return setError('اكتب سبب تعديل الفاتورة (3 أحرف على الأقل).');
     const d = buildDoc();
     if (amendMode) d.local_number = null;
     const v = validate(d);
     if (v) return setError(v);
+    if (amendMode) { if (amendmentInfo.loading) return setError('جارٍ تحميل سندات الدفع المرتبطة.'); if (amendmentInfo.error || !amendmentInfo.data) return setError('تعذر تحميل المدفوعات المرتبطة.'); setAmendPaymentsOpen(true); return; }
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
       const ok = await ui.confirm({
@@ -506,8 +552,7 @@ export function DocumentEditor() {
     }
     setBusy(true);
     try {
-      if (amendMode) await amendPurchaseInvoice(existing!, d, amendReason.trim());
-      else await saveDocument(d, action, existing ?? null);
+      await saveDocument(d, action, existing ?? null);
       ui.toast(amendMode ? 'تم إرسال تعديل الفاتورة للمزامنة' : action === 'post' ? `تم حفظ ${info.label}` : 'تم حفظ المسودة', 'ok', {
         actions: !amendMode && action === 'post' ? [
           ...(info.priced ? [{ label: 'طباعة', onClick: () => window.open(`/print/${d.id}?auto=1`, '_blank') }] : []),
@@ -562,8 +607,8 @@ export function DocumentEditor() {
         title={amendMode ? `تعديل ${info.label}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
-      {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">ستُحفظ فاتورة بديلة، مع الاحتفاظ بالأصل وعكس أثره على المخزون والحسابات. لا يمكن تنفيذ التعديل إذا وُجدت دفعات أو مستندات مرتبطة بالفاتورة.</Banner></div>}
-      {amendMode && <div className="card pad" style={{ marginBottom: 12 }}><Field label="سبب التعديل *"><input className="input" value={amendReason} maxLength={500} onChange={(e) => setAmendReason(e.target.value)} placeholder="مثال: تصحيح الكمية أو سعر الصنف" /></Field></div>}
+      {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">ستُحفظ فاتورة بديلة مع الاحتفاظ بالأصل وعكس أثره على المخزون والحسابات. في الخطوة التالية يمكنك مراجعة سندات الصرف وتعديل المبالغ المخصصة لها. يجب معالجة المرتجعات أو المستندات التابعة قبل التعديل.</Banner></div>}
+      {amendMode && amendmentInfo.error && <div style={{ marginBottom: 12 }}><Banner kind="err">تعذر تحميل سندات الدفع: {amendmentInfo.error}</Banner></div>}
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
       {existing?.review_reason && <div style={{ marginBottom: 12 }}><Banner kind="warn">{existing.review_reason}</Banner></div>}
@@ -1106,7 +1151,7 @@ export function DocumentEditor() {
         </div>
         {!amendMode && <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>}
         <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
-          {amendMode ? 'حفظ التعديل وترحيل البديل' : info.noPosting ? 'اعتماد' : 'حفظ'}
+          {amendMode ? 'التالي: مراجعة المدفوعات' : info.noPosting ? 'اعتماد' : 'حفظ'}
         </button>
       </div>
 
@@ -1133,6 +1178,26 @@ export function DocumentEditor() {
             setPlanOpen(false);
           }}
         />
+      )}
+      {amendPaymentsOpen && amendmentInfo.data && (
+        <Sheet title="مراجعة وتعديل المدفوعات" onClose={() => setAmendPaymentsOpen(false)} wide footer={<><button className="btn" onClick={() => setAmendPaymentsOpen(false)}>رجوع</button><button className="btn primary" disabled={busy} onClick={() => void saveAmendment()}>{busy ? 'جارٍ الحفظ…' : 'تأكيد وترحيل الفاتورة البديلة'}</button></>}>
+          <div className="stack">
+            <Banner kind="info">عدّل المبلغ الذي تريد تخصيصه من كل سند صرف للفاتورة البديلة. سند الصرف وحركة الخزينة يظلان كما هما. دفعات الفاتورة المباشرة تُعدّل من النموذج السابق.</Banner>
+            {amendmentInfo.data.payment_allocations.length === 0 && <div className="card pad muted">لا توجد سندات صرف منفصلة مرتبطة بهذه الفاتورة.</div>}
+            {amendmentInfo.data.payment_allocations.map((p) => {
+              const allocation = amendPaymentAllocations.find((x) => x.source_id === p.source_id)?.amount ?? 0;
+              return <div className="card pad stack" key={p.source_id}>
+                <div className="row wrap"><strong style={{ flex: 1 }}>سند صرف {p.number}</strong><span>{p.date}</span></div>
+                <div className="footnote">إجمالي السند {formatMoney(p.total)} · المخصص حاليًا {formatMoney(p.current_amount)} · الخزينة {p.cashbox_name ?? '—'}</div>
+                <Field label="المبلغ المخصص للفاتورة البديلة" hint={`الحد المتاح: ${formatMoney(p.max_amount)}`}>
+                  <MoneyInput value={allocation} onChange={(amount) => setAmendPaymentAllocations((rows) => rows.map((x) => x.source_id === p.source_id ? { ...x, amount } : x))} />
+                </Field>
+              </div>;
+            })}
+            <Field label="سبب التعديل (اختياري)"><input className="input" value={amendReason} maxLength={500} onChange={(e) => setAmendReason(e.target.value)} placeholder="مثال: تصحيح الكمية أو سعر الصنف" /></Field>
+            <div className="tr grand"><span>إجمالي الفاتورة</span><span className="num">{formatMoney(total)}</span></div>
+          </div>
+        </Sheet>
       )}
     </div>
   );
