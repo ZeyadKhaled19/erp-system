@@ -2,7 +2,7 @@ import { DOC_TYPES, hasPermission, MASTER_SCHEMAS, opEnvelopeSchema, type Master
 import type { AuthUser } from './auth';
 import type { Db } from './db';
 import { AppError, pgErrorToApp, ReviewError } from './errors';
-import { cancelDocument, createAndPost, postDocument, saveDocument, type Ctx } from './posting/documents';
+import { amendDocument, cancelDocument, createAndPost, postDocument, saveDocument, type Ctx } from './posting/documents';
 import { trackOut } from './posting/tracking';
 
 const WRITE_LOCK = 7331;
@@ -423,6 +423,15 @@ async function handleDocCancel(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.can
   return { op_id: '', status: 'accepted', result: { id: op.id, status: r.status } };
 }
 
+async function handleDocAmend(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.amend' }>): Promise<OpResult> {
+  const original = await t.one(`select doc_type from documents where id = $1`, [op.id]);
+  if (!original) throw new AppError('المستند الأصلي غير موجود', 'not_found');
+  need(ctx.user, docPerm(original.doc_type, 'edit'));
+  need(ctx.user, docPerm(original.doc_type, 'post'));
+  const r = await amendDocument(t, ctx, op.id, op.doc, op.reason);
+  return { op_id: '', status: 'accepted', result: { id: r.id, number: r.number, status: 'posted', version: r.version } };
+}
+
 async function handleResolve(t: Db, ctx: Ctx, op: Extract<Op, { type: 'conflict.resolve' }>): Promise<OpResult> {
   need(ctx.user, 'conflicts.resolve');
   const c = await t.one(`select * from sync_conflicts where id = $1 for update`, [op.id]);
@@ -474,6 +483,7 @@ function entityOf(op: Op): [string | null, string | null] {
       return ['document', op.doc.id];
     case 'doc.post':
     case 'doc.cancel':
+    case 'doc.amend':
       return ['document', op.id];
     case 'conflict.resolve':
       return ['conflict', op.id];
@@ -703,6 +713,9 @@ export async function applyOp(db: Db, user: AuthUser, deviceId: string, rawEnv: 
           break;
         case 'doc.cancel':
           r = await handleDocCancel(t, ctx, env.op);
+          break;
+        case 'doc.amend':
+          r = await handleDocAmend(t, ctx, env.op);
           break;
         case 'conflict.resolve':
           r = await handleResolve(t, ctx, env.op);

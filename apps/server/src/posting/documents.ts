@@ -962,6 +962,94 @@ export async function cancelDocument(t: Db, ctx: Ctx, docId: string, reason: str
   return t.one(`select * from documents where id = $1`, [docId]);
 }
 
+/** تعديل فاتورة مرحّلة: تُلغى الأصلية وتُنشأ فاتورة جديدة محلها، ويربطان ببعض */
+export async function amendDocument(t: Db, ctx: Ctx, originalId: string, newDoc: DocInput, reason: string) {
+  const original = await t.one(`select * from documents where id = $1 for update`, [originalId]);
+  if (!original) throw new AppError('المستند الأصلي غير موجود', 'not_found');
+  if (original.status !== 'posted') throw new AppError('يمكن تعديل الفواتير المرحّلة فقط', 'state');
+  if (!DOC_TYPES[original.doc_type as DocType].noPosting && DOC_TYPES[original.doc_type as DocType].priced) {
+    // فواتير البيع/الشراء/المرتجعات فقط
+  } else {
+    throw new AppError('نوع المستند هذا لا يدعم التعديل', 'state');
+  }
+  // لا يمكن تعديل فاتورة لها مستندات تابعة (مرتجعات، سندات، تسليمات...)
+  const deps = await t.one(`select count(*)::int as n from documents where ref_doc_id = $1 and status = 'posted'`, [originalId]);
+  if (deps && deps.n > 0) throw new AppError('لا يمكن التعديل: توجد مستندات مرحّلة مرتبطة بالأصل (مرتجعات أو سندات). ألغها أولًا', 'state');
+  const alloc = await t.one(`select count(*)::int as n from allocations where invoice_id = $1 and not reversed`, [originalId]);
+  if (alloc && alloc.n > 0) throw new AppError('لا يمكن التعديل: توجد مقبوضات/مدفوعات مخصصة على الفاتورة الأصلية', 'state');
+  const dlv = await t.one(`select count(*)::int as n from deliveries where document_id = $1`, [originalId]);
+  if (dlv && dlv.n > 0) throw new AppError('لا يمكن التعديل: تم تسليم جزء من الفاتورة', 'state');
+  const inst = await t.one(`select count(*)::int as n from instruments where document_id = $1 and status not in ('open','cancelled')`, [originalId]);
+  if (inst && inst.n > 0) throw new AppError('لا يمكن التعديل: تم تحصيل أو إغلاق شيكات/أقساط الفاتورة', 'state');
+
+  await assertPeriodOpen(t, original.date);
+
+  // إنشاء الفاتورة الجديدة (بمعرف جديد) بنفس نوع المستند الأصلي
+  const newId = crypto.randomUUID();
+  const fullNewDoc: DocInput = {
+    id: newId,
+    doc_type: original.doc_type,
+    date: newDoc.date ?? original.date,
+    party_id: newDoc.party_id ?? original.party_id,
+    warehouse_id: newDoc.warehouse_id ?? original.warehouse_id,
+    to_warehouse_id: newDoc.to_warehouse_id ?? original.to_warehouse_id,
+    cashbox_id: newDoc.cashbox_id ?? original.cashbox_id,
+    to_cashbox_id: newDoc.to_cashbox_id ?? original.to_cashbox_id,
+    account_id: newDoc.account_id ?? original.account_id,
+    partner_id: newDoc.partner_id ?? original.partner_id,
+    employee_id: newDoc.employee_id ?? original.employee_id,
+    sales_rep_id: newDoc.sales_rep_id ?? original.sales_rep_id,
+    price_list_id: newDoc.price_list_id ?? original.price_list_id,
+    shift_id: newDoc.shift_id ?? original.shift_id,
+    due_date: newDoc.due_date ?? original.due_date,
+    reserve: newDoc.reserve ?? original.reserve,
+    deliver_later: newDoc.deliver_later ?? original.deliver_later,
+    order_status: newDoc.order_status ?? original.order_status,
+    shipping_company: newDoc.shipping_company ?? original.shipping_company,
+    charges: newDoc.charges ?? [],
+    payment_type: newDoc.payment_type ?? original.payment_type,
+    side: newDoc.side ?? original.side,
+    ref_doc_id: newDoc.ref_doc_id ?? original.ref_doc_id,
+    notes: newDoc.notes ?? original.notes,
+    local_number: newDoc.local_number ?? original.local_number,
+    lines: newDoc.lines,
+    journal_lines: newDoc.journal_lines,
+    payments: newDoc.payments ?? [],
+    instruments: newDoc.instruments ?? [],
+    paid: newDoc.paid ?? 0,
+    amount: newDoc.amount ?? 0,
+    discount: newDoc.discount ?? 0,
+    retained_bp: newDoc.retained_bp ?? 0,
+    from_quotation_id: newDoc.from_quotation_id ?? null,
+  };
+
+  // حفظ المسودة الجديدة
+  await saveDocument(t, ctx, fullNewDoc);
+  // ترحيل الفاتورة الجديدة
+  const posted = await postDocument(t, ctx, newId);
+
+  // إلغاء الفاتورة الأصلية مع ربطها بالجديدة
+  const today = new Date().toISOString().slice(0, 10);
+  const cancelDate = original.date > today ? original.date : today;
+  await reverseTracking(t, originalId);
+  await reverseStockMoves(t, originalId, cancelDate);
+  await reverseDocumentJournals(t, originalId, cancelDate, ctx.user.id, `تعديل ${DOC_TYPES[original.doc_type as DocType].label} ${original.number}: ${reason}`);
+  await reverseAllocations(t, originalId);
+  await t.query(`update instruments set status = 'cancelled' where document_id = $1 and status = 'open'`, [originalId]);
+  if (original.doc_type === 'sale_invoice' && original.data?.from_quotation_id) {
+    await t.query(`update documents set converted_to_id = null where id = $1`, [original.data.from_quotation_id]);
+  }
+  await t.query(
+    `update documents set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now(), amended_to_id = $4 where id = $1`,
+    [originalId, `تعديل: ${reason}`, ctx.user.id, newId],
+  );
+
+  // ربط الفاتورة الجديدة بالأصل
+  await t.query(`update documents set amended_from_id = $2 where id = $1`, [newId, originalId]);
+
+  return t.one(`select * from documents where id = $1`, [newId]);
+}
+
 /** إنشاء وترحيل مستند داخلي (تحصيل شيك/قسط، فرق وردية) */
 export async function createAndPost(t: Db, ctx: Ctx, doc: Partial<DocInput> & { doc_type: DocType; date: string }) {
   const full: DocInput = {
