@@ -66,8 +66,9 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
   const L = lookups;
   const module = info.module;
   const canEdit = (doc.status === 'draft' || doc.status === 'pending_review' || doc._sync === 'rejected') && can(module === 'accounts' ? 'accounts.journal' : `${module}.create`);
+  const canAmendPurchase = doc.doc_type === 'purchase_invoice' && doc.status === 'posted' && (!doc._sync || doc._sync === 'rejected') && !doc.amended_to_id && can('purchases.edit') && can('purchases.post');
   const canPost = doc.status === 'draft' && !doc._sync && can(module === 'accounts' ? 'accounts.post' : `${module}.post`);
-  const canCancel = doc.status !== 'cancelled' && !(doc._sync === 'pending' && !doc.number) && can(module === 'accounts' ? 'accounts.cancel' : `${module}.cancel`);
+  const canCancel = doc.status !== 'cancelled' && !doc.amendment_pending && !(doc._sync === 'pending' && !doc.number) && can(module === 'accounts' ? 'accounts.cancel' : `${module}.cancel`);
   const returnType = doc.doc_type === 'sale_invoice' ? 'sale_return' : doc.doc_type === 'purchase_invoice' ? 'purchase_return' : null;
   const payments: any[] = doc.data?.payments ?? [];
   const shares: any[] = doc.data?.shares ?? [];
@@ -166,6 +167,9 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
 
         <div className="dv-actions no-print">
           {canEdit && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}`)}><Pencil /> تعديل</button>}
+          {canAmendPurchase && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}?amend=1`)}><Pencil /> تعديل الفاتورة</button>}
+          {doc.amended_from_id && <button className="btn" onClick={() => nav(`/docs/view/${doc.amended_from_id}`)}>الفاتورة الأصلية</button>}
+          {doc.amended_to_id && <button className="btn" onClick={() => nav(`/docs/view/${doc.amended_to_id}`)}>الفاتورة البديلة</button>}
           {canPost && (
             <button
               className="btn primary"

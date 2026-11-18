@@ -966,6 +966,7 @@ export async function cancelDocument(t: Db, ctx: Ctx, docId: string, reason: str
 export async function amendDocument(t: Db, ctx: Ctx, originalId: string, newDoc: DocInput, reason: string) {
   const original = await t.one(`select * from documents where id = $1 for update`, [originalId]);
   if (!original) throw new AppError('المستند الأصلي غير موجود', 'not_found');
+  if (newDoc.doc_type !== original.doc_type) throw new AppError('لا يمكن تغيير نوع الفاتورة أثناء تعديلها', 'state');
   if (original.status !== 'posted') throw new AppError('يمكن تعديل الفواتير المرحّلة فقط', 'state');
   if (!DOC_TYPES[original.doc_type as DocType].noPosting && DOC_TYPES[original.doc_type as DocType].priced) {
     // فواتير البيع/الشراء/المرتجعات فقط
@@ -985,7 +986,7 @@ export async function amendDocument(t: Db, ctx: Ctx, originalId: string, newDoc:
   await assertPeriodOpen(t, original.date);
 
   // إنشاء الفاتورة الجديدة (بمعرف جديد) بنفس نوع المستند الأصلي
-  const newId = crypto.randomUUID();
+  const newId = newDoc.id || crypto.randomUUID();
   const fullNewDoc: DocInput = {
     id: newId,
     doc_type: original.doc_type,

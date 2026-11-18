@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
-import { localAvailable, priceFor, saveDocument } from '../lib/actions';
+import { amendPurchaseInvoice, localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
@@ -76,6 +76,7 @@ const IN_DOCS: DocType[] = ['purchase_invoice', 'opening_stock', 'sale_return', 
 export function DocumentEditor() {
   const params = useParams();
   const [sp] = useSearchParams();
+  const amendMode = sp.get('amend') === '1';
   const nav = useNavigate();
   const ui = useUi();
   const { session } = useSession();
@@ -123,6 +124,7 @@ export function DocumentEditor() {
   const [counterMode, setCounterMode] = useState<'party' | 'account'>('party');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [amendReason, setAmendReason] = useState('');
   const [avail, setAvail] = useState<Record<string, number>>({});
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
@@ -139,10 +141,10 @@ export function DocumentEditor() {
     if (params.id) {
       if (existing === undefined || existingLines === undefined || !existing) return;
       setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null });
-      setLines(existingLines.map((l: any) => ({ ...l, serials: l.serials ?? [] })));
+      setLines(existingLines.map((l: any) => ({ ...l, id: amendMode ? uuid() : l.id, serials: l.serials ?? [] })));
       setJl(existing.data?.journal_lines ?? []);
       setPayments(existing.data?.payments ?? []);
-      setInsts(existing.data?.instruments ?? []);
+      setInsts((existing.data?.instruments ?? []).map((x: Inst) => amendMode ? { ...x, id: uuid() } : x));
       setCharges(existing.data?.charges ?? []);
       setPayAuto(false);
       {
@@ -187,7 +189,7 @@ export function DocumentEditor() {
     setPayAuto(type === 'sale_invoice' || type === 'sale_return' ? true : false);
     setPayMode(type === 'sale_invoice' || type === 'sale_return' ? 'full' : 'credit');
     setReady(true);
-  }, [ready, info, params.id, existing, existingLines, warehouses, cashboxes, sp, type, parties, myShift]);
+  }, [ready, info, params.id, existing, existingLines, warehouses, cashboxes, sp, type, parties, myShift, amendMode]);
 
   // تحويل عرض أسعار لفاتورة
   useEffect(() => {
@@ -399,7 +401,7 @@ export function DocumentEditor() {
     const isCashDoc = ['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type);
     const pays = hasPayments ? payments.filter((p) => p.amount > 0) : [];
     return {
-      id: params.id ?? uuid(),
+      id: amendMode ? uuid() : params.id ?? uuid(),
       doc_type: type,
       date: h.date,
       party_id: counterMode === 'account' && (type === 'receipt' || type === 'payment') ? null : h.party_id || null,
@@ -485,28 +487,34 @@ export function DocumentEditor() {
 
   const submit = async (action: 'draft' | 'post') => {
     setError(null);
+    if (amendMode && action !== 'post') return setError('تعديل الفاتورة المرحّلة يُحفظ ويرحّل كفاتورة بديلة في خطوة واحدة.');
+    if (amendMode && amendReason.trim().length < 3) return setError('اكتب سبب تعديل الفاتورة (3 أحرف على الأقل).');
     const d = buildDoc();
+    if (amendMode) d.local_number = null;
     const v = validate(d);
     if (v) return setError(v);
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
       const ok = await ui.confirm({
-        title: `حفظ ${info.label}؟`,
-        message: (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
-        confirmLabel: 'حفظ',
+        title: amendMode ? 'تأكيد تعديل فاتورة الشراء؟' : `حفظ ${info.label}؟`,
+        message: amendMode
+          ? `سيحتفظ النظام بالفاتورة الأصلية في السجل، ويعكس أثرها على المخزون والحسابات، ثم ينشئ ويرحّل فاتورة بديلة. السبب: ${amendReason.trim()}${extra}`
+          : (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
+        confirmLabel: amendMode ? 'تأكيد التعديل' : 'حفظ',
       });
       if (!ok) return;
     }
     setBusy(true);
     try {
-      await saveDocument(d, action, existing ?? null);
-      ui.toast(action === 'post' ? `تم حفظ ${info.label}` : 'تم حفظ المسودة', 'ok', {
-        actions: action === 'post' ? [
+      if (amendMode) await amendPurchaseInvoice(existing!, d, amendReason.trim());
+      else await saveDocument(d, action, existing ?? null);
+      ui.toast(amendMode ? 'تم إرسال تعديل الفاتورة للمزامنة' : action === 'post' ? `تم حفظ ${info.label}` : 'تم حفظ المسودة', 'ok', {
+        actions: !amendMode && action === 'post' ? [
           ...(info.priced ? [{ label: 'طباعة', onClick: () => window.open(`/print/${d.id}?auto=1`, '_blank') }] : []),
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
-      nav(`/docs/view/${d.id}`, { replace: true });
+      nav(`/docs/view/${amendMode ? existing!.id : d.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -533,8 +541,13 @@ export function DocumentEditor() {
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
-  if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
+  if (params.id && existing && !amendMode && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
     return <div className="page"><Banner kind="warn">هذا المستند {existing.status === 'posted' ? 'مُرحّل' : 'ملغي'} ولا يمكن تعديله.</Banner></div>;
+  if (params.id && existing === null) return <div className="page"><Banner kind="err">الفاتورة غير موجودة على هذا الجهاز. زامن البيانات ثم حاول مرة أخرى.</Banner></div>;
+  if (amendMode && existing && (existing.doc_type !== 'purchase_invoice' || existing.status !== 'posted' || (existing._sync && existing._sync !== 'rejected') || existing.amended_to_id))
+    return <div className="page"><Banner kind="warn">تعديل الفاتورة متاح لفاتورة شراء مرحّلة ومتزامنة ولم يسبق تعديلها.</Banner></div>;
+  if (amendMode && (!can('purchases.edit') || !can('purchases.post')))
+    return <div className="page"><Banner kind="err">تحتاج إلى صلاحية تعديل الفواتير وترحيلها.</Banner></div>;
   if (!ready) return <div className="page muted">جارٍ التحميل…</div>;
 
   const priceLocked = isSale && type !== 'sale_return' && !can('sales.price_change');
@@ -546,9 +559,11 @@ export function DocumentEditor() {
   return (
     <div className="page">
       <PageHeader
-        title={`${params.id ? 'تعديل ' : ''}${info.label}`}
+        title={amendMode ? `تعديل ${info.label}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
+      {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">ستُحفظ فاتورة بديلة، مع الاحتفاظ بالأصل وعكس أثره على المخزون والحسابات. لا يمكن تنفيذ التعديل إذا وُجدت دفعات أو مستندات مرتبطة بالفاتورة.</Banner></div>}
+      {amendMode && <div className="card pad" style={{ marginBottom: 12 }}><Field label="سبب التعديل *"><input className="input" value={amendReason} maxLength={500} onChange={(e) => setAmendReason(e.target.value)} placeholder="مثال: تصحيح الكمية أو سعر الصنف" /></Field></div>}
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
       {existing?.review_reason && <div style={{ marginBottom: 12 }}><Banner kind="warn">{existing.review_reason}</Banner></div>}
@@ -1089,9 +1104,9 @@ export function DocumentEditor() {
             </>
           ) : null}
         </div>
-        <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+        {!amendMode && <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>}
         <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
-          {info.noPosting ? 'اعتماد' : 'حفظ'}
+          {amendMode ? 'حفظ التعديل وترحيل البديل' : info.noPosting ? 'اعتماد' : 'حفظ'}
         </button>
       </div>
 

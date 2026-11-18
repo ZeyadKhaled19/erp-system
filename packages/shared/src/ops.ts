@@ -349,6 +349,7 @@ export const opSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('doc.save'), action: z.enum(['draft', 'post']), base_version: int.nullable(), doc: docSchema }),
   z.object({ type: z.literal('doc.post'), id, base_version: int.nullable() }),
   z.object({ type: z.literal('doc.cancel'), id, reason: z.string().trim().min(3, 'سبب الإلغاء مطلوب').max(500) }),
+  z.object({ type: z.literal('doc.amend'), id, doc: docSchema, reason: z.string().trim().min(3, 'سبب التعديل مطلوب').max(500) }),
   z.object({ type: z.literal('doc.close'), id, closed: z.boolean().default(true) }),
   /** إقفال السنة: نقل صافي ربح الفترة إلى الأرباح المحتجزة وقفل الفترة حتى التاريخ */
   z.object({ type: z.literal('year.close'), id, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),

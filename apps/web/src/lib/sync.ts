@@ -120,12 +120,19 @@ async function markEntity(entry: OutboxEntry, r: OpResult) {
     .filter((e) => e.status === 'pending' && e.op_id !== entry.op_id)
     .count();
   const patch: Record<string, unknown> = {};
+  if (entry.op.type === 'doc.amend') patch.amendment_pending = undefined;
   if (r.status === 'accepted') {
     patch._sync = laterPending ? 'pending' : undefined;
     patch._error = undefined;
     const res = r.result ?? {};
-    if (res.number) patch.number = res.number;
-    if (res.status) patch.status = res.status;
+    if (entry.op.type === 'doc.amend') {
+      patch.status = 'cancelled';
+      patch.amended_to_id = res.id;
+      patch.cancel_reason = `تعديل: ${entry.op.reason}`;
+    } else {
+      if (res.number) patch.number = res.number;
+      if (res.status) patch.status = res.status;
+    }
   } else if (r.status === 'conflict') {
     patch._sync = 'conflict';
     patch._error = r.message;

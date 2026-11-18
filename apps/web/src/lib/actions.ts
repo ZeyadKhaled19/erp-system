@@ -153,6 +153,21 @@ export async function cancelDocument(doc: Record<string, any>, reason: string) {
   );
 }
 
+/** تعديل فاتورة مرحّلة عبر إلغاء أثر الأصل وإنشاء فاتورة بديلة على الخادم. */
+export async function amendPurchaseInvoice(original: Record<string, any>, doc: DocInput, reason: string) {
+  return enqueue(
+    { type: 'doc.amend', id: original.id, doc, reason },
+    {
+      label: `تعديل فاتورة شراء ${original.number ?? original.local_number ?? ''}`,
+      entity: 'document',
+      entity_id: original.id,
+      apply: async () => {
+        await db.documents.update(original.id, { _sync: 'pending', _error: undefined, amendment_pending: true });
+      },
+    },
+  );
+}
+
 export async function resolveConflict(conflict: Record<string, any>, resolution: 'keep_server' | 'apply_client' | 'post_anyway' | 'discard', note?: string) {
   return enqueue(
     { type: 'conflict.resolve', id: conflict.id, resolution, note: note ?? null },
