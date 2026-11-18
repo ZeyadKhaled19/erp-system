@@ -988,7 +988,7 @@ export async function amendDocument(
       where a.invoice_id = $1 and not a.reversed and s.doc_type <> 'payment'`,
     [originalId],
   );
-  if (otherAllocations && otherAllocations.n > 0) throw new AppError('لا يمكن نقل هذا النوع من التخصيصات إلى الفاتورة البديلة', 'state');
+  if (otherAllocations && otherAllocations.n > 0) throw new AppError('يوجد تخصيص مرتبط لا يمكن نقله تلقائيًا؛ راجع سندات الفاتورة أولًا', 'state');
   const paymentSources = await t.query(
     `select * from documents p where p.doc_type = 'payment' and p.party_id = $2 and
        (p.ref_doc_id = $1 or p.id in (select source_id from allocations where invoice_id = $1 and not reversed))
@@ -1063,13 +1063,17 @@ export async function amendDocument(
     from_quotation_id: newDoc.from_quotation_id ?? null,
   };
 
-  // حفظ المسودة الجديدة
+  // إفساح رقم الفاتورة الحالي للبيانات التي سيجري ترحيلها مع بقاء العملية داخل المعاملة.
+  if (original.number) await t.query(`update documents set number = null where id = $1`, [originalId]);
+
+  // حفظ البيانات المعدلة تحت رقم الفاتورة الحالي
   await saveDocument(t, ctx, fullNewDoc);
-  // ترحيل الفاتورة الجديدة
+  if (original.number) await t.query(`update documents set number = $2 where id = $1`, [newId, original.number]);
+  // ترحيل التعديلات مع بقاء رقم الفاتورة كما هو
   const posted = await postDocument(t, ctx, newId);
   const allocationTotal = paymentMoves.reduce((sum, move) => sum + move.newAmount, 0);
   if (allocationTotal > Number(posted.total) - Number(posted.paid)) {
-    throw new AppError('مجموع المدفوعات المرتبطة أكبر من المتبقي في الفاتورة البديلة؛ عدّل مبالغ الدفع أولًا', 'validation');
+    throw new AppError('مجموع المدفوعات المرتبطة أكبر من المتبقي في الفاتورة؛ عدّل مبالغ الدفع أولًا', 'validation');
   }
 
   // عكس تخصيصات الأصل وإنشاء تخصيصات جديدة على الفاتورة البديلة مع إبقاء سندات الصرف وسجلها كما هو.
@@ -1090,7 +1094,7 @@ export async function amendDocument(
     }
   }
 
-  // إلغاء الفاتورة الأصلية مع ربطها بالجديدة
+  // إخفاء نسخة ما قبل التعديل من رقم الفاتورة مع إبقاء سجلها المحاسبي، ثم إعادة استخدام رقمها للبيانات المعدلة.
   const today = new Date().toISOString().slice(0, 10);
   const cancelDate = original.date > today ? original.date : today;
   await reverseTracking(t, originalId);
@@ -1107,7 +1111,7 @@ export async function amendDocument(
     [originalId, reason.trim() ? `تعديل: ${reason.trim()}` : 'تم تعديل الفاتورة', ctx.user.id, newId],
   );
 
-  // ربط الفاتورة الجديدة بالأصل
+  // ربط نسخة سجل التعديل بالرقم الظاهر للمستخدم
   await t.query(`update documents set amended_from_id = $2 where id = $1`, [newId, originalId]);
 
   return t.one(`select * from documents where id = $1`, [newId]);

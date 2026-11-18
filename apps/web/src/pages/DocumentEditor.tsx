@@ -162,7 +162,7 @@ export function DocumentEditor() {
       setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null });
       setLines(existingLines.map((l: any) => ({ ...l, id: amendMode ? uuid() : l.id, serials: l.serials ?? [] })));
       setJl(existing.data?.journal_lines ?? []);
-      setPayments(existing.data?.payments ?? []);
+      setPayments((existing.data?.payments ?? []).map((p: Pay) => amendMode ? { ...p, id: uuid() } : p));
       setInsts((existing.data?.instruments ?? []).map((x: Inst) => amendMode ? { ...x, id: uuid() } : x));
       setCharges(existing.data?.charges ?? []);
       setPayAuto(false);
@@ -518,11 +518,17 @@ export function DocumentEditor() {
     d.local_number = null;
     const v = validate(d);
     if (v) return setError(v);
+    const ok = await ui.confirm({
+      title: 'تأكيد تعديل الفاتورة؟',
+      message: `سيتم حفظ التعديلات على الفاتورة بنفس رقمها، مع تسجيل أثر التعديل على المخزون والحسابات.${amendReason.trim() ? `\n\nالسبب: ${amendReason.trim()}` : ''}`,
+      confirmLabel: 'موافق',
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
       await amendPurchaseInvoice(existing, d, allocations, amendReason.trim() || undefined);
-      ui.toast('تم إرسال تعديل الفاتورة للمزامنة', 'ok');
+      ui.toast('تم تعديل الفاتورة بنجاح', 'ok');
       nav(`/docs/view/${existing.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
@@ -533,7 +539,7 @@ export function DocumentEditor() {
 
   const submit = async (action: 'draft' | 'post') => {
     setError(null);
-    if (amendMode && action !== 'post') return setError('تعديل الفاتورة المرحّلة يُحفظ ويرحّل كفاتورة بديلة في خطوة واحدة.');
+    if (amendMode && action !== 'post') return setError('تعديل الفاتورة المرحّلة يتم من خطوة مراجعة المدفوعات.');
     const d = buildDoc();
     if (amendMode) d.local_number = null;
     const v = validate(d);
@@ -542,24 +548,24 @@ export function DocumentEditor() {
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
       const ok = await ui.confirm({
-        title: amendMode ? 'تأكيد تعديل فاتورة الشراء؟' : `حفظ ${info.label}؟`,
+        title: `حفظ ${info.label}؟`,
         message: amendMode
-          ? `سيحتفظ النظام بالفاتورة الأصلية في السجل، ويعكس أثرها على المخزون والحسابات، ثم ينشئ ويرحّل فاتورة بديلة. السبب: ${amendReason.trim()}${extra}`
+          ? `سيتم حفظ التعديلات على الفاتورة مع تسجيل أثرها المحاسبي والمخزني.${extra}`
           : (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
-        confirmLabel: amendMode ? 'تأكيد التعديل' : 'حفظ',
+        confirmLabel: 'حفظ',
       });
       if (!ok) return;
     }
     setBusy(true);
     try {
       await saveDocument(d, action, existing ?? null);
-      ui.toast(amendMode ? 'تم إرسال تعديل الفاتورة للمزامنة' : action === 'post' ? `تم حفظ ${info.label}` : 'تم حفظ المسودة', 'ok', {
+      ui.toast(action === 'post' ? `تم حفظ ${info.label}` : 'تم حفظ المسودة', 'ok', {
         actions: !amendMode && action === 'post' ? [
           ...(info.priced ? [{ label: 'طباعة', onClick: () => window.open(`/print/${d.id}?auto=1`, '_blank') }] : []),
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
-      nav(`/docs/view/${amendMode ? existing!.id : d.id}`, { replace: true });
+      nav(`/docs/view/${d.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -607,7 +613,7 @@ export function DocumentEditor() {
         title={amendMode ? `تعديل ${info.label}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
-      {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">ستُحفظ فاتورة بديلة مع الاحتفاظ بالأصل وعكس أثره على المخزون والحسابات. في الخطوة التالية يمكنك مراجعة سندات الصرف وتعديل المبالغ المخصصة لها. يجب معالجة المرتجعات أو المستندات التابعة قبل التعديل.</Banner></div>}
+      {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">سيتم حفظ التعديلات على الفاتورة بنفس رقمها، مع تسجيل أثرها على المخزون والحسابات. راجع سندات الصرف ومبالغها في الخطوة التالية. يجب معالجة المرتجعات أو المستندات التابعة قبل التعديل.</Banner></div>}
       {amendMode && amendmentInfo.error && <div style={{ marginBottom: 12 }}><Banner kind="err">تعذر تحميل سندات الدفع: {amendmentInfo.error}</Banner></div>}
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
@@ -1180,16 +1186,16 @@ export function DocumentEditor() {
         />
       )}
       {amendPaymentsOpen && amendmentInfo.data && (
-        <Sheet title="مراجعة وتعديل المدفوعات" onClose={() => setAmendPaymentsOpen(false)} wide footer={<><button className="btn" onClick={() => setAmendPaymentsOpen(false)}>رجوع</button><button className="btn primary" disabled={busy} onClick={() => void saveAmendment()}>{busy ? 'جارٍ الحفظ…' : 'تأكيد وترحيل الفاتورة البديلة'}</button></>}>
+        <Sheet title="مراجعة وتعديل المدفوعات" onClose={() => setAmendPaymentsOpen(false)} wide footer={<><button className="btn" onClick={() => setAmendPaymentsOpen(false)}>رجوع</button><button className="btn primary" disabled={busy} onClick={() => void saveAmendment()}>{busy ? 'جارٍ الحفظ…' : 'تأكيد التعديل'}</button></>}>
           <div className="stack">
-            <Banner kind="info">عدّل المبلغ الذي تريد تخصيصه من كل سند صرف للفاتورة البديلة. سند الصرف وحركة الخزينة يظلان كما هما. دفعات الفاتورة المباشرة تُعدّل من النموذج السابق.</Banner>
+            <Banner kind="info">عدّل المبلغ المخصص من كل سند صرف لهذه الفاتورة. سند الصرف وحركة الخزينة يظلان كما هما. دفعات الفاتورة المباشرة تُعدّل من النموذج السابق.</Banner>
             {amendmentInfo.data.payment_allocations.length === 0 && <div className="card pad muted">لا توجد سندات صرف منفصلة مرتبطة بهذه الفاتورة.</div>}
             {amendmentInfo.data.payment_allocations.map((p) => {
               const allocation = amendPaymentAllocations.find((x) => x.source_id === p.source_id)?.amount ?? 0;
               return <div className="card pad stack" key={p.source_id}>
                 <div className="row wrap"><strong style={{ flex: 1 }}>سند صرف {p.number}</strong><span>{p.date}</span></div>
                 <div className="footnote">إجمالي السند {formatMoney(p.total)} · المخصص حاليًا {formatMoney(p.current_amount)} · الخزينة {p.cashbox_name ?? '—'}</div>
-                <Field label="المبلغ المخصص للفاتورة البديلة" hint={`الحد المتاح: ${formatMoney(p.max_amount)}`}>
+                <Field label="المبلغ المخصص للفاتورة" hint={`الحد المتاح: ${formatMoney(p.max_amount)}`}>
                   <MoneyInput value={allocation} onChange={(amount) => setAmendPaymentAllocations((rows) => rows.map((x) => x.source_id === p.source_id ? { ...x, amount } : x))} />
                 </Field>
               </div>;

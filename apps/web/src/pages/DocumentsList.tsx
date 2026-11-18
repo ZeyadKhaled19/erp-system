@@ -27,7 +27,7 @@ export function DocumentsList() {
 
   const docs = useLiveQuery(async () => {
     const all = await db.documents.where('date').between(from, to, true, true).toArray();
-    return all.filter((d) => DOC_TYPES[d.doc_type as DocType]?.module === module).sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
+    return all.filter((d) => DOC_TYPES[d.doc_type as DocType]?.module === module && !d.amended_to_id).sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
   }, [module, from, to]) ?? [];
 
   const list = docs.filter((d) => {
