@@ -1,5 +1,5 @@
 import { DOC_STATUS_LABEL, moneyInput, parseMoney, parseQty, qtyInput } from '@erp/shared';
-import { AlertTriangle, CheckCircle2, Info, Plus, Search, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Info, Plus, Search, X, XCircle } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { matchScore } from '../lib/search';
@@ -190,8 +190,9 @@ interface ToastItem {
   kind: 'ok' | 'err' | 'info' | 'warn';
   text: string;
   actions?: ToastAction[];
+  prominent?: boolean;
 }
-type ToastOpts = { actions?: ToastAction[]; duration?: number };
+type ToastOpts = { actions?: ToastAction[]; duration?: number; prominent?: boolean };
 
 const UiCtx = createContext<{
   confirm: (o: ConfirmOpts) => Promise<boolean>;
@@ -215,7 +216,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((text: string, kind: ToastItem['kind'] = 'ok', opts?: ToastOpts) => {
     const id = Date.now() + Math.random();
     // آخر 3 إشعارات بس عشان ما تغطيش الشاشة
-    setToasts((t) => [...t.slice(-2), { id, kind, text, actions: opts?.actions }]);
+    setToasts((t) => [...t.slice(-2), { id, kind, text, actions: opts?.actions, prominent: opts?.prominent }]);
     arm(id, opts?.duration ?? (kind === 'err' ? 6000 : opts?.actions?.length ? 6000 : 3200));
   }, [arm]);
   const value = useMemo(() => ({ confirm, toast }), [confirm, toast]);
@@ -246,22 +247,25 @@ export function UiProvider({ children }: { children: ReactNode }) {
         )}
       {createPortal(
         <div className="toasts">
-          {toasts.map((t) => (
-            <div
-              key={t.id}
-              className={`toast ${t.kind}`}
-              role={t.kind === 'err' ? 'alert' : 'status'}
-              onMouseEnter={() => clearTimeout(timers.current.get(t.id))}
-              onMouseLeave={() => arm(t.id, 2500)}
-            >
-              {t.kind === 'ok' ? <CheckCircle2 color="var(--green)" /> : t.kind === 'err' ? <XCircle color="var(--red)" /> : t.kind === 'warn' ? <AlertTriangle color="var(--orange)" /> : <Info color="var(--tint)" />}
-              <span className="toast-t">{t.text}</span>
-              {t.actions?.map((a) => (
-                <button key={a.label} type="button" className="toast-act" onClick={() => { a.onClick(); dismiss(t.id); }}>{a.label}</button>
-              ))}
-              <button type="button" className="toast-x" aria-label="إغلاق" onClick={() => dismiss(t.id)}><X /></button>
-            </div>
-          ))}
+          {toasts.map((t) => {
+            const icon = t.prominent && t.kind === 'ok' ? <Check /> : t.kind === 'ok' ? <CheckCircle2 color="var(--green)" /> : t.kind === 'err' ? <XCircle color="var(--red)" /> : t.kind === 'warn' ? <AlertTriangle color="var(--orange)" /> : <Info color="var(--tint)" />;
+            return (
+              <div
+                key={t.id}
+                className={`toast ${t.kind} ${t.prominent ? 'prominent' : ''}`}
+                role={t.kind === 'err' ? 'alert' : 'status'}
+                onMouseEnter={() => clearTimeout(timers.current.get(t.id))}
+                onMouseLeave={() => arm(t.id, 2500)}
+              >
+                {t.prominent ? <span className="toast-status-icon">{icon}</span> : icon}
+                <span className="toast-t">{t.text}</span>
+                {t.actions?.map((a) => (
+                  <button key={a.label} type="button" className="toast-act" onClick={() => { a.onClick(); dismiss(t.id); }}>{a.label}</button>
+                ))}
+                <button type="button" className="toast-x" aria-label="إغلاق" onClick={() => dismiss(t.id)}><X /></button>
+              </div>
+            );
+          })}
         </div>,
         document.body,
       )}
