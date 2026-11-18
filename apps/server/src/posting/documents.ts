@@ -1104,7 +1104,7 @@ export async function amendDocument(
   }
   await t.query(
     `update documents set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now(), amended_to_id = $4 where id = $1`,
-    [originalId, `تعديل: ${auditReason}`, ctx.user.id, newId],
+    [originalId, reason.trim() ? `تعديل: ${reason.trim()}` : 'تم تعديل الفاتورة', ctx.user.id, newId],
   );
 
   // ربط الفاتورة الجديدة بالأصل

@@ -209,7 +209,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
       {(doc.status === 'pending_review' || doc._sync === 'conflict') && (
         <div className="no-print dv-banner"><Banner kind="warn">{doc.review_reason ?? doc._error} — يمكن لمستخدم لديه صلاحية حل التعارضات معالجته من مركز المزامنة.</Banner></div>
       )}
-      {doc.status === 'cancelled' && <div className="dv-banner"><Banner kind="err">ملغي{doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.</Banner></div>}
+      {doc.status === 'cancelled' && <div className="dv-banner"><Banner kind={doc.amended_to_id ? 'info' : 'err'}>{doc.amended_to_id ? 'تم تعديل الفاتورة واستبدالها. أُبقيت النسخة الأصلية في السجل وعُكس أثرها بقيد عكسي. افتح «الفاتورة البديلة» لعرض النسخة المعدلة.' : `ملغي${doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.`}</Banner></div>}
 
       {/* رأس الطباعة */}
       <div className="print-only" style={{ marginBottom: 16 }}>
