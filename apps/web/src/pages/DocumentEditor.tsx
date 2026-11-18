@@ -535,7 +535,7 @@ export function DocumentEditor() {
     setError(null);
     try {
       await amendPurchaseInvoice(existing, d, allocations, amendReason.trim() || undefined);
-      ui.toast('تم تعديل الفاتورة بنجاح', 'ok');
+      ui.toast('تم تعديل الفاتورة بنجاح', 'ok', { prominent: true, duration: 5000 });
       nav(`/docs/view/${existing.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
