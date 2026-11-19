@@ -246,8 +246,7 @@ export function App() {
         </Routes>
         {backgroundLocation && (
           <Routes>
-            <Route path="/docs/new/expense" element={<NewDocGuard><ExpenseModal key={loc.key}><DocumentEditor key={loc.key} /></ExpenseModal></NewDocGuard>} />
-            <Route path="/docs/new/partner_withdrawal" element={<NewDocGuard><ExpenseModal key={loc.key}><DocumentEditor key={loc.key} /></ExpenseModal></NewDocGuard>} />
+            <Route path="/docs/new/:type" element={<NewDocGuard><ExpenseModal key={loc.key}><DocumentEditor key={loc.key} /></ExpenseModal></NewDocGuard>} />
             <Route path="/docs/edit/:id" element={<ExpenseModal key={loc.key}><DocGuard><DocumentEditor key={loc.key} /></DocGuard></ExpenseModal>} />
           </Routes>
         )}
