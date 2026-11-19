@@ -72,6 +72,7 @@ export function TotalCards({ items }: { items: { label: string; value: ReactNode
 
 /** تبويبات صفحات الخزينة والحسابات (نفس الشريط في الثلاث صفحات) */
 export const TREASURY_TABS = [
+  { to: '/expenses', label: 'المصروفات', perm: 'treasury.view' },
   { to: '/cashboxes', label: 'الخزائن والبنوك', perm: 'treasury.view' },
   { to: '/accounts', label: 'دليل الحسابات', perm: 'accounts.view' },
   { to: '/docs/list/treasury', label: 'التحصيل والصرف', perm: 'treasury.view' },

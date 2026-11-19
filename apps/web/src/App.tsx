@@ -15,6 +15,7 @@ import { CashboxesPage } from './pages/Cashboxes';
 import { Dashboard } from './pages/Dashboard';
 import { DocumentEditor } from './pages/DocumentEditor';
 import { DocumentsList } from './pages/DocumentsList';
+import { ExpensesPage } from './pages/Expenses';
 import { DocumentView } from './pages/DocumentView';
 import { ItemInquiry } from './pages/ItemInquiry';
 import { ItemsPage } from './pages/Items';
@@ -194,6 +195,7 @@ export function App() {
           <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage /></RequirePerm>} />
           <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail /></RequirePerm>} />
           <Route path="/cashboxes" element={<RequirePerm any={['treasury.view']}><CashboxesPage /></RequirePerm>} />
+          <Route path="/expenses" element={<RequirePerm any={['treasury.view']}><ExpensesPage /></RequirePerm>} />
           <Route path="/accounts" element={<RequirePerm any={['accounts.view']}><AccountsPage /></RequirePerm>} />
           <Route path="/docs/new/:type" element={<NewDocGuard><NewDocRoute /></NewDocGuard>} />
           <Route path="/docs/edit/:id" element={<DocGuard><DocumentEditor /></DocGuard>} />
