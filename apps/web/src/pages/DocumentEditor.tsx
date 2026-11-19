@@ -489,7 +489,6 @@ export function DocumentEditor() {
     }
     if (['receipt', 'payment'].includes(type) && !d.party_id && !d.account_id) return 'اختر الطرف أو الحساب';
     if (['expense', 'income'].includes(type) && !d.account_id) return 'اختر الحساب';
-    if (type === 'expense' && !expenseTitle.trim()) return 'اكتب اسم المصروف';
     if (type === 'cash_transfer' && (!d.to_cashbox_id || d.to_cashbox_id === d.cashbox_id)) return 'اختر خزينة مختلفة للتحويل إليها';
     if ((type === 'partner_capital' || type === 'partner_withdrawal') && !d.partner_id) return 'اختر الشريك';
     if (!info.hasLines && type !== 'journal_voucher' && d.amount <= 0) return 'أدخل المبلغ';
@@ -646,7 +645,7 @@ export function DocumentEditor() {
             </Field>
           )}
           {type === 'expense' && (
-            <Field label="اسم المصروف" className="expense-title-field" required>
+            <Field label="اسم المصروف (اختياري)" className="expense-title-field">
               <input className="input" value={expenseTitle} onChange={(e) => setExpenseTitle(e.target.value)} placeholder="مثال: فاتورة كهربا شهر 9" autoFocus />
             </Field>
           )}

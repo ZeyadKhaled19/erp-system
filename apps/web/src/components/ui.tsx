@@ -344,7 +344,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       {children}
       {dialog &&
         createPortal(
-          <div className="overlay" style={{ placeItems: 'center' }}>
+          <div className="overlay confirmation-overlay" style={{ placeItems: 'center' }}>
             <div className="alert-box" role="alertdialog">
               <div className="ab-body">
                 <h4>{dialog.title}</h4>

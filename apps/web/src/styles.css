@@ -309,7 +309,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-base
 @keyframes up { from { transform: translateY(100%) } }
 
 /* ---------- إشعارات عابرة ---------- */
-.toasts { position: fixed; top: calc(0.875rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; pointer-events: none; }
+.overlay.confirmation-overlay { z-index: 1100; }
+.toasts { position: fixed; top: calc(0.875rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; pointer-events: none; }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 1rem; border-radius: var(--r-pill);
   background: var(--bar); backdrop-filter: blur(30px); box-shadow: var(--shadow-pop); font-size: var(--text-base); font-weight: 500;
