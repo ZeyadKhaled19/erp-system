@@ -35,7 +35,7 @@ export function QuickAccountSheet({ type, initialName = '', onClose, onSaved }: 
     const n = name.trim();
     if (!n) return setErr('اكتب اسم البند');
     const p = accounts.find((a) => a.id === parentId);
-    if (!p) return setErr('مفيش مجموعة حسابات مناسبة. ضيف البند من «دليل الحسابات».');
+    if (!p) return setErr('مفيش مجموعة حسابات مناسبة. ضيف البند من شاشة «الحسابات».');
     if (accounts.some((a) => a.type === type && String(a.name).trim() === n)) return setErr('البند ده موجود بالفعل، اختاره من القائمة');
     // الكود: أكبر كود رقمي تحت نفس المجموعة + 1، أو كود المجموعة + 01 لو أول بند
     const siblings = accounts.filter((a) => a.parent_id === p.id).map((a) => String(a.code)).filter((c) => /^\d+$/.test(c));
@@ -67,13 +67,13 @@ export function QuickAccountSheet({ type, initialName = '', onClose, onSaved }: 
           <input className="input" style={{ fontSize: 17, height: 52 }} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </Field>
         {groups.length > 1 && (
-          <Field label="تحت مجموعة" hint="بيتحدد تلقائيًا؛ غيّره بس لو عايز البند في مجموعة تانية في دليل الحسابات">
+          <Field label="المجموعة الرئيسية" hint="بيتحدد تلقائيًا؛ غيّره لو عايز البند يظهر تحت مجموعة تانية في الحسابات">
             <select className="select" value={parentId} onChange={(e) => setParent(e.target.value)}>
               {groups.map((g) => <option key={g.id} value={g.id}>{g.code} — {g.name}</option>)}
             </select>
           </Field>
         )}
-        <div className="footnote">البند بيتحفظ في دليل الحسابات وبيظهر في كل السندات والتقارير، وتقدر تعدله أو توقفه من «دليل الحسابات».</div>
+        <div className="footnote">البند بيتحفظ في الحسابات وبيظهر في السندات والتقارير، وتقدر تعدله أو توقفه من شاشة «الحسابات».</div>
       </div>
     </Sheet>
   );

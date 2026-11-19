@@ -107,7 +107,7 @@ function CashboxEditor({ box, onClose, onSave }: { box: any | null; onClose: () 
       <div className="stack">
         <Field label="الاسم"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         {!box && (
-          <Field label="النوع" hint="يُنشأ لها حساب فرعي تلقائيًا في دليل الحسابات">
+          <Field label="النوع" hint="يُنشأ لها حساب فرعي تلقائيًا في شاشة الحسابات">
             <Segmented block value={f.kind} onChange={(v) => setF({ ...f, kind: v })} options={[{ value: 'cash', label: 'خزينة نقدية' }, { value: 'bank', label: 'حساب بنكي' }]} />
           </Field>
         )}
@@ -125,7 +125,7 @@ function CashboxEditor({ box, onClose, onSave }: { box: any | null; onClose: () 
         </div>
         <div className="footnote">تُخصم العمولة تلقائيًا من الخزينة على حساب «عمولات بنكية وعمولات الدفع» مع كل تحصيل عليها.</div>
         <div className="row"><Switch checked={f.active} onChange={(v) => setF({ ...f, active: v })} /> {f.active ? 'نشطة' : 'موقوفة'}</div>
-        <div className="footnote">لتسجيل رصيد افتتاحي للخزينة استخدم «قيد يومية»: مدين الخزينة، دائن «أرصدة افتتاحية».</div>
+        <div className="footnote">لتسجيل رصيد افتتاحي للخزينة استخدم «قيد محاسبي»: مدين الخزينة، دائن «أرصدة افتتاحية».</div>
       </div>
     </Sheet>
   );

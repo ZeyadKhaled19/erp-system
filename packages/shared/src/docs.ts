@@ -50,16 +50,16 @@ export const DOC_TYPES: Record<DocType, DocTypeInfo> = {
   stock_transfer: { label: 'تحويل بين المخازن', module: 'inventory', prefix: 'TR', hasLines: true, stock: 'transfer' },
   stock_adjustment: { label: 'تسوية المخزون', module: 'inventory', prefix: 'AD', hasLines: true, stock: 'adjust' },
   opening_stock: { label: 'مخزون افتتاحي', module: 'inventory', prefix: 'OS', hasLines: true, stock: 'in' },
-  party_opening: { label: 'رصيد بداية عميل أو مورد', module: 'accounts', prefix: 'OB', hasLines: false, partyKind: 'any' },
+  party_opening: { label: 'رصيد افتتاحي للعميل أو المورد', module: 'accounts', prefix: 'OB', hasLines: false, partyKind: 'any' },
   journal_voucher: { label: 'قيد محاسبي', module: 'accounts', prefix: 'JV', hasLines: false },
   cash_transfer: { label: 'تحويل بين الخزائن', module: 'treasury', prefix: 'CT', hasLines: false },
-  quotation: { label: 'عرض أسعار', module: 'sales', prefix: 'Q', hasLines: true, partyKind: 'customer', priced: true, noPosting: true },
+  quotation: { label: 'عرض سعر', module: 'sales', prefix: 'Q', hasLines: true, partyKind: 'customer', priced: true, noPosting: true },
   partner_capital: { label: 'إيداع رأس مال شريك', module: 'partners', prefix: 'PC', hasLines: false },
-  partner_withdrawal: { label: 'مسحوبات شريك', module: 'partners', prefix: 'PW', hasLines: false },
+  partner_withdrawal: { label: 'سحب من الشريك', module: 'partners', prefix: 'PW', hasLines: false },
   profit_distribution: { label: 'توزيع أرباح', module: 'partners', prefix: 'PD', hasLines: false },
-  year_closing: { label: 'قيد إقفال السنة', module: 'accounts', prefix: 'YC', hasLines: false },
+  year_closing: { label: 'إقفال السنة المالية', module: 'accounts', prefix: 'YC', hasLines: false },
   employee_advance: { label: 'سلفة موظف', module: 'employees', prefix: 'EA', hasLines: false },
-  payroll: { label: 'مسير رواتب', module: 'employees', prefix: 'SL', hasLines: false },
+  payroll: { label: 'رواتب الموظفين', module: 'employees', prefix: 'SL', hasLines: false },
 };
 
 export const DOC_STATUS_LABEL: Record<string, string> = {

@@ -355,7 +355,7 @@ export function NegativeStockReport() {
       title="أرصدة سالبة تحتاج مراجعة"
       sub={rows.length ? `${rows.length} صنف/مخزن` : 'لا توجد أرصدة سالبة'}
       actions={rows.length > 0 && <button className="btn" onClick={() => exportExcel('أرصدة سالبة', ['الكود', 'الصنف', 'المخزن', 'الرصيد', 'الوحدة'], rows.map((r: any) => [r.item.code, r.item.name, r.warehouse_name, formatQty(r.qty), r.item.base_unit]))}>تصدير Excel</button>}
-      note="الفواتير لا تُسقط ولا تُعدّل: البيع يُسجّل كما هو، والرصيد السالب يظهر هنا حتى يُعالج بفاتورة شراء أو تحويل من مخزن آخر أو جرد وتسوية. افتح حركة الصنف لمعرفة الفواتير التي سببت العجز."
+      note="الفواتير تظل محفوظة كما هي. يظهر الرصيد السالب هنا حتى يُعالج بفاتورة شراء أو تحويل من مخزن آخر أو تسوية للمخزون. افتح حركة الصنف لمعرفة العمليات التي سببت العجز."
     >
       {rows.length === 0 ? (
         <div className="card pad muted">كل الأرصدة سليمة — لا يوجد صنف رصيده أقل من صفر.</div>
@@ -375,7 +375,7 @@ export function NegativeStockReport() {
                       <button className="btn sm" onClick={() => nav(`/reports/item?id=${r.item_id}`)}>حركة الصنف</button>
                       {can('purchases.create') && <button className="btn sm" onClick={() => nav('/docs/new/purchase_invoice')}>فاتورة شراء</button>}
                       {can('inventory.create') && <button className="btn sm" onClick={() => nav('/docs/new/stock_transfer')}>تحويل</button>}
-                      {can('inventory.create') && <button className="btn sm" onClick={() => nav('/docs/new/stock_adjustment')}>جرد وتسوية</button>}
+                      {can('inventory.create') && <button className="btn sm" onClick={() => nav('/docs/new/stock_adjustment')}>تسوية المخزون</button>}
                     </div>
                   </td>
                 </tr>

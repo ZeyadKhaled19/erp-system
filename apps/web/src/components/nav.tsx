@@ -47,7 +47,7 @@ export const HUBS: Hub[] = [
           { to: '/pos', label: 'بيع سريع', desc: 'اختر الأصناف وادفع في خطوتين', icon: <Zap />, grad: 'var(--grad-green)', perm: 'sales.create', hero: true },
           { to: '/docs/new/sale_invoice', label: 'فاتورة بيع', desc: 'بكل الخيارات (آجل، أقساط، تسليم لاحق)', icon: <ShoppingCart />, grad: 'var(--grad-blue)', perm: 'sales.create' },
           { to: '/docs/new/sale_return', label: 'مرتجع بيع', icon: <Undo2 />, grad: 'var(--grad-orange)', perm: 'sales.create' },
-          { to: '/docs/new/quotation', label: 'عرض أسعار / حجز', icon: <FileText />, grad: 'var(--grad-indigo)', perm: 'sales.quotation' },
+          { to: '/docs/new/quotation', label: 'عرض سعر / حجز', icon: <FileText />, grad: 'var(--grad-indigo)', perm: 'sales.quotation' },
         ],
       },
       {
@@ -108,7 +108,7 @@ export const HUBS: Hub[] = [
           { to: '/docs/new/stock_transfer', label: 'تحويل بين المخازن', icon: <ArrowLeftRight />, grad: 'var(--grad-purple)', perm: 'inventory.create' },
           { to: '/docs/new/stock_adjustment', label: 'تسوية المخزون', icon: <ClipboardCheck />, grad: 'var(--grad-pink)', perm: 'inventory.create' },
           { to: '/docs/new/opening_stock', label: 'مخزون افتتاحي', icon: <PackagePlus />, grad: 'var(--grad-gray)', perm: 'inventory.create' },
-          { to: '/docs/list/inventory', label: 'سجل حركات المخازن', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'inventory.view' },
+          { to: '/docs/list/inventory', label: 'حركة المخزون', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'inventory.view' },
         ],
       },
       {
@@ -313,7 +313,7 @@ export const SECTIONS: Section[] = [
     extra: [
       { to: '/partners', label: 'الشركاء ورأس المال', icon: <PieChart />, grad: '', perm: 'partners.view' },
       { to: '/docs/new/partner_capital', label: 'إيداع رأس مال', icon: <ArrowDownLeft />, grad: '', perm: 'partners.create' },
-      { to: '/docs/new/partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
+      { to: '/docs/new/partner_withdrawal', label: 'سحب من الشريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
     ],
   },
 ];

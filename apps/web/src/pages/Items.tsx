@@ -166,7 +166,7 @@ export function ItemsPage() {
                     <td data-label="الرصيد" className={`n ${low ? 'red bold' : ''}`}>{i.is_service ? '—' : formatQty(qty)}</td>
                     <td data-label="الحالة"><ActiveBadge active={i.active !== false} /></td>
                     <td data-label="" className="lp-act-cell">
-                      <RowActions openLabel="استعلام عن الصنف" onOpen={() => nav(`/items/inquiry?id=${i.id}`)} onEdit={can('items.edit') ? () => setEditing(i) : undefined}>
+                      <RowActions openLabel="بحث عن الصنف" onOpen={() => nav(`/items/inquiry?id=${i.id}`)} onEdit={can('items.edit') ? () => setEditing(i) : undefined}>
                         <SyncBadge sync={i._sync} error={i._error} />
                       </RowActions>
                     </td>

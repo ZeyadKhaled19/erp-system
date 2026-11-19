@@ -12,7 +12,7 @@ import { monthStart, yearStart, docLabel, Shell, DateRange, Kpi, Section } from 
 // ---------------------------------------------------------------- تحليل المقبوضات والمصروفات
 const T_GROUPS: Record<string, string> = { item: 'البند', type: 'نوع المستند', party: 'الطرف', cashbox: 'الخزينة', user: 'المستخدم', day: 'اليوم', month: 'الشهر' };
 
-const tLabel = (group: string, label: string) => (group === 'item' || group === 'type' ? (label === 'jv' ? 'قيد يومية' : DOC_TYPES[label as DocType]?.label ?? label) : label);
+const tLabel = (group: string, label: string) => (group === 'item' || group === 'type' ? (label === 'jv' ? 'قيد محاسبي' : DOC_TYPES[label as DocType]?.label ?? label) : label);
 
 // ---------------------------------------------------------------- ميزان المراجعة
 export function TrialBalanceReport() {

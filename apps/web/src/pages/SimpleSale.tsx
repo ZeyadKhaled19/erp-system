@@ -829,7 +829,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                 )}
               </div>
               <CategoryFilter value={catFilter} onChange={(id) => { setCatFilter(id); setHl(0); searchRef.current?.focus(); }} />
-              <button className="btn" title="استعلام عن الصنف (F2)" onClick={() => setInquiry(entryItem ?? lines[sel]?.item_id ?? null)} disabled={!entryItem && !lines[sel]}><Info /> <span className="si-q-l">استعلام</span></button>
+              <button className="btn" title="بحث عن الصنف (F2)" onClick={() => setInquiry(entryItem ?? lines[sel]?.item_id ?? null)} disabled={!entryItem && !lines[sel]}><Info /> <span className="si-q-l">بحث</span></button>
             </div>
           </div>
           <div className="ss-step ss-avail">

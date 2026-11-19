@@ -8,3 +8,14 @@ UPDATE accounts SET name = 'فرق جرد المخزون' WHERE system_key = 'in
 UPDATE accounts SET name = 'تسوية تكلفة المرتجعات' WHERE system_key = 'cost_variance' AND name = 'فروق تكلفة المرتجعات';
 UPDATE accounts SET name = 'فرق رصيد الخزينة' WHERE system_key = 'cash_over_short' AND name = 'عجز وزيادة الخزينة';
 UPDATE accounts SET name = 'إنترنت واتصالات' WHERE id = 'acc-5204' AND name = 'اتصالات وإنترنت';
+UPDATE accounts SET name = 'الأصول قصيرة الأجل' WHERE id = 'acc-11' AND name = 'الأصول المتداولة';
+UPDATE accounts SET name = 'ضريبة القيمة المضافة المدفوعة' WHERE system_key = 'vat_input' AND name = 'ضريبة القيمة المضافة - مدخلات';
+UPDATE accounts SET name = 'شيكات قيد التحصيل' WHERE system_key = 'notes_receivable' AND name = 'أوراق القبض (شيكات تحت التحصيل)';
+UPDATE accounts SET name = 'سلف وعهد الموظفين' WHERE id = 'acc-1107' AND name = 'سلف وعهد';
+UPDATE accounts SET name = 'الأصول طويلة الأجل' WHERE id = 'acc-12' AND name = 'الأصول الثابتة';
+UPDATE accounts SET name = 'الإهلاك المتراكم' WHERE id = 'acc-1209' AND name = 'مجمع الإهلاك';
+UPDATE accounts SET name = 'الالتزامات' WHERE id = 'acc-2' AND name = 'الخصوم';
+UPDATE accounts SET name = 'الالتزامات قصيرة الأجل' WHERE id = 'acc-21' AND name = 'الخصوم المتداولة';
+UPDATE accounts SET name = 'ضريبة القيمة المضافة المستحقة' WHERE system_key = 'vat_output' AND name = 'ضريبة القيمة المضافة - مخرجات';
+UPDATE accounts SET name = 'شيكات صادرة' WHERE system_key = 'notes_payable' AND name = 'أوراق الدفع (شيكات صادرة)';
+UPDATE accounts SET name = 'مصروفات غير مسددة' WHERE id = 'acc-2104' AND name = 'مصروفات مستحقة';

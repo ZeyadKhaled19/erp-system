@@ -81,7 +81,7 @@ export const PERMISSION_GROUPS: { module: string; label: string; actions: { key:
     label: 'الحسابات',
     actions: [
       { key: 'accounts.view', label: 'مشاهدة' },
-      { key: 'accounts.manage', label: 'إدارة دليل الحسابات' },
+      { key: 'accounts.manage', label: 'إدارة الحسابات' },
       { key: 'accounts.journal', label: 'قيود يدوية' },
       { key: 'accounts.post', label: 'ترحيل القيود' },
       { key: 'accounts.cancel', label: 'عكس القيود' },

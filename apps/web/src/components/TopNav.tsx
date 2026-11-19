@@ -133,7 +133,7 @@ export function MainNav({ can }: { can: Can }) {
 const GEAR_EXTRA: Record<string, NavLink[]> = {
   partners: [
     { to: '/docs/new/partner_capital', label: 'إيداع رأس مال', icon: <ArrowDownLeft />, grad: '', perm: 'partners.create' },
-    { to: '/docs/new/partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
+    { to: '/docs/new/partner_withdrawal', label: 'سحب من الشريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
   ],
 };
 

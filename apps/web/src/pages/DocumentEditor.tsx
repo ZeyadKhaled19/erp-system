@@ -218,7 +218,7 @@ export function DocumentEditor() {
       const q = await db.documents.get(qid);
       if (!q) return;
       const ql = await db.document_lines.where('document_id').equals(qid).sortBy('line_no');
-      setH((p: any) => ({ ...p, party_id: q.party_id, warehouse_id: q.warehouse_id, price_list_id: q.price_list_id, sales_rep_id: q.sales_rep_id, discount: q.discount, from_quotation_id: qid, notes: `من عرض أسعار ${q.number ?? q.local_number}` }));
+      setH((p: any) => ({ ...p, party_id: q.party_id, warehouse_id: q.warehouse_id, price_list_id: q.price_list_id, sales_rep_id: q.sales_rep_id, discount: q.discount, from_quotation_id: qid, notes: `من عرض سعر ${q.number ?? q.local_number}` }));
       setLines(ql.map((l: any) => ({ id: uuid(), item_id: l.item_id, unit_name: l.unit_name, unit_factor: l.unit_factor, qty: l.qty, price: l.price, discount: l.discount, tax_rate_bp: l.tax_rate_bp, serials: [] })));
     })();
   }, [ready, sp, params.id, h.from_quotation_id]);
@@ -618,7 +618,7 @@ export function DocumentEditor() {
     <div className="page">
       <PageHeader
         title={amendMode ? `تعديل ${info.label}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
-        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
+        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض سعر إلى فاتورة' : 'نموذج جديد'}
       />
       {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">سيتم حفظ التعديلات على الفاتورة بنفس رقمها، مع تسجيل أثرها على المخزون والحسابات. راجع سندات الصرف ومبالغها في الخطوة التالية. يجب معالجة المرتجعات أو المستندات التابعة قبل التعديل.</Banner></div>}
       {amendMode && amendmentInfo.error && <div style={{ marginBottom: 12 }}><Banner kind="err">تعذر تحميل سندات الدفع: {amendmentInfo.error}</Banner></div>}

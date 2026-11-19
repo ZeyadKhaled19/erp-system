@@ -178,7 +178,7 @@ function PartnerEditor({ p, onClose, onSave }: { p: any | null; onClose: () => v
           <Field label="نسبة الملكية %"><input className="input num" inputMode="decimal" value={f.own} onChange={(e) => setF({ ...f, own: e.target.value })} /></Field>
           <Field label="نسبة توزيع الأرباح %" hint="قد تختلف عن نسبة الملكية"><input className="input num" inputMode="decimal" value={f.profit} onChange={(e) => setF({ ...f, profit: e.target.value })} /></Field>
         </div>
-        {!p && <div className="footnote">يُنشأ للشريك تلقائيًا حساب رأس مال وحساب جارٍ في دليل الحسابات.</div>}
+        {!p && <div className="footnote">يُنشأ للشريك تلقائيًا حساب رأس مال وحساب جارٍ في شاشة الحسابات.</div>}
         <Field label="ملاحظات"><textarea className="textarea" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
         <div className="row"><Switch checked={f.active} onChange={(v) => setF({ ...f, active: v })} /> {f.active ? 'نشط' : 'موقوف'}</div>
       </div>
@@ -289,7 +289,7 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
         <div className="footnote">
           الربح المحاسبي من القيود المرحّلة (بعد المصروفات والتكاليف والمرتجعات)، والنتيجة النقدية من حركة الخزائن الفعلية فقط (الآجل يُحسب عند تحصيله)؛ ولا أيٌّ منهما هو رصيد الخزينة.
           يُعاد حساب الأساس المختار عند الاعتماد. المسودة تُعرض للمراجعة، والاعتماد يحتاج صلاحية «اعتماد توزيع الأرباح»
-          ويُنشئ قيدًا: من حـ/ توزيعات أرباح معلنة إلى حـ/ جاري كل شريك. السحب الفعلي يتم بمستند «مسحوبات شريك».
+          ويُنشئ قيدًا: من حـ/ توزيعات أرباح معلنة إلى حـ/ جاري كل شريك. السحب الفعلي يتم بعملية «سحب من الشريك».
         </div>
       </div>
     </Sheet>
@@ -299,7 +299,7 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
 const EXCLUDED_LABEL: Record<string, string> = {
   cash_transfer: 'تحويلات بين الخزائن', partner_capital: 'رأس مال الشركاء', partner_withdrawal: 'مسحوبات الشركاء', profit_distribution: 'توزيعات أرباح',
   party_opening: 'أرصدة افتتاحية', jv: 'قيود يومية (قروض/تسويات/افتتاحي)', journal_voucher: 'قيود يومية (قروض/تسويات/افتتاحي)',
-  expense_non_operating: 'صرف على حسابات غير مصروفات (قروض/أصول)', income_non_operating: 'قبض على حسابات غير إيرادات (قروض/رأس مال)', opening_stock: 'بضاعة أول المدة',
+  expense_non_operating: 'صرف على حسابات غير مصروفات (قروض/أصول)', income_non_operating: 'قبض على حسابات غير إيرادات (قروض/رأس مال)', opening_stock: 'مخزون افتتاحي',
 };
 
 /** تفصيل النتيجة النقدية للفترة: من أين جاءت الأرقام وما المستبعد */

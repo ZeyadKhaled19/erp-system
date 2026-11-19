@@ -27,7 +27,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { key: 'pos', label: 'بيع سريع', icon: <Zap />, to: '/pos', perm: 'sales.create', group: 'المبيعات', creates: false, ws: ['dashboard', 'sales'] },
   { key: 'sale_invoice', label: 'فاتورة بيع', icon: <ShoppingCart />, to: '/docs/new/sale_invoice', perm: 'sales.create', group: 'المبيعات', creates: true, ws: ['dashboard', 'pos', 'sales'] },
   { key: 'sale_return', label: 'مرتجع بيع', icon: <RotateCcw />, to: '/docs/new/sale_return', perm: 'sales.create', group: 'المبيعات', creates: true, ws: ['pos', 'sales'] },
-  { key: 'quotation', label: 'عرض أسعار', icon: <FileText />, to: '/docs/new/quotation', perm: 'sales.quotation', group: 'المبيعات', creates: true, ws: ['sales'] },
+  { key: 'quotation', label: 'عرض سعر', icon: <FileText />, to: '/docs/new/quotation', perm: 'sales.quotation', group: 'المبيعات', creates: true, ws: ['sales'] },
   { key: 'customer_new', label: 'عميل جديد', icon: <UserPlus />, to: '/parties/customer?new=1', perm: 'parties.create', group: 'الأطراف', creates: true, ws: ['pos', 'sales'] },
   { key: 'supplier_new', label: 'مورد جديد', icon: <UserPlus />, to: '/parties/supplier?new=1', perm: 'parties.create', group: 'الأطراف', creates: true, ws: ['inventory'] },
   { key: 'receipt', label: 'قبض من عميل', icon: <ArrowDownLeft />, to: '/docs/new/receipt', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['dashboard', 'accounting', 'sales'] },
@@ -47,7 +47,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { key: 'payroll', label: 'الرواتب', icon: <Wallet />, to: '/employees/payroll', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
   { key: 'employee_advance', label: 'سلفة موظف', icon: <HandCoins />, to: '/employees/advances', perm: 'employees.create', group: 'الموظفين', creates: false, ws: [] },
   { key: 'partner_capital', label: 'إيداع رأس مال', icon: <ArrowDownLeft />, to: '/docs/new/partner_capital', perm: 'partners.create', group: 'الشركاء', creates: true, ws: [] },
-  { key: 'partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, to: '/docs/new/partner_withdrawal', perm: 'partners.create', group: 'الشركاء', creates: true, ws: [] },
+  { key: 'partner_withdrawal', label: 'سحب من الشريك', icon: <ArrowUpRight />, to: '/docs/new/partner_withdrawal', perm: 'partners.create', group: 'الشركاء', creates: true, ws: [] },
   { key: 'shift', label: 'الوردية', icon: <Clock />, to: '/shift', perm: 'treasury.shift', group: 'الخزينة', creates: false, ws: ['pos'] },
 ];
 
