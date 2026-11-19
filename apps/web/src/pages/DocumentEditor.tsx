@@ -544,10 +544,10 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className="page">
+    <div className={`page${type === 'expense' ? ' expense-editor' : ''}`}>
       <PageHeader
-        title={`${params.id ? 'تعديل ' : ''}${info.label}`}
-        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
+        title={`${params.id ? 'تعديل ' : ''}${type === 'expense' ? 'مصروف' : info.label}`}
+        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? 'سجّل المصروف وحدد البند والخزينة التي سيُخصم منها المبلغ.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
@@ -555,8 +555,8 @@ export function DocumentEditor() {
       {error && <div style={{ marginBottom: 12 }}><Banner kind="err">{error}</Banner></div>}
 
       {/* ---------- الرأس ---------- */}
-      <div className="card pad">
-        <div className="grid grid-4">
+      <div className={`card pad${type === 'expense' ? ' expense-fields' : ''}`}>
+        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : ''}`}>
           <Field label="التاريخ">
             <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
@@ -598,13 +598,16 @@ export function DocumentEditor() {
           )}
           {(type === 'expense' || type === 'income') && (
             <Field label={type === 'expense' ? 'بند المصروف' : 'بند الإيراد'}>
-              <Picker
-                value={h.account_id}
-                options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
-                onChange={(v) => set('account_id', v)}
-                createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
-                onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
-              />
+              <div className={type === 'expense' ? 'expense-account-field' : undefined}>
+                <Picker
+                  value={h.account_id}
+                  options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
+                  onChange={(v) => set('account_id', v)}
+                  createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
+                  onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
+                />
+                {type === 'expense' && can('accounts.manage') && <button type="button" className="icon-btn expense-add-account" title="إضافة بند مصروف جديد" aria-label="إضافة بند مصروف جديد" onClick={() => setNewAccount({ name: '' })}><Plus /></button>}
+              </div>
             </Field>
           )}
           {type === 'expense' && reps.length > 0 && accounts.find((a) => a.id === h.account_id)?.system_key === 'commissions' && (
@@ -701,7 +704,7 @@ export function DocumentEditor() {
             </Field>
           )}
           {!info.hasLines && type !== 'journal_voucher' && (
-            <Field label="المبلغ">
+            <Field label="المبلغ" hint={type === 'expense' ? 'سيُخصم من الخزينة المختارة ويُسجل على بند المصروف.' : undefined}>
               <MoneyInput value={h.amount} onChange={(v) => set('amount', v)} autoFocus />
             </Field>
           )}

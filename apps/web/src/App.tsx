@@ -16,6 +16,7 @@ import { Dashboard } from './pages/Dashboard';
 import { DocumentEditor } from './pages/DocumentEditor';
 import { DocumentsList } from './pages/DocumentsList';
 import { DocumentView } from './pages/DocumentView';
+import { ExpensesPage, ExpenseModal } from './pages/Expenses';
 import { ItemInquiry } from './pages/ItemInquiry';
 import { ItemsPage } from './pages/Items';
 import { Login } from './pages/Login';
@@ -62,6 +63,7 @@ export function App() {
   });
   const ui = useUi();
   const loc = useLocation();
+  const backgroundLocation = (loc.state as { backgroundLocation?: typeof loc } | null)?.backgroundLocation;
   const lic = useLicenseInfo();
 
   useEffect(() => {
@@ -182,7 +184,7 @@ export function App() {
     <SessionContext.Provider value={ctx}>
       {lic?.license?.status === 'trial' && <TrialPill license={lic.license} contact={lic.contact} />}
       <Layout>
-        <Routes>
+        <Routes location={backgroundLocation ?? loc}>
           <Route path="/" element={<HomeRoute><Dashboard /></HomeRoute>} />
           <Route path="/insights" element={<RequirePerm any={['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view']}><BusinessInsightsPage /></RequirePerm>} />
           <Route path="/hub/:key" element={<HubGuard><HubPage /></HubGuard>} />
@@ -196,6 +198,7 @@ export function App() {
           <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage /></RequirePerm>} />
           <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail /></RequirePerm>} />
           <Route path="/cashboxes" element={<RequirePerm any={['treasury.view']}><CashboxesPage /></RequirePerm>} />
+          <Route path="/expenses" element={<RequirePerm any={['treasury.view']}><ExpensesPage /></RequirePerm>} />
           <Route path="/accounts" element={<RequirePerm any={['accounts.view']}><AccountsPage /></RequirePerm>} />
           <Route path="/docs/new/:type" element={<NewDocGuard><NewDocRoute /></NewDocGuard>} />
           <Route path="/docs/edit/:id" element={<DocGuard><DocumentEditor /></DocGuard>} />
@@ -241,6 +244,11 @@ export function App() {
           <Route path="/audit" element={<RequirePerm any={['audit.view']}><AuditPage /></RequirePerm>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {backgroundLocation && (
+          <Routes>
+            <Route path="/docs/new/expense" element={<NewDocGuard><ExpenseModal><DocumentEditor /></ExpenseModal></NewDocGuard>} />
+          </Routes>
+        )}
       </Layout>
     </SessionContext.Provider>
   );
