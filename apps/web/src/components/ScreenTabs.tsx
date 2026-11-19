@@ -188,6 +188,7 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
     const keep = state.tabs.filter((t) => t.key === '/' || t.key === state.active);
     setState({ tabs: keep, active: state.active });
   };
+  const closeCount = state.tabs.filter((t) => t.key !== '/' && t.key !== state.active).length;
 
   return (
     <div className="screen-tabs mc-tabs hide-mobile no-print" role="tablist" aria-label="الشاشات المفتوحة">
@@ -235,9 +236,9 @@ export function ScreenTabs({ userId, scrollRef }: { userId: string; scrollRef: R
           );
         })}
       </div>
-      {state.tabs.length > 2 && (
-        <button type="button" className="st-close-all" onClick={closeOthers} title="إغلاق كل التبويبات عدا الحالي والرئيسية">
-          إغلاق الباقي
+      {closeCount > 0 && (
+        <button type="button" className="st-close-all" onClick={closeOthers} title="الاحتفاظ بالرئيسية والشاشة الحالية وإغلاق الشاشات الأخرى" aria-label={`الاحتفاظ بالرئيسية والشاشة الحالية وإغلاق ${closeCount} شاشة أخرى`}>
+          إغلاق {closeCount} شاشة
         </button>
       )}
       <NewMenu round />
