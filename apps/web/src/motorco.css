@@ -77,14 +77,14 @@
 .screen-tabs.mc-tabs { background: transparent; padding: 0.625rem 1.25rem 0; min-height: 0; gap: 0.625rem; align-items: center; }
 .screen-tabs.mc-tabs::after { display: none; }
 .mc-tabs .st-strip { padding: 0; gap: 0.375rem; align-items: center; }
-.mc-tabs .st-tab { height: 2.625rem; padding: 0 0.875rem; margin: 0; gap: 0.625rem; flex: 0 1 13.75rem; min-width: 7.5rem; border-radius: 0.8125rem; background: color-mix(in srgb, var(--label) 7%, var(--bg)); color: var(--label); font-size: var(--text-base); font-weight: 600; transition: background var(--dur), box-shadow var(--dur); }
+.mc-tabs .st-tab { height: 2.25rem; padding: 0 0.625rem; margin: 0; gap: 0.5rem; flex: 0 1 11.25rem; min-width: 6.75rem; border-radius: 0.6875rem; background: color-mix(in srgb, var(--label) 7%, var(--bg)); color: var(--label); font-size: var(--text-sm); font-weight: 600; transition: background var(--dur), box-shadow var(--dur); }
 .mc-tabs .st-tab::before { display: none; }
-.mc-tabs .st-tab:hover { background: color-mix(in srgb, var(--label) 11%, var(--bg)); }
-.mc-tabs .st-tab.on { background: var(--mc-surface); color: var(--heading); box-shadow: var(--mc-shadow); font-weight: 700; }
+.mc-tabs .st-tab:hover { background: color-mix(in srgb, var(--label) 11%, var(--bg)); box-shadow: 0 2px 5px color-mix(in srgb, var(--heading) 12%, transparent); }
+.mc-tabs .st-tab.on { background: var(--mc-surface); color: var(--heading); box-shadow: 0 2px 7px color-mix(in srgb, var(--heading) 15%, transparent); font-weight: 700; }
 .mc-tabs .st-tab.home { min-width: 0; padding: 0 0.875rem; flex: 0 0 auto; }
 .mc-tabs .st-tab.home.on { color: var(--tint); }
 .mc-tabs .st-ic { display: grid; place-items: center; flex-shrink: 0; }
-.mc-tabs .st-ic svg, .mc-tabs .st-home { width: 1.1875rem; height: 1.1875rem; stroke-width: 1.9; }
+.mc-tabs .st-ic svg, .mc-tabs .st-home { width: 1.0625rem; height: 1.0625rem; stroke-width: 1.9; }
 .mc-tabs .st-x { width: 1.375rem; height: 1.375rem; border-radius: 0.4375rem; color: var(--label); margin-inline-start: 0.25rem; }
 .mc-tabs .st-x svg { width: 0.9375rem; height: 0.9375rem; stroke-width: 2.4; }
 .mc-tabs .st-close-all { margin: 0; height: 2rem; border-radius: 0.625rem; border: 1px solid var(--mc-line); background: var(--mc-surface); }

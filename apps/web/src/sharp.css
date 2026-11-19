@@ -37,9 +37,9 @@
 
 /* ---------- 3) تبويبات الشاشات ---------- */
 .screen-tabs.mc-tabs { background: var(--card); border-bottom: 1px solid var(--separator); padding: 0.375rem 1.25rem; }
-.mc-tabs .st-tab { height: 2.25rem; border-radius: 0.75rem; background: transparent; border: 1px solid transparent; font-weight: 500; }
+.mc-tabs .st-tab { height: 2.125rem; flex-basis: 11.25rem; min-width: 6.75rem; padding-inline: 0.625rem; border-radius: 0.625rem; background: var(--card); border: 1px solid var(--separator); box-shadow: 0 2px 5px color-mix(in srgb, var(--heading) 12%, transparent); font-weight: 500; }
 .mc-tabs .st-tab:hover { background: var(--card-2); }
-.mc-tabs .st-tab.on { background: var(--card-2); border-color: var(--separator); box-shadow: none; font-weight: 600; }
+.mc-tabs .st-tab.on { background: var(--card-2); border-color: var(--separator); box-shadow: 0 2px 7px color-mix(in srgb, var(--heading) 16%, transparent); font-weight: 600; }
 .mc-tabs .st-tab.home.on { color: var(--heading); }
 .mc-tabs .st-close-all { border-radius: 0.75rem; }
 .mc-plus { width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; box-shadow: none; }
