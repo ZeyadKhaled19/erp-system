@@ -311,7 +311,6 @@ export const SECTIONS: Section[] = [
   { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/employees', perms: ['employees.view'], hubs: ['employees'] },
   { key: 'treasury', label: 'الخزينة', icon: <Wallet />, cardIcon: <Wallet />, color: 'violet', to: '/hub/treasury', perms: ['treasury.view'], hubs: ['treasury'] },
   { key: 'reports', label: 'التقارير', icon: <BarChart3 />, cardIcon: <BarChart3 />, color: 'pink', to: '/hub/reports', perms: ['reports.view'], hubs: ['reports'] },
-  { key: 'insights', label: 'نبض المحل', icon: <Sparkles />, cardIcon: <Sparkles />, color: 'violet', to: '/insights', perms: ['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view'], hubs: ['insights'], homeCard: false },
   {
     key: 'partners', label: 'الشركاء', icon: <HandCoins />, cardIcon: <HandCoins />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'],
     extra: [
@@ -320,6 +319,7 @@ export const SECTIONS: Section[] = [
       { to: '/docs/new/partner_withdrawal', label: 'مسحوبات شريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
     ],
   },
+  { key: 'insights', label: 'نبض المحل', icon: <Sparkles />, cardIcon: <Sparkles />, color: 'violet', to: '/insights', perms: ['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view'], hubs: ['insights'], homeCard: false },
 ];
 
 /** أقسام قائمة الترس (غير الظاهرة في الشريط) — الشركاء اتنقلوا للشريط بطلب المستخدم 2026-11-14 */
