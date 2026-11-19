@@ -199,8 +199,8 @@ export function App() {
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
           <Route path="/items/inquiry" element={<RequirePerm any={['items.view']}><ItemInquiry /></RequirePerm>} />
           <Route path="/warehouses" element={<RequirePerm any={['inventory.view']}><WarehousesPage /></RequirePerm>} />
-          <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage /></RequirePerm>} />
-          <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail /></RequirePerm>} />
+          <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage key={loc.pathname} /></RequirePerm>} />
+          <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail key={loc.pathname} /></RequirePerm>} />
           <Route path="/cashboxes" element={<RequirePerm any={['treasury.view']}><CashboxesPage /></RequirePerm>} />
           <Route path="/expenses" element={<RequirePerm any={['treasury.view']}><ExpensesPage /></RequirePerm>} />
           <Route path="/accounts" element={<RequirePerm any={['accounts.view']}><AccountsPage /></RequirePerm>} />

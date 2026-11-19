@@ -6,12 +6,16 @@ import { HBarList, lastMonths, MonthBars } from './charts';
 
 /** تحليل التعامل مع عميل/مورد (من البيانات المحلية — يعمل دون اتصال) */
 export function PartyInsights({ party }: { party: any }) {
+  const can = usePerm();
   const isCust = party.kind === 'customer';
+  const canView = can(isCust ? 'sales.view' : 'purchases.view');
+  const canTreasury = can('treasury.view');
   const months = lastMonths(12);
   const data = useLiveQuery(async () => {
-    const docs = (await db.documents.where('party_id').equals(party.id).toArray()).filter((d) => d.status === 'posted');
+    if (!canView) return null;
     const inv = isCust ? 'sale_invoice' : 'purchase_invoice';
     const ret = isCust ? 'sale_return' : 'purchase_return';
+    const docs = await db.documents.where('doc_type').anyOf([inv, ret]).filter((d) => d.party_id === party.id && d.status === 'posted').toArray();
     const invoices = docs.filter((d) => d.doc_type === inv);
     const returns = docs.filter((d) => d.doc_type === ret);
     const total = invoices.reduce((s, d) => s + d.total, 0) - returns.reduce((s, d) => s + d.total, 0);
@@ -27,7 +31,7 @@ export function PartyInsights({ party }: { party: any }) {
     for (const d of invoices) for (const l of await db.document_lines.where('document_id').equals(d.id).toArray()) items.set(l.item_id, (items.get(l.item_id) ?? 0) + (l.total ?? 0));
     const names = new Map((await db.items.bulkGet([...items.keys()])).filter(Boolean).map((i) => [i!.id, i!.name]));
     const top = [...items.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, v]) => ({ label: names.get(id) ?? '—', value: v }));
-    const insts = (await db.instruments.where('party_id').equals(party.id).toArray()).filter((x) => x.status === 'open');
+    const insts = canTreasury ? (await db.instruments.where('party_id').equals(party.id).toArray()).filter((x) => x.status === 'open') : [];
     const last = invoices.map((d) => d.date).sort().at(-1);
     const first = invoices.map((d) => d.date).sort()[0];
     return {
@@ -39,7 +43,7 @@ export function PartyInsights({ party }: { party: any }) {
       top,
       returns: returns.reduce((s, d) => s + d.total, 0),
     };
-  }, [party.id]);
+  }, [party.id, canView, canTreasury]);
   if (!data) return null;
   const daysSince = data.last ? Math.round((Date.now() - new Date(data.last + 'T00:00:00').getTime()) / 86400000) : null;
   return (
