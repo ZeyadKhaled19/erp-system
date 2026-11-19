@@ -64,7 +64,7 @@ export function QuickPartySheet({ kind = 'customer', initialName = '', groupId: 
 
   return (
     <Sheet
-      title={`${label} جديد`}
+      title={`إضافة ${label}`}
       onClose={onClose}
       footer={
         <>

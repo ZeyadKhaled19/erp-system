@@ -618,8 +618,8 @@ export function DocumentEditor() {
                     onCreate={can('parties.create') && info.partyKind ? (t) => { setNewPartyName(t); setNewParty(true); } : undefined}
                   />
                 </div>
-                {info.partyKind !== 'any' && can('parties.create') && (
-                  <button type="button" className="icon-btn" title="إضافة جديد" onClick={() => setNewParty(true)}><UserPlus /></button>
+                {(cashPartyKind || info.partyKind !== 'any') && can('parties.create') && (
+                  <button type="button" className="icon-btn" title={cashPartyKind === 'supplier' ? 'إضافة مورد' : cashPartyKind === 'customer' ? 'إضافة عميل' : 'إضافة جديد'} aria-label={cashPartyKind === 'supplier' ? 'إضافة مورد' : cashPartyKind === 'customer' ? 'إضافة عميل' : 'إضافة جديد'} onClick={() => { setNewPartyName(''); setNewParty(true); }}><UserPlus /></button>
                 )}
               </div>
             </Field>
@@ -1164,12 +1164,13 @@ export function DocumentEditor() {
       {newAccount && <QuickAccountSheet type={type === 'income' ? 'revenue' : 'expense'} initialName={newAccount.name} onClose={() => setNewAccount(null)} onSaved={(id) => set('account_id', id)} />}
       {newParty && (
         <QuickPartySheet
+          key={cashPartyKind ?? info.partyKind}
           kind={cashPartyKind === 'supplier' || info.partyKind === 'supplier' ? 'supplier' : 'customer'}
           initialName={newPartyName}
           onClose={() => { setNewParty(false); setNewPartyName(''); }}
           onSaved={(id) => {
             const p = parties.find((x) => x.id === id);
-            setH((o: any) => ({ ...o, party_id: id, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
+            setH((o: any) => ({ ...o, party_id: id, ref_doc_id: cashMovement ? null : o.ref_doc_id, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
           }}
         />
       )}
