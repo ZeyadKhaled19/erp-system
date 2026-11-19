@@ -138,7 +138,7 @@ export const HUBS: Hub[] = [
         links: [
           { to: '/docs/new/receipt', label: 'قبض من عميل', desc: 'يُخصم تلقائيًا من أقدم فواتيره', icon: <ArrowDownLeft />, grad: 'var(--grad-green)', perm: 'treasury.create', hero: true },
           { to: '/docs/new/payment', label: 'صرف لمورد', icon: <ArrowUpRight />, grad: 'var(--grad-red)', perm: 'treasury.create' },
-          { to: '/docs/new/expense', label: 'مصروف', icon: <Receipt />, grad: 'var(--grad-orange)', perm: 'treasury.create' },
+          { to: '/expenses', label: 'المصروفات', icon: <Receipt />, grad: 'var(--grad-orange)', perm: 'treasury.view' },
           { to: '/docs/new/income', label: 'إيراد آخر', icon: <TrendingUp />, grad: 'var(--grad-green)', perm: 'treasury.create' },
           { to: '/docs/new/cash_transfer', label: 'تحويل بين الخزائن', icon: <ArrowLeftRight />, grad: 'var(--grad-indigo)', perm: 'treasury.create' },
         ],

@@ -1,8 +1,8 @@
 import { formatMoney, hasPermission, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CalendarDays, Plus, Receipt, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, Field, MoneyInput, Sheet, useUi } from '../components/ui';
 import { PageTabs, TREASURY_TABS } from '../components/ListParts';
@@ -16,6 +16,8 @@ const monthStart = `${todayISO().slice(0, 7)}-01`;
 
 export function ExpensesPage() {
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autoOpened = useRef(false);
   const ui = useUi();
   const { session } = useSession();
   const can = (key: string) => hasPermission(session.user.permissions, key);
@@ -57,6 +59,12 @@ export function ExpensesPage() {
     setForm({ date: todayISO(), account_id: expenseAccounts[0]?.id ?? '', cashbox_id: cashboxes[0]?.id ?? '', amount: 0, notes: '' });
     setCreateOpen(true);
   };
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || autoOpened.current) return;
+    autoOpened.current = true;
+    setForm({ date: todayISO(), account_id: expenseAccounts[0]?.id ?? '', cashbox_id: cashboxes[0]?.id ?? '', amount: 0, notes: '' });
+    setCreateOpen(true);
+  }, [searchParams, expenseAccounts, cashboxes]);
   const saveExpense = async () => {
     if (!form.date || !form.account_id || !form.cashbox_id || form.amount <= 0) {
       ui.toast('أكمل التاريخ وبند المصروف والخزينة والمبلغ', 'err');
@@ -85,6 +93,7 @@ export function ExpensesPage() {
     <div className="page">
       <PageTabs tabs={TREASURY_TABS} />
       <PageHeader title="المصروفات" sub="تابع المصروفات حسب الفترة والبند والخزينة، وسجّل مصروفًا جديدًا من نفس الشاشة." actions={can('treasury.create') ? <button className="btn primary" onClick={startCreate}><Plus /> مصروف جديد</button> : null} />
+      {can('treasury.view') ? <>
       <div className="grid grid-4 expense-summary">
         <div className="card pad expense-kpi"><span className="caption">مصروفات الفترة</span><strong className="num">{formatMoney(total)}</strong><span className="muted small">المصروفات المرحلة</span></div>
         <div className="card pad expense-kpi"><span className="caption">عدد المصروفات</span><strong className="num">{posted.length}</strong><span className="muted small">ضمن الفترة المحددة</span></div>
@@ -108,6 +117,7 @@ export function ExpensesPage() {
         {visible.length ? <div className="table-wrap"><table className="table responsive"><thead><tr><th>رقم المستند</th><th>التاريخ</th><th>بند المصروف</th><th>الخزينة</th><th>ملاحظات</th><th>الحالة</th><th className="n">المبلغ</th></tr></thead><tbody>{visible.map((d) => <tr key={d.id} className="click" onClick={() => nav(`/docs/view/${d.id}`)}><td data-label="رقم المستند" className="num bold">{d.number ?? d.local_number ?? 'مسودة'}</td><td data-label="التاريخ" className="num">{d.date}</td><td data-label="بند المصروف">{accountMap.get(d.account_id ?? '')?.name ?? '—'}</td><td data-label="الخزينة">{cashboxMap.get(d.cashbox_id ?? '')?.name ?? '—'}</td><td data-label="ملاحظات" className="muted">{d.notes || '—'}</td><td data-label="الحالة"><span className={`badge ${d.status === 'posted' ? 'green' : d.status === 'draft' ? 'gray' : 'orange'}`}>{d.status === 'posted' ? 'مرحّل' : d.status === 'draft' ? 'مسودة' : 'مراجعة'}</span></td><td data-label="المبلغ" className="n num bold">{formatMoney(d.amount)}</td></tr>)}</tbody></table></div> : <div className="expense-empty"><Receipt /><strong>لا توجد مصروفات مطابقة</strong><span>غيّر الفترة أو الفلاتر، أو أضف مصروفًا جديدًا.</span>{can('treasury.create') && <button className="btn" onClick={startCreate}><Plus /> مصروف جديد</button>}</div>}
         <div className="expense-list-foot">عرض {visible.length} من {docs.length} مصروف</div>
       </div>
+      </> : <Banner kind="info">تقدر تسجّل مصروفًا جديدًا من النافذة، لكن صلاحيتك لا تشمل عرض سجل المصروفات.</Banner>}
 
       {createOpen && <Sheet title="مصروف جديد" subtitle="أدخل التفاصيل الأساسية، وسيُسجل المبلغ على الخزينة وبند المصروف." onClose={() => setCreateOpen(false)} footer={<><button className="btn" onClick={() => setCreateOpen(false)}>إلغاء</button><button className="btn primary" onClick={() => void saveExpense()}>حفظ المصروف</button></>}>
         <div className="stack">
