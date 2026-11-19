@@ -113,7 +113,12 @@ export function ExpensesPage() {
 
 export function ExpenseModal({ children }: { children: ReactNode }) {
   const nav = useNavigate();
-  const close = () => nav(-1);
+  const location = useLocation();
+  const close = () => {
+    const background = (location.state as { backgroundLocation?: { pathname?: string; search?: string } } | null)?.backgroundLocation;
+    if (background) nav(background, { replace: true });
+    else nav(-1);
+  };
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
     window.addEventListener('keydown', onKeyDown);

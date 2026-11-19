@@ -165,7 +165,12 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
         )}
 
         <div className="dv-actions no-print">
-          {canEdit && <button className="btn" onClick={() => nav(`/docs/edit/${doc.id}`)}><Pencil /> تعديل</button>}
+          {canEdit && <button className="btn" onClick={() => {
+            const state = ['expense', 'partner_withdrawal'].includes(doc.doc_type)
+              ? { state: { backgroundLocation: { pathname: doc.doc_type === 'expense' ? '/expenses' : '/hub/partners' } } }
+              : undefined;
+            nav(`/docs/edit/${doc.id}`, state);
+          }}><Pencil /> تعديل</button>}
           {canPost && (
             <button
               className="btn primary"

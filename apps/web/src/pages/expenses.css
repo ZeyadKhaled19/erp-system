@@ -30,14 +30,38 @@
 .expense-search .input { width: 100%; padding-inline-start: 34px; }
 .expense-note { display: block; color: var(--label-3); font-size: .78rem; margin-top: 3px; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .expense-empty { padding: 20px; }
-.expense-modal-backdrop { position: fixed; z-index: 1000; inset: 0; background: rgb(20 24 32 / 48%); display: grid; place-items: center; padding: 20px; }
-.expense-modal { position: relative; width: min(980px, 100%); max-height: min(94vh, 980px); overflow: auto; background: var(--card); border-radius: 18px; box-shadow: 0 24px 80px rgb(0 0 0 / 25%); }
-.expense-modal-close { position: sticky; top: 10px; float: inline-end; z-index: 3; margin: 10px 10px -42px; background: var(--card); box-shadow: 0 2px 10px rgb(0 0 0 / 10%); }
-.expense-modal .page { padding: 22px; max-width: none; }
-.expense-modal .page-head { padding-inline-end: 38px; }
-.expense-modal .sticky-actions { position: sticky; bottom: 0; }
-.expense-editor .expense-fields { border-radius: 14px; box-shadow: var(--shadow-card); }
-.expense-editor .expense-fields-grid { grid-template-columns: minmax(145px, .8fr) minmax(230px, 1.45fr) minmax(180px, 1fr) minmax(150px, .9fr); align-items: end; gap: 14px; }
+.expense-modal-backdrop { position: fixed; z-index: 1000; inset: 0; background: rgb(20 24 32 / 52%); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 18px; }
+.expense-modal { position: relative; width: min(560px, 100%); max-height: min(94vh, 760px); overflow: auto; background: var(--card); border: 1px solid var(--separator); border-radius: 16px; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
+.expense-modal-close { position: absolute; top: 13px; left: 14px; z-index: 3; margin: 0; background: transparent; }
+.expense-modal .page { padding: 0; max-width: none; }
+.expense-modal .expense-editor .page-head { margin: 0; padding: 17px 20px 14px; border-bottom: 1px solid var(--separator); align-items: center; }
+.expense-modal .expense-editor .page-head-text { padding-inline-end: 22px; }
+.expense-modal .expense-editor .page-head h1 { margin: 0 0 3px; font-size: 1.12rem; }
+.expense-modal .expense-editor .page-sub { font-size: .82rem; line-height: 1.55; }
+.expense-modal .sticky-actions { position: sticky; bottom: 0; z-index: 2; }
+.expense-editor .expense-mode-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 16px 20px 0; }
+.expense-editor .expense-mode-card { min-width: 0; display: grid; gap: 3px; padding: 10px 14px; border: 1px solid var(--separator); border-radius: 10px; background: var(--card); color: var(--heading); text-align: right; font: inherit; cursor: pointer; }
+.expense-editor .expense-mode-card b { font-size: .9rem; }
+.expense-editor .expense-mode-card span { color: var(--label-2); font-size: .76rem; }
+.expense-editor .expense-mode-card.active { border-color: var(--tint); background: color-mix(in srgb, var(--tint) 8%, var(--card)); color: var(--tint); }
+.expense-editor .expense-fields { margin: 0; padding: 16px 20px 12px; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.expense-editor .expense-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'category category' 'title title' 'amount cashbox' 'date memo'; align-items: end; gap: 12px; }
+.expense-editor .expense-category-field { grid-area: category; }
+.expense-editor .expense-title-field { grid-area: title; }
+.expense-editor .expense-cashbox-field { grid-area: cashbox; }
+.expense-editor .expense-amount-field { grid-area: amount; }
+.expense-editor .expense-date-field { grid-area: date; }
+.expense-editor .expense-memo-field { grid-area: memo; }
+.expense-editor .expense-fields-grid .input, .expense-editor .expense-fields-grid .select, .expense-editor .expense-fields-grid .picker { min-height: 40px; }
+.expense-editor .expense-fields-grid .field > label { margin-bottom: 5px; font-size: .82rem; }
+.expense-editor .expense-add-account { width: 36px; height: 40px; flex-basis: 36px; border: 1px solid var(--separator); border-radius: 9px; }
+.expense-editor .sticky-actions.expense-actions { display: flex; justify-content: flex-start; gap: 8px; padding: 11px 20px; border-top: 1px solid var(--separator); background: var(--card-2, var(--hover)); }
+.expense-editor .expense-actions .btn { min-height: 40px; padding-inline: 14px; }
+.expense-editor .expense-actions .btn.primary { min-width: 84px; }
+.expense-editor .expense-actions .btn svg { width: 16px; height: 16px; }
+.expense-editor .expense-actions .btn.plain { border-color: transparent; background: transparent; }
+.expense-editor .expense-fields-grid .expense-memo-field .textarea { min-height: 40px; height: 40px; resize: vertical; }
+.expense-editor .expense-fields-grid .expense-title-field .input { text-align: right; }
 .expense-account-field { display: flex; align-items: center; gap: 7px; }
 .expense-account-field .picker { flex: 1 1 auto; min-width: 0; }
 .expense-add-account { flex: 0 0 42px; width: 42px; height: 42px; border-radius: 10px; color: var(--tint); }
@@ -47,11 +71,18 @@
   .expense-kpi { padding: 13px; }
   .expense-overview { grid-template-columns: 1fr; }
   .expense-filters > .select { flex: 1 1 145px; max-width: none; }
+  .expense-modal-backdrop { padding: 10px; }
+  .expense-modal { max-height: 96dvh; }
   .expense-editor .expense-fields-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .expense-modal-backdrop { padding: 0; align-items: end; }
   .expense-modal { width: 100%; max-height: 96dvh; border-radius: 18px 18px 0 0; }
   .expense-modal .page { padding: 16px; }
 }
 @media (max-width: 480px) {
-  .expense-editor .expense-fields-grid { grid-template-columns: 1fr; }
+  .expense-editor .expense-fields-grid { grid-template-columns: 1fr; grid-template-areas: 'category' 'title' 'amount' 'cashbox' 'date' 'memo'; }
+  .expense-editor .expense-mode-cards { padding: 12px 14px 0; }
+  .expense-modal .expense-editor .page-head { padding: 15px 14px 12px; }
+  .expense-editor .expense-fields { padding: 14px; }
+  .expense-editor .sticky-actions.expense-actions { padding: 10px 14px; gap: 6px; }
+  .expense-editor .expense-actions .btn { flex: 1 1 auto; padding-inline: 8px; font-size: .8rem; }
 }

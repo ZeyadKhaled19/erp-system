@@ -2,9 +2,9 @@ import {
   computeDocument, DOC_TYPES, formatMoney, formatQty, hasPermission, mulDiv, todayISO, toBaseQty, uuid, type DocInput, type DocType,
 } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, CalendarClock, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { Banknote, CalendarClock, CheckCircle2, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DateInput, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
 import { localAvailable, priceFor, saveDocument } from '../lib/actions';
@@ -35,6 +35,14 @@ interface Pay {
   cashbox_id: string;
   amount: number;
 }
+
+const EXPENSE_MEMO_MARKER = '\nملاحظات إضافية: ';
+const splitExpenseNotes = (value: string) => {
+  const index = value.indexOf(EXPENSE_MEMO_MARKER);
+  return index < 0
+    ? { title: value, memo: '' }
+    : { title: value.slice(0, index), memo: value.slice(index + EXPENSE_MEMO_MARKER.length) };
+};
 interface Charge {
   id: string;
   name: string;
@@ -76,6 +84,7 @@ const IN_DOCS: DocType[] = ['purchase_invoice', 'opening_stock', 'sale_return', 
 export function DocumentEditor() {
   const params = useParams();
   const [sp] = useSearchParams();
+  const location = useLocation();
   const nav = useNavigate();
   const ui = useUi();
   const { session } = useSession();
@@ -123,6 +132,8 @@ export function DocumentEditor() {
   const [counterMode, setCounterMode] = useState<'party' | 'account'>('party');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseMemo, setExpenseMemo] = useState('');
   const [avail, setAvail] = useState<Record<string, number>>({});
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
@@ -139,6 +150,11 @@ export function DocumentEditor() {
     if (params.id) {
       if (existing === undefined || existingLines === undefined || !existing) return;
       setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null });
+      if (existing.doc_type === 'expense') {
+        const details = splitExpenseNotes(existing.notes ?? '');
+        setExpenseTitle(details.title);
+        setExpenseMemo(details.memo);
+      }
       setLines(existingLines.map((l: any) => ({ ...l, serials: l.serials ?? [] })));
       setJl(existing.data?.journal_lines ?? []);
       setPayments(existing.data?.payments ?? []);
@@ -180,6 +196,10 @@ export function DocumentEditor() {
       order_status: '',
       notes: sp.get('note') ?? '',
     });
+    if (type === 'expense') {
+      setExpenseTitle(sp.get('note') ?? '');
+      setExpenseMemo('');
+    }
     setJl([
       { account_id: '', party_id: null, debit: 0, credit: 0, memo: '' },
       { account_id: '', party_id: null, debit: 0, credit: 0, memo: '' },
@@ -427,7 +447,9 @@ export function DocumentEditor() {
       discount: info.priced ? h.discount ?? 0 : 0,
       ref_doc_id: h.ref_doc_id || null,
       side: type === 'party_opening' ? h.side : null,
-      notes: h.notes || null,
+      notes: type === 'expense'
+        ? `${expenseTitle.trim()}${expenseMemo.trim() ? `${EXPENSE_MEMO_MARKER}${expenseMemo.trim()}` : ''}` || null
+        : h.notes || null,
       local_number: h.local_number ?? null,
       retained_bp: 0,
       lines: lines
@@ -467,6 +489,7 @@ export function DocumentEditor() {
     }
     if (['receipt', 'payment'].includes(type) && !d.party_id && !d.account_id) return 'اختر الطرف أو الحساب';
     if (['expense', 'income'].includes(type) && !d.account_id) return 'اختر الحساب';
+    if (type === 'expense' && !expenseTitle.trim()) return 'اكتب اسم المصروف';
     if (type === 'cash_transfer' && (!d.to_cashbox_id || d.to_cashbox_id === d.cashbox_id)) return 'اختر خزينة مختلفة للتحويل إليها';
     if ((type === 'partner_capital' || type === 'partner_withdrawal') && !d.partner_id) return 'اختر الشريك';
     if (!info.hasLines && type !== 'journal_voucher' && d.amount <= 0) return 'أدخل المبلغ';
@@ -483,7 +506,7 @@ export function DocumentEditor() {
     return null;
   };
 
-  const submit = async (action: 'draft' | 'post') => {
+  const submit = async (action: 'draft' | 'post', addAnother = false) => {
     setError(null);
     const d = buildDoc();
     const v = validate(d);
@@ -506,6 +529,15 @@ export function DocumentEditor() {
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
+      if (type === 'expense' || type === 'partner_withdrawal') {
+        const background = (location.state as { backgroundLocation?: { pathname?: string; search?: string } } | null)?.backgroundLocation;
+        if (addAnother) {
+          nav(`/docs/new/${type}?again=${Date.now()}`, { replace: true, state: { backgroundLocation: background ?? { pathname: '/' } } });
+        } else {
+          nav(background ?? (type === 'expense' ? '/expenses' : '/hub/partners'), { replace: true });
+        }
+        return;
+      }
       nav(`/docs/view/${d.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
@@ -532,6 +564,9 @@ export function DocumentEditor() {
   });
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
+  const backgroundLocation = (location.state as { backgroundLocation?: { pathname?: string } } | null)?.backgroundLocation;
+  if (params.id && ['expense', 'partner_withdrawal'].includes(existing?.doc_type ?? '') && !backgroundLocation)
+    return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: existing?.doc_type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
   if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
     return <div className="page"><Banner kind="warn">هذا المستند {existing.status === 'posted' ? 'مُرحّل' : 'ملغي'} ولا يمكن تعديله.</Banner></div>;
@@ -544,11 +579,21 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className={`page${type === 'expense' ? ' expense-editor' : ''}`}>
+    <div className={`page${type === 'expense' || type === 'partner_withdrawal' ? ' expense-editor' : ''}`}>
       <PageHeader
-        title={`${params.id ? 'تعديل ' : ''}${type === 'expense' ? 'مصروف' : info.label}`}
-        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? 'سجّل المصروف وحدد البند والخزينة التي سيُخصم منها المبلغ.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
+        title={type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
+        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
+      {!params.id && (type === 'expense' || type === 'partner_withdrawal') && (
+        <div className="expense-mode-cards" role="group" aria-label="نوع الصرف">
+          <button type="button" className={`expense-mode-card ${type === 'expense' ? 'active' : ''}`} onClick={() => type !== 'expense' && nav(`/docs/new/expense?again=${Date.now()}`, { state: { backgroundLocation: backgroundLocation ?? { pathname: '/' } } })}>
+            <b>مصروف</b><span>يتخصم من الأرباح</span>
+          </button>
+          <button type="button" className={`expense-mode-card ${type === 'partner_withdrawal' ? 'active' : ''}`} onClick={() => type !== 'partner_withdrawal' && nav(`/docs/new/partner_withdrawal?again=${Date.now()}`, { state: { backgroundLocation: backgroundLocation ?? { pathname: '/' } } })}>
+            <b>صرف من غير أرباح</b><span>من الخزنة والوردية بس</span>
+          </button>
+        </div>
+      )}
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
       {existing?.review_reason && <div style={{ marginBottom: 12 }}><Banner kind="warn">{existing.review_reason}</Banner></div>}
@@ -557,7 +602,7 @@ export function DocumentEditor() {
       {/* ---------- الرأس ---------- */}
       <div className={`card pad${type === 'expense' ? ' expense-fields' : ''}`}>
         <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : ''}`}>
-          <Field label="التاريخ">
+          <Field label="التاريخ" className={type === 'expense' ? 'expense-date-field' : undefined}>
             <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
 
@@ -597,7 +642,7 @@ export function DocumentEditor() {
             </Field>
           )}
           {(type === 'expense' || type === 'income') && (
-            <Field label={type === 'expense' ? 'بند المصروف' : 'بند الإيراد'}>
+            <Field label={type === 'expense' ? 'البند' : 'بند الإيراد'} className={type === 'expense' ? 'expense-category-field' : undefined}>
               <div className={type === 'expense' ? 'expense-account-field' : undefined}>
                 <Picker
                   value={h.account_id}
@@ -608,6 +653,11 @@ export function DocumentEditor() {
                 />
                 {type === 'expense' && can('accounts.manage') && <button type="button" className="icon-btn expense-add-account" title="إضافة بند مصروف جديد" aria-label="إضافة بند مصروف جديد" onClick={() => setNewAccount({ name: '' })}><Plus /></button>}
               </div>
+            </Field>
+          )}
+          {type === 'expense' && (
+            <Field label="اسم المصروف" className="expense-title-field" required>
+              <input className="input" value={expenseTitle} onChange={(e) => setExpenseTitle(e.target.value)} placeholder="مثال: فاتورة كهربا شهر 9" autoFocus />
             </Field>
           )}
           {type === 'expense' && reps.length > 0 && accounts.find((a) => a.id === h.account_id)?.system_key === 'commissions' && (
@@ -684,7 +734,11 @@ export function DocumentEditor() {
           )}
 
           {['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type) && (
-            <Field label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}>
+            <Field
+              label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}
+              className={type === 'expense' ? 'expense-cashbox-field' : undefined}
+              hint={type === 'expense' ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
+            >
               <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -704,8 +758,13 @@ export function DocumentEditor() {
             </Field>
           )}
           {!info.hasLines && type !== 'journal_voucher' && (
-            <Field label="المبلغ" hint={type === 'expense' ? 'سيُخصم من الخزينة المختارة ويُسجل على بند المصروف.' : undefined}>
-              <MoneyInput value={h.amount} onChange={(v) => set('amount', v)} autoFocus />
+            <Field label="المبلغ" className={type === 'expense' ? 'expense-amount-field' : undefined}>
+              <MoneyInput value={h.amount} onChange={(v) => set('amount', v)} autoFocus={type !== 'expense'} />
+            </Field>
+          )}
+          {type === 'expense' && (
+            <Field label="ملاحظات" className="expense-memo-field">
+              <textarea className="textarea" rows={2} value={expenseMemo} onChange={(e) => setExpenseMemo(e.target.value)} />
             </Field>
           )}
           {(type === 'receipt' || type === 'payment') && counterMode === 'party' && h.party_id && (
@@ -1048,13 +1107,15 @@ export function DocumentEditor() {
               )}
             </div>
           )}
-          <div className="card pad">
-            <Field label={type === 'stock_adjustment' ? 'سبب الجرد/التسوية *' : 'ملاحظات'}>
-              <textarea className="textarea" value={h.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
-            </Field>
-          </div>
+          {type !== 'expense' && (
+            <div className="card pad">
+              <Field label={type === 'stock_adjustment' ? 'سبب الجرد/التسوية *' : 'ملاحظات'}>
+                <textarea className="textarea" value={h.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
+              </Field>
+            </div>
+          )}
         </div>
-        {calc && !calc.error && (
+        {type !== 'expense' && calc && !calc.error && (
           <div className="card pad totals-box">
             {info.priced && (
               <>
@@ -1080,22 +1141,28 @@ export function DocumentEditor() {
         )}
         {calc?.error && <Banner kind="err">{calc.error}</Banner>}
       </div>
-      <div className="footnote" style={{ marginTop: 14 }}>
+      {!['expense', 'partner_withdrawal'].includes(type) && <div className="footnote" style={{ marginTop: 14 }}>
         الاختصارات: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ · <kbd>Ctrl</kbd>+<kbd>S</kbd> مسودة · <kbd>F2</kbd> الباركود
-      </div>
-      <div className="sticky-actions">
-        <div style={{ flex: 1 }}>
-          {(calc && !calc.error) || !info.hasLines ? (
-            <>
-              <div className="caption">الإجمالي</div>
-              <div className="sa-total num">{formatMoney(info.hasLines ? total : type === 'journal_voucher' ? jlTotals.dr : h.amount ?? 0)}</div>
-            </>
-          ) : null}
-        </div>
-        <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
-        <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
-          {info.noPosting ? 'اعتماد' : 'حفظ'}
-        </button>
+      </div>}
+      <div className={`sticky-actions${['expense', 'partner_withdrawal'].includes(type) ? ' expense-actions' : ''}`}>
+        {['expense', 'partner_withdrawal'].includes(type) ? <>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void submit('post')}>{busy ? 'جاري الحفظ…' : 'احفظ'} <CheckCircle2 /></button>
+          <button type="button" className="btn" disabled={busy} onClick={() => void submit('post', true)}>{busy ? 'جاري الحفظ…' : 'حفظ وضيف تاني'} <Plus /></button>
+          <button type="button" className="btn plain" disabled={busy} onClick={() => nav(backgroundLocation ?? (type === 'expense' ? '/expenses' : '/hub/partners'), { replace: true })}>رجوع</button>
+        </> : <>
+          <div style={{ flex: 1 }}>
+            {(calc && !calc.error) || !info.hasLines ? (
+              <>
+                <div className="caption">الإجمالي</div>
+                <div className="sa-total num">{formatMoney(info.hasLines ? total : type === 'journal_voucher' ? jlTotals.dr : h.amount ?? 0)}</div>
+              </>
+            ) : null}
+          </div>
+          <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+          <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
+            {info.noPosting ? 'اعتماد' : 'حفظ'}
+          </button>
+        </>}
       </div>
 
       {newItem && <QuickItemSheet initialName={newItemName} onClose={() => { setNewItem(false); setNewItemName(''); }} onSaved={(id) => setTimeout(() => void addItem(id), 80)} />}
