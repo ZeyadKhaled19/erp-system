@@ -98,7 +98,7 @@ function dayLabel(date: string) {
 const timeOf = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }) : '');
 
 /** مركز الفواتير: ملخص، فلاتر واضحة، قائمة مجمعة باليوم، وتفاصيل منظمة بجوارها */
-export function InvoicesPage({ purchaseOnly = false }: { purchaseOnly?: boolean }) {
+export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }: { purchaseOnly?: boolean; backgroundActive?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const nav = useNavigate();
   const { session } = useSession();
@@ -184,11 +184,13 @@ export function InvoicesPage({ purchaseOnly = false }: { purchaseOnly?: boolean 
   }, [list]);
 
   const select = (id: string) => {
+    if (backgroundActive) return;
     const n = new URLSearchParams(sp);
     n.set('id', id);
     setSp(n, { replace: true });
   };
   useEffect(() => {
+    if (backgroundActive) return;
     const n = new URLSearchParams(sp);
     const put = (k: string, v: string, def = '') => (v && v !== def ? n.set(k, v) : n.delete(k));
     put('k', kind, 'all');
@@ -201,13 +203,14 @@ export function InvoicesPage({ purchaseOnly = false }: { purchaseOnly?: boolean 
     put('m', method);
     setSp(n, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, period, from, to, status, pay, sort, method]);
+  }, [kind, period, from, to, status, pay, sort, method, backgroundActive]);
   useEffect(() => {
     if ((!sel || !list.some((d) => d.id === sel)) && list[0] && window.innerWidth > 1100) select(list[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list.length, kind, period, status, pay]);
+  }, [list.length, kind, period, status, pay, backgroundActive]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
+      if (backgroundActive) return;
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'SELECT' || tag === 'TEXTAREA') return;

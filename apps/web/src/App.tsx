@@ -189,8 +189,8 @@ export function App() {
           <Route path="/insights" element={<RequirePerm any={['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view']}><BusinessInsightsPage /></RequirePerm>} />
           <Route path="/hub/:key" element={<HubGuard><HubPage /></HubGuard>} />
           <Route path="/pos" element={<RequirePerm any={['sales.create']}><PosPage /></RequirePerm>} />
-          <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage /></RequirePerm>} />
-          <Route path="/purchases" element={<RequirePerm any={['purchases.view']}><InvoicesPage purchaseOnly /></RequirePerm>} />
+          <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage backgroundActive={!!backgroundLocation} /></RequirePerm>} />
+          <Route path="/purchases" element={<RequirePerm any={['purchases.view']}><InvoicesPage purchaseOnly backgroundActive={!!backgroundLocation} /></RequirePerm>} />
           <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
           <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />

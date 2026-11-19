@@ -48,6 +48,18 @@
 .purchase-modal .si .ss-side .card > .si-bar { position: static; margin: 0; padding: 12px 0 0; }
 .purchase-modal .si-tw { max-height: 45dvh; }
 .purchase-modal .si-heading-actions { display: none; }
+.purchase-modal .si-more-panel { width: 100%; min-width: 0; }
+.purchase-modal .si-more-panel[open] > .si-more-panel-content { position: static; inset: auto; width: 100%; max-height: none; overflow: visible; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 12px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.purchase-modal .si-more-panel-content .si-adj { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; box-sizing: border-box; margin: 0; padding: 12px; gap: 12px; }
+.purchase-modal .si-adj-row { flex-wrap: wrap; min-width: 0; }
+.purchase-modal .si-adj-row .input { flex: 1 1 90px; min-width: 0; width: 100%; }
+.purchase-modal .si-adj-row .select { flex: 1 1 100px; min-width: 0; max-width: 100%; }
+.purchase-modal .si .ss-side .card > .si-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+.purchase-modal .si .si-bar > .btn { display: flex; flex-wrap: wrap; justify-content: center; white-space: normal; min-width: 0; min-height: 44px; height: auto; line-height: 1.5; padding: 8px; font-size: .84rem; }
+.purchase-modal .si .si-bar > .btn:first-child { grid-column: 1 / -1; }
+.purchase-modal .si-more-actions { grid-column: 1 / -1; width: 100%; }
+.purchase-modal .si-more-actions > summary { width: 100%; box-sizing: border-box; }
+.purchase-modal .si-more-actions[open] { position: static; inset: auto; width: 100%; box-sizing: border-box; }
 @media (max-width: 1000px) {
   .purchase-modal .ss.si > .si-main { grid-template-columns: minmax(0, 1fr); }
   .purchase-modal .ss.si > .si-main > .ss-side { grid-column: 1; grid-row: 4; }
