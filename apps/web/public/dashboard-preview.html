@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>معاينة لوحة التشغيل — MOTORCO</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#eeeff3;color:#15171c;font:14px/1.5 "IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif}button{font:inherit;color:inherit}.wrap{max-width:1500px;margin:auto;min-height:100vh;padding:12px 24px 40px}.brand-row,.nav-row,.tabs,.head,.row,.task,.action,.stat-head,.panel-head,.recent{display:flex;align-items:center}.brand-row{gap:18px;min-height:48px}.brand{font-size:18px;font-weight:800;white-space:nowrap}.brand-badge{display:inline-grid;place-items:center;margin-inline-end:8px;width:30px;height:30px;border-radius:9px;background:#ea580c;color:#fff}.sep{width:1px;height:24px;background:#c7cad4}.sys{font-weight:700}.grow{flex:1}.search{border:1px solid #dee0e7;border-radius:999px;padding:7px 14px;color:#6b707c;background:#fff}.circle{width:36px;height:36px;border:1px solid #dee0e7;background:#fff;border-radius:50%;display:grid;place-items:center}.status{background:#e8f6ee;color:#15803d;border-radius:999px;padding:6px 12px;font-size:12px}.nav-row{gap:7px;margin-top:4px;padding:6px;background:#fff;border:1px solid #dee0e7;border-radius:12px;overflow:auto}.nav-item{padding:8px 13px;border-radius:8px;color:#5a5f6b;white-space:nowrap}.nav-item.active{background:#ea580c;color:#fff;font-weight:700}.tabs{gap:7px;margin:12px 0 20px;overflow:hidden}.tab{background:#fff;border:1px solid #dee0e7;border-radius:9px;padding:8px 13px;color:#5a5f6b;white-space:nowrap}.tab.active{color:#15171c;font-weight:700;border-color:#c7cad4}.head{justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap}.head h1{font-size:24px;margin:0 0 2px;font-weight:700}.sub{color:#5a5f6b}.date{background:#fff;border:1px solid #dee0e7;border-radius:10px;padding:8px 14px;color:#5a5f6b}.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.action{min-height:62px;gap:12px;text-align:right;padding:11px 14px;background:#fff;border:1px solid #dee0e7;border-radius:12px}.action.primary{background:#ea580c;color:#fff;border-color:#ea580c}.ico{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#f4f5f8;color:#ea580c;flex:0 0 auto;font-size:18px;font-weight:700}.primary .ico{background:#ffffff26;color:white}.action b{display:block;font-size:14px}.action small{display:block;color:#6b707c;font-size:11px}.primary small{color:#fff3eb}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.stat,.panel{background:#fff;border:1px solid #dee0e7;border-radius:12px}.stat{padding:14px}.stat-head{justify-content:space-between;color:#5a5f6b;font-size:13px}.stat-icon{width:30px;height:30px;border-radius:8px;background:#f4f5f8;color:#ea580c;display:grid;place-items:center}.value{margin-top:10px;font-size:26px;font-weight:700;line-height:1.2}.unit{font-size:12px;color:#5a5f6b;font-weight:500}.trend{font-size:11px;color:#15803d;margin-top:6px}.layout{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-bottom:14px}.panel{padding:15px;min-width:0}.panel-head{justify-content:space-between;gap:12px;margin-bottom:10px}.panel h2{font-size:16px;margin:0;font-weight:700}.panel-sub{color:#6b707c;font-size:12px}.link{color:#ea580c;font-size:12px}.row{justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid #dee0e7}.row:first-of-type{border-top:0}.right .name{font-weight:600}.meta{font-size:12px;color:#6b707c;margin-top:2px}.badge{font-size:11px;padding:4px 9px;border-radius:999px;white-space:nowrap;background:#fdecec;color:#b42323}.badge.warn{background:#fef6d8;color:#854d0e}.amount{font-weight:700;white-space:nowrap}.lower{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}.task{justify-content:flex-start;gap:11px;min-height:44px;border-top:1px solid #dee0e7}.task:first-of-type{border-top:0}.task .num{margin-inline-start:auto;border-radius:999px;padding:2px 9px;background:#fdecec;color:#b42323;font-weight:700}.task .num.orange{background:#fef6d8;color:#854d0e}.task .go{color:#6b707c}.recent{gap:12px;justify-content:space-between;flex-wrap:wrap}.recent-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.recent-card{padding:11px;border:1px solid #dee0e7;border-radius:10px;min-width:0}.note{margin:0 0 14px;padding:8px 12px;border-radius:9px;background:#f4f5f8;color:#5a5f6b;font-size:12px}.numbers{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;display:inline-block}
+    @media(max-width:1000px){.actions{grid-template-columns:repeat(2,minmax(0,1fr))}.layout,.lower{grid-template-columns:1fr}.recent-list{grid-template-columns:1fr 1fr}}
+    @media(max-width:640px){.wrap{padding:10px 12px 28px}.brand-row{gap:10px}.brand{font-size:15px}.search{display:none}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.actions{gap:7px}.action{padding:9px;min-height:58px}.action small{font-size:10px}.value{font-size:22px}.recent-list{grid-template-columns:1fr}.date{font-size:12px}.tabs{margin-bottom:14px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="brand-row">
+      <div class="brand"><span class="brand-badge">M</span>MOTORCO</div><span class="sep"></span><span class="sys">Eco System</span>
+      <span class="grow"></span><span class="search">⌕ &nbsp; بحث في النظام <small>Ctrl K</small></span><span class="circle">＋</span><span class="circle">♧</span><span class="status">● متصل ومتزامن</span>
+    </header>
+    <nav class="nav-row" aria-label="الأقسام">
+      <span class="nav-item active">الرئيسية</span><span class="nav-item">المبيعات</span><span class="nav-item">المشتريات</span><span class="nav-item">المخزون</span><span class="nav-item">العملاء والموردون</span><span class="nav-item">الموظفون</span><span class="nav-item">الخزينة</span><span class="nav-item">التقارير</span><span class="nav-item">الشركاء</span>
+    </nav>
+    <div class="tabs"><span class="tab active">الرئيسية</span><span class="tab">المبيعات</span><span class="tab">المخزون</span></div>
+    <div class="head"><div><h1>مرحبًا بك، زياد</h1><div class="sub">MOTORCO · أهم أرقام الشغل والمهام المفتوحة</div></div><div class="date">الأربعاء، 19 نوفمبر 2026 &nbsp; · &nbsp; 04:45 ص</div></div>
+    <p class="note">معاينة ثابتة للواجهة فقط — الأرقام توضيحية، وتسجيل الدخول والعمليات غير مفعّلين.</p>
+    <section class="actions" aria-label="إجراءات سريعة">
+      <div class="action primary"><span class="ico">＋</span><span><b>بيع سريع</b><small>نقطة البيع · F3 عملية جديدة</small></span></div>
+      <div class="action"><span class="ico">▤</span><span><b>فاتورة شراء</b><small>أضف بضاعة للمخزون</small></span></div>
+      <div class="action"><span class="ico">◉</span><span><b>إضافة صنف</b><small>سجّل قطعة أو خدمة</small></span></div>
+      <div class="action"><span class="ico">▣</span><span><b>فاتورة بيع</b><small>بيع مع تفاصيل كاملة</small></span></div>
+    </section>
+    <section class="stats" aria-label="ملخص اليوم">
+      <article class="stat"><div class="stat-head"><span>صافي المبيعات</span><span class="stat-icon">↗</span></div><div class="value"><span class="numbers">18,450</span> <span class="unit">ج.م</span></div><div class="trend">↑ 12% عن أمس</div></article>
+      <article class="stat"><div class="stat-head"><span>عدد الفواتير</span><span class="stat-icon">▤</span></div><div class="value"><span class="numbers">23</span> <span class="unit">فاتورة</span></div><div class="trend">متوسط الفاتورة 802 ج.م</div></article>
+      <article class="stat"><div class="stat-head"><span>آجل على العملاء</span><span class="stat-icon">◷</span></div><div class="value"><span class="numbers">32,600</span> <span class="unit">ج.م</span></div><div class="trend" style="color:#854d0e">5 فواتير مستحقة</div></article>
+      <article class="stat"><div class="stat-head"><span>أصناف تحتاج متابعة</span><span class="stat-icon">!</span></div><div class="value"><span class="numbers">12</span> <span class="unit">صنف</span></div><div class="trend" style="color:#b42323">وصلت لحد إعادة الطلب</div></article>
+    </section>
+    <section class="layout">
+      <article class="panel"><div class="panel-head"><div><h2>مهامي السريعة</h2><div class="panel-sub">الحالات التي تحتاج متابعة</div></div><span class="link">عرض التفاصيل ←</span></div>
+        <div class="task"><span class="badge">متأخر</span><span>فواتير بيع تحتاج تحصيل</span><span class="num">3</span><span class="go">‹</span></div>
+        <div class="task"><span class="badge warn">مخزون</span><span>أصناف تحت حد الطلب</span><span class="num orange">12</span><span class="go">‹</span></div>
+        <div class="task"><span class="badge warn">مستحق</span><span>مستحقات على العملاء</span><span class="num orange">5</span><span class="go">‹</span></div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h2>رادار المخزون</h2><div class="panel-sub">الأصناف التي قاربت على النفاد</div></div><span class="link">كل النواقص ←</span></div>
+        <div class="row"><div><div class="name">فلتر زيت SYM 150</div><div class="meta">حد الطلب: 8</div></div><span class="badge warn">الرصيد 2</span></div>
+        <div class="row"><div><div class="name">تيل فرامل أمامي F2</div><div class="meta">حد الطلب: 6</div></div><span class="badge">نفد المخزون</span></div>
+        <div class="row"><div><div class="name">بوجيه NGK موديل X</div><div class="meta">حد الطلب: 10</div></div><span class="badge warn">الرصيد 3</span></div>
+      </article>
+    </section>
+    <section class="lower">
+      <article class="panel"><div class="panel-head"><div><h2>آخر العمليات</h2><div class="panel-sub">الحركات الأخيرة من الأقسام</div></div><span class="link">عرض الكل ←</span></div>
+        <div class="recent-list">
+          <div class="recent-card"><div class="recent"><b>فاتورة بيع · S-00128</b><span class="badge" style="background:#e8f6ee;color:#15803d">مرحّلة</span></div><div class="meta">عميل نقدي · منذ 8 دقائق</div><div class="amount" style="margin-top:8px">2,450 ج.م</div></div>
+          <div class="recent-card"><div class="recent"><b>فاتورة شراء · P-00042</b><span class="badge" style="background:#e8f6ee;color:#15803d">مرحّلة</span></div><div class="meta">مورد النور · منذ 26 دقيقة</div><div class="amount" style="margin-top:8px">6,800 ج.م</div></div>
+          <div class="recent-card"><div class="recent"><b>سند قبض · R-00037</b><span class="badge" style="background:#e8f6ee;color:#15803d">مرحّل</span></div><div class="meta">أحمد سمير · منذ ساعة</div><div class="amount" style="margin-top:8px">1,000 ج.م</div></div>
+        </div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h2>ملخص اليوم</h2><div class="panel-sub">مؤشرات سريعة</div></div><span class="status">متصل</span></div>
+        <div class="row"><span>المبيعات</span><b>18,450 ج.م</b></div><div class="row"><span>المقبوضات</span><b>15,200 ج.م</b></div><div class="row"><span>الرصيد النقدي</span><b>42,300 ج.م</b></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
