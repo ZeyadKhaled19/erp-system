@@ -671,13 +671,22 @@ export function DocumentEditor() {
           )}
           {(type === 'expense' || type === 'income') && (
             <Field label={type === 'expense' ? 'بند المصروف' : 'بند الإيراد'}>
-              <Picker
-                value={h.account_id}
-                options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
-                onChange={(v) => set('account_id', v)}
-                createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
-                onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
-              />
+              <div className="row" style={{ gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Picker
+                    value={h.account_id}
+                    options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
+                    onChange={(v) => set('account_id', v)}
+                    createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
+                    onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
+                  />
+                </div>
+                {can('accounts.manage') && (
+                  <button type="button" className="icon-btn" aria-label={type === 'expense' ? 'إضافة بند مصروف جديد' : 'إضافة بند إيراد جديد'} title={type === 'expense' ? 'إضافة بند مصروف جديد' : 'إضافة بند إيراد جديد'} onClick={() => setNewAccount({ name: '' })}>
+                    <Plus />
+                  </button>
+                )}
+              </div>
             </Field>
           )}
           {type === 'expense' && reps.length > 0 && accounts.find((a) => a.id === h.account_id)?.system_key === 'commissions' && (
