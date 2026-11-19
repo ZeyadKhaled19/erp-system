@@ -182,7 +182,7 @@ export function HomeKpis() {
                 <h3>المبيعات آخر 14 يوم <Hint side="start" text="كل عمود = صافي مبيعات يوم (الفواتير ناقص المرتجعات). الخط المتقطع = نفس اليوم في الأسبوعين اللي قبلهم، عشان تقارن." /></h3>
                 <span className="hk-card-sub">مقارنة بالـ14 يوم اللي قبلهم</span>
               </div>
-              <span className="hk-legend"><i className="prev" /> الفترة السابقة <i className="cur" /> الفترة الحالية</span>
+              <span className="hk-legend"><i className="cur" /> الفترة الحالية <i className="prev" /> الفترة السابقة</span>
             </div>
             <SalesSummary series={data?.series ?? []} />
             <SalesChart series={data?.series ?? []} days={days} />
@@ -257,8 +257,9 @@ function SalesSummary({ series }: { series: number[] }) {
   );
 }
 
-/** مقارنة يومية بأعمدة مزدوجة؛ الأحدث على الشمال (اتجاه عربي) */
+/** أعمدة الفترة الحالية مع خط مقارنة للفترة السابقة، وتفاصيل تفاعلية لكل يوم */
 function SalesChart({ series, days }: { series: number[]; days: string[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const cur = series.slice(14);
   const prev = series.slice(0, 14);
   const labels = days.slice(14);
@@ -271,35 +272,42 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
   const cw = (W - padL) / 14;
   const y = (v: number) => padT + (H - padT - padB) * (1 - Math.max(0, v) / top);
   const x = (i: number) => W - padL - (i + 0.5) * cw; // i=0 أقدم يوم على اليمين
+  const line = prev.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const activeX = activeIndex == null ? 0 : Math.max(74, Math.min(W - padL - 74, x(activeIndex)));
+  const activeTop = activeIndex == null ? 0 : Math.max(16, Math.min(78, (y(Math.max(cur[activeIndex] ?? 0, prev[activeIndex] ?? 0)) / H) * 100));
   return (
-    <svg className="hk-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`مبيعات آخر 14 يوم: ${formatMoney(cur.reduce((a, b) => a + b, 0))}`}>
+    <div className="hk-chart-wrap" onMouseLeave={() => setActiveIndex(null)}>
+      <svg className="hk-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`مبيعات آخر 14 يوم: ${formatMoney(cur.reduce((a, b) => a + b, 0))}`}>
       {Array.from({ length: ticks + 1 }, (_, k) => k).map((k) => (
         <g key={k}>
           <line x1={0} x2={W - padL} y1={y(step * k)} y2={y(step * k)} className="hk-grid-l" />
           <text x={W - padL + 6} y={y(step * k) + 4} className="hk-axis" textAnchor="start">{axisLabel(step * k)}</text>
         </g>
       ))}
+      {cur.map((_, i) => (
+        <rect key={`hit-${labels[i]}`} x={x(i) - cw / 2} y={padT} width={cw} height={H - padT - padB} className="hk-chart-hit" tabIndex={0} role="button"
+          aria-label={`${labels[i]}، الفترة الحالية ${formatMoney(cur[i])}، الفترة السابقة ${formatMoney(prev[i] ?? 0)}`}
+          onMouseEnter={() => setActiveIndex(i)} onFocus={() => setActiveIndex(i)} onBlur={() => setActiveIndex(null)} />
+      ))}
       {cur.map((v, i) => {
-        const previousValue = prev[i] ?? 0;
-        const barWidth = cw * 0.27;
-        const gap = cw * 0.045;
-        const currentHeight = Math.max(v > 0 ? 2 : 0, y(0) - y(v));
-        const previousHeight = Math.max(previousValue > 0 ? 2 : 0, y(0) - y(previousValue));
+        const h = Math.max(1.5, y(0) - y(v));
         return (
-          <g key={labels[i]}>
-            <rect x={x(i) - gap / 2} y={y(0) - previousHeight} width={barWidth} height={previousHeight} rx={4} className="hk-bar previous">
-              <title>{`${labels[i]} · الفترة السابقة: ${formatMoney(previousValue)}`}</title>
-            </rect>
-            <rect x={x(i) + gap / 2} y={y(0) - currentHeight} width={barWidth} height={currentHeight} rx={4} className={i === 13 ? 'hk-bar today' : 'hk-bar current'}>
-              <title>{`${labels[i]} · الفترة الحالية: ${formatMoney(v)}`}</title>
-            </rect>
-          </g>
+          <rect key={labels[i]} x={x(i) - cw * 0.28} y={y(0) - h} width={cw * 0.56} height={h} rx={4} className={i === 13 ? 'hk-bar today' : `hk-bar${i === activeIndex ? ' active' : ''}`} />
         );
       })}
+      <path d={line} className="hk-prev" />
       {labels.map((d, i) => (
         <text key={d} x={x(i)} y={H - 8} className="hk-axis" textAnchor="middle">{`${d.slice(8, 10)}/${d.slice(5, 7)}`}</text>
       ))}
-    </svg>
+      </svg>
+      {activeIndex != null && (
+        <div className="hk-chart-tooltip" style={{ left: `${(activeX / W) * 100}%`, top: `${activeTop}%` }} role="status">
+          <strong>{`${labels[activeIndex].slice(8, 10)}/${labels[activeIndex].slice(5, 7)}`}</strong>
+          <span><i className="current" /> الفترة الحالية <b className="num">{formatMoney(cur[activeIndex] ?? 0)} ج.م</b></span>
+          <span><i className="previous" /> الفترة السابقة <b className="num">{formatMoney(prev[activeIndex] ?? 0)} ج.م</b></span>
+        </div>
+      )}
+    </div>
   );
 }
 
