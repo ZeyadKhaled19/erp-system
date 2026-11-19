@@ -27,11 +27,24 @@ export function Dashboard() {
   const settings = useSettings();
   const [editCards, setEditCards] = useState(false);
   const perms = session.user.permissions;
-  const recent = useLiveQuery(async () =>
-    (await db.documents.orderBy('date').reverse().limit(200).toArray())
-      .filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && hasPermission(perms, `${m}.view`); })
-      .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
-      .slice(0, 6), [perms.join(',')]);
+  const permsKey = perms.join(',');
+  const allowedDocTypes = useMemo(() => Object.entries(DOC_TYPES)
+    .filter(([, meta]) => !!meta.module && hasPermission(perms, `${meta.module}.view`))
+    .map(([type]) => type), [permsKey]);
+  const allowedTypesKey = allowedDocTypes.join(',');
+  const recent = useLiveQuery(async () => {
+    if (!allowedDocTypes.length) return [];
+    // اقرأ آخر المستندات من الأنواع المسموح بها فقط؛ لا نجلب مستندات الأقسام المحجوبة ثم نخفيها.
+    const batches = await Promise.all(allowedDocTypes.map((type) => db.documents
+      .where('[doc_type+date]')
+      .between([type, '0000-01-01'], [type, '9999-12-31'], true, true)
+      .reverse()
+      .limit(30)
+      .toArray()));
+    return batches.flat()
+      .sort((a, b) => String(b.created_at ?? b.date).localeCompare(String(a.created_at ?? a.date)))
+      .slice(0, 6);
+  }, [allowedTypesKey]);
 
   return (
     <div className="page mc-home">
