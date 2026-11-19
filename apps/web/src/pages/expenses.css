@@ -34,6 +34,26 @@
 .expense-modal-backdrop { position: fixed; z-index: 1000; inset: 0; background: rgb(20 24 32 / 52%); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 18px; }
 .expense-modal { position: relative; box-sizing: border-box; min-width: 0; width: min(600px, 100%); max-height: min(94dvh, 800px); overflow-y: auto; overflow-x: hidden; background: var(--card); border: 1px solid var(--separator); border-radius: 16px; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
 .expense-modal-close { position: absolute; top: 13px; left: 14px; z-index: 3; margin: 0; background: transparent; }
+.purchase-modal-backdrop { z-index: 95; }
+.expense-modal.purchase-modal { width: min(1440px, 100%); max-height: 94dvh; }
+.purchase-modal .ss.si { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; overflow: visible; padding: 22px; width: 100%; box-sizing: border-box; }
+.purchase-modal .ss.si > .si-page-heading { padding-inline-end: 40px; }
+.purchase-modal .ss.si > .si-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); align-items: start; gap: 16px; }
+.purchase-modal .ss.si > .si-main > .ss-top { grid-column: 1; grid-row: 1; }
+.purchase-modal .ss.si > .si-main > .si-keys { grid-column: 1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.purchase-modal .si-keys > button { width: auto; min-width: 65px; height: auto; padding: 8px; }
+.purchase-modal .ss.si > .si-main > .si-grid { grid-column: 1; grid-row: 3; min-height: 240px; }
+.purchase-modal .ss.si > .si-main > .ss-side { grid-column: 2; grid-row: 1 / 4; height: auto; max-height: none; }
+.purchase-modal .si .ss-side > .card { height: auto; max-height: none; overflow: visible; }
+.purchase-modal .si .ss-side .card > .si-bar { position: static; margin: 0; padding: 12px 0 0; }
+.purchase-modal .si-tw { max-height: 45dvh; }
+.purchase-modal .si-heading-actions { display: none; }
+@media (max-width: 1000px) {
+  .purchase-modal .ss.si > .si-main { grid-template-columns: minmax(0, 1fr); }
+  .purchase-modal .ss.si > .si-main > .ss-side { grid-column: 1; grid-row: 4; }
+  .purchase-modal .ss.si { padding: 16px; }
+  .purchase-modal .si-meta { flex-wrap: wrap; }
+}
 .expense-modal .page { padding: 0; max-width: none; }
 .expense-modal .expense-editor .page-head { margin: 0; padding: 17px 20px 14px; border-bottom: 1px solid var(--separator); align-items: center; }
 .expense-modal .expense-editor .page-head-text { padding-inline-end: 22px; }

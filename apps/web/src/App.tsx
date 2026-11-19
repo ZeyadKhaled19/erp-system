@@ -190,6 +190,7 @@ export function App() {
           <Route path="/hub/:key" element={<HubGuard><HubPage /></HubGuard>} />
           <Route path="/pos" element={<RequirePerm any={['sales.create']}><PosPage /></RequirePerm>} />
           <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage /></RequirePerm>} />
+          <Route path="/purchases" element={<RequirePerm any={['purchases.view']}><InvoicesPage purchaseOnly /></RequirePerm>} />
           <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
           <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
@@ -246,7 +247,7 @@ export function App() {
         </Routes>
         {backgroundLocation && (
           <Routes>
-            <Route path="/docs/new/:type" element={<NewDocGuard><ExpenseModal key={loc.key}><DocumentEditor key={loc.key} /></ExpenseModal></NewDocGuard>} />
+            <Route path="/docs/new/:type" element={<NewDocGuard><NewDocumentModal key={loc.key} /></NewDocGuard>} />
             <Route path="/docs/edit/:id" element={<ExpenseModal key={loc.key}><DocGuard><DocumentEditor key={loc.key} /></DocGuard></ExpenseModal>} />
           </Routes>
         )}
@@ -260,6 +261,8 @@ function NewDocRoute() {
   const { type } = useParams();
   const [sp] = useSearchParams();
   const loc = useLocation();
+  if (type === 'purchase_invoice' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/purchases' } }} />;
   if (type === 'expense' || type === 'partner_withdrawal') {
     const backgroundLocation = (loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation;
     if (!backgroundLocation) return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
@@ -268,6 +271,12 @@ function NewDocRoute() {
   if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage key="sale" />;
   if (type === 'purchase_invoice' && !sp.get('advanced') && !sp.get('ref')) return <SimpleSalePage key="purchase" kind="purchase" />;
   return <DocumentEditor key={type} />;
+}
+
+function NewDocumentModal() {
+  const { type } = useParams();
+  if (type === 'purchase_invoice') return <ExpenseModal title="فاتورة شراء جديدة" variant="purchase"><NewDocRoute /></ExpenseModal>;
+  return <ExpenseModal><DocumentEditor /></ExpenseModal>;
 }
 
 /** سجل مستندات وحدة: يحتاج صلاحية مشاهدة الوحدة */

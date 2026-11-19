@@ -97,7 +97,7 @@ export function SimpleSalePage({ kind = 'sale' }: { kind?: 'sale' | 'purchase' }
     }
     return null;
   });
-  const newTab = () => nav(`${loc.pathname}?${tabParam}=${encodeURIComponent(uuid())}`);
+  const newTab = () => nav(`${loc.pathname}?${tabParam}=${encodeURIComponent(uuid())}`, { state: loc.state });
 
   useEffect(() => {
     setDocTitle(`${title}${tabId === defaultId ? '' : ` · ${tabId.slice(-4)}`}`);
@@ -148,6 +148,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
   const title = P ? 'فاتورة شراء' : 'فاتورة بيع';
   const ui = useUi();
   const nav = useNavigate();
+  const invoiceLocation = useLocation();
   const { session } = useSession();
   const uid = session.user.id;
   const can = (k: string) => hasPermission(session.user.permissions, k);
@@ -502,7 +503,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
     setLines(next);
   };
 
-  const save = async (mode: 'new' | 'view' | 'print') => {
+  const save = async (mode: 'new' | 'view' | 'print' | 'again') => {
     setErr(null);
     if ((mode === 'print' || printAfter) && !can(P ? 'purchases.print' : 'sales.print')) return setErr('لا تملك صلاحية طباعة الفاتورة');
     if (!lines.length) return setErr('أضف صنفًا واحدًا على الأقل');
@@ -571,6 +572,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       reset();
       storeSet(draftKey(tabId), null);
       if (mode === 'view') nav(`/docs/view/${id}`);
+      else if (P && mode !== 'again' && (invoiceLocation.state as { backgroundLocation?: unknown } | null)?.backgroundLocation) nav((invoiceLocation.state as { backgroundLocation: { pathname: string; search?: string } }).backgroundLocation, { replace: true });
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -1035,7 +1037,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
               <div className="row"><span>{credit > 0 ? (P ? 'المتبقي (آجل للمورد)' : 'المتبقي (آجل على العميل)') : 'المتبقي'}</span><b className={`num ${credit > 0 ? 'orange' : ''}`}>{formatMoney(credit)}</b></div>
             </div>
             {err && <Banner kind="err">{err}</Banner>}
-            <details className="si-more-panel">
+            <details className="si-more-panel" open={P ? true : undefined}>
               <summary>خصم وإضافات وملاحظات</summary>
               <div className="si-more-panel-content">
                 <div className="field"><label>ملاحظات</label><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
@@ -1067,6 +1069,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
             </details>
             <div className="si-bar">
               <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ <kbd>F12</kbd></button>
+              {P && <button className="btn" disabled={busy || !lines.length} onClick={() => void save('again')}><Plus /> حفظ وضيف تاني</button>}
               <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length || !can(P ? 'purchases.print' : 'sales.print')} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
               <button className="btn" onClick={onNewTab}><Plus /> فاتورة جديدة <kbd>F10</kbd></button>
               <details className="si-more-actions"><summary>المزيد</summary>
@@ -1074,7 +1077,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                 <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
                 <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
                 <label className="btn"><input type="checkbox" checked={printAfter} disabled={!can(P ? 'purchases.print' : 'sales.print')} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
-                <button className="btn" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`)}><Settings2 /> فاتورة متقدمة</button>
+                <button className="btn" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`, { state: invoiceLocation.state })}><Settings2 /> فاتورة متقدمة</button>
                 {lines.length > 0 && <button className="btn danger" onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
               </details>
             </div>

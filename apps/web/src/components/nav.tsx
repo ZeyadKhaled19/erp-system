@@ -79,7 +79,7 @@ export const HUBS: Hub[] = [
       {
         title: 'المتابعة',
         links: [
-          { to: '/docs/list/purchases', label: 'سجل المشتريات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'purchases.view' },
+          { to: '/purchases', label: 'تقرير المشتريات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'purchases.view' },
           { to: '/parties/supplier', label: 'الموردون', icon: <Truck />, grad: 'var(--grad-brown)', perm: 'parties.view' },
         ],
       },

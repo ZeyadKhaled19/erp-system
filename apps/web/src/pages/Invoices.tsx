@@ -98,7 +98,7 @@ function dayLabel(date: string) {
 const timeOf = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }) : '');
 
 /** مركز الفواتير: ملخص، فلاتر واضحة، قائمة مجمعة باليوم، وتفاصيل منظمة بجوارها */
-export function InvoicesPage() {
+export function InvoicesPage({ purchaseOnly = false }: { purchaseOnly?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const nav = useNavigate();
   const { session } = useSession();
@@ -107,7 +107,7 @@ export function InvoicesPage() {
   const cbs = useMap('cashboxes');
   const cashboxes = [...cbs.values()].filter((c: any) => c.active !== false);
   const get = (k: string, d = '') => sp.get(k) ?? d;
-  const [kind, setKind] = useState(get('k', 'all'));
+  const [kind, setKind] = useState(purchaseOnly ? 'purchases' : get('k', 'all'));
   const [period, setPeriod] = useState(get('p', 'month'));
   const [from, setFrom] = useState(get('from'));
   const [to, setTo] = useState(get('to'));
@@ -118,7 +118,7 @@ export function InvoicesPage() {
   const [q, setQ] = useState('');
   const dq = useDebounced(q);
   const sel = sp.get('id');
-  const kinds = Object.entries(KINDS).filter(([, v]) => !v.perm.length || v.perm.some((p) => can(p)));
+  const kinds = Object.entries(KINDS).filter(([k, v]) => (!purchaseOnly || k === 'purchases') && (!v.perm.length || v.perm.some((p) => can(p))));
 
   const [start, end] = periodRange(period, from, to);
   const docs = useLiveQuery(async () => {
@@ -126,9 +126,9 @@ export function InvoicesPage() {
     // لا تظهر إلا مستندات الوحدات المسموح بمشاهدتها
     return list.filter((d) => {
       const m = DOC_TYPES[d.doc_type as DocType]?.module;
-      return !!m && hasPermission(session.user.permissions, `${m}.view`);
+      return (!purchaseOnly || ['purchase_invoice', 'purchase_return'].includes(d.doc_type)) && !!m && hasPermission(session.user.permissions, `${m}.view`);
     });
-  }, [start, end, period, session.user.permissions.join(',')]) ?? [];
+  }, [start, end, period, purchaseOnly, session.user.permissions.join(',')]) ?? [];
 
   // كل الفلاتر عدا النوع (لعدّ كل تبويب)
   const base = useMemo(() => {
@@ -158,6 +158,7 @@ export function InvoicesPage() {
     });
   }, [docs, status, pay, dq, parties, method, cbs]);
   const ofKind = (k: string, d: any) => {
+    if (purchaseOnly) return ['purchase_invoice', 'purchase_return'].includes(d.doc_type);
     const types = KINDS[k].types;
     return types.length ? types.includes(d.doc_type) : !HIDDEN_IN_ALL.includes(d.doc_type);
   };
@@ -167,16 +168,16 @@ export function InvoicesPage() {
     return sort === 'amount'
       ? l.sort((a, b) => b.total - a.total)
       : l.sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
-  }, [base, kind, sort]);
+  }, [base, kind, sort, purchaseOnly]);
 
   const sum = useMemo(() => {
-    const r = { sales: 0, salesN: 0, purchases: 0, purchasesN: 0, receipts: 0, receiptsN: 0, due: 0, dueN: 0 };
+    const r = { sales: 0, salesN: 0, purchases: 0, purchasesN: 0, purchaseReturns: 0, purchasePaid: 0, purchaseDue: 0, receipts: 0, receiptsN: 0, due: 0, dueN: 0 };
     for (const d of list) {
       if (d.status !== 'posted') continue;
       if (d.doc_type === 'sale_invoice') { r.sales += d.total; r.salesN++; if (!d.closed && d.total > d.paid) { r.due += d.total - d.paid; r.dueN++; } }
       if (d.doc_type === 'sale_return') r.sales -= d.total;
-      if (d.doc_type === 'purchase_invoice') { r.purchases += d.total; r.purchasesN++; }
-      if (d.doc_type === 'purchase_return') r.purchases -= d.total;
+      if (d.doc_type === 'purchase_invoice') { r.purchases += d.total; r.purchasesN++; r.purchasePaid += d.paid ?? 0; if (!d.closed) r.purchaseDue += Math.max(0, d.total - (d.paid ?? 0)); }
+      if (d.doc_type === 'purchase_return') { r.purchases -= d.total; r.purchaseReturns += d.total; }
       if (d.doc_type === 'receipt') { r.receipts += d.total; r.receiptsN++; }
     }
     return r;
@@ -251,21 +252,21 @@ export function InvoicesPage() {
       list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType]?.label, d.date, parties.get(d.party_id)?.name ?? '', formatMoney(d.total), formatMoney(d.paid ?? 0), formatMoney((d.total ?? 0) - (d.paid ?? 0)), [...payParts(d, cbs).map((x) => x.name), ...(creditPart(d) > 0 ? ['آجل'] : [])].join(' + '), d.status]),
     );
 
-  const showSales = kind === 'all' || kind === 'sales' || kind === 'returns';
+  const showSales = !purchaseOnly && (kind === 'all' || kind === 'sales' || kind === 'returns');
   const showPurch = kind === 'all' || kind === 'purchases' || kind === 'returns';
-  const showCash = kind === 'all' || kind === 'cash';
+  const showCash = !purchaseOnly && (kind === 'all' || kind === 'cash');
 
   let lastDay = '';
   return (
     <div className="page inv-page">
       <PageHeader
-        title="الفواتير"
+        title={purchaseOnly ? 'تقرير المشتريات' : 'الفواتير'}
         sub={`${list.length} مستند · ${PERIODS[period].replace('…', '')}${period !== 'all' ? ` (${start === '0000-00-00' ? 'البداية' : start} ← ${end === '9999-12-31' ? 'اليوم' : end})` : ''}`}
         actions={
           <>
             <button className="btn" onClick={exportList} disabled={!list.length}><Download /> تصدير Excel</button>
-            {can('purchases.create') && <button className="btn" onClick={() => nav('/docs/new/purchase_invoice')}><Plus /> فاتورة شراء</button>}
-            {can('sales.create') && <button className="btn primary" onClick={() => nav('/docs/new/sale_invoice')}><Plus /> فاتورة بيع</button>}
+            {can('purchases.create') && <button className={`btn${purchaseOnly ? ' primary' : ''}`} onClick={() => nav('/docs/new/purchase_invoice', purchaseOnly ? { state: { backgroundLocation: { pathname: '/purchases', search: `?${sp}` } } } : undefined)}><Plus /> فاتورة شراء</button>}
+            {!purchaseOnly && can('sales.create') && <button className="btn primary" onClick={() => nav('/docs/new/sale_invoice')}><Plus /> فاتورة بيع</button>}
           </>
         }
       />
@@ -300,6 +301,11 @@ export function InvoicesPage() {
             <span className="inv-kpi-s">{sum.receiptsN} سند قبض</span>
           </button>
         )}
+        {purchaseOnly && <>
+          <article className="inv-kpi red"><span className="inv-kpi-l"><RotateCcw /> مرتجعات المشتريات</span><span className="inv-kpi-v num">{formatMoney(sum.purchaseReturns)}</span><span className="inv-kpi-s">المرتجعات المرحلة خلال الفترة</span></article>
+          <article className="inv-kpi teal"><span className="inv-kpi-l"><ArrowUpRight /> المسدد من الفواتير</span><span className="inv-kpi-v num">{formatMoney(sum.purchasePaid)}</span><span className="inv-kpi-s">حسب السداد المسجل لفواتير الفترة</span></article>
+          <article className="inv-kpi amber"><span className="inv-kpi-l"><Receipt /> متبقي فواتير المشتريات</span><span className="inv-kpi-v num">{formatMoney(sum.purchaseDue)}</span><span className="inv-kpi-s">الفواتير المرحلة غير المسوّاة خلال الفترة</span></article>
+        </>}
       </div>
 
       {/* الفلاتر */}
@@ -312,7 +318,7 @@ export function InvoicesPage() {
           ))}
         </div>
         <div className="inv-frow">
-          <div className="inv-search"><SearchBox value={q} onChange={setQ} placeholder="رقم الفاتورة، اسم العميل، الهاتف، المبلغ…" /></div>
+          <div className="inv-search"><SearchBox value={q} onChange={setQ} placeholder={purchaseOnly ? 'رقم الفاتورة، اسم المورد، الهاتف، المبلغ…' : 'رقم الفاتورة، اسم العميل، الهاتف، المبلغ…'} /></div>
           <select
             className="select"
             aria-label="الفترة"
