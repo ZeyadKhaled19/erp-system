@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, ChevronDown, ChevronUp, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, BarChart3, Check, ChevronDown, ChevronUp, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, DocStatusBadge, MoneyInput, Picker, Sheet, useUi } from '../components/ui';
@@ -14,6 +14,7 @@ import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 import { setDocTitle } from '../lib/brand';
+import { HomeKpis } from '../components/HomeKpis';
 
 interface CartLine {
   item_id: string;
@@ -54,6 +55,7 @@ export function PosPage() {
   });
   const [active, setActive] = useState(tabs[0]);
   const [sums, setSums] = useState<Record<string, PosSummary>>({});
+  const [showAnalytics, setShowAnalytics] = useState(false);
   useEffect(() => posStore('erp.pos.tabs', tabs), [tabs]);
   const cur = tabs.includes(active) ? active : tabs[0];
   useEffect(() => {
@@ -99,6 +101,12 @@ export function PosPage() {
 
   return (
     <div className="pos-wrap">
+      <div className="pos-analysis-row">
+        <details className="pos-analytics" onToggle={(e) => setShowAnalytics(e.currentTarget.open)}>
+          <summary><BarChart3 /> تحليل المبيعات</summary>
+          {showAnalytics && <div className="pos-analytics-panel"><HomeKpis /></div>}
+        </details>
+      </div>
       <div className="pos-tabs" role="tablist" aria-label="عمليات البيع المفتوحة">
         {tabs.map((id, i) => {
           const sm = sums[id];

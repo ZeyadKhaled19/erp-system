@@ -8,6 +8,7 @@ import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, Sect
 import { DocStatusBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useSession } from '../lib/hooks';
+import { HomeKpis } from '../components/HomeKpis';
 
 /** العمليات السريعة الافتراضية للمبيعات (كل مستخدم يقدر يغيّرها من «تخصيص») */
 const SALES_ACTIONS = ['sale_invoice', 'pos', 'sale_return', 'quotation', 'receipt', 'customer_new'];
@@ -79,6 +80,7 @@ export function SalesSection() {
     <div className="page sx-page">
       <SectionHeader icon={<ShoppingCart />} color="blue" title="المبيعات" sub="إدارة فواتير البيع والمرتجعات وعروض الأسعار" />
       <SectionStats items={data?.stats} />
+      <HomeKpis />
       <QuickActions section="sales" defaults={SALES_ACTIONS} />
       <ResponsiveSectionLayout
         side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
