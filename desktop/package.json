@@ -1,7 +1,7 @@
 {
   "name": "erp-desktop",
   "productName": "Eco System",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Eco System — برنامج ويندوز لإدارة الأعمال على جهاز المحل",
   "private": true,
   "main": "main.cjs",
