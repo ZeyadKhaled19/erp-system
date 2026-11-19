@@ -95,6 +95,7 @@ export function DocumentEditor() {
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const type = (params.type ?? existing?.doc_type) as DocType;
   const cashMovement = type === 'receipt' || type === 'payment';
+  const cashPartyKind = type === 'receipt' ? 'customer' : type === 'payment' ? 'supplier' : null;
   const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(type);
   const returnPath = cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
@@ -381,7 +382,7 @@ export function DocumentEditor() {
     const p = parties.find((x) => x.id === v);
     setH((o: any) => ({ ...o, party_id: v, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
     if (isSale && p?.price_list_id && p.price_list_id !== h.price_list_id) void repriceAll(p.price_list_id);
-    if (info?.refType) {
+    if (info?.refType || cashMovement) {
       set('ref_doc_id', null);
       setLines([]);
     }
@@ -389,9 +390,9 @@ export function DocumentEditor() {
   const partyOptions: PickOption[] = useMemo(
     () =>
       parties
-        .filter((p) => p.active !== false && (info?.partyKind === 'any' || !info?.partyKind || p.kind === info.partyKind || type === 'party_opening'))
+        .filter((p) => p.active !== false && (cashPartyKind ? p.kind === cashPartyKind : (info?.partyKind === 'any' || !info?.partyKind || p.kind === info.partyKind || type === 'party_opening')))
         .map((p) => ({ id: p.id, label: p.name, sub: `${p.kind === 'customer' ? 'عميل' : 'مورد'} · ${p.code}`, search: `${p.name} ${p.code} ${p.phone ?? ''}` })),
-    [parties, info, type],
+    [parties, info, type, cashPartyKind],
   );
   // رصيد كل صنف في المخزن المختار (للعرض في قائمة الاختيار وتحت السطور — لا يُطبع)
   const whStock = useLiveQuery(
@@ -491,6 +492,7 @@ export function DocumentEditor() {
       if (charges.some((c) => c.amount > 0 && (!c.name.trim() || (c.mode === 'expense' && !c.cashbox_id)))) return 'أكمل بيانات الإضافات والمصروفات (الاسم والخزينة)';
     }
     if (['receipt', 'payment'].includes(type) && !d.party_id && !d.account_id) return 'اختر الطرف أو الحساب';
+    if (cashPartyKind && d.party_id && parties.find((p) => p.id === d.party_id)?.kind !== cashPartyKind) return type === 'receipt' ? 'اختر عميلًا لعملية القبض' : 'اختر موردًا لعملية الصرف';
     if (['expense', 'income'].includes(type) && !d.account_id) return 'اختر الحساب';
     if (type === 'cash_transfer' && (!d.to_cashbox_id || d.to_cashbox_id === d.cashbox_id)) return 'اختر خزينة مختلفة للتحويل إليها';
     if ((type === 'partner_capital' || type === 'partner_withdrawal') && !d.partner_id) return 'اختر الشريك';
@@ -604,15 +606,15 @@ export function DocumentEditor() {
             </div>
           )}
           {(info.partyKind || type === 'party_opening') && info.partyKind !== 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
-            <Field label={type === 'receipt' ? 'استلم من' : info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
+            <Field label={type === 'receipt' ? 'العميل' : type === 'payment' || info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
               <div className="row" style={{ gap: 6 }}>
                 <div style={{ flex: 1 }}>
                   <Picker
                     value={h.party_id}
                     options={partyOptions}
                     onChange={onPartyChange}
-                    placeholder="ابحث بالاسم أو الكود"
-                    createLabel={info.partyKind === 'supplier' ? 'مورد' : 'طرف'}
+                    placeholder={cashPartyKind === 'customer' ? 'ابحث عن العميل بالاسم أو الكود' : cashPartyKind === 'supplier' ? 'ابحث عن المورد بالاسم أو الكود' : 'ابحث بالاسم أو الكود'}
+                    createLabel={cashPartyKind === 'supplier' || info.partyKind === 'supplier' ? 'مورد' : cashPartyKind === 'customer' ? 'عميل' : 'طرف'}
                     onCreate={can('parties.create') && info.partyKind ? (t) => { setNewPartyName(t); setNewParty(true); } : undefined}
                   />
                 </div>
@@ -625,7 +627,7 @@ export function DocumentEditor() {
 
           {(type === 'receipt' || type === 'payment') && (
             <Field label={type === 'receipt' ? 'جهة القبض' : 'الطرف المقابل'}>
-              <Segmented block value={counterMode} onChange={setCounterMode} options={[{ value: 'party', label: 'عميل/مورد' }, { value: 'account', label: 'حساب' }]} />
+              <Segmented block value={counterMode} onChange={setCounterMode} options={[{ value: 'party', label: type === 'receipt' ? 'عميل' : 'مورد' }, { value: 'account', label: 'حساب' }]} />
             </Field>
           )}
           {(type === 'receipt' || type === 'payment') && counterMode === 'account' && (
@@ -1162,7 +1164,7 @@ export function DocumentEditor() {
       {newAccount && <QuickAccountSheet type={type === 'income' ? 'revenue' : 'expense'} initialName={newAccount.name} onClose={() => setNewAccount(null)} onSaved={(id) => set('account_id', id)} />}
       {newParty && (
         <QuickPartySheet
-          kind={info.partyKind === 'supplier' ? 'supplier' : 'customer'}
+          kind={cashPartyKind === 'supplier' || info.partyKind === 'supplier' ? 'supplier' : 'customer'}
           initialName={newPartyName}
           onClose={() => { setNewParty(false); setNewPartyName(''); }}
           onSaved={(id) => {
