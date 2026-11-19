@@ -182,8 +182,9 @@ export function HomeKpis() {
                 <h3>المبيعات آخر 14 يوم <Hint side="start" text="كل عمود = صافي مبيعات يوم (الفواتير ناقص المرتجعات). الخط المتقطع = نفس اليوم في الأسبوعين اللي قبلهم، عشان تقارن." /></h3>
                 <span className="hk-card-sub">مقارنة بالـ14 يوم اللي قبلهم</span>
               </div>
-              <span className="hk-legend"><i className="cur" /> الفترة دي <i className="prev" /> اللي قبلها</span>
+              <span className="hk-legend"><i className="prev" /> الفترة السابقة <i className="cur" /> الفترة الحالية</span>
             </div>
+            <SalesSummary series={data?.series ?? []} />
             <SalesChart series={data?.series ?? []} days={days} />
           </div>
         )}
@@ -236,7 +237,27 @@ function BalRow({ icon, label, value, sub, hint, onClick }: { icon: ReactNode; l
   );
 }
 
-/** أعمدة الـ14 يوم الأخيرة + خط متقطع للـ14 يوم اللي قبلهم. الأحدث على الشمال (اتجاه عربي) */
+function SalesSummary({ series }: { series: number[] }) {
+  const previous = series.slice(0, 14).reduce((sum, value) => sum + value, 0);
+  const current = series.slice(14).reduce((sum, value) => sum + value, 0);
+  const change = pct(current, previous);
+  const tone = change == null ? 'neutral' : change >= 0 ? 'up' : 'down';
+
+  return (
+    <div className="hk-chart-summary" aria-label="ملخص مقارنة المبيعات">
+      <div className="hk-chart-total">
+        <span>إجمالي الفترة الحالية</span>
+        <strong className="num">{formatMoney(current)} <small>ج.م</small></strong>
+      </div>
+      <div className={`hk-chart-change ${tone}`}>
+        <span>{change == null ? 'مقارنة بالفترة السابقة' : 'التغير عن الفترة السابقة'}</span>
+        <strong>{change == null ? 'لا توجد مبيعات سابقة' : `${change > 0 ? '+' : ''}${change}%`}</strong>
+      </div>
+    </div>
+  );
+}
+
+/** مقارنة يومية بأعمدة مزدوجة؛ الأحدث على الشمال (اتجاه عربي) */
 function SalesChart({ series, days }: { series: number[]; days: string[] }) {
   const cur = series.slice(14);
   const prev = series.slice(0, 14);
@@ -250,7 +271,6 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
   const cw = (W - padL) / 14;
   const y = (v: number) => padT + (H - padT - padB) * (1 - Math.max(0, v) / top);
   const x = (i: number) => W - padL - (i + 0.5) * cw; // i=0 أقدم يوم على اليمين
-  const line = prev.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   return (
     <svg className="hk-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`مبيعات آخر 14 يوم: ${formatMoney(cur.reduce((a, b) => a + b, 0))}`}>
       {Array.from({ length: ticks + 1 }, (_, k) => k).map((k) => (
@@ -260,14 +280,22 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
         </g>
       ))}
       {cur.map((v, i) => {
-        const h = Math.max(1.5, y(0) - y(v));
+        const previousValue = prev[i] ?? 0;
+        const barWidth = cw * 0.27;
+        const gap = cw * 0.045;
+        const currentHeight = Math.max(v > 0 ? 2 : 0, y(0) - y(v));
+        const previousHeight = Math.max(previousValue > 0 ? 2 : 0, y(0) - y(previousValue));
         return (
-          <rect key={labels[i]} x={x(i) - cw * 0.28} y={y(0) - h} width={cw * 0.56} height={h} rx={3} className={i === 13 ? 'hk-bar today' : 'hk-bar'}>
-            <title>{`${labels[i]}: ${formatMoney(v)} · قبلها بأسبوعين: ${formatMoney(prev[i] ?? 0)}`}</title>
-          </rect>
+          <g key={labels[i]}>
+            <rect x={x(i) - gap / 2} y={y(0) - previousHeight} width={barWidth} height={previousHeight} rx={4} className="hk-bar previous">
+              <title>{`${labels[i]} · الفترة السابقة: ${formatMoney(previousValue)}`}</title>
+            </rect>
+            <rect x={x(i) + gap / 2} y={y(0) - currentHeight} width={barWidth} height={currentHeight} rx={4} className={i === 13 ? 'hk-bar today' : 'hk-bar current'}>
+              <title>{`${labels[i]} · الفترة الحالية: ${formatMoney(v)}`}</title>
+            </rect>
+          </g>
         );
       })}
-      <path d={line} className="hk-prev" />
       {labels.map((d, i) => (
         <text key={d} x={x(i)} y={H - 8} className="hk-axis" textAnchor="middle">{`${d.slice(8, 10)}/${d.slice(5, 7)}`}</text>
       ))}
