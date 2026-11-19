@@ -949,7 +949,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
           <div className="si-grid-foot">
             {can('items.create') && <button className="btn plain sm" onClick={() => setNewItem(true)}><Plus /> صنف جديد غير موجود</button>}
             <span className="muted small">اختر سطرًا بالأسهم ↑↓ أو بالضغط عليه، ثم F5 الكمية · F6 السعر · F7 الخصم · F8 حذف. اسحب حافة عنوان أي عمود لتغيير عرضه.</span>
-            <button className="btn plain sm" onClick={cols.reset}>المقاسات الأصلية</button>
+            <button className="btn plain sm" onClick={cols.reset}>عرض الأعمدة الافتراضي</button>
           </div>
         </div>
 
