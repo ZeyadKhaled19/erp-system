@@ -1037,7 +1037,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
               <div className="row"><span>{credit > 0 ? (P ? 'المتبقي (آجل للمورد)' : 'المتبقي (آجل على العميل)') : 'المتبقي'}</span><b className={`num ${credit > 0 ? 'orange' : ''}`}>{formatMoney(credit)}</b></div>
             </div>
             {err && <Banner kind="err">{err}</Banner>}
-            <details className="si-more-panel" open={P ? true : undefined}>
+            <details className="si-more-panel">
               <summary>خصم وإضافات وملاحظات</summary>
               <div className="si-more-panel-content">
                 <div className="field"><label>ملاحظات</label><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>

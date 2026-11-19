@@ -36,15 +36,15 @@
 .expense-modal-close { position: absolute; top: 13px; left: 14px; z-index: 3; margin: 0; background: transparent; }
 .purchase-modal-backdrop { z-index: 95; }
 .expense-modal.purchase-modal { width: min(1440px, 100%); max-height: 94dvh; }
-.purchase-modal .ss.si { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; overflow: visible; padding: 22px; width: 100%; box-sizing: border-box; }
+.purchase-modal .ss.si { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; overflow: visible; padding: 16px; gap: 10px; width: 100%; box-sizing: border-box; }
 .purchase-modal .ss.si > .si-page-heading { padding-inline-end: 40px; }
-.purchase-modal .ss.si > .si-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); align-items: start; gap: 16px; }
+.purchase-modal .ss.si > .si-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); grid-template-rows: auto auto minmax(0, 1fr); align-items: start; align-content: start; gap: 10px; }
 .purchase-modal .ss.si > .si-main > .ss-top { grid-column: 1; grid-row: 1; }
-.purchase-modal .ss.si > .si-main > .si-keys { grid-column: 1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.purchase-modal .ss.si > .si-main > .si-keys { grid-column: 1; grid-row: 2; position: static; display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; }
 .purchase-modal .si-keys > button { width: auto; min-width: 65px; height: auto; padding: 8px; }
-.purchase-modal .ss.si > .si-main > .si-grid { grid-column: 1; grid-row: 3; min-height: 240px; }
+.purchase-modal .ss.si > .si-main > .si-grid { grid-column: 1; grid-row: 3; min-height: 200px; align-self: stretch; }
 .purchase-modal .ss.si > .si-main > .ss-side { grid-column: 2; grid-row: 1 / 4; height: auto; max-height: none; }
-.purchase-modal .si .ss-side > .card { height: auto; max-height: none; overflow: visible; }
+.purchase-modal .si .ss-side > .card { height: auto; max-height: none; overflow: visible; padding: 12px; gap: 8px !important; }
 .purchase-modal .si .ss-side .card > .si-bar { position: static; margin: 0; padding: 12px 0 0; }
 .purchase-modal .si-tw { max-height: 45dvh; }
 .purchase-modal .si-heading-actions { display: none; }
@@ -55,13 +55,13 @@
 .purchase-modal .si-adj-row .input { flex: 1 1 90px; min-width: 0; width: 100%; }
 .purchase-modal .si-adj-row .select { flex: 1 1 100px; min-width: 0; max-width: 100%; }
 .purchase-modal .si .ss-side .card > .si-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
-.purchase-modal .si .si-bar > .btn { display: flex; flex-wrap: wrap; justify-content: center; white-space: normal; min-width: 0; min-height: 44px; height: auto; line-height: 1.5; padding: 8px; font-size: .84rem; }
+.purchase-modal .si .si-bar > .btn { display: flex; flex-wrap: wrap; justify-content: center; white-space: normal; min-width: 0; min-height: 38px; height: auto; line-height: 1.5; padding: 6px; font-size: .84rem; }
 .purchase-modal .si .si-bar > .btn:first-child { grid-column: 1 / -1; }
 .purchase-modal .si-more-actions { grid-column: 1 / -1; width: 100%; }
 .purchase-modal .si-more-actions > summary { width: 100%; box-sizing: border-box; }
 .purchase-modal .si-more-actions[open] { position: static; inset: auto; width: 100%; box-sizing: border-box; }
 @media (max-width: 1000px) {
-  .purchase-modal .ss.si > .si-main { grid-template-columns: minmax(0, 1fr); }
+  .purchase-modal .ss.si > .si-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; }
   .purchase-modal .ss.si > .si-main > .ss-side { grid-column: 1; grid-row: 4; }
   .purchase-modal .ss.si { padding: 16px; }
   .purchase-modal .si-meta { flex-wrap: wrap; }
