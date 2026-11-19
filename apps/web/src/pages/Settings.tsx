@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShortcutCard, type ShortcutColor } from '../components/ShortcutCard';
 import { PageHeader } from '../components/Layout';
+import { DatePicker } from '../components/DatePicker';
 import { AppearancePanel } from '../components/Appearance';
 import { Banner, Field, Switch, useUi } from '../components/ui';
 import { useLicenseInfo } from '../lib/license';
@@ -206,7 +207,7 @@ export function SettingsPage() {
             {can('period.lock') && (
               <div className="list-row">
                 <div className="title">قفل الفترات حتى تاريخ<div className="sub">لا يُسمح بترحيل أو إلغاء أي مستند بتاريخ حتى هذا اليوم</div></div>
-                <input type="date" className="input" style={{ width: 170 }} value={f.locked_until ?? ''} onChange={(e) => setF({ ...f, locked_until: e.target.value || null })} />
+                <DatePicker className="input" style={{ width: 170 }} value={f.locked_until ?? ''} onChange={(locked_until) => setF({ ...f, locked_until: locked_until || null })} aria-label="قفل الفترات حتى تاريخ" />
               </div>
             )}
           </div>

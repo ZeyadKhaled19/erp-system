@@ -7,6 +7,7 @@ import { exportExcel, Field, Picker, Segmented } from '../../components/ui';
 import { db } from '../../lib/db';
 import { usePerm, useRemote } from '../../lib/hooks';
 import { CashResultTable } from '../Partners';
+import { DatePicker } from '../../components/DatePicker';
 import { monthStart, yearStart, docLabel, Shell, DateRange, Kpi, Section } from './shared';
 
 // ---------------------------------------------------------------- تحليل المقبوضات والمصروفات
@@ -169,7 +170,7 @@ export function BalanceSheetReport() {
       sub={d && (d.balanced ? <span className="badge green">الأصول = الخصوم + حقوق الملكية</span> : <span className="badge red">غير متوازنة</span>)}
       error={r.error}
       loading={r.loading}
-      filters={<Field label="في تاريخ"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>}
+      filters={<Field label="في تاريخ"><DatePicker value={to} onChange={setTo} /></Field>}
       note="أرباح الفترة غير المقفلة تظهر ضمن حقوق الملكية حتى يتم إقفال السنة المالية."
     >
       {d && (

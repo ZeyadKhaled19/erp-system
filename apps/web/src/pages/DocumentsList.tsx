@@ -4,6 +4,7 @@ import { FileText, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { DatePicker } from '../components/DatePicker';
 import { PageTabs, TREASURY_TABS } from '../components/ListParts';
 import { DocStatusBadge, Empty, exportExcel, SearchBox, Segmented } from '../components/ui';
 import { db } from '../lib/db';
@@ -64,8 +65,8 @@ export function DocumentsList() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <SearchBox value={q} onChange={setQ} placeholder="بحث برقم المستند أو الطرف أو الملاحظات" />
         </div>
-        <input type="date" className="input" style={{ width: 160 }} value={from} onChange={(e) => setFrom(e.target.value)} />
-        <input type="date" className="input" style={{ width: 160 }} value={to} onChange={(e) => setTo(e.target.value)} />
+        <DatePicker className="input" style={{ width: 160 }} value={from} onChange={setFrom} aria-label="من تاريخ" />
+        <DatePicker className="input" style={{ width: 160 }} value={to} onChange={setTo} aria-label="إلى تاريخ" />
       </div>
       <div className="row wrap" style={{ marginBottom: 12 }}>
         {types.length > 1 && (

@@ -1,10 +1,11 @@
 import { formatMoney, hasPermission, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarDays, Plus, Receipt, Search } from 'lucide-react';
+import { Plus, Receipt, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, Field, MoneyInput, Sheet, useUi } from '../components/ui';
+import { DatePicker } from '../components/DatePicker';
 import { PageTabs, TREASURY_TABS } from '../components/ListParts';
 import { QuickAccountSheet } from '../components/QuickAccount';
 import { saveDocument } from '../lib/actions';
@@ -109,7 +110,7 @@ export function ExpensesPage() {
       <div className="card expense-records">
         <div className="expense-filters">
           <label className="expense-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث باسم البند أو رقم المستند أو الملاحظات" /></label>
-          <label className="expense-date"><CalendarDays size={15} /><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="من تاريخ" /><span>إلى</span><input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="إلى تاريخ" /></label>
+          <div className="expense-date"><DatePicker className="expense-date-trigger" value={from} onChange={setFrom} aria-label="من تاريخ" /><span>إلى</span><DatePicker className="expense-date-trigger" value={to} onChange={setTo} aria-label="إلى تاريخ" /></div>
           <select className="select" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}><option value="">كل البنود</option>{expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
           <select className="select" value={cashboxFilter} onChange={(e) => setCashboxFilter(e.target.value)}><option value="">كل الخزائن</option>{cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">كل الحالات</option><option value="posted">مرحّل</option><option value="draft">مسودة</option><option value="pending_review">مراجعة</option></select>
@@ -122,7 +123,7 @@ export function ExpensesPage() {
       {createOpen && <Sheet title="مصروف جديد" subtitle="أدخل التفاصيل الأساسية، وسيُسجل المبلغ على الخزينة وبند المصروف." onClose={() => setCreateOpen(false)} footer={<><button className="btn" onClick={() => setCreateOpen(false)}>إلغاء</button><button className="btn primary" onClick={() => void saveExpense()}>حفظ المصروف</button></>}>
         <div className="stack">
           <div className="grid grid-2">
-            <Field label="التاريخ"><input type="date" className="input" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></Field>
+            <Field label="التاريخ"><DatePicker value={form.date} onChange={(date) => setForm((f) => ({ ...f, date }))} /></Field>
             <Field label="المبلغ"><MoneyInput value={form.amount} onChange={(amount) => setForm((f) => ({ ...f, amount }))} /></Field>
           </div>
           <Field label="بند المصروف" required><div className="row"><select className="select" value={form.account_id} onChange={(e) => setForm((f) => ({ ...f, account_id: e.target.value }))}><option value="">اختر بند المصروف</option>{expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>{can('accounts.manage') && <button className="icon-btn" type="button" title="إضافة بند مصروف" onClick={() => setNewAccount({ name: '' })}><Plus /></button>}</div></Field>

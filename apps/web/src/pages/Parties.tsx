@@ -5,6 +5,7 @@ import { QuickActions, SectionHeader, SectionStats } from '../components/Section
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { DatePicker } from '../components/DatePicker';
 import { Banner, DocStatusBadge, Empty, exportExcel, savePdf, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { PartyInsights } from '../components/Insights';
@@ -279,7 +280,7 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
               </select>
             </Field>
             <Field label="نسبة خصم افتراضية %"><input className="input num" inputMode="decimal" value={f.discount_pct} onChange={(e) => set('discount_pct', e.target.value)} /></Field>
-            <Field label="تاريخ مراجعة الحساب" hint="للتذكير بمراجعة/تحصيل الحساب"><input type="date" className="input" value={f.review_date ?? ''} onChange={(e) => set('review_date', e.target.value)} /></Field>
+            <Field label="تاريخ مراجعة الحساب" hint="للتذكير بمراجعة/تحصيل الحساب"><DatePicker value={f.review_date ?? ''} onChange={(review_date) => set('review_date', review_date)} /></Field>
           </div>
         )}
         <div className="grid grid-2"><PartyFieldInputs kind={kind} value={f.custom} onChange={(v) => set('custom', v)} /></div>
@@ -354,8 +355,8 @@ export function PartyDetail() {
 
       <div className="row wrap" style={{ marginTop: 22, marginBottom: 10 }}>
         <div className="section-title" style={{ margin: 0, flex: 1 }}>كشف الحساب</div>
-        <input type="date" className="input" style={{ width: 160 }} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-        <input type="date" className="input" style={{ width: 160 }} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        <DatePicker className="input" style={{ width: 160 }} value={range.from} onChange={(from) => setRange({ ...range, from })} aria-label="من تاريخ" />
+        <DatePicker className="input" style={{ width: 160 }} value={range.to} onChange={(to) => setRange({ ...range, to })} aria-label="إلى تاريخ" />
         <Segmented value={byItems ? '1' : '0'} onChange={(v) => setByItems(v === '1')} options={[{ value: '0', label: 'مختصر' }, { value: '1', label: 'بالأصناف' }]} />
         {st.data && (
           <button

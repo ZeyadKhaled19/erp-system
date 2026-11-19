@@ -4,6 +4,7 @@ import { AlertTriangle, Banknote, Check, ChevronDown, ChevronRight, ChevronUp, C
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QuickItemSheet } from '../components/QuickItem';
+import { DatePicker } from '../components/DatePicker';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
 import { CategoryFilter } from '../components/Categories';
@@ -747,7 +748,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       <div className="si-meta-row">
         <div className="si-meta">
           <div className="si-meta-field si-meta-number"><label>رقم الفاتورة</label><b>يصدر عند الحفظ</b></div>
-          <label className="si-meta-field"><span>التاريخ</span><input type="date" className="si-date" aria-label="التاريخ" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label className="si-meta-field"><span>التاريخ</span><DatePicker className="si-date" aria-label="التاريخ" value={date} onChange={setDate} /></label>
           <div className="si-meta-field si-meta-party">
             <span>{P ? 'المورد' : 'العميل'}</span>
             {P ? (

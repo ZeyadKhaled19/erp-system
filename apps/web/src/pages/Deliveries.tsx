@@ -4,6 +4,7 @@ import { PackageCheck, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { DatePicker } from '../components/DatePicker';
 import { Banner, Empty, Field, QtyInput, SearchBox, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
 import { recordDelivery, setDocMeta } from '../lib/actions';
 import { db } from '../lib/db';
@@ -153,7 +154,7 @@ export function DeliverSheet({ doc, onClose }: { doc: any; onClose: () => void }
       <div className="stack">
         {err && <Banner kind="err">{err}</Banner>}
         <div className="grid grid-2">
-          <Field label="تاريخ التسليم"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="تاريخ التسليم"><DatePicker value={date} onChange={setDate} /></Field>
           <Field label="ملاحظات"><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
         </div>
         <div className="table-wrap" style={{ background: 'var(--bg-elevated)' }}>

@@ -7,6 +7,7 @@ import { exportExcel, Field, Picker, Segmented } from '../../components/ui';
 import { db } from '../../lib/db';
 import { usePerm, useRemote } from '../../lib/hooks';
 import { CategoryFilter } from '../../components/Categories';
+import { DatePicker } from '../../components/DatePicker';
 import { monthStart, yearStart, docLabel, Shell, DateRange, useItemOptions, useWarehouses } from './shared';
 
 // ---------------------------------------------------------------- حركة صنف
@@ -295,7 +296,7 @@ export function ExpiryReport() {
       filters={
         <>
           <Field label="المخزن"><select className="select" value={wh} onChange={(e) => setWh(e.target.value)}><option value="">كل المخازن</option>{whs.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
-          <Field label="صلاحية حتى تاريخ"><input type="date" className="input" value={until} onChange={(e) => setUntil(e.target.value)} /></Field>
+          <Field label="صلاحية حتى تاريخ"><DatePicker value={until} onChange={setUntil} /></Field>
         </>
       }
       actions={r.data && <button className="btn" onClick={() => exportExcel('الصلاحية', ['الصنف', 'المخزن', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية'], r.data.rows.map((x: any) => [x.name, x.warehouse_name, x.expiry, x.days_left, formatQty(x.qty)]))}>تصدير Excel</button>}

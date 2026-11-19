@@ -5,6 +5,7 @@ import { QuickActions, SectionHeader, SectionStats } from '../components/Section
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
+import { DatePicker } from '../components/DatePicker';
 import { ActiveBadge, Avatar, InlineTabs, RowActions } from '../components/ListParts';
 import { Banner, DocStatusBadge, Empty, Field, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
@@ -237,8 +238,8 @@ function DistributionSheet({ onClose }: { onClose: () => void }) {
     >
       <div className="stack">
         <div className="grid grid-3">
-          <Field label="من تاريخ"><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-          <Field label="إلى تاريخ"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Field label="من تاريخ"><DatePicker value={from} onChange={setFrom} /></Field>
+          <Field label="إلى تاريخ"><DatePicker value={to} onChange={setTo} /></Field>
           <Field label="نسبة الأرباح المحتجزة %"><input className="input num" inputMode="decimal" value={ret} onChange={(e) => setRet(e.target.value)} /></Field>
         </div>
         <Field label="أساس التوزيع">
