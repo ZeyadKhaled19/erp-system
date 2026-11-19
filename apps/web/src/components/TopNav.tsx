@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useWorkCounts } from '../lib/alerts';
-import { isDesktop } from '../lib/desktop';
 import { useLicenseInfo } from '../lib/license';
 import { GEAR_HUBS, HUBS, SECTIONS, activeHubKey, activeSectionKey, type NavLink, type Section } from './nav';
 
@@ -156,8 +155,8 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
     // قسم من غير مجموعات (زي الشركاء) بيظهر كرابط واحد لصفحته، ومعاه روابطه الإضافية لو ليه
     .map((h) => ({ title: h.label, links: linksOf(can, h.groups.length ? h.groups.flatMap((g) => g.links) : [{ to: h.to!, label: h.label, icon: h.icon, grad: '', perm: h.perm }, ...(GEAR_EXTRA[h.key] ?? [])]) }))
     .filter((g) => g.links.length);
-  // جوه برنامج الويندوز بس: «برنامج الويندوز» (التحديثات والنسخ الاحتياطي) أول رابط في الإعدادات
-  if (isDesktop() && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [{ to: '/desktop', label: 'برنامج الويندوز', icon: <Laptop />, grad: '' }, ...gearGroups[0].links] };
+  // «برنامج الويندوز» متاح من الموقع والتطبيق؛ خيارات التحديث المحلية تظهر داخل التطبيق فقط.
+  if (gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [{ to: '/desktop', label: 'برنامج الويندوز', icon: <Laptop />, grad: '' }, ...gearGroups[0].links] };
   // موقع صاحب السيستم بس: «التراخيص والتجارب» (اللي سجلوا وأكواد التفعيل)
   if (lic?.vendor && can('settings.manage') && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [...gearGroups[0].links, { to: '/owner', label: 'لوحة صاحب السيستم', icon: <Gauge />, grad: '' }, { to: '/licenses', label: 'التراخيص والتجارب', icon: <KeyRound />, grad: '' }] };
   const gearActive = GEAR_HUBS.includes(activeHubKey(loc.pathname));
