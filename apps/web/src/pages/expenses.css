@@ -22,6 +22,7 @@
 .expense-filter-field { display: grid; gap: 6px; font-size: .84rem; font-weight: 600; }
 .expense-period > .btn { align-self: flex-start; }
 .expense-history { overflow: hidden; }
+.expense-category-report { margin-bottom: 14px; }
 .expense-history-head { padding: 17px 17px 12px; }
 .expense-filters { padding: 0 17px 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 .expense-filters > .select { min-width: 155px; max-width: 220px; }
@@ -31,7 +32,7 @@
 .expense-note { display: block; color: var(--label-3); font-size: .78rem; margin-top: 3px; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .expense-empty { padding: 20px; }
 .expense-modal-backdrop { position: fixed; z-index: 1000; inset: 0; background: rgb(20 24 32 / 52%); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 18px; }
-.expense-modal { position: relative; width: min(560px, 100%); max-height: min(94vh, 760px); overflow: auto; background: var(--card); border: 1px solid var(--separator); border-radius: 16px; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
+.expense-modal { position: relative; box-sizing: border-box; min-width: 0; width: min(600px, 100%); max-height: min(94dvh, 800px); overflow-y: auto; overflow-x: hidden; background: var(--card); border: 1px solid var(--separator); border-radius: 16px; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
 .expense-modal-close { position: absolute; top: 13px; left: 14px; z-index: 3; margin: 0; background: transparent; }
 .expense-modal .page { padding: 0; max-width: none; }
 .expense-modal .expense-editor .page-head { margin: 0; padding: 17px 20px 14px; border-bottom: 1px solid var(--separator); align-items: center; }
@@ -55,7 +56,10 @@
 .expense-editor .expense-fields-grid .input, .expense-editor .expense-fields-grid .select, .expense-editor .expense-fields-grid .picker { min-height: 40px; }
 .expense-editor .expense-fields-grid .field > label { margin-bottom: 5px; font-size: .82rem; }
 .expense-editor .expense-add-account { width: 36px; height: 40px; flex-basis: 36px; border: 1px solid var(--separator); border-radius: 9px; }
-.expense-editor .sticky-actions.expense-actions { display: flex; justify-content: flex-start; gap: 8px; padding: 11px 20px; border-top: 1px solid var(--separator); background: var(--card-2, var(--hover)); }
+.expense-editor .sticky-actions.expense-actions { display: flex; flex-wrap: wrap; justify-content: flex-start; width: 100%; box-sizing: border-box; margin: 12px 0 0; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--separator); background: var(--card-2, var(--hover)); }
+.expense-editor .expense-fields-grid > .field { min-width: 0; align-self: start; }
+.expense-editor .expense-fields-grid .input,.expense-editor .expense-fields-grid .select,.expense-editor .expense-fields-grid .textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.expense-modal .expense-editor > div:has(> .banner) { margin-inline: 20px; }
 .expense-editor .expense-actions .btn { min-height: 40px; padding-inline: 14px; }
 .expense-editor .expense-actions .btn.primary { min-width: 84px; }
 .expense-editor .expense-actions .btn svg { width: 16px; height: 16px; }
@@ -76,7 +80,7 @@
   .expense-editor .expense-fields-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .expense-modal-backdrop { padding: 0; align-items: end; }
   .expense-modal { width: 100%; max-height: 96dvh; border-radius: 18px 18px 0 0; }
-  .expense-modal .page { padding: 16px; }
+  .expense-modal .page { padding: 0; }
 }
 @media (max-width: 480px) {
   .expense-editor .expense-fields-grid { grid-template-columns: 1fr; grid-template-areas: 'category' 'title' 'amount' 'cashbox' 'date' 'memo'; }

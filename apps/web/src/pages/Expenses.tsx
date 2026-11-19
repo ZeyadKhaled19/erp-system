@@ -47,8 +47,13 @@ export function ExpensesPage() {
   const posted = list.filter((d) => d.status === 'posted');
   const postedTotal = posted.reduce((sum, d) => sum + d.total, 0);
   const monthTotal = monthDocs.filter((d) => permittedCashboxIds.has(d.cashbox_id ?? '')).reduce((sum, d) => sum + d.total, 0);
-  const categoryTotals = accounts.map((a) => ({ id: a.id, name: a.name, total: posted.filter((d) => d.account_id === a.id).reduce((sum, d) => sum + d.total, 0) }))
-    .filter((a) => a.total > 0).sort((a, b) => b.total - a.total);
+  const reportAccounts = new Map(accounts.map((a) => [a.id, a.name]));
+  for (const d of posted) if (!reportAccounts.has(d.account_id ?? '')) reportAccounts.set(d.account_id ?? '', 'بند غير متاح');
+  const categoryReport = [...reportAccounts].map(([id, name]) => {
+    const rows = posted.filter((d) => (d.account_id ?? '') === id);
+    return { id, name, count: rows.length, total: rows.reduce((sum, d) => sum + d.total, 0) };
+  }).sort((a, b) => b.total - a.total);
+  const categoryTotals = categoryReport.filter((a) => a.total > 0);
   const maxCategory = Math.max(1, ...categoryTotals.map((a) => a.total));
   const openNewExpense = () => nav('/docs/new/expense', { state: { backgroundLocation: location } });
 
@@ -72,7 +77,7 @@ export function ExpensesPage() {
       <div className="expense-overview">
         <section className="card pad expense-categories">
           <div className="expense-section-title"><div><h2>المصروفات حسب البند</h2><p className="muted">إجمالي المستندات المرحلة خلال الفترة المحددة</p></div><ChartNoAxesColumn /></div>
-          {categoryTotals.length ? <div className="expense-category-list">{categoryTotals.slice(0, 6).map((a) => <div className="expense-category" key={a.id}>
+          {categoryTotals.length ? <div className="expense-category-list">{categoryTotals.map((a) => <div className="expense-category" key={a.id}>
             <div className="expense-category-label"><span>{a.name}</span><strong className="num">{formatMoney(a.total)}</strong></div>
             <div className="expense-bar"><span style={{ width: `${Math.max(4, a.total / maxCategory * 100)}%` }} /></div>
           </div>)}</div> : <div className="expense-chart-empty">لا توجد مصروفات مرحلة في الفترة المحددة.</div>}
@@ -84,6 +89,16 @@ export function ExpensesPage() {
           <button className="btn sm" onClick={() => { setFrom(`${today.slice(0, 7)}-01`); setTo(today); }}>الشهر الحالي</button>
         </section>
       </div>
+
+      <section className="card expense-history expense-category-report">
+        <div className="expense-history-head"><div><h2>تقرير المصروفات بكل البنود</h2><p className="muted">من {from} إلى {to} · المستندات المرحلة فقط · حسب الفلاتر المختارة</p></div>
+          <button className="btn sm" onClick={() => exportExcel('تقرير بنود المصروفات', ['البند', 'عدد العمليات', 'المبلغ', 'النسبة من الإجمالي'], categoryReport.map((a) => [a.name, a.count, formatMoney(a.total), `${postedTotal ? (a.total / postedTotal * 100).toFixed(1) : '0'}%`]))}>تصدير التقرير</button>
+        </div>
+        <div className="table-wrap"><table className="table responsive"><thead><tr><th>بند المصروف</th><th>عدد العمليات</th><th className="n">المبلغ</th><th>النسبة من الإجمالي</th></tr></thead>
+          <tbody>{categoryReport.map((a) => <tr key={a.id}><td data-label="بند المصروف">{a.name}</td><td data-label="عدد العمليات" className="num">{a.count}</td><td data-label="المبلغ" className="n num bold">{formatMoney(a.total)}</td><td data-label="النسبة من الإجمالي" className="num">{postedTotal ? (a.total / postedTotal * 100).toFixed(1) : '0'}%</td></tr>)}</tbody>
+          <tfoot><tr><th>الإجمالي</th><td className="num">{posted.length}</td><td className="n num bold">{formatMoney(postedTotal)}</td><td className="num">{postedTotal ? '100%' : '0%'}</td></tr></tfoot>
+        </table></div>
+      </section>
 
       <section className="card expense-history">
         <div className="expense-history-head"><div><h2>سجل المصروفات</h2><p className="muted">{list.length} مستند · المعروض {formatMoney(postedTotal)}</p></div></div>

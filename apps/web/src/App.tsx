@@ -262,7 +262,7 @@ function NewDocRoute() {
   const loc = useLocation();
   if (type === 'expense' || type === 'partner_withdrawal') {
     const backgroundLocation = (loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation;
-    if (!backgroundLocation) return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/' } }} />;
+    if (!backgroundLocation) return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
     return null;
   }
   if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage key="sale" />;

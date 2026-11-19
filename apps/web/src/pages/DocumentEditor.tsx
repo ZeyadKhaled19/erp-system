@@ -584,16 +584,6 @@ export function DocumentEditor() {
         title={type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
-      {!params.id && (type === 'expense' || type === 'partner_withdrawal') && (
-        <div className="expense-mode-cards" role="group" aria-label="نوع الصرف">
-          <button type="button" className={`expense-mode-card ${type === 'expense' ? 'active' : ''}`} onClick={() => type !== 'expense' && nav(`/docs/new/expense?again=${Date.now()}`, { state: { backgroundLocation: backgroundLocation ?? { pathname: '/' } } })}>
-            <b>مصروف</b><span>يتخصم من الأرباح</span>
-          </button>
-          <button type="button" className={`expense-mode-card ${type === 'partner_withdrawal' ? 'active' : ''}`} onClick={() => type !== 'partner_withdrawal' && nav(`/docs/new/partner_withdrawal?again=${Date.now()}`, { state: { backgroundLocation: backgroundLocation ?? { pathname: '/' } } })}>
-            <b>صرف من غير أرباح</b><span>من الخزنة والوردية بس</span>
-          </button>
-        </div>
-      )}
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
       {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
       {existing?.review_reason && <div style={{ marginBottom: 12 }}><Banner kind="warn">{existing.review_reason}</Banner></div>}
