@@ -1,5 +1,6 @@
-import { CheckCircle2, Download, ExternalLink, FolderOpen, HardDrive, Laptop, Loader2, MonitorSmartphone, RefreshCw, ShieldCheck, Wifi, X } from 'lucide-react';
+import { CheckCircle2, Download, FolderOpen, HardDrive, Laptop, Loader2, MonitorSmartphone, RefreshCw, ShieldCheck, Wifi, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useDesktopUpdate } from '../components/DesktopBridge';
 import { SectionCard, SectionHeader } from '../components/Section';
 import { useUi } from '../components/ui';
@@ -22,26 +23,7 @@ export function DesktopAppPage() {
   }, [desk]);
   useEffect(() => { void load(); }, [load]);
 
-  if (!desk) {
-    return (
-      <div className="page sx-page">
-        <SectionHeader icon={<Laptop />} color="blue" title="برنامج الويندوز" sub="التحديثات والتنزيل" />
-        <div className="dk-grid">
-          <SectionCard icon={<Download />} title="آخر إصدار من برنامج الويندوز">
-            <div className="dk-rows">
-              <p className="dk-note">أنت فاتح النظام من المتصفح. تقدر من هنا توصل لآخر إصدار من برنامج الويندوز وتنزّله على جهاز المحل.</p>
-              <div className="dk-btns">
-                <a className="dk-btn primary" href="https://github.com/ZeyadKhaled19/erp-releases/releases/latest" target="_blank" rel="noreferrer">
-                  <ExternalLink /> عرض التحديثات والتنزيل
-                </a>
-              </div>
-              <p className="dk-note">تثبيت تحديثات البرنامج والنسخ الاحتياطي وإعداد الأجهزة على الشبكة تقدر تديرهم من داخل برنامج الويندوز على جهاز المحل.</p>
-            </div>
-          </SectionCard>
-        </div>
-      </div>
-    );
-  }
+  if (!desk) return <Navigate to="/hub/system" replace />;
 
   // حالة التحديث: الأحدث من البرنامج (لو وصلت)، وإلا من آخر قراءة للصفحة
   const u = update.state !== 'idle' ? update : info?.update ?? update;
