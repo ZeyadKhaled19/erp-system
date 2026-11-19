@@ -20,7 +20,17 @@
 .mc-top .mc-search { background: var(--nav-2); border-color: var(--nav-border); color: var(--nav-muted); border-radius: 0.875rem; }
 .mc-top .mc-search:hover { color: var(--nav-text); border-color: #3A3E48; }
 .mc-top .mc-search kbd { background: var(--nav-active); border-color: #3A3E48; color: var(--nav-muted); }
-.mc-top .sync-pill { border-radius: 999px; }
+.mc-top .sync-pill {
+  box-sizing: border-box; width: 9rem; min-width: 9rem; flex: 0 0 9rem; height: 2.375rem;
+  justify-content: center; gap: 0.5rem; border: 1px solid transparent; border-radius: 999px;
+  transform: none !important; animation: none !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.mc-top .sync-mark { display: grid; place-items: center; flex: 0 0 0.875rem; width: 0.875rem; height: 0.875rem; }
+.mc-top .sync-mark svg { width: 0.875rem; height: 0.875rem; }
+.mc-top .sync-mark .dot { display: block; width: 0.5rem; height: 0.5rem; border-radius: 50%; }
+.mc-top .sync-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-top .sync-pill .spin { transform-origin: center; animation: spin 1s linear infinite; }
 .mc-top .nm-btn { color: var(--nav-text); }
 
 .mc-nav { margin: 0.125rem 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
@@ -617,8 +627,9 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
   .mc-top .mc-nav { order: 1; flex: 1 1 auto; min-width: 0; margin: 0; }
   .mc-top .mc-nav-in { justify-content: center; gap: 0.125rem; }
   .mc-top .mc-search, .mc-top .sync-pill, .mc-top .mc-icon-btn { order: 2; flex-shrink: 0; }
-  .mc-top .mc-nav-item { height: 3rem; padding: 0 0.9375rem; gap: 0.625rem; font-size: var(--text-lg); border-radius: 0.875rem; }
-  .mc-top .mc-nav-ic svg { width: 1.3125rem; height: 1.3125rem; }
+  .mc-top .mc-nav-item { height: 2.75rem; padding: 0 0.625rem; gap: 0.4375rem; font-size: var(--text-md); border: 1px solid transparent; border-radius: 0.6875rem; }
+  .mc-top .mc-nav-item.on { border-color: var(--nav-border); box-shadow: inset 0 -2px 0 var(--tint); }
+  .mc-top .mc-nav-ic svg { width: 1.125rem; height: 1.125rem; }
   .mc-top .mc-logo-img { height: 2.625rem; max-width: 11rem; }
   .mc-top .mc-logo { width: 2.5rem; height: 2.5rem; font-size: var(--text-xl); }
   .mc-top .mc-logo-mark { width: 2.5rem; height: 2.5rem; }
@@ -628,17 +639,27 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
   .mc-top .mc-icon-btn svg { width: 1.3125rem; height: 1.3125rem; }
   .mc-top .mc-search { height: 2.75rem; padding: 0 0.75rem; font-size: var(--text-md); }
   .mc-top .mc-search svg { width: 1.125rem; height: 1.125rem; }
-  .mc-top .sync-pill { height: 2.375rem; font-size: var(--text-base); padding: 0 0.875rem; }
+  .mc-top .sync-pill { height: 2.375rem; font-size: var(--text-sm); padding: 0 0.625rem; }
 }
 /* لاب توب: نفس الصف، بس البحث أيقونة والمزامنة نقطة واسم النظام مستخبي علشان الأقسام تاخد مكانها */
 @media (min-width: 1181px) and (max-width: 1599px) {
   .mc-top .mc-system { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; }
   .mc-top .mc-search > span, .mc-top .mc-search > kbd { display: none; }
   .mc-top .mc-search { width: 2.75rem; padding: 0; justify-content: center; }
-  .mc-top .sync-pill.online > span:not(.dot) { display: none; }
-  .mc-top .sync-pill.online { width: 2.375rem; padding: 0; justify-content: center; }
+  .mc-top .sync-pill { width: 2.375rem; min-width: 2.375rem; flex-basis: 2.375rem; padding: 0; justify-content: center; }
+  .mc-top .sync-label { display: none; }
   .mc-top .mc-nav-item { padding: 0 0.6875rem; gap: 0.5rem; font-size: var(--text-md); }
   .mc-top .mc-nav-ic svg { width: 1.1875rem; height: 1.1875rem; }
+}
+
+/* Keep the sync status footprint stable across online, pending, offline, and error states. */
+@media (max-width: 1599px) {
+  .mc-top .sync-pill { width: 2.375rem; min-width: 2.375rem; flex-basis: 2.375rem; padding: 0; justify-content: center; }
+  .mc-top .sync-label { display: none; }
+}
+@media (max-width: 760px) {
+  .mc-top .mc-nav-item { border: 0; }
+  .mc-top .mc-nav-item.on { border: 0; box-shadow: inset 0 -2px 0 var(--tint); }
 }
 @media (min-width: 1181px) and (max-width: 1365px) {
   .mc-top .mc-nav-item { padding: 0 0.5rem; font-size: var(--text-base); }
