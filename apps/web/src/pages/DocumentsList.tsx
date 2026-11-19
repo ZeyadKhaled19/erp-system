@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { PageTabs, TREASURY_TABS } from '../components/ListParts';
-import { DocStatusBadge, Empty, exportExcel, SearchBox, Segmented } from '../components/ui';
+import { DateInput, DocStatusBadge, Empty, exportExcel, SearchBox, Segmented } from '../components/ui';
 import { db } from '../lib/db';
 import { useDebounced, useMap, usePerm } from '../lib/hooks';
 
@@ -61,8 +61,8 @@ export function DocumentsList() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <SearchBox value={q} onChange={setQ} placeholder="بحث برقم المستند أو الطرف أو الملاحظات" />
         </div>
-        <input type="date" className="input" style={{ width: 160 }} value={from} onChange={(e) => setFrom(e.target.value)} />
-        <input type="date" className="input" style={{ width: 160 }} value={to} onChange={(e) => setTo(e.target.value)} />
+        <DateInput className="input" style={{ width: 160 }} value={from} onChange={(e) => setFrom(e.target.value)} />
+        <DateInput className="input" style={{ width: 160 }} value={to} onChange={(e) => setTo(e.target.value)} />
       </div>
       <div className="row wrap" style={{ marginBottom: 12 }}>
         {types.length > 1 && (

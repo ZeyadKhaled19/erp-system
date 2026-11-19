@@ -3,7 +3,7 @@ import { Lock, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, exportExcel, Field, useUi } from '../components/ui';
+import { Banner, DateInput, exportExcel, Field, useUi } from '../components/ui';
 import { db } from '../lib/db';
 import { usePerm, useRemote } from '../lib/hooks';
 import { enqueue } from '../lib/sync';
@@ -24,8 +24,8 @@ export function CommissionsPage() {
       />
       <div className="card pad" style={{ marginBottom: 14 }}>
         <div className="grid grid-4" style={{ alignItems: 'end' }}>
-          <Field label="من تاريخ"><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-          <Field label="إلى تاريخ"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+        <Field label="من تاريخ"><DateInput className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+        <Field label="إلى تاريخ"><DateInput className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
         </div>
       </div>
       {r.error && <Banner kind="warn">{r.error}</Banner>}
@@ -99,7 +99,7 @@ export function YearEndPage() {
     <div className="page narrow">
       <PageHeader title="إقفال السنة المالية" sub="نقل نتيجة الفترة إلى الأرباح المحتجزة وقفلها" />
       <div className="card pad stack">
-        <Field label="إقفال حتى تاريخ"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="إقفال حتى تاريخ"><DateInput className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         {r.error && <Banner kind="warn">{r.error}</Banner>}
         {d && (
           <>

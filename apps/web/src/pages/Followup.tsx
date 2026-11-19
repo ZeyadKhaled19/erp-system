@@ -4,7 +4,7 @@ import { CalendarClock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Empty, exportExcel, Field, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
+import { DateInput, Empty, exportExcel, Field, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
 import { closeCreditInvoice, settleInstrument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useMap, usePerm } from '../lib/hooks';
@@ -49,7 +49,7 @@ export function InstrumentsPage() {
           <option value="cheque">شيكات</option>
           <option value="installment">أقساط</option>
         </select>
-        <label className="row small muted">استحقاق حتى <input type="date" className="input" style={{ width: 160 }} value={until} onChange={(e) => setUntil(e.target.value)} /></label>
+        <label className="row small muted">استحقاق حتى <DateInput className="input" style={{ width: 160 }} value={until} onChange={(e) => setUntil(e.target.value)} /></label>
       </div>
       {list.length === 0 ? (
         <div className="card"><Empty icon={<CalendarClock />} title="لا يوجد" /></div>
@@ -140,7 +140,7 @@ function SettleSheet({ x, action, partyName, onClose }: { x: any; action: 'colle
             </select>
           </Field>
         )}
-        {action !== 'close' && <Field label="التاريخ"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>}
+        {action !== 'close' && <Field label="التاريخ"><DateInput className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>}
         <Field label="ملاحظة"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
       </div>
     </Sheet>

@@ -6,7 +6,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { ActiveBadge, Avatar, PageTabs, RowActions, TotalCards } from '../components/ListParts';
-import { Banner, DocStatusBadge, Empty, exportExcel, Field, MoneyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, DateInput, DocStatusBadge, Empty, exportExcel, Field, MoneyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useSettings } from '../lib/hooks';
@@ -201,7 +201,7 @@ export function EmployeeEditor({ emp, onClose }: { emp: any | null; onClose: () 
         </div>
         <div className="grid grid-2">
           <Field label="الراتب الشهري" hint="يوم الغياب يُخصم بقيمة الراتب ÷ 30"><MoneyInput value={f.salary} onChange={(v) => set('salary', v)} /></Field>
-          <Field label="تاريخ التعيين"><input type="date" className="input" value={f.hire_date} onChange={(e) => set('hire_date', e.target.value)} /></Field>
+          <Field label="تاريخ التعيين"><DateInput className="input" value={f.hire_date} onChange={(e) => set('hire_date', e.target.value)} /></Field>
         </div>
         <Field label="ملاحظات"><input className="input" value={f.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
         <div className="row"><span style={{ flex: 1 }}>موظف نشط</span><Switch checked={f.active} onChange={(v) => set('active', v)} /></div>
@@ -340,7 +340,7 @@ export function AttendancePage() {
         sub={`${isToday ? 'اضغط «تسجيل حضور» عند وصول الموظف و«تسجيل انصراف» عند خروجه — الوقت يتسجل بالظبط' : 'يوم سابق: اكتب الأوقات بنفسك لو محتاج تصحيح'} · الشغل من ${fmtTime(rules.start)} لـ ${fmtTime(rules.end)} وسماح ${rules.grace} دقيقة`}
         actions={<>
           <DeptSelect value={dept} onChange={setDept} depts={depts} />
-          <input type="date" className="input" style={{ width: 170 }} value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
+          <DateInput className="input" style={{ width: 170 }} value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
           {editable && unmarked > 0 && !isToday && <button className="btn" onClick={() => void markAll()}><CalendarCheck /> الباقين حاضرين ({unmarked})</button>}
         </>}
       />
@@ -607,7 +607,7 @@ function AdvanceSheet({ onClose }: { onClose: () => void }) {
         </Field>
         <div className="grid grid-2">
           <Field label="المبلغ" required><MoneyInput value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
-          <Field label="التاريخ"><input type="date" className="input" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
+          <Field label="التاريخ"><DateInput className="input" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
         </div>
         <Field label="تُصرف من">
           <select className="select" value={box} onChange={(e) => setF({ ...f, cashbox_id: e.target.value })}>

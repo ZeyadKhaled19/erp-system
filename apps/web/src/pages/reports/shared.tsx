@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { FileDown, Printer } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { PageHeader } from '../../components/Layout';
-import { Banner, Field, savePdf } from '../../components/ui';
+import { Banner, DateInput, Field, savePdf } from '../../components/ui';
 import { db } from '../../lib/db';
 import { useSettings } from '../../lib/hooks';
 
@@ -35,8 +35,8 @@ export function Shell({ title, sub, filters, actions, error, loading, children, 
 export function DateRange({ from, to, setFrom, setTo }: { from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void }) {
   return (
     <>
-      <Field label="من تاريخ"><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-      <Field label="إلى تاريخ"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+      <Field label="من تاريخ"><DateInput className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+      <Field label="إلى تاريخ"><DateInput className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
     </>
   );
 }

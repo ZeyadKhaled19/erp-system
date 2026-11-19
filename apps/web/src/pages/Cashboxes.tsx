@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { ActiveBadge, PageTabs, RowActions, TREASURY_TABS } from '../components/ListParts';
-import { Banner, Field, MoneyInput, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, DateInput, Field, MoneyInput, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
 import { usePerm, useRemote } from '../lib/hooks';
@@ -56,8 +56,8 @@ export function CashboxesPage() {
         <>
           <div className="row wrap" style={{ margin: '22px 0 10px' }}>
             <div className="section-title" style={{ margin: 0, flex: 1 }}>حركة {current.name}</div>
-            <input type="date" className="input" style={{ width: 160 }} value={from} onChange={(e) => setFrom(e.target.value)} />
-            <input type="date" className="input" style={{ width: 160 }} value={to} onChange={(e) => setTo(e.target.value)} />
+            <DateInput className="input" style={{ width: 160 }} value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DateInput className="input" style={{ width: 160 }} value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
           {mv.error && <Banner kind="warn">{mv.error}</Banner>}
           {mv.data && (

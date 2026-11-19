@@ -6,7 +6,7 @@ import { Banknote, CalendarClock, ChevronLeft, Clock3, CreditCard, Plus, ScanLin
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { Banner, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
+import { Banner, DateInput, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
 import { localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
@@ -558,7 +558,7 @@ export function DocumentEditor() {
       <div className="card pad">
         <div className="grid grid-4">
           <Field label="التاريخ">
-            <input type="date" className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
+            <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
 
           {info.partyKind === 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
@@ -831,7 +831,7 @@ export function DocumentEditor() {
                       )}
                       {needsExpiry && (
                         <Field label={`تاريخ الصلاحية${it.expiry_default_days ? ` (افتراضيًا بعد ${it.expiry_default_days} يوم)` : ''}`} className="" >
-                          <input type="date" className="input" style={{ width: 180 }} value={l.expiry ?? ''} onChange={(e) => updLine(l.id, { expiry: e.target.value || null })} />
+                          <DateInput className="input" style={{ width: 180 }} value={l.expiry ?? ''} onChange={(e) => updLine(l.id, { expiry: e.target.value || null })} />
                         </Field>
                       )}
                     </div>
@@ -1029,7 +1029,7 @@ export function DocumentEditor() {
                           <option value="installment">قسط</option>
                         </select>
                         <div style={{ width: 120 }}><MoneyInput value={x.amount} onChange={(v) => upd({ amount: v })} /></div>
-                        <input type="date" className="input" style={{ width: 150 }} value={x.due_date} onChange={(e) => upd({ due_date: e.target.value })} title="تاريخ الاستحقاق" />
+                        <DateInput className="input" style={{ width: 150 }} value={x.due_date} onChange={(e) => upd({ due_date: e.target.value })} title="تاريخ الاستحقاق" />
                         {x.kind === 'cheque' && <input className="input num" style={{ width: 110 }} placeholder="رقم الشيك" value={x.cheque_no ?? ''} onChange={(e) => upd({ cheque_no: e.target.value })} />}
                         {x.kind === 'cheque' && <input className="input" style={{ width: 120 }} placeholder="البنك" value={x.bank ?? ''} onChange={(e) => upd({ bank: e.target.value })} />}
                         <button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => setInsts(insts.filter((_, j) => j !== i))} aria-label="حذف"><Trash2 /></button>
@@ -1038,7 +1038,7 @@ export function DocumentEditor() {
                   })}
                   {credit > 0 && (
                     <Field label="تاريخ استحقاق الجزء الآجل" hint="فارغ = حسب أيام الاستحقاق للطرف أو الإعدادات">
-                      <input type="date" className="input" style={{ width: 180 }} value={h.due_date ?? ''} onChange={(e) => set('due_date', e.target.value || null)} />
+                      <DateInput className="input" style={{ width: 180 }} value={h.due_date ?? ''} onChange={(e) => set('due_date', e.target.value || null)} />
                     </Field>
                   )}
                 </>
@@ -1172,7 +1172,7 @@ function InstallmentPlan({ amount, start, onClose, onApply }: { amount: number; 
         <div className="footnote">المبلغ المقسط: <span className="num bold">{formatMoney(amount)}</span></div>
         <div className="grid grid-3">
           <Field label="عدد الأقساط"><input className="input num" type="number" min={1} max={120} value={n} onChange={(e) => setN(Math.max(1, Math.min(120, Number(e.target.value) || 1)))} /></Field>
-          <Field label="أول استحقاق"><input type="date" className="input" value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
+          <Field label="أول استحقاق"><DateInput className="input" value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
           <Field label="كل (شهر)"><input className="input num" type="number" min={1} max={12} value={every} onChange={(e) => setEvery(Math.max(1, Number(e.target.value) || 1))} /></Field>
         </div>
         <div className="list">

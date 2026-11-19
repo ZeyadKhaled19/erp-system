@@ -1,6 +1,6 @@
 import { DOC_STATUS_LABEL, moneyInput, parseMoney, parseQty, qtyInput } from '@erp/shared';
-import { AlertTriangle, CheckCircle2, Info, Plus, Search, X, XCircle } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Info, Plus, Search, X, XCircle } from 'lucide-react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { matchScore } from '../lib/search';
 
@@ -14,6 +14,122 @@ export function Field({ label, hint, error, children, className, required }: { l
       {error ? <div className="err">{error}</div> : hint ? <div className="hint">{hint}</div> : null}
     </div>
   );
+}
+
+type DateInputProps = {
+  value?: string;
+  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  style?: CSSProperties;
+  min?: string;
+  max?: string;
+  disabled?: boolean;
+  title?: string;
+  'aria-label'?: string;
+};
+
+const dateValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const parseDateValue = (value?: string) => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+};
+const dateIsAllowed = (value: string, min?: string, max?: string) => (!min || value >= min) && (!max || value <= max);
+
+/** Branded replacement for the browser-native date popup. The change event shape stays input-compatible. */
+export function DateInput({ value = '', onChange, className = 'input', style, min, max, disabled, ...rest }: DateInputProps) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const selected = parseDateValue(value);
+  const today = dateValue(new Date());
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(() => selected ?? parseDateValue(today)!);
+  const [placement, setPlacement] = useState({ top: 0, left: 0, width: 304 });
+
+  useEffect(() => {
+    if (!open || !trigger.current) return;
+    const position = () => {
+      const rect = trigger.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(304, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+      const estimatedHeight = 352;
+      const top = rect.bottom + estimatedHeight + 8 > window.innerHeight ? Math.max(8, rect.top - estimatedHeight - 8) : rect.bottom + 6;
+      setPlacement({ top, left, width });
+    };
+    const outside = (event: PointerEvent) => {
+      if (!trigger.current?.contains(event.target as Node) && !popup.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    position();
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, true);
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', key);
+    };
+  }, [open]);
+
+  const days = useMemo(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1, 12).getDay();
+    const count = new Date(month.getFullYear(), month.getMonth() + 1, 0, 12).getDate();
+    return [...Array(first).fill(null), ...Array.from({ length: count }, (_, i) => i + 1)];
+  }, [month]);
+  const monthLabel = new Intl.DateTimeFormat('ar-EG-u-nu-latn', { month: 'long', year: 'numeric' }).format(month);
+
+  const choose = (next: string) => {
+    onChange?.({ target: { value: next }, currentTarget: { value: next } } as ChangeEvent<HTMLInputElement>);
+    setOpen(false);
+  };
+  const shiftMonth = (amount: number) => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1, 12));
+
+  return <>
+    <button
+      {...rest}
+      ref={trigger}
+      type="button"
+      className={`date-input ${className}`}
+      style={style}
+      disabled={disabled}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      onClick={() => { const current = parseDateValue(value); if (current) setMonth(current); setOpen((was) => !was); }}
+    >
+      <span className={value ? '' : 'date-input-placeholder'}>{selected ? `${String(selected.getDate()).padStart(2, '0')}/${String(selected.getMonth() + 1).padStart(2, '0')}/${selected.getFullYear()}` : 'اختر تاريخًا'}</span>
+      <CalendarDays aria-hidden="true" />
+    </button>
+    {open && createPortal(
+      <div className="date-pop" ref={popup} role="dialog" aria-label="اختيار التاريخ" dir="rtl" style={{ top: placement.top, left: placement.left, width: placement.width }}>
+        <div className="date-pop-head">
+          <button type="button" className="date-nav" aria-label="الشهر السابق" onClick={() => shiftMonth(-1)}><ChevronRight /></button>
+          <strong>{monthLabel}</strong>
+          <button type="button" className="date-nav" aria-label="الشهر التالي" onClick={() => shiftMonth(1)}><ChevronLeft /></button>
+        </div>
+        <div className="date-weekdays">{['أحد', 'إثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت'].map((day) => <span key={day}>{day}</span>)}</div>
+        <div className="date-grid">
+          {days.map((day, index) => {
+            if (day == null) return <span className="date-blank" key={`blank-${index}`} />;
+            const cellDate = new Date(month.getFullYear(), month.getMonth(), day, 12);
+            const cellValue = dateValue(cellDate);
+            const isSelected = value === cellValue;
+            const isToday = today === cellValue;
+            const allowed = dateIsAllowed(cellValue, min, max);
+            return <button key={cellValue} type="button" className={`date-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`} disabled={!allowed} aria-pressed={isSelected} onClick={() => choose(cellValue)}>{day}</button>;
+          })}
+        </div>
+        <div className="date-pop-foot">
+          <button type="button" className="date-text-btn" onClick={() => choose('')} disabled={!value}>مسح</button>
+          <button type="button" className="date-text-btn today-btn" onClick={() => dateIsAllowed(today, min, max) && choose(today)} disabled={!dateIsAllowed(today, min, max)}>اليوم</button>
+        </div>
+      </div>,
+      document.body,
+    )}
+  </>;
 }
 
 /** إدخال مبلغ: يعرض بالجنيه ويخزن بالقرش (عدد صحيح) */

@@ -6,7 +6,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { DocStatusBadge, Empty, exportExcel, SearchBox } from '../components/ui';
+import { DateInput, DocStatusBadge, Empty, exportExcel, SearchBox } from '../components/ui';
 import { db } from '../lib/db';
 import { useDebounced, useMap, useSession } from '../lib/hooks';
 import { DocumentView } from './DocumentView';
@@ -331,8 +331,8 @@ export function InvoicesPage() {
           </select>
           {period === 'custom' && (
             <>
-              <label className="inv-date"><span>من</span><input type="date" className="input" aria-label="من تاريخ" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
-              <label className="inv-date"><span>إلى</span><input type="date" className="input" aria-label="إلى تاريخ" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
+              <label className="inv-date"><span>من</span><DateInput className="input" aria-label="من تاريخ" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
+              <label className="inv-date"><span>إلى</span><DateInput className="input" aria-label="إلى تاريخ" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
             </>
           )}
           <select className="select" aria-label="الحالة" value={status} onChange={(e) => setStatus(e.target.value)}>

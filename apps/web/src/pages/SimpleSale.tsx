@@ -7,7 +7,7 @@ import { QuickItemSheet } from '../components/QuickItem';
 import { QuickPartySheet } from '../components/QuickParty';
 import { CustomerFields } from '../components/CustomerFields';
 import { CategoryFilter } from '../components/Categories';
-import { Banner, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportExcel, useUi } from '../components/ui';
+import { Banner, DateInput, FloatingPop, GroupChips, MoneyInput, Picker, QtyInput, Sheet, Switch, exportExcel, useUi } from '../components/ui';
 import { priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
@@ -747,7 +747,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       <div className="si-meta-row">
         <div className="si-meta">
           <div className="si-meta-field si-meta-number"><label>رقم الفاتورة</label><b>يصدر عند الحفظ</b></div>
-          <label className="si-meta-field"><span>التاريخ</span><input type="date" className="si-date" aria-label="التاريخ" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label className="si-meta-field"><span>التاريخ</span><DateInput className="si-date" aria-label="التاريخ" value={date} onChange={(e) => setDate(e.target.value)} /></label>
           <div className="si-meta-field si-meta-party">
             <span>{P ? 'المورد' : 'العميل'}</span>
             {P ? (
