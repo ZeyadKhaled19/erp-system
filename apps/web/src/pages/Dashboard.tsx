@@ -250,7 +250,8 @@ function Favorites() {
 /** كل الشاشات اللي ينفع تبقى كارت في الرئيسية: الأقسام أولًا، ثم صفحات كل قسم بلونه */
 interface CardOpt { key: string; label: string; icon: ReactNode; color: SectionColor; to: string; perms: string[]; group: string }
 const CARD_OPTIONS: CardOpt[] = (() => {
-  const out: CardOpt[] = SECTIONS.map((s) => ({ key: `sec:${s.key}`, label: s.label, icon: s.cardIcon, color: s.color, to: s.to, perms: s.perms, group: 'الأقسام' }));
+  const homeSections = SECTIONS.filter((s) => s.homeCard !== false);
+  const out: CardOpt[] = homeSections.map((s) => ({ key: `sec:${s.key}`, label: s.label, icon: s.cardIcon, color: s.color, to: s.to, perms: s.perms, group: 'الأقسام' }));
   const seen = new Set(out.map((o) => o.to));
   const add = (hubKey: string, color: SectionColor, group: string) => {
     const h = HUBS.find((x) => x.key === hubKey);
@@ -265,12 +266,12 @@ const CARD_OPTIONS: CardOpt[] = (() => {
       out.push({ key: l.to, label: l.label, icon: l.icon, color, to: l.to, perms: l.perm ? [l.perm] : [], group });
     }
   };
-  for (const s of SECTIONS) for (const hk of s.hubs) add(hk, s.color, s.label);
+  for (const s of homeSections) for (const hk of s.hubs) add(hk, s.color, s.label);
   for (const hk of GEAR_HUBS) add(hk, 'indigo', HUBS.find((x) => x.key === hk)?.label ?? '');
   return out;
 })();
 const MAX_CARDS = 8;
-const CARDS_DEFAULT = SECTIONS.map((s) => `sec:${s.key}`);
+const CARDS_DEFAULT = SECTIONS.filter((s) => s.homeCard !== false).map((s) => `sec:${s.key}`);
 const cardsKey = (uid: string) => `erp.homeCards.v1.${uid}`;
 function readCards(uid: string): string[] | null {
   try {

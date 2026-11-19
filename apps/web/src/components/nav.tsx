@@ -286,6 +286,8 @@ export interface Section {
   /** يظهر لمن يملك أيًا منها (فارغ = للجميع) */
   perms: string[];
   hubs: string[];
+  /** Ø¥Ø®ÙØ§Ø¡ Ø§Ù„Ù‚Ø³Ù… Ù…Ù† Ø§Ø®ØªØµØ§Ø±Ø§Øª Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ© Ù…Ø¹ Ø§Ù„Ø¥Ø¨Ù‚Ø§Ø¡ Ø¹Ù„Ù‰ Ø¸Ù‡ÙˆØ±Ù‡ ÙÙŠ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© */
+  homeCard?: boolean;
   /** روابط إضافية أعلى القائمة المنسدلة */
   extra?: NavLink[];
 }
@@ -309,7 +311,7 @@ export const SECTIONS: Section[] = [
   { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/employees', perms: ['employees.view'], hubs: ['employees'] },
   { key: 'treasury', label: 'الخزينة', icon: <Wallet />, cardIcon: <Wallet />, color: 'violet', to: '/hub/treasury', perms: ['treasury.view'], hubs: ['treasury'] },
   { key: 'reports', label: 'التقارير', icon: <BarChart3 />, cardIcon: <BarChart3 />, color: 'pink', to: '/hub/reports', perms: ['reports.view'], hubs: ['reports'] },
-  { key: 'insights', label: 'نبض المحل', icon: <Sparkles />, cardIcon: <Sparkles />, color: 'violet', to: '/insights', perms: ['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view'], hubs: ['insights'] },
+  { key: 'insights', label: 'نبض المحل', icon: <Sparkles />, cardIcon: <Sparkles />, color: 'violet', to: '/insights', perms: ['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view'], hubs: ['insights'], homeCard: false },
   {
     key: 'partners', label: 'الشركاء', icon: <HandCoins />, cardIcon: <HandCoins />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'],
     extra: [
