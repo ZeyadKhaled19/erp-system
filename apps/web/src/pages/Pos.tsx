@@ -325,6 +325,9 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   return (
     <div className="pos" style={active ? undefined : { display: 'none' }}>
       <div className="pos-left">
+        {!!draft.cart?.length && cart.length > 0 && (
+          <Banner kind="info">استُعيدت سلة بيع محفوظة تلقائيًا. راجع الأصناف والكميات والعميل قبل إتمام الدفع.</Banner>
+        )}
         <div className="row" style={{ gap: 10 }}>
           <div className="search" ref={searchBox} style={{ flex: 1, height: 46, background: 'var(--card)', boxShadow: 'var(--shadow-card)' }}>
             <ScanLine />
@@ -350,6 +353,12 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           )}
+        </div>
+        <div className="footnote hide-mobile" aria-label="اختصارات البيع السريع">
+          <span><kbd>F2</kbd> البحث عن صنف</span>
+          <span><kbd>F3</kbd> عملية بيع جديدة</span>
+          <span><kbd>F9</kbd> الدفع</span>
+          <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> الدفع</span>
         </div>
         <div className="pos-tools">
           <div className="pos-cats">

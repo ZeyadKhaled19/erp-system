@@ -83,7 +83,8 @@ export function StockReport() {
   const can = usePerm();
   const nav = useNavigate();
   const [wh, setWh] = useState('');
-  const [nonzero, setNonzero] = useState(true);
+  const [sp] = useSearchParams();
+  const [balanceView, setBalanceView] = useState<'nonzero' | 'all' | 'zero'>(() => sp.get('stock') === 'zero' ? 'zero' : 'nonzero');
   const [cat, setCat] = useState('');
   const catList = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar')), []) ?? [];
   // التقرير محلي بالكامل (من آخر مزامنة) ليعمل دون اتصال
@@ -97,8 +98,8 @@ export function StockReport() {
       // قيمة بيع تقديرية (سعر البيع × الكمية الموجبة) — منفصلة تمامًا عن التكلفة والربح
       return { ...i, qty, value: b.reduce((s, x) => s + x.value, 0), sale_value: qty > 0 ? Math.round((qty * (i.sale_price ?? 0)) / 1000) : 0, cat: cats.get(i.category_id) };
     });
-    return rows.filter((r) => (!nonzero || r.qty !== 0) && (!cat || r.category_id === cat));
-  }, [wh, nonzero, cat]) ?? [];
+    return rows.filter((r) => (balanceView === 'all' || (balanceView === 'zero' ? !r.is_service && r.qty === 0 : r.qty !== 0)) && (!cat || r.category_id === cat));
+  }, [wh, balanceView, cat]) ?? [];
   const total = data.reduce((s, r) => s + r.value, 0);
   const saleTotal = data.reduce((s, r) => s + r.sale_value, 0);
   return (
@@ -121,7 +122,7 @@ export function StockReport() {
               </select>
             </Field>
           )}
-          <Field label="العرض"><Segmented block value={nonzero ? '1' : '0'} onChange={(v) => setNonzero(v === '1')} options={[{ value: '1', label: 'الأصناف ذات الرصيد' }, { value: '0', label: 'كل الأصناف' }]} /></Field>
+          <Field label="العرض"><Segmented block value={balanceView} onChange={setBalanceView} options={[{ value: 'nonzero', label: 'ذات الرصيد' }, { value: 'zero', label: 'النافد' }, { value: 'all', label: 'الكل' }]} /></Field>
         </>
       }
       actions={<button className="btn" onClick={() => exportExcel('بضاعة مخزن', ['الكود', 'الصنف', 'التصنيف', 'الوحدة', 'الكمية', ...(can('costs.view') ? ['متوسط التكلفة', 'القيمة بالتكلفة'] : []), 'سعر البيع', 'القيمة بسعر البيع (تقديرية)'], data.map((r) => [r.code, r.name, r.cat, r.base_unit, formatQty(r.qty), ...(can('costs.view') ? [r.qty ? formatMoney(Math.round((r.value * 1000) / r.qty)) : '', formatMoney(r.value)] : []), formatMoney(r.sale_price ?? 0), formatMoney(r.sale_value)]))}>تصدير Excel</button>}

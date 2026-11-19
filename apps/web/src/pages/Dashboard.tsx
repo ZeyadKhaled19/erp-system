@@ -37,14 +37,14 @@ export function Dashboard() {
     <div className="page mc-home">
       <HomeHeader name={session.user.full_name} company={settings.company_name || ''} system={systemName({ system_name: settings.system_name ?? '' })} onCustomize={editCards ? undefined : () => setEditCards(true)} />
 
-      <HomeCards editing={editCards} onDone={() => setEditCards(false)} />
-
       <div className="mc-panels">
         <QuickTasks />
         <Favorites />
       </div>
 
       <HomeKpis />
+
+      <HomeCards editing={editCards} onDone={() => setEditCards(false)} />
 
       <div className="section-title">آخر العمليات <Hint side="start" text="آخر 6 مستندات اتعملت على الجهاز ده من الأقسام اللي عندك صلاحية تشوفها. دوس على أي واحد يفتحه." /></div>
       {recent?.length ? (
@@ -105,16 +105,16 @@ function QuickTasks() {
   const nav = useNavigate();
   const can = usePerm();
   const w = useWorkCounts();
-  const rows: { show: boolean; n: number; label: string; to: string; icon: ReactNode; tone: string; title?: string; always?: boolean }[] = [
-    { show: can('sales.view'), n: w.overdue, label: 'فواتير تحتاج متابعة', to: '/receivables', icon: <FileText />, tone: 'red', title: 'فواتير بيع آجلة عدّى ميعاد سدادها', always: true },
-    { show: can('inventory.view'), n: w.reorder, label: 'أصناف تحت حد الطلب', to: '/reports/reorder', icon: <Package />, tone: 'orange', always: true },
-    { show: can('parties.view'), n: w.customers, label: 'مستحقات على العملاء', to: '/parties/customer', icon: <Users />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.customersAmount)}`, always: true },
-    { show: can('parties.view'), n: w.suppliers, label: 'مستحقات للموردين', to: '/parties/supplier', icon: <Truck />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.suppliersAmount)}`, always: true },
+  const rows: { show: boolean; n: number; label: string; to: string; icon: ReactNode; tone: string; title?: string }[] = [
+    { show: can('sales.view'), n: w.overdue, label: 'فواتير تحتاج متابعة', to: '/receivables', icon: <FileText />, tone: 'red', title: 'فواتير بيع آجلة عدّى ميعاد سدادها' },
+    { show: can('inventory.view'), n: w.reorder, label: 'أصناف تحت حد الطلب', to: '/reports/reorder', icon: <Package />, tone: 'orange' },
+    { show: can('parties.view'), n: w.customers, label: 'مستحقات على العملاء', to: '/parties/customer', icon: <Users />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.customersAmount)}` },
+    { show: can('parties.view'), n: w.suppliers, label: 'مستحقات للموردين', to: '/parties/supplier', icon: <Truck />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.suppliersAmount)}` },
     { show: true, n: w.review, label: 'عمليات تحتاج مراجعة', to: '/sync', icon: <ShieldAlert />, tone: 'red' },
     { show: can('treasury.view'), n: w.dueSoon, label: 'شيكات وأقساط مستحقة خلال أسبوع', to: '/instruments', icon: <CalendarClock />, tone: 'orange' },
     { show: can('sales.view'), n: w.pendingDelivery, label: 'فواتير بانتظار التسليم', to: '/deliveries', icon: <Truck />, tone: 'blue' },
   ];
-  const list = rows.filter((r) => r.show && (r.always || r.n > 0));
+  const list = rows.filter((r) => r.show && r.n > 0);
   return (
     <section className="mc-panel mc-tasks" aria-labelledby="mc-tasks-t">
       <div className="mc-panel-h">
@@ -132,7 +132,7 @@ function QuickTasks() {
           ))}
         </div>
       ) : (
-        <div className="mc-empty">مفيش مهام تخص صلاحياتك دلوقتي.</div>
+        <div className="mc-empty">مفيش مهام محتاجة متابعة دلوقتي.</div>
       )}
     </section>
   );

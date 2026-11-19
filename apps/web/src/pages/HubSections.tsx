@@ -143,12 +143,12 @@ export function InventorySection() {
       const out = goods.filter((i) => (qty.get(i.id) ?? 0) === 0);
       const low = goods.filter((i) => i.reorder_level > 0 && (qty.get(i.id) ?? 0) > 0 && (qty.get(i.id) ?? 0) <= i.reorder_level);
       stats.push({ key: 'low', label: 'تحت حد الطلب', value: low.length, icon: <AlertTriangle />, color: 'orange', valueTone: low.length ? 'orange' : undefined, to: '/reports/reorder' });
-      stats.push({ key: 'out', label: 'نفدت من المخزون', value: out.length, icon: <PackageX />, color: 'red', valueTone: out.length ? 'red' : undefined, to: '/reports/stock' });
+      stats.push({ key: 'out', label: 'نفدت من المخزون', value: out.length, icon: <PackageX />, color: 'red', valueTone: out.length ? 'red' : undefined, to: '/reports/stock?stock=zero' });
       stats.push({ key: 'neg', label: 'أرصدة سالبة', value: negative.length, sub: negative.length ? 'محتاجة جرد' : 'مفيش', icon: <AlertTriangle />, color: 'pink', valueTone: negative.length ? 'red' : undefined, to: '/reports/negative' });
       if (can('costs.view')) stats.push({ key: 'value', label: 'قيمة المخزون', value: formatMoney(balances.reduce((s, b) => s + (b.value ?? 0), 0)), sub: 'بالتكلفة', icon: <Boxes />, color: 'green', valueTone: 'green', to: '/reports/stock' });
       short = [...negative, ...out, ...low].slice(0, 8).map((i) => ({ ...i, qty: qty.get(i.id) ?? 0 }));
       // «عرض الكل» يفتح التقرير اللي فيه أول نوع ظاهر في الكارت (السالب أولًا، وبعدين تحت حد الطلب، وبعدين أرصدة المخزون)
-      moreTo = negative.length ? '/reports/negative' : low.length ? '/reports/reorder' : '/reports/stock';
+      moreTo = negative.length ? '/reports/negative' : low.length ? '/reports/reorder' : out.length ? '/reports/stock?stock=zero' : '/reports/stock';
       const whs = new Map((await db.warehouses.toArray()).map((w) => [w.id, w.name]));
       moves = (await db.documents.where('doc_type').anyOf(['stock_transfer', 'stock_adjustment', 'opening_stock']).toArray()).sort(newest).slice(0, 5)
         .map((d) => ({ ...d, party: d.doc_type === 'stock_transfer' ? `${whs.get(d.warehouse_id) ?? '—'} ← ${whs.get(d.to_warehouse_id) ?? '—'}` : whs.get(d.warehouse_id) ?? '—' }));
