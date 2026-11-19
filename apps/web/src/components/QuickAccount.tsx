@@ -52,6 +52,7 @@ export function QuickAccountSheet({ type, initialName = '', onClose, onSaved }: 
   return (
     <Sheet
       title={TITLE[type]}
+      subtitle={type === 'expense' ? 'أضف البند مرة واحدة ليظهر في المصروفات والتقارير.' : 'أضف البند مرة واحدة ليظهر في الإيرادات والتقارير.'}
       onClose={onClose}
       footer={
         <>

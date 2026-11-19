@@ -61,6 +61,17 @@
 .stat .stat-value { font-size: var(--text-3xl); letter-spacing: -0.5px; }
 .list-row .sb-icon { border-radius: 0.75rem; }
 .sheet, .overlay .sheet { border-radius: 1rem; }
+.overlay { background: rgba(12, 15, 20, 0.46); backdrop-filter: blur(2px) saturate(0.92); }
+.sheet, .overlay .sheet { background: var(--card); border: 1px solid var(--separator); box-shadow: var(--shadow-pop); }
+.sheet-head { min-height: 3.75rem; padding: 0.75rem 1rem; background: var(--card); border-bottom: 1px solid var(--separator); }
+.sheet-head h3 { text-align: start; font-size: var(--text-lg); font-weight: 700; }
+.sheet-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
+.sheet-title h3 { margin: 0; line-height: 1.35; }
+.sheet-subtitle { margin: 0; color: var(--label-2); font-size: var(--text-sm); line-height: 1.4; }
+.sheet-head .icon-btn { border: 1px solid var(--separator); background: var(--card-2); }
+.sheet-head .icon-btn:hover { background: var(--hover); border-color: var(--border-strong); }
+.sheet-body { padding: 1.125rem; }
+.sheet-foot { padding: 0.875rem 1.125rem; background: var(--card-2); border-top: 1px solid var(--separator); }
 kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2); }
 
 /* ---------- 5) الرئيسية ---------- */
@@ -453,6 +464,11 @@ kbd { border-bottom-width: 1px; border-radius: 0.5rem; background: var(--card-2)
   .hk-chart-total strong { font-size: var(--text-lg); }
   .hk-chart-change > span { max-width: 8.5rem; }
   .hk-chart-tooltip { min-width: 11.25rem; padding: 0.5rem 0.625rem; }
+}
+@media (max-width: 640px) {
+  .sheet-head { min-height: 3.5rem; padding: 0.625rem 0.875rem; }
+  .sheet-body { padding: 0.875rem; }
+  .sheet-foot { padding: 0.75rem 0.875rem calc(0.75rem + env(safe-area-inset-bottom)); }
 }
 
 /* ---------- 12) شرح ومقارنة كروت الأقسام ---------- */

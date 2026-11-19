@@ -148,7 +148,7 @@ export function Banner({ kind = 'info', children }: { kind?: 'info' | 'warn' | '
 
 // ---------------------------------------------------------------- نوافذ
 
-export function Sheet({ title, onClose, children, footer, wide, leading }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; leading?: ReactNode }) {
+export function Sheet({ title, subtitle, onClose, children, footer, wide, leading }: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; leading?: ReactNode }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', h);
@@ -159,7 +159,10 @@ export function Sheet({ title, onClose, children, footer, wide, leading }: { tit
       <div className={`sheet ${wide ? 'wide' : ''}`} role="dialog" aria-modal>
         <div className="sheet-head">
           <div style={{ minWidth: 70 }}>{leading}</div>
-          <h3>{title}</h3>
+          <div className="sheet-title">
+            <h3>{title}</h3>
+            {subtitle && <p className="sheet-subtitle">{subtitle}</p>}
+          </div>
           <div style={{ minWidth: 70, textAlign: 'left' }}>
             <button className="icon-btn" onClick={onClose} aria-label="إغلاق">
               <X />
