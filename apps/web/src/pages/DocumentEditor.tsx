@@ -94,6 +94,8 @@ export function DocumentEditor() {
   const existing = useLiveQuery(async () => (params.id ? ((await db.documents.get(params.id)) ?? null) : null), [params.id]);
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const type = (params.type ?? existing?.doc_type) as DocType;
+  const compactDoc = ['expense', 'partner_withdrawal', 'receipt'].includes(type);
+  const returnPath = type === 'receipt' ? '/receipts' : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
@@ -528,12 +530,12 @@ export function DocumentEditor() {
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
-      if (type === 'expense' || type === 'partner_withdrawal') {
+      if (compactDoc) {
         const background = (location.state as { backgroundLocation?: { pathname?: string; search?: string } } | null)?.backgroundLocation;
         if (addAnother) {
-          nav(`/docs/new/${type}?again=${Date.now()}`, { replace: true, state: { backgroundLocation: background ?? { pathname: '/' } } });
+          nav(`/docs/new/${type}?again=${Date.now()}`, { replace: true, state: { backgroundLocation: background ?? { pathname: returnPath } } });
         } else {
-          nav(background ?? (type === 'expense' ? '/expenses' : '/hub/partners'), { replace: true });
+          nav(background ?? returnPath, { replace: true });
         }
         return;
       }
@@ -564,8 +566,8 @@ export function DocumentEditor() {
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
   const backgroundLocation = (location.state as { backgroundLocation?: { pathname?: string } } | null)?.backgroundLocation;
-  if (params.id && ['expense', 'partner_withdrawal'].includes(existing?.doc_type ?? '') && !backgroundLocation)
-    return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: existing?.doc_type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
+  if (params.id && ['expense', 'partner_withdrawal', 'receipt'].includes(existing?.doc_type ?? '') && !backgroundLocation)
+    return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: returnPath } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
   if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
     return <div className="page"><Banner kind="warn">هذا المستند {existing.status === 'posted' ? 'مُرحّل' : 'ملغي'} ولا يمكن تعديله.</Banner></div>;
@@ -578,9 +580,9 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className={`page${type === 'expense' || type === 'partner_withdrawal' ? ' expense-editor' : ''}`}>
+    <div className={`page${compactDoc ? ' expense-editor' : ''}${type === 'receipt' ? ' receipt-editor' : ''}`}>
       <PageHeader
-        title={type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
+        title={type === 'receipt' ? `${params.id ? 'تعديل قبض' : 'قبض جديد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
@@ -589,8 +591,8 @@ export function DocumentEditor() {
       {error && <div style={{ marginBottom: 12 }}><Banner kind="err">{error}</Banner></div>}
 
       {/* ---------- الرأس ---------- */}
-      <div className={`card pad${type === 'expense' ? ' expense-fields' : ''}`}>
-        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : ''}`}>
+      <div className={`card pad${type === 'expense' || type === 'receipt' ? ' expense-fields' : ''}`}>
+        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : type === 'receipt' ? ' receipt-fields-grid' : ''}`}>
           <Field label="التاريخ" className={type === 'expense' ? 'expense-date-field' : undefined}>
             <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
@@ -601,7 +603,7 @@ export function DocumentEditor() {
             </div>
           )}
           {(info.partyKind || type === 'party_opening') && info.partyKind !== 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
-            <Field label={info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
+            <Field label={type === 'receipt' ? 'استلم من' : info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
               <div className="row" style={{ gap: 6 }}>
                 <div style={{ flex: 1 }}>
                   <Picker
@@ -621,7 +623,7 @@ export function DocumentEditor() {
           )}
 
           {(type === 'receipt' || type === 'payment') && (
-            <Field label="الطرف المقابل">
+            <Field label={type === 'receipt' ? 'جهة القبض' : 'الطرف المقابل'}>
               <Segmented block value={counterMode} onChange={setCounterMode} options={[{ value: 'party', label: 'عميل/مورد' }, { value: 'account', label: 'حساب' }]} />
             </Field>
           )}
@@ -726,7 +728,7 @@ export function DocumentEditor() {
             <Field
               label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}
               className={type === 'expense' ? 'expense-cashbox-field' : undefined}
-              hint={type === 'expense' ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
+              hint={type === 'expense' || type === 'receipt' ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
             >
               <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1130,14 +1132,15 @@ export function DocumentEditor() {
         )}
         {calc?.error && <Banner kind="err">{calc.error}</Banner>}
       </div>
-      {!['expense', 'partner_withdrawal'].includes(type) && <div className="footnote" style={{ marginTop: 14 }}>
+      {!compactDoc && <div className="footnote" style={{ marginTop: 14 }}>
         الاختصارات: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ · <kbd>Ctrl</kbd>+<kbd>S</kbd> مسودة · <kbd>F2</kbd> الباركود
       </div>}
-      <div className={`sticky-actions${['expense', 'partner_withdrawal'].includes(type) ? ' expense-actions' : ''}`}>
-        {['expense', 'partner_withdrawal'].includes(type) ? <>
+      <div className={`sticky-actions${compactDoc ? ' expense-actions' : ''}`}>
+        {compactDoc ? <>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void submit('post')}>{busy ? 'جاري الحفظ…' : 'احفظ'} <CheckCircle2 /></button>
           <button type="button" className="btn" disabled={busy} onClick={() => void submit('post', true)}>{busy ? 'جاري الحفظ…' : 'حفظ وضيف تاني'} <Plus /></button>
-          <button type="button" className="btn plain" disabled={busy} onClick={() => nav(backgroundLocation ?? (type === 'expense' ? '/expenses' : '/hub/partners'), { replace: true })}>رجوع</button>
+          {type === 'receipt' && <button type="button" className="btn" disabled={busy} onClick={() => void submit('draft')}>مسودة</button>}
+          <button type="button" className="btn plain" disabled={busy} onClick={() => nav(backgroundLocation ?? returnPath, { replace: true })}>رجوع</button>
         </> : <>
           <div style={{ flex: 1 }}>
             {(calc && !calc.error) || !info.hasLines ? (

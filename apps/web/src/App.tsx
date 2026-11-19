@@ -17,6 +17,7 @@ import { DocumentEditor } from './pages/DocumentEditor';
 import { DocumentsList } from './pages/DocumentsList';
 import { DocumentView } from './pages/DocumentView';
 import { ExpensesPage, ExpenseModal } from './pages/Expenses';
+import { ReceiptsPage } from './pages/Receipts';
 import { ItemInquiry } from './pages/ItemInquiry';
 import { ItemsPage } from './pages/Items';
 import { Login } from './pages/Login';
@@ -191,6 +192,7 @@ export function App() {
           <Route path="/pos" element={<RequirePerm any={['sales.create']}><PosPage /></RequirePerm>} />
           <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage backgroundActive={!!backgroundLocation} /></RequirePerm>} />
           <Route path="/purchases" element={<RequirePerm any={['purchases.view']}><InvoicesPage purchaseOnly backgroundActive={!!backgroundLocation} /></RequirePerm>} />
+          <Route path="/receipts" element={<RequirePerm any={['treasury.view']}><ReceiptsPage /></RequirePerm>} />
           <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
           <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
@@ -263,9 +265,9 @@ function NewDocRoute() {
   const loc = useLocation();
   if (type === 'purchase_invoice' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
     return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/purchases' } }} />;
-  if (type === 'expense' || type === 'partner_withdrawal') {
+  if (type === 'expense' || type === 'partner_withdrawal' || type === 'receipt') {
     const backgroundLocation = (loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation;
-    if (!backgroundLocation) return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
+    if (!backgroundLocation) return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: type === 'receipt' ? '/receipts' : type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
     return null;
   }
   if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage key="sale" />;
@@ -276,6 +278,7 @@ function NewDocRoute() {
 function NewDocumentModal() {
   const { type } = useParams();
   if (type === 'purchase_invoice') return <ExpenseModal title="فاتورة شراء جديدة" variant="purchase"><NewDocRoute /></ExpenseModal>;
+  if (type === 'receipt') return <ExpenseModal title="قبض جديد" variant="receipt"><DocumentEditor /></ExpenseModal>;
   return <ExpenseModal><DocumentEditor /></ExpenseModal>;
 }
 

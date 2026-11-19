@@ -136,7 +136,7 @@ export const HUBS: Hub[] = [
       {
         title: 'ابدأ',
         links: [
-          { to: '/docs/new/receipt', label: 'قبض من عميل', desc: 'يُخصم تلقائيًا من أقدم فواتيره', icon: <ArrowDownLeft />, grad: 'var(--grad-green)', perm: 'treasury.create', hero: true },
+          { to: '/docs/new/receipt', label: 'قبض', desc: 'سجّل القبض وراجع تقارير التحصيل', icon: <ArrowDownLeft />, grad: 'var(--grad-green)', perm: 'treasury.create', hero: true },
           { to: '/docs/new/payment', label: 'صرف لمورد', icon: <ArrowUpRight />, grad: 'var(--grad-red)', perm: 'treasury.create' },
           { to: '/expenses', label: 'المصروفات', icon: <Receipt />, grad: 'var(--grad-orange)', perm: 'treasury.view' },
           { to: '/docs/new/income', label: 'إيراد آخر', icon: <TrendingUp />, grad: 'var(--grad-green)', perm: 'treasury.create' },
@@ -150,6 +150,7 @@ export const HUBS: Hub[] = [
           { to: '/instruments', label: 'الشيكات والأقساط', icon: <CalendarClock />, grad: 'var(--grad-purple)', perm: 'treasury.view' },
           { to: '/shift', label: 'الوردية', icon: <Clock />, grad: 'var(--grad-teal)', perm: 'treasury.shift' },
           { to: '/docs/list/treasury', label: 'سجل السندات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'treasury.view' },
+          { to: '/receipts', label: 'قبض', icon: <ArrowDownLeft />, grad: 'var(--grad-green)', perm: 'treasury.view' },
           { to: '/reports/treasury', label: 'تحليل المقبوضات', icon: <PieChart />, grad: 'var(--grad-green)', perm: 'treasury.view' },
           { to: '/reports/treasury?dir=out', label: 'تحليل المصروفات', icon: <PieChart />, grad: 'var(--grad-red)', perm: 'treasury.view' },
         ],
