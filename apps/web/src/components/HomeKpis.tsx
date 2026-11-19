@@ -179,10 +179,10 @@ export function HomeKpis() {
           <div className="hk-card hk-chart-card">
             <div className="hk-card-h">
               <div>
-                <h3>المبيعات آخر 14 يوم <Hint side="start" text="كل عمود = صافي مبيعات يوم (الفواتير ناقص المرتجعات). الخط المتقطع = نفس اليوم في الأسبوعين اللي قبلهم، عشان تقارن." /></h3>
+                <h3>المبيعات آخر 14 يوم <Hint side="start" text="كل عمود = صافي مبيعات يوم. مرر على أي عمود لعرض مبيعات اليوم ومقارنتها بنفس اليوم في الأسبوعين اللي قبلهم." /></h3>
                 <span className="hk-card-sub">مقارنة بالـ14 يوم اللي قبلهم</span>
               </div>
-              <span className="hk-legend"><i className="cur" /> الفترة الحالية <i className="prev" /> الفترة السابقة</span>
+              <span className="hk-legend"><i className="cur" /> مرر على العمود للمقارنة</span>
             </div>
             <SalesSummary series={data?.series ?? []} />
             <SalesChart series={data?.series ?? []} days={days} />
@@ -272,7 +272,6 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
   const cw = (W - padL) / 14;
   const y = (v: number) => padT + (H - padT - padB) * (1 - Math.max(0, v) / top);
   const x = (i: number) => W - padL - (i + 0.5) * cw; // i=0 أقدم يوم على اليمين
-  const line = prev.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const activeX = activeIndex == null ? 0 : Math.max(74, Math.min(W - padL - 74, x(activeIndex)));
   const activeTop = activeIndex == null ? 0 : Math.max(16, Math.min(78, (y(Math.max(cur[activeIndex] ?? 0, prev[activeIndex] ?? 0)) / H) * 100));
   return (
@@ -295,7 +294,6 @@ function SalesChart({ series, days }: { series: number[]; days: string[] }) {
           <rect key={labels[i]} x={x(i) - cw * 0.28} y={y(0) - h} width={cw * 0.56} height={h} rx={4} className={i === 13 ? 'hk-bar today' : `hk-bar${i === activeIndex ? ' active' : ''}`} />
         );
       })}
-      <path d={line} className="hk-prev" />
       {labels.map((d, i) => (
         <text key={d} x={x(i)} y={H - 8} className="hk-axis" textAnchor="middle">{`${d.slice(8, 10)}/${d.slice(5, 7)}`}</text>
       ))}
