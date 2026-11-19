@@ -1,7 +1,7 @@
 import {
   AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Barcode, BarChart3, BookOpen, BookPlus, Boxes, Building2, CalendarClock, ClipboardCheck,
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
-  IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
+  IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Sparkles, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
 import { Fingerprint, HandCoins, Network, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -249,6 +249,7 @@ export const hubPath = (h: Hub) => h.to ?? `/hub/${h.key}`;
 /** القسم الذي تنتمي إليه الصفحة الحالية (لتمييزه في الشريط الجانبي) */
 export function activeHubKey(pathname: string): string {
   if (pathname === '/') return 'home';
+  if (pathname.startsWith('/insights')) return 'insights';
   if (pathname.startsWith('/hub/')) return pathname.slice(5);
   if (pathname.startsWith('/pos')) return 'pos';
   if (pathname.startsWith('/invoices')) return 'invoices';
@@ -308,6 +309,7 @@ export const SECTIONS: Section[] = [
   { key: 'employees', label: 'الموظفين', icon: <IdCard />, cardIcon: <IdCard />, color: 'indigo', to: '/employees', perms: ['employees.view'], hubs: ['employees'] },
   { key: 'treasury', label: 'الخزينة', icon: <Wallet />, cardIcon: <Wallet />, color: 'violet', to: '/hub/treasury', perms: ['treasury.view'], hubs: ['treasury'] },
   { key: 'reports', label: 'التقارير', icon: <BarChart3 />, cardIcon: <BarChart3 />, color: 'pink', to: '/hub/reports', perms: ['reports.view'], hubs: ['reports'] },
+  { key: 'insights', label: 'نبض المحل', icon: <Sparkles />, cardIcon: <Sparkles />, color: 'violet', to: '/insights', perms: ['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view'], hubs: ['insights'] },
   {
     key: 'partners', label: 'الشركاء', icon: <HandCoins />, cardIcon: <HandCoins />, color: 'violet', to: '/partners', perms: ['partners.view'], hubs: ['partners'],
     extra: [

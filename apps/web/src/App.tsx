@@ -38,6 +38,7 @@ import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
 import { InvoicesPage } from './pages/Invoices';
 import { SimpleSalePage } from './pages/SimpleSale';
+import { BusinessInsightsPage } from './pages/BusinessInsights';
 import { AdvancesPage, AttendancePage, AttendanceReportPage, EmployeesPage, PayrollPage } from './pages/Employees';
 import { OrgStructurePage } from './pages/OrgStructure';
 import { DocGuard, HomeRoute, HubGuard, NewDocGuard, RequirePerm } from './components/Guard';
@@ -183,6 +184,7 @@ export function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<HomeRoute><Dashboard /></HomeRoute>} />
+          <Route path="/insights" element={<RequirePerm any={['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view']}><BusinessInsightsPage /></RequirePerm>} />
           <Route path="/hub/:key" element={<HubGuard><HubPage /></HubGuard>} />
           <Route path="/pos" element={<RequirePerm any={['sales.create']}><PosPage /></RequirePerm>} />
           <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage /></RequirePerm>} />

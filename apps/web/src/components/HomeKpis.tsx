@@ -175,7 +175,7 @@ function paymentMethods(docs: any[], cashboxes: BoxSum[]): MethodSum[] {
 }
 
 /** لوحة الأداء والتحليلات: كلها محلية، وتُحمّل البيانات المسموح بها فقط. */
-export function HomeKpis() {
+export function HomeKpis({ warehouseId }: { warehouseId?: string } = {}) {
   const nav = useNavigate();
   const can = usePerm();
   const { session } = useSession();
@@ -202,7 +202,8 @@ export function HomeKpis() {
     const start = r.pFrom;
     const end = r.to;
     const batches = await Promise.all(queryTypes.map((type) => db.documents.where('[doc_type+date]').between([type, start], [type, end], true, true).toArray()));
-    const docs = batches.flat();
+    const warehouseScopedTypes = new Set(['sale_invoice', 'sale_return', 'purchase_invoice', 'purchase_return']);
+    const docs = batches.flat().filter((doc) => !warehouseId || !warehouseScopedTypes.has(doc.doc_type) || doc.warehouse_id === warehouseId);
     const cur = sum(docs.filter((d) => d.date >= r.from && d.date <= r.to));
     const prev = sum(docs.filter((d) => d.date >= r.pFrom && d.date <= r.pTo));
     const series = chartSeries(docs, period, r);
@@ -226,7 +227,7 @@ export function HomeKpis() {
     if (needsInventory) {
       const balances = await db.stock_balances.toArray();
       const allowedWarehouses = session.user.warehouse_ids == null ? null : new Set(session.user.warehouse_ids);
-      stockRows = allowedWarehouses ? balances.filter((b) => allowedWarehouses.has(b.warehouse_id)) : balances;
+      stockRows = balances.filter((b) => (!allowedWarehouses || allowedWarehouses.has(b.warehouse_id)) && (!warehouseId || b.warehouse_id === warehouseId));
       if (showInventory) items = (await db.items.toArray()).filter((i) => i.active !== false && !i.is_service);
     }
     const qtyByItem = new Map<string, number>();
@@ -267,7 +268,7 @@ export function HomeKpis() {
       stockItems: new Set(stockRows.filter((b) => (b.qty ?? 0) > 0).map((b) => b.item_id)).size,
       lowStock, topItems,
     };
-  }, [period, r.from, r.to, r.pFrom, r.pTo, permsKey, cashboxScopeKey, warehouseScopeKey, session.user.id]);
+  }, [period, r.from, r.to, r.pFrom, r.pTo, permsKey, cashboxScopeKey, warehouseScopeKey, session.user.id, warehouseId]);
 
   const c = data?.cur ?? empty();
   const p = data?.prev ?? empty();
