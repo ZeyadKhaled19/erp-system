@@ -94,8 +94,9 @@ export function DocumentEditor() {
   const existing = useLiveQuery(async () => (params.id ? ((await db.documents.get(params.id)) ?? null) : null), [params.id]);
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const type = (params.type ?? existing?.doc_type) as DocType;
-  const compactDoc = ['expense', 'partner_withdrawal', 'receipt'].includes(type);
-  const returnPath = type === 'receipt' ? '/receipts' : type === 'expense' ? '/expenses' : '/hub/partners';
+  const cashMovement = type === 'receipt' || type === 'payment';
+  const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(type);
+  const returnPath = cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
@@ -566,7 +567,7 @@ export function DocumentEditor() {
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
   const backgroundLocation = (location.state as { backgroundLocation?: { pathname?: string } } | null)?.backgroundLocation;
-  if (params.id && ['expense', 'partner_withdrawal', 'receipt'].includes(existing?.doc_type ?? '') && !backgroundLocation)
+  if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(existing?.doc_type ?? '') && !backgroundLocation)
     return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: returnPath } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
   if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
@@ -580,9 +581,9 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className={`page${compactDoc ? ' expense-editor' : ''}${type === 'receipt' ? ' receipt-editor' : ''}`}>
+    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement ? ' cash-movement-editor' : ''}`}>
       <PageHeader
-        title={type === 'receipt' ? `${params.id ? 'تعديل قبض' : 'قبض جديد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
+        title={cashMovement ? `${params.id ? 'تعديل ' : ''}${type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
@@ -591,8 +592,8 @@ export function DocumentEditor() {
       {error && <div style={{ marginBottom: 12 }}><Banner kind="err">{error}</Banner></div>}
 
       {/* ---------- الرأس ---------- */}
-      <div className={`card pad${type === 'expense' || type === 'receipt' ? ' expense-fields' : ''}`}>
-        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : type === 'receipt' ? ' receipt-fields-grid' : ''}`}>
+      <div className={`card pad${type === 'expense' || cashMovement ? ' expense-fields' : ''}`}>
+        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : cashMovement ? ' cash-movement-fields-grid' : ''}`}>
           <Field label="التاريخ" className={type === 'expense' ? 'expense-date-field' : undefined}>
             <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
@@ -728,7 +729,7 @@ export function DocumentEditor() {
             <Field
               label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}
               className={type === 'expense' ? 'expense-cashbox-field' : undefined}
-              hint={type === 'expense' || type === 'receipt' ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
+              hint={type === 'expense' || cashMovement ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
             >
               <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1139,7 +1140,7 @@ export function DocumentEditor() {
         {compactDoc ? <>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void submit('post')}>{busy ? 'جاري الحفظ…' : 'احفظ'} <CheckCircle2 /></button>
           <button type="button" className="btn" disabled={busy} onClick={() => void submit('post', true)}>{busy ? 'جاري الحفظ…' : 'حفظ وضيف تاني'} <Plus /></button>
-          {type === 'receipt' && <button type="button" className="btn" disabled={busy} onClick={() => void submit('draft')}>مسودة</button>}
+          {cashMovement && <button type="button" className="btn" disabled={busy} onClick={() => void submit('draft')}>مسودة</button>}
           <button type="button" className="btn plain" disabled={busy} onClick={() => nav(backgroundLocation ?? returnPath, { replace: true })}>رجوع</button>
         </> : <>
           <div style={{ flex: 1 }}>

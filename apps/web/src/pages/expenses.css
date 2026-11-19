@@ -31,16 +31,16 @@
 .expense-search .input { width: 100%; padding-inline-start: 34px; }
 .expense-note { display: block; color: var(--label-3); font-size: .78rem; margin-top: 3px; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .expense-empty { padding: 20px; }
-.receipt-editor .receipt-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.receipt-editor .receipt-fields-grid > * { min-width: 0; }
-.receipt-editor .receipt-fields-grid .input,.receipt-editor .receipt-fields-grid .select { width: 100%; box-sizing: border-box; }
-.receipt-editor > .grid { display: block; padding: 0 20px; margin: 0; }
-.receipt-editor > .grid .card { padding: 0; border: 0; box-shadow: none; background: transparent; }
-.receipt-editor .textarea { min-height: 44px; height: 44px; }
-.receipt-editor .totals-box { display: none; }
-.receipt-editor .receipt-fields-grid .field > label { font-size: .82rem; }
-.receipt-editor .sticky-actions.expense-actions { gap: 6px; }
-.receipt-editor .expense-actions .btn { padding-inline: 10px; }
+.cash-movement-editor .cash-movement-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cash-movement-editor .cash-movement-fields-grid > * { min-width: 0; }
+.cash-movement-editor .cash-movement-fields-grid .input,.cash-movement-editor .cash-movement-fields-grid .select { width: 100%; box-sizing: border-box; }
+.cash-movement-editor > .grid { display: block; padding: 0 20px; margin: 0; }
+.cash-movement-editor > .grid .card { padding: 0; border: 0; box-shadow: none; background: transparent; }
+.cash-movement-editor .textarea { min-height: 44px; height: 44px; }
+.cash-movement-editor .totals-box { display: none; }
+.cash-movement-editor .cash-movement-fields-grid .field > label { font-size: .82rem; }
+.cash-movement-editor .sticky-actions.expense-actions { gap: 6px; }
+.cash-movement-editor .expense-actions .btn { padding-inline: 10px; }
 .expense-modal-backdrop { position: fixed; z-index: 1000; inset: 0; background: rgb(20 24 32 / 52%); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 18px; }
 .expense-modal { position: relative; box-sizing: border-box; min-width: 0; width: min(600px, 100%); max-height: min(94dvh, 800px); overflow-y: auto; overflow-x: hidden; background: var(--card); border: 1px solid var(--separator); border-radius: 16px; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
 .expense-modal-close { position: absolute; top: 13px; left: 14px; z-index: 3; margin: 0; background: transparent; }

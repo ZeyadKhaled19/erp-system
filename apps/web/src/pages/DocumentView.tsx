@@ -166,8 +166,8 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
 
         <div className="dv-actions no-print">
           {canEdit && <button className="btn" onClick={() => {
-            const state = ['expense', 'partner_withdrawal', 'receipt'].includes(doc.doc_type)
-              ? { state: { backgroundLocation: { pathname: doc.doc_type === 'receipt' ? '/receipts' : doc.doc_type === 'expense' ? '/expenses' : '/hub/partners' } } }
+            const state = ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(doc.doc_type)
+              ? { state: { backgroundLocation: { pathname: doc.doc_type === 'receipt' || doc.doc_type === 'payment' ? `/treasury/${doc.doc_type}` : doc.doc_type === 'expense' ? '/expenses' : '/hub/partners' } } }
               : undefined;
             nav(`/docs/edit/${doc.id}`, state);
           }}><Pencil /> تعديل</button>}

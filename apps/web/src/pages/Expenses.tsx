@@ -126,7 +126,7 @@ export function ExpensesPage() {
   );
 }
 
-export function ExpenseModal({ children, title = 'مصروف جديد', variant }: { children: ReactNode; title?: string; variant?: 'purchase' | 'receipt' }) {
+export function ExpenseModal({ children, title = 'مصروف جديد', variant }: { children: ReactNode; title?: string; variant?: 'purchase' | 'cash' }) {
   const nav = useNavigate();
   const location = useLocation();
   const close = () => {
