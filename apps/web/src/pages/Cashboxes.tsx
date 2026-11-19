@@ -27,7 +27,7 @@ export function CashboxesPage() {
     <div className="page">
       <PageTabs tabs={TREASURY_TABS} />
       <PageHeader
-        title="الخزائن والبنوك"
+        title="الخزائن"
         sub={`الإجمالي ${formatMoney(boxes.reduce((s, b) => s + (b.balance ?? 0), 0))}`}
         actions={can('treasury.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> خزينة/بنك</button>}
       />

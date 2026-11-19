@@ -45,7 +45,7 @@ export function AccountsPage() {
     <div className="page">
       <PageTabs tabs={TREASURY_TABS} />
       <PageHeader
-        title="دليل الحسابات"
+        title="الحسابات"
         sub="الحسابات الرئيسية تجمع أرصدة فروعها. الحسابات المقفلة يعتمد عليها الترحيل الآلي."
         actions={can('accounts.manage') && <button className="btn primary" onClick={() => setEdit({})}><Plus /> حساب</button>}
       />

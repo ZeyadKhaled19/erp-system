@@ -97,7 +97,7 @@ export const HUBS: Hub[] = [
         title: 'الأصناف',
         links: [
           { to: '/items', label: 'الأصناف', desc: 'إضافة وتعديل الأصناف والأسعار', icon: <Package />, grad: 'var(--grad-orange)', perm: 'items.view', hero: true },
-          { to: '/items/inquiry', label: 'استعلام عن صنف', icon: <PackageSearch />, grad: 'var(--grad-blue)', perm: 'items.view' },
+          { to: '/items/inquiry', label: 'بحث عن صنف', icon: <PackageSearch />, grad: 'var(--grad-blue)', perm: 'items.view' },
           { to: '/lists', label: 'قوائم الأسعار والمندوبون', icon: <Tags />, grad: 'var(--grad-orange)', perm: 'items.view' },
           { to: '/warehouses', label: 'المخازن والتصنيفات', icon: <Building2 />, grad: 'var(--grad-gray)', perm: 'items.view' },
         ],
@@ -106,8 +106,8 @@ export const HUBS: Hub[] = [
         title: 'حركات المخزن',
         links: [
           { to: '/docs/new/stock_transfer', label: 'تحويل بين المخازن', icon: <ArrowLeftRight />, grad: 'var(--grad-purple)', perm: 'inventory.create' },
-          { to: '/docs/new/stock_adjustment', label: 'جرد وتسوية', icon: <ClipboardCheck />, grad: 'var(--grad-pink)', perm: 'inventory.create' },
-          { to: '/docs/new/opening_stock', label: 'بضاعة أول المدة', icon: <PackagePlus />, grad: 'var(--grad-gray)', perm: 'inventory.create' },
+          { to: '/docs/new/stock_adjustment', label: 'تسوية المخزون', icon: <ClipboardCheck />, grad: 'var(--grad-pink)', perm: 'inventory.create' },
+          { to: '/docs/new/opening_stock', label: 'مخزون افتتاحي', icon: <PackagePlus />, grad: 'var(--grad-gray)', perm: 'inventory.create' },
           { to: '/docs/list/inventory', label: 'سجل حركات المخازن', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'inventory.view' },
         ],
       },
@@ -146,7 +146,7 @@ export const HUBS: Hub[] = [
       {
         title: 'المتابعة',
         links: [
-          { to: '/cashboxes', label: 'الخزائن والبنوك', icon: <Wallet />, grad: 'var(--grad-blue)', perm: 'treasury.view' },
+          { to: '/cashboxes', label: 'الخزائن', icon: <Wallet />, grad: 'var(--grad-blue)', perm: 'treasury.view' },
           { to: '/instruments', label: 'الشيكات والأقساط', icon: <CalendarClock />, grad: 'var(--grad-purple)', perm: 'treasury.view' },
           { to: '/shift', label: 'الوردية', icon: <Clock />, grad: 'var(--grad-teal)', perm: 'treasury.shift' },
           { to: '/docs/list/treasury', label: 'سجل السندات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'treasury.view' },
@@ -183,9 +183,9 @@ export const HUBS: Hub[] = [
           { to: '/reports/trial-balance', label: 'ميزان المراجعة', icon: <Scale />, grad: 'var(--grad-green)', perm: 'reports.financial' },
           { to: '/reports/balance-sheet', label: 'الميزانية العمومية', icon: <Landmark />, grad: 'var(--grad-indigo)', perm: 'reports.financial' },
           { to: '/reports/ledger', label: 'دفتر الأستاذ', icon: <BookOpen />, grad: 'var(--grad-brown)', perm: 'reports.financial' },
-          { to: '/accounts', label: 'دليل الحسابات', icon: <ListTree />, grad: 'var(--grad-indigo)', perm: 'accounts.view' },
-          { to: '/docs/new/journal_voucher', label: 'قيد يومية', icon: <BookPlus />, grad: 'var(--grad-blue)', perm: 'accounts.journal' },
-          { to: '/docs/new/party_opening', label: 'رصيد افتتاحي لطرف', icon: <UserPlus />, grad: 'var(--grad-gray)', perm: 'accounts.journal' },
+          { to: '/accounts', label: 'الحسابات', icon: <ListTree />, grad: 'var(--grad-indigo)', perm: 'accounts.view' },
+          { to: '/docs/new/journal_voucher', label: 'قيد محاسبي', icon: <BookPlus />, grad: 'var(--grad-blue)', perm: 'accounts.journal' },
+          { to: '/docs/new/party_opening', label: 'رصيد بداية عميل أو مورد', icon: <UserPlus />, grad: 'var(--grad-gray)', perm: 'accounts.journal' },
           { to: '/docs/list/accounts', label: 'سجل القيود', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'accounts.view' },
           { to: '/year-end', label: 'إقفال السنة المالية', icon: <Landmark />, grad: 'var(--grad-red)', perm: 'period.lock' },
         ],

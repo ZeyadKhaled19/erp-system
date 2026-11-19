@@ -42,7 +42,7 @@ export function ItemInquiry() {
 
   return (
     <div className="page" style={{ maxWidth: 1100 }}>
-      <PageHeader title="استعلام عن صنف" sub="ابحث بالاسم أو الكود أو امسح الباركود" />
+      <PageHeader title="بحث عن صنف" sub="ابحث بالاسم أو الكود أو امسح الباركود" />
       <SearchBox
         value={q}
         onChange={setQ}

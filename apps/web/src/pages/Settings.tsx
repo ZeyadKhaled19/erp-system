@@ -82,7 +82,7 @@ export function SettingsPage() {
   const links = [
     { to: '/users', label: 'المستخدمون والصلاحيات', icon: <ShieldCheck />, perm: 'users.manage' },
     { to: '/warehouses', label: 'المخازن والتصنيفات', icon: <Warehouse />, perm: 'items.view' },
-    { to: '/accounts', label: 'دليل الحسابات', icon: <ListTree />, perm: 'accounts.view' },
+    { to: '/accounts', label: 'الحسابات', icon: <ListTree />, perm: 'accounts.view' },
     { to: '/sync', label: 'المزامنة', icon: <RefreshCw /> },
     { to: '/backups', label: 'النسخ الاحتياطي', icon: <HardDriveDownload />, perm: 'backup.manage' },
     { to: '/audit', label: 'سجل التدقيق', icon: <ScrollText />, perm: 'audit.view' },
@@ -95,7 +95,7 @@ export function SettingsPage() {
     { label: 'بيانات الشركة', icon: <Building2 />, color: 'orange', onClick: () => go('company'), show: manage },
     { label: 'المخازن والتصنيفات', icon: <Warehouse />, color: 'red', onClick: () => nav('/warehouses'), show: can('items.view') },
     { label: 'الخزائن والبنوك', icon: <Wallet />, color: 'blue', onClick: () => nav('/cashboxes'), show: can('treasury.view') },
-    { label: 'دليل الحسابات', icon: <ListTree />, color: 'yellow', onClick: () => nav('/accounts'), show: can('accounts.view') },
+    { label: 'الحسابات', icon: <ListTree />, color: 'yellow', onClick: () => nav('/accounts'), show: can('accounts.view') },
     { label: 'المستخدمون والصلاحيات', icon: <ShieldCheck />, color: 'indigo', onClick: () => nav('/users'), show: can('users.manage') },
     { label: 'إعدادات النظام', icon: <SlidersHorizontal />, color: 'blue', onClick: () => go('rules'), show: manage },
     { label: 'الطباعة', icon: <Printer />, color: 'teal', onClick: () => go('print'), show: manage },
