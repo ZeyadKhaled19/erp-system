@@ -79,6 +79,8 @@
 .count-review p { font-size: .82rem; line-height: 1.7; margin: 6px 0 10px; }
 .count-review-stats { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: .85rem; }
 .count-review-stats b { margin-inline-start: 8px; }
+.stock-transfer-review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.stock-transfer-review-head > div { flex: 1 1 250px; }
 .count-editor .doc-lines .line { grid-template-columns: minmax(200px, 2fr) minmax(90px, 1fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(85px, 1fr) 0 36px; gap: 10px; }
 .count-editor .doc-lines .line > :nth-child(6) { overflow: hidden; }
 .count-editor > .grid-2 { grid-template-columns: minmax(0, 1fr); }
@@ -89,6 +91,7 @@
   .count-editor .doc-lines .line > :first-child { grid-column: 1 / -1; }
   .count-editor .doc-lines .line > :nth-child(4)::before { content: 'الرصيد: '; }
   .count-editor .doc-lines .line > :nth-child(5)::before { content: 'الفرق: '; }
+  .stock-transfer-editor .doc-lines .line > :nth-child(5)::before { content: 'المتبقي: '; }
   .count-editor .doc-lines .line > :nth-child(6) { display: none; }
 }
 @media (max-width: 760px) {

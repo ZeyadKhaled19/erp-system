@@ -97,6 +97,7 @@ export function DocumentEditor() {
   const cashMovement = type === 'receipt' || type === 'payment';
   const transferDoc = type === 'cash_transfer';
   const countDoc = type === 'stock_adjustment';
+  const stockTransferDoc = type === 'stock_transfer';
   const returnDoc = type === 'sale_return' || type === 'purchase_return';
   const [returnCandidates, setReturnCandidates] = useState<Line[]>([]);
   const [returnLoading, setReturnLoading] = useState(false);
@@ -104,15 +105,15 @@ export function DocumentEditor() {
   const submitInFlight = useRef(false);
   const cashPartyKind = type === 'receipt' ? 'customer' : type === 'payment' ? 'supplier' : null;
   const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer'].includes(type);
-  const returnPath = countDoc ? '/inventory/counts' : transferDoc ? '/treasury/transfers' : returnDoc ? type === 'sale_return' ? '/returns/sales' : '/returns/purchases' : cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
+  const returnPath = stockTransferDoc ? '/inventory/transfers' : countDoc ? '/inventory/counts' : transferDoc ? '/treasury/transfers' : returnDoc ? type === 'sale_return' ? '/returns/sales' : '/returns/purchases' : cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
   const catNames = useLiveQuery(async () => new Map((await db.categories.toArray()).map((c) => [c.id, c.name])), []) ?? new Map<string, string>();
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
   const parties = useLiveQuery(() => db.parties.toArray(), []) ?? [];
-  const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
-  const allWarehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
+  const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), [session.user.id, session.user.warehouse_ids?.join(',')]) ?? [];
+  const allWarehouses = warehouses;
   const cashboxes = useLiveQuery(
     async () =>
       userCashboxes(session.user),
@@ -301,7 +302,7 @@ export function DocumentEditor() {
   const addItem = async (itemId: string, unitName?: string) => {
     const it = itemMap.get(itemId);
     if (!it) return;
-    if (countDoc && it.is_service) return ui.toast('الخدمات ليس لها مخزون', 'err');
+    if ((countDoc || stockTransferDoc) && it.is_service) return ui.toast('الخدمات ليس لها مخزون', 'err');
     if (countDoc && lines.some((l) => l.item_id === itemId)) return ui.toast('الصنف موجود بالفعل؛ عدّل عدده في السطر الحالي', 'info');
     const u = unitOptions(itemId).find((x) => x.name === (unitName ?? it.base_unit))!;
     const price = await defaultPrice(itemId, u);
@@ -344,7 +345,7 @@ export function DocumentEditor() {
   };
 
   useEffect(() => {
-    if (countDoc) setAvail({});
+    if (countDoc || stockTransferDoc) setAvail({});
     if (!info?.stock || !h.warehouse_id) return;
     let alive = true;
     (async () => {
@@ -355,7 +356,7 @@ export function DocumentEditor() {
     return () => {
       alive = false;
     };
-  }, [lines, h.warehouse_id, info?.stock, params.id, countDoc]);
+  }, [lines, h.warehouse_id, info?.stock, params.id, countDoc, stockTransferDoc]);
 
   // ---------------- الحساب
   const calc = useMemo(() => {
@@ -395,6 +396,12 @@ export function DocumentEditor() {
     return [...need.entries()].filter(([id, q]) => q > (avail[id] ?? 0)).map(([id, q]) => ({ item: itemMap.get(id), need: q, have: avail[id] ?? 0 }));
   }, [lines, avail, info, itemMap]);
 
+  const transferNeed = useMemo(() => {
+    const quantities = new Map<string, number>();
+    if (stockTransferDoc) for (const l of lines) if (l.item_id) quantities.set(l.item_id, (quantities.get(l.item_id) ?? 0) + toBaseQty(l.qty, l.unit_factor));
+    return quantities;
+  }, [lines, stockTransferDoc]);
+
   const jlTotals = useMemo(() => ({ dr: jl.reduce((s, l) => s + (l.debit || 0), 0), cr: jl.reduce((s, l) => s + (l.credit || 0), 0) }), [jl]);
 
   // ---------------- خيارات
@@ -429,7 +436,7 @@ export function DocumentEditor() {
   const itemOptions: PickOption[] = useMemo(
     () =>
       items
-        .filter((i) => i.active !== false && (!countDoc || !i.is_service) && (!catFilter || i.category_id === catFilter || usedItems.includes(i.id)))
+        .filter((i) => i.active !== false && (!(countDoc || stockTransferDoc) || !i.is_service) && (!catFilter || i.category_id === catFilter || usedItems.includes(i.id)))
         .map((i) => ({
           id: i.id,
           label: i.name,
@@ -437,7 +444,7 @@ export function DocumentEditor() {
           search: `${i.name} ${i.code} ${i.barcode ?? ''}`,
           group: (i.category_id && catNames.get(i.category_id)) || undefined,
         })),
-    [items, whStock, info?.stock, catFilter, catNames, usedItems, countDoc],
+    [items, whStock, info?.stock, catFilter, catNames, usedItems, countDoc, stockTransferDoc],
   );
   const leafAccounts = (filter?: (a: any) => boolean): PickOption[] =>
     accounts.filter((a) => !a.is_group && a.active !== false && (!filter || filter(a))).map((a) => ({ id: a.id, label: a.name, sub: a.code, search: `${a.code} ${a.name}` }));
@@ -494,6 +501,9 @@ export function DocumentEditor() {
     if (returnLoading) return 'انتظر تحميل أصناف الفاتورة';
     if (!d.date) return 'التاريخ مطلوب';
     if (info.hasLines && d.lines.length === 0) return 'أضف صنفًا واحدًا على الأقل';
+    if (stockTransferDoc && !warehouses.some((w) => w.id === d.warehouse_id)) return 'اختر مخزن مصدر مفعّلًا ضمن صلاحياتك';
+    if (stockTransferDoc && !allWarehouses.some((w) => w.id === d.to_warehouse_id)) return 'اختر مخزن وجهة مفعّلًا';
+    if (stockTransferDoc && d.lines.some((l) => itemMap.get(l.item_id)?.is_service)) return 'الخدمات لا تُحوّل بين المخازن؛ احذفها من التحويل';
     if (countDoc && !warehouses.some((w) => w.id === d.warehouse_id)) return 'اختر مخزنًا مفعّلًا ضمن صلاحياتك';
     if (countDoc && d.lines.some((l) => l.qty < 0)) return 'العدد الفعلي لا يمكن أن يكون سالبًا؛ استخدم صفرًا للصنف غير الموجود';
     if (countDoc && new Set(d.lines.map((l) => l.item_id)).size !== d.lines.length) return 'أدخل كل صنف مرة واحدة في الجرد؛ اجمع كمياته في وحدة واحدة';
@@ -549,9 +559,10 @@ export function DocumentEditor() {
     submitInFlight.current = true;
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
+      const transferSummary = stockTransferDoc ? `\nمن ${warehouses.find((w) => w.id === h.warehouse_id)?.name} إلى ${allWarehouses.find((w) => w.id === h.to_warehouse_id)?.name} — ${transferNeed.size} أصناف مختلفة.` : '';
       const ok = await ui.confirm({
-        title: `حفظ ${info.label}؟`,
-        message: (EFFECT[type] ?? '') + (transferDoc ? `\nتحويل ${formatMoney(h.amount ?? 0)} ج.م من ${cashboxes.find((c) => c.id === h.cashbox_id)?.name ?? 'الخزينة الأولى'} إلى ${cashboxes.find((c) => c.id === h.to_cashbox_id)?.name ?? 'الخزينة الثانية'}.` : '') + (returnDoc ? `\nإجمالي المرتجع ${formatMoney(total)} ج.م — رد نقدي ${formatMoney(cashPaid)} ج.م — تسوية على الحساب ${formatMoney(Math.max(0, credit))} ج.م.` : '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
+        title: stockTransferDoc ? 'تأكيد تحويل البضاعة؟' : `حفظ ${info.label}؟`,
+        message: (EFFECT[type] ?? '') + transferSummary + (transferDoc ? `\nتحويل ${formatMoney(h.amount ?? 0)} ج.م من ${cashboxes.find((c) => c.id === h.cashbox_id)?.name ?? 'الخزينة الأولى'} إلى ${cashboxes.find((c) => c.id === h.to_cashbox_id)?.name ?? 'الخزينة الثانية'}.` : '') + (returnDoc ? `\nإجمالي المرتجع ${formatMoney(total)} ج.م — رد نقدي ${formatMoney(cashPaid)} ج.م — تسوية على الحساب ${formatMoney(Math.max(0, credit))} ج.م.` : '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
         confirmLabel: 'حفظ',
       });
       if (!ok) { submitInFlight.current = false; return; }
@@ -565,7 +576,7 @@ export function DocumentEditor() {
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
-      if (compactDoc || returnDoc || countDoc) {
+      if (compactDoc || returnDoc || countDoc || stockTransferDoc) {
         const background = (location.state as { backgroundLocation?: { pathname?: string; search?: string } } | null)?.backgroundLocation;
         if (addAnother) {
           nav(`/docs/new/${type}?again=${Date.now()}`, { replace: true, state: { backgroundLocation: background ?? { pathname: returnPath } } });
@@ -602,7 +613,7 @@ export function DocumentEditor() {
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
   const backgroundLocation = (location.state as { backgroundLocation?: { pathname?: string } } | null)?.backgroundLocation;
-  if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer', 'stock_adjustment'].includes(existing?.doc_type ?? '') && !backgroundLocation)
+  if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer', 'stock_adjustment', 'stock_transfer'].includes(existing?.doc_type ?? '') && !backgroundLocation)
     return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: returnPath } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
   if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
@@ -616,7 +627,7 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement || transferDoc ? ' cash-movement-editor' : ''}${returnDoc || countDoc ? ' return-editor' : ''}${countDoc ? ' count-editor' : ''}`}>
+    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement || transferDoc ? ' cash-movement-editor' : ''}${returnDoc || countDoc || stockTransferDoc ? ' return-editor' : ''}${countDoc || stockTransferDoc ? ' count-editor' : ''}${stockTransferDoc ? ' stock-transfer-editor' : ''}`}>
       <PageHeader
         title={cashMovement ? `${params.id ? 'تعديل ' : ''}${type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
@@ -816,6 +827,7 @@ export function DocumentEditor() {
       </div>
 
       {/* ---------- السطور ---------- */}
+      {stockTransferDoc && <section className="card pad count-review"><div className="stock-transfer-review-head"><div><strong>من {warehouses.find((w) => w.id === h.warehouse_id)?.name ?? 'اختر المصدر'} ← إلى {allWarehouses.find((w) => w.id === h.to_warehouse_id)?.name ?? 'اختر الوجهة'}</strong><p className="muted">الكميات تُخصم من المصدر وتُضاف للوجهة بتكلفتها الحالية. المتبقي معاينة من بيانات الجهاز؛ الرصيد النهائي يُراجع عند المزامنة.</p></div><button type="button" className="btn sm" disabled={!warehouses.some((w) => w.id === h.to_warehouse_id) || h.warehouse_id === h.to_warehouse_id} onClick={() => setH((old: any) => ({ ...old, warehouse_id: old.to_warehouse_id, to_warehouse_id: old.warehouse_id }))}><ArrowLeftRight /> تبديل الاتجاه</button></div><div className="count-review-stats"><span>أصناف مختلفة <b className="num">{transferNeed.size}</b></span><span>سطور التحويل <b className="num">{lines.filter((l) => l.item_id).length}</b></span></div></section>}
       {countDoc && <section className="card pad count-review"><strong>أدخل العدد الموجود فعليًا، وليس مقدار الفرق</strong><p className="muted">الصفر يعني أن الصنف غير موجود. الأصناف غير المضافة للجرد لا تتغير. الرصيد والفرق معاينة حسب بيانات الجهاز؛ الفرق النهائي يُحسب عند الترحيل بعد المزامنة.</p><div className="count-review-stats"><span>سطور الجرد <b className="num">{lines.filter((l) => l.item_id).length}</b></span><span>بزيادة <b className="num green">{lines.filter((l) => avail[l.item_id] !== undefined && toBaseQty(l.qty, l.unit_factor) > avail[l.item_id]).length}</b></span><span>بعجز <b className="num red">{lines.filter((l) => avail[l.item_id] !== undefined && toBaseQty(l.qty, l.unit_factor) < avail[l.item_id]).length}</b></span></div></section>}
       {transferDoc && <section className="card pad transfer-preview"><div className="transfer-preview-head"><strong>مراجعة أثر التحويل</strong><button type="button" className="btn sm" disabled={!h.cashbox_id || !h.to_cashbox_id || h.cashbox_id === h.to_cashbox_id} onClick={() => setH((old: any) => ({ ...old, cashbox_id: old.to_cashbox_id, to_cashbox_id: old.cashbox_id }))}><ArrowLeftRight /> تبديل الاتجاه</button></div>
         {h.cashbox_id && h.to_cashbox_id && h.cashbox_id !== h.to_cashbox_id && (h.amount ?? 0) > 0 ? <><div className="transfer-preview-grid">{[false, true].map((incoming) => {
@@ -852,7 +864,7 @@ export function DocumentEditor() {
               <div>الوحدة</div>
               <div>{type === 'stock_adjustment' ? 'الكمية الفعلية' : 'الكمية'}</div>
               <div>{type === 'stock_adjustment' || type === 'stock_transfer' ? 'الرصيد الحالي' : type === 'opening_stock' || isPurchase ? 'التكلفة' : 'السعر'}</div>
-              <div>{info.priced ? 'الخصم' : type === 'stock_adjustment' ? 'الفرق' : ''}</div>
+              <div>{info.priced ? 'الخصم' : type === 'stock_adjustment' ? 'الفرق' : stockTransferDoc ? 'المتبقي بالمصدر' : ''}</div>
               <div>{info.priced || type === 'opening_stock' ? 'الإجمالي' : ''}</div>
               <div />
             </div>
@@ -915,6 +927,8 @@ export function DocumentEditor() {
                         <MoneyInput value={l.discount} onChange={(v) => updLine(l.id, { discount: v })} disabled={discountLocked} />
                       ) : type === 'stock_adjustment' && haveInUnit !== undefined ? (
                         <span className={`num bold ${l.qty - haveInUnit < 0 ? 'red' : l.qty - haveInUnit > 0 ? 'green' : 'muted'}`}>{formatQty(l.qty - haveInUnit)}</span>
+                      ) : stockTransferDoc && have !== undefined ? (
+                        <span className={`num bold ${have - (transferNeed.get(l.item_id) ?? 0) < 0 ? 'red' : 'green'}`}>{formatQty(mulDiv(have - (transferNeed.get(l.item_id) ?? 0), 1000, l.unit_factor))}</span>
                       ) : null}
                     </div>
                     <div className="total">{calc && !calc.error && calc.lines[idx] ? formatMoney(calc.lines[idx].total) : ''}</div>
@@ -1200,7 +1214,7 @@ export function DocumentEditor() {
           </div>
           <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
           <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
-            {info.noPosting ? 'اعتماد' : 'حفظ'}
+            {stockTransferDoc ? 'تأكيد التحويل' : info.noPosting ? 'اعتماد' : 'حفظ'}
           </button>
         </>}
       </div>

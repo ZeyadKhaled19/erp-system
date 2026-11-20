@@ -107,7 +107,7 @@ export const HUBS: Hub[] = [
       {
         title: 'حركات المخزن',
         links: [
-          { to: '/docs/new/stock_transfer', label: 'تحويل بين المخازن', icon: <ArrowLeftRight />, grad: 'var(--grad-purple)', perm: 'inventory.create' },
+          { to: '/inventory/transfers', label: 'تحويل البضاعة بين المخازن', icon: <ArrowLeftRight />, grad: 'var(--grad-purple)', perm: 'inventory.view' },
           { to: '/inventory/counts', label: 'الجرد وتسوية المخزون', icon: <ClipboardCheck />, grad: 'var(--grad-pink)', perm: 'inventory.view' },
           { to: '/docs/new/opening_stock', label: 'بضاعة أول المدة', icon: <PackagePlus />, grad: 'var(--grad-gray)', perm: 'inventory.create' },
           { to: '/docs/list/inventory', label: 'سجل حركات المخازن', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'inventory.view' },

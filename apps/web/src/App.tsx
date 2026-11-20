@@ -22,6 +22,7 @@ import { ExpensesPage, ExpenseModal } from './pages/Expenses';
 import { CashMovementsPage } from './pages/CashMovements';
 import { CashTransfersPage } from './pages/CashTransfers';
 import { StockCountsPage } from './pages/StockCounts';
+import { StockTransfersPage } from './pages/StockTransfers';
 import { ItemInquiry } from './pages/ItemInquiry';
 import { ItemsPage } from './pages/Items';
 import { Login } from './pages/Login';
@@ -202,6 +203,7 @@ export function App() {
           <Route path="/treasury/payment" element={<RequirePerm any={['treasury.view']}><CashMovementsPage key="payment" kind="payment" /></RequirePerm>} />
           <Route path="/treasury/transfers" element={<RequirePerm any={['treasury.view']}><CashTransfersPage /></RequirePerm>} />
           <Route path="/inventory/counts" element={<RequirePerm any={['inventory.view']}><StockCountsPage /></RequirePerm>} />
+          <Route path="/inventory/transfers" element={<RequirePerm any={['inventory.view']}><StockTransfersPage /></RequirePerm>} />
           <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
           <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
@@ -272,6 +274,8 @@ function NewDocRoute() {
   const { type } = useParams();
   const [sp] = useSearchParams();
   const loc = useLocation();
+  if (type === 'stock_transfer' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/inventory/transfers' } }} />;
   if (type === 'stock_adjustment' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
     return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/inventory/counts' } }} />;
   if (type === 'purchase_invoice' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
@@ -290,6 +294,7 @@ function NewDocRoute() {
 
 function NewDocumentModal() {
   const { type } = useParams();
+  if (type === 'stock_transfer') return <ExpenseModal title="تحويل البضاعة بين المخازن" variant="return"><DocumentEditor /></ExpenseModal>;
   if (type === 'stock_adjustment') return <ExpenseModal title="جرد وتسوية المخزون" variant="return"><DocumentEditor /></ExpenseModal>;
   if (type === 'purchase_invoice') return <ExpenseModal title="فاتورة شراء جديدة" variant="purchase"><NewDocRoute /></ExpenseModal>;
   if (type === 'receipt' || type === 'payment') return <ExpenseModal title={type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'} variant="cash"><DocumentEditor /></ExpenseModal>;
@@ -302,7 +307,7 @@ function EditDocumentModal() {
   const { id } = useParams();
   const doc = useLiveQuery(() => id ? db.documents.get(id) : undefined, [id]);
   if (doc === undefined) return null;
-  return <ExpenseModal title={doc.doc_type === 'stock_adjustment' ? 'تعديل الجرد' : `تعديل ${DOC_TYPES[doc.doc_type as DocType]?.label ?? 'المستند'}`} variant={doc.doc_type === 'stock_adjustment' ? 'return' : undefined}><DocumentEditor /></ExpenseModal>;
+  return <ExpenseModal title={doc.doc_type === 'stock_adjustment' ? 'تعديل الجرد' : `تعديل ${DOC_TYPES[doc.doc_type as DocType]?.label ?? 'المستند'}`} variant={['stock_adjustment', 'stock_transfer'].includes(doc.doc_type) ? 'return' : undefined}><DocumentEditor /></ExpenseModal>;
 }
 
 /** سجل مستندات وحدة: يحتاج صلاحية مشاهدة الوحدة */
