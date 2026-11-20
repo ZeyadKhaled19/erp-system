@@ -54,6 +54,7 @@ export const HUBS: Hub[] = [
         title: 'المتابعة',
         links: [
           { to: '/docs/list/sales', label: 'سجل المبيعات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'sales.view' },
+          { to: '/returns/sales', label: 'تقرير مرتجعات البيع', icon: <Undo2 />, grad: 'var(--grad-orange)', perm: 'sales.view' },
           { to: '/receivables', label: 'الفواتير الآجلة', icon: <CalendarClock />, grad: 'var(--grad-red)', perm: 'sales.view' },
           { to: '/deliveries', label: 'متابعة التسليم', icon: <Truck />, grad: 'var(--grad-brown)', perm: 'sales.view' },
           { to: '/parties/customer', label: 'العملاء', icon: <Users />, grad: 'var(--grad-indigo)', perm: 'parties.view' },
@@ -80,6 +81,7 @@ export const HUBS: Hub[] = [
         title: 'المتابعة',
         links: [
           { to: '/purchases', label: 'تقرير المشتريات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'purchases.view' },
+          { to: '/returns/purchases', label: 'تقرير مرتجعات الشراء', icon: <RotateCcw />, grad: 'var(--grad-orange)', perm: 'purchases.view' },
           { to: '/parties/supplier', label: 'الموردون', icon: <Truck />, grad: 'var(--grad-brown)', perm: 'parties.view' },
         ],
       },

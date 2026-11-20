@@ -126,7 +126,7 @@ export function ExpensesPage() {
   );
 }
 
-export function ExpenseModal({ children, title = 'مصروف جديد', variant }: { children: ReactNode; title?: string; variant?: 'purchase' | 'cash' }) {
+export function ExpenseModal({ children, title = 'مصروف جديد', variant }: { children: ReactNode; title?: string; variant?: 'purchase' | 'cash' | 'return' }) {
   const nav = useNavigate();
   const location = useLocation();
   const close = () => {
@@ -140,7 +140,7 @@ export function ExpenseModal({ children, title = 'مصروف جديد', variant 
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
   return <div className={`expense-modal-backdrop${variant ? ' purchase-modal-backdrop' : ''}`} role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-    <section className={`expense-modal${variant === 'purchase' ? ' purchase-modal' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+    <section className={`expense-modal${variant === 'purchase' ? ' purchase-modal' : variant === 'return' ? ' return-modal' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="expense-modal-close icon-btn" onClick={close} aria-label="إغلاق"><X /></button>
       {children}
     </section>

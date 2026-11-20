@@ -95,9 +95,13 @@ export function DocumentEditor() {
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const type = (params.type ?? existing?.doc_type) as DocType;
   const cashMovement = type === 'receipt' || type === 'payment';
+  const returnDoc = type === 'sale_return' || type === 'purchase_return';
+  const [returnCandidates, setReturnCandidates] = useState<Line[]>([]);
+  const [returnLoading, setReturnLoading] = useState(false);
+  const returnLoadId = useRef(0);
   const cashPartyKind = type === 'receipt' ? 'customer' : type === 'payment' ? 'supplier' : null;
   const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(type);
-  const returnPath = cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
+  const returnPath = returnDoc ? type === 'sale_return' ? '/returns/sales' : '/returns/purchases' : cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
@@ -231,25 +235,32 @@ export function DocumentEditor() {
 
   // ---------------- المرتجع من فاتورة
   const refDocs = useLiveQuery(async () => {
-    if (!info?.refType || !h.party_id) return [];
-    return (await db.documents.where('party_id').equals(h.party_id).toArray())
-      .filter((d) => d.doc_type === info.refType && d.status === 'posted' && !d._sync)
+    if (!info?.refType || !h.party_id || !can(`${info.module}.view`)) return [];
+    return (await db.documents.where('doc_type').equals(info.refType).toArray())
+      .filter((d) => d.party_id === h.party_id && d.status === 'posted' && !d._sync && (!d.warehouse_id || !session.user.warehouse_ids || session.user.warehouse_ids.includes(d.warehouse_id)))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [info?.refType, h.party_id]) ?? [];
+  }, [info?.refType, h.party_id, session.user.permissions.join(','), session.user.warehouse_ids?.join(',')]) ?? [];
 
   const loadRef = useCallback(
     async (refId: string | null) => {
+      const request = ++returnLoadId.current;
       set('ref_doc_id', refId);
+      setReturnCandidates([]);
+      setLines([]);
       if (!refId) {
-        setLines([]);
+        setReturnLoading(false);
         return;
       }
+      setReturnLoading(true);
+      try {
       const ref = await db.documents.get(refId);
+      if (!ref || ref.doc_type !== info?.refType || ref.status !== 'posted' || ref._sync || !can(`${info.module}.view`) || (ref.warehouse_id && session.user.warehouse_ids && !session.user.warehouse_ids.includes(ref.warehouse_id))) throw new Error('الفاتورة غير متاحة للمرتجع ضمن صلاحياتك');
       const refLines = await db.document_lines.where('document_id').equals(refId).sortBy('line_no');
       const prior = (await db.documents.where('ref_doc_id').equals(refId).toArray()).filter((d) => d.status === 'posted' && d.id !== params.id && d.doc_type === type);
       const returned = new Map<string, number>();
       for (const p of prior) for (const l of await db.document_lines.where('document_id').equals(p.id).toArray()) returned.set(l.ref_line_id, (returned.get(l.ref_line_id) ?? 0) + l.base_qty);
-      setLines(
+      if (request !== returnLoadId.current) return;
+      setReturnCandidates(
         refLines
           .map((l) => {
             const remainingBase = l.base_qty - (returned.get(l.id) ?? 0);
@@ -259,9 +270,12 @@ export function DocumentEditor() {
           })
           .filter((l) => l.max_qty > 0),
       );
+      set('party_id', ref.party_id);
       if (ref?.warehouse_id) set('warehouse_id', ref.warehouse_id);
+      } catch (e) { if (request === returnLoadId.current) { setError((e as Error).message); set('ref_doc_id', null); } }
+      finally { if (request === returnLoadId.current) setReturnLoading(false); }
     },
-    [params.id, type],
+    [params.id, type, info?.refType, session.user.permissions.join(','), session.user.warehouse_ids?.join(',')],
   );
   useEffect(() => {
     if (ready && !params.id && h.ref_doc_id && lines.length === 0) void loadRef(h.ref_doc_id);
@@ -383,6 +397,9 @@ export function DocumentEditor() {
     setH((o: any) => ({ ...o, party_id: v, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
     if (isSale && p?.price_list_id && p.price_list_id !== h.price_list_id) void repriceAll(p.price_list_id);
     if (info?.refType || cashMovement) {
+      ++returnLoadId.current;
+      setReturnLoading(false);
+      setReturnCandidates([]);
       set('ref_doc_id', null);
       setLines([]);
     }
@@ -467,6 +484,7 @@ export function DocumentEditor() {
   };
 
   const validate = (d: DocInput): string | null => {
+    if (returnLoading) return 'انتظر تحميل أصناف الفاتورة';
     if (!d.date) return 'التاريخ مطلوب';
     if (info.hasLines && d.lines.length === 0) return 'أضف صنفًا واحدًا على الأقل';
     if (info.stock === 'transfer' && (!d.to_warehouse_id || d.to_warehouse_id === d.warehouse_id)) return 'اختر مخزنًا مختلفًا للتحويل إليه';
@@ -519,7 +537,7 @@ export function DocumentEditor() {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
       const ok = await ui.confirm({
         title: `حفظ ${info.label}؟`,
-        message: (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
+        message: (EFFECT[type] ?? '') + (returnDoc ? `\nإجمالي المرتجع ${formatMoney(total)} ج.م — رد نقدي ${formatMoney(cashPaid)} ج.م — تسوية على الحساب ${formatMoney(Math.max(0, credit))} ج.م.` : '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
         confirmLabel: 'حفظ',
       });
       if (!ok) return;
@@ -533,7 +551,7 @@ export function DocumentEditor() {
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
-      if (compactDoc) {
+      if (compactDoc || returnDoc) {
         const background = (location.state as { backgroundLocation?: { pathname?: string; search?: string } } | null)?.backgroundLocation;
         if (addAnother) {
           nav(`/docs/new/${type}?again=${Date.now()}`, { replace: true, state: { backgroundLocation: background ?? { pathname: returnPath } } });
@@ -583,7 +601,7 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement ? ' cash-movement-editor' : ''}`}>
+    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement ? ' cash-movement-editor' : ''}${returnDoc ? ' return-editor' : ''}`}>
       <PageHeader
         title={cashMovement ? `${params.id ? 'تعديل ' : ''}${type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
@@ -783,6 +801,8 @@ export function DocumentEditor() {
       </div>
 
       {/* ---------- السطور ---------- */}
+      {returnDoc && returnLoading && <div className="card pad muted" role="status">جارٍ تحميل الكميات المتبقية للإرجاع…</div>}
+      {returnDoc && h.ref_doc_id && !returnLoading && !params.id && <section className="card pad return-selection"><div className="return-selection-heading"><div><strong>اختر الأصناف المطلوب إرجاعها</strong><p className="muted">المتاح يستبعد الكميات المرتجعة سابقًا. عدّل الكمية في السطور المختارة أدناه.</p></div><button type="button" className="btn sm" disabled={!returnCandidates.length} onClick={() => setLines(lines.length === returnCandidates.length ? [] : returnCandidates.map((l) => ({ ...l, serials: [] })))}>{lines.length === returnCandidates.length && lines.length ? 'إلغاء الكل' : 'اختيار الكل'}</button></div><div className="return-candidate-list">{returnCandidates.map((candidate) => <label key={candidate.id}><input type="checkbox" checked={lines.some((l) => l.id === candidate.id)} onChange={(e) => setLines((old) => e.target.checked ? [...old, { ...candidate, serials: [] }] : old.filter((l) => l.id !== candidate.id))} /><span>{itemMap.get(candidate.item_id)?.name ?? 'صنف غير متاح'}<small className="muted">متاح {formatQty(candidate.max_qty ?? 0)} {candidate.unit_name}</small></span></label>)}</div>{!returnCandidates.length && <p className="muted">كل أصناف الفاتورة تم إرجاعها بالفعل، أو لا يوجد متبقٍ صالح للإرجاع.</p>}</section>}
       {info.hasLines && (
         <>
           <div className="row wrap" style={{ margin: '18px 0 10px' }}>
@@ -1135,6 +1155,7 @@ export function DocumentEditor() {
         )}
         {calc?.error && <Banner kind="err">{calc.error}</Banner>}
       </div>
+      {returnDoc && <section className="card pad return-review" aria-label="مراجعة أثر المرتجع"><strong>مراجعة المرتجع قبل الحفظ</strong><div><span>إجمالي المرتجع</span><b className="num">{formatMoney(total)}</b></div><div><span>{type === 'sale_return' ? 'رد نقدية للعميل من الخزينة' : 'نقدية مستردة من المورد للخزينة'}</span><b className="num">{formatMoney(cashPaid)}</b></div><div><span>تسوية على حساب {party?.name ?? (type === 'sale_return' ? 'العميل' : 'المورد')}</span><b className="num">{formatMoney(Math.max(0, credit))}</b></div><p className="muted">{type === 'sale_return' ? 'الكميات المختارة ستعود للمخزن، وقيمة المرتجع تُسوّى حسب طريقة الرد المحددة.' : 'الكميات المختارة ستخرج من المخزن، وقيمة المرتجع تُسوّى حسب طريقة الرد المحددة.'}</p></section>}
       {!compactDoc && <div className="footnote" style={{ marginTop: 14 }}>
         الاختصارات: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ · <kbd>Ctrl</kbd>+<kbd>S</kbd> مسودة · <kbd>F2</kbd> الباركود
       </div>}

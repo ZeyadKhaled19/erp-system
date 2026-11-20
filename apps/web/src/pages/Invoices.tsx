@@ -98,7 +98,9 @@ function dayLabel(date: string) {
 const timeOf = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }) : '');
 
 /** مركز الفواتير: ملخص، فلاتر واضحة، قائمة مجمعة باليوم، وتفاصيل منظمة بجوارها */
-export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }: { purchaseOnly?: boolean; backgroundActive?: boolean }) {
+export function InvoicesPage({ purchaseOnly = false, backgroundActive = false, returnsOnly }: { purchaseOnly?: boolean; backgroundActive?: boolean; returnsOnly?: 'sales' | 'purchases' }) {
+  const returnType = returnsOnly === 'sales' ? 'sale_return' : 'purchase_return';
+  const returnTitle = returnsOnly === 'sales' ? 'مرتجعات البيع' : 'مرتجعات الشراء';
   const [sp, setSp] = useSearchParams();
   const nav = useNavigate();
   const { session } = useSession();
@@ -107,7 +109,7 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
   const cbs = useMap('cashboxes');
   const cashboxes = [...cbs.values()].filter((c: any) => c.active !== false);
   const get = (k: string, d = '') => sp.get(k) ?? d;
-  const [kind, setKind] = useState(purchaseOnly ? 'purchases' : get('k', 'all'));
+  const [kind, setKind] = useState(returnsOnly ? 'returns' : purchaseOnly ? 'purchases' : get('k', 'all'));
   const [period, setPeriod] = useState(get('p', 'month'));
   const [from, setFrom] = useState(get('from'));
   const [to, setTo] = useState(get('to'));
@@ -118,17 +120,26 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
   const [q, setQ] = useState('');
   const dq = useDebounced(q);
   const sel = sp.get('id');
-  const kinds = Object.entries(KINDS).filter(([k, v]) => (!purchaseOnly || k === 'purchases') && (!v.perm.length || v.perm.some((p) => can(p))));
+  const kinds = Object.entries(KINDS).filter(([k, v]) => (!returnsOnly || k === 'returns') && (!purchaseOnly || k === 'purchases') && (!v.perm.length || v.perm.some((p) => can(p))));
 
   const [start, end] = periodRange(period, from, to);
   const docs = useLiveQuery(async () => {
+    if (returnsOnly) {
+      if (!can(`${returnsOnly}.view`)) return [];
+      return db.documents.where('doc_type').equals(returnType).filter((d) => period === 'all' || (d.date >= start && d.date <= end)).toArray();
+    }
     const list = period === 'all' ? await db.documents.toArray() : await db.documents.where('date').between(start, end, true, true).toArray();
     // لا تظهر إلا مستندات الوحدات المسموح بمشاهدتها
     return list.filter((d) => {
       const m = DOC_TYPES[d.doc_type as DocType]?.module;
       return (!purchaseOnly || ['purchase_invoice', 'purchase_return'].includes(d.doc_type)) && !!m && hasPermission(session.user.permissions, `${m}.view`);
     });
-  }, [start, end, period, purchaseOnly, session.user.permissions.join(',')]) ?? [];
+  }, [start, end, period, purchaseOnly, returnsOnly, returnType, session.user.permissions.join(',')]) ?? [];
+  const referenceIds = returnsOnly ? [...new Set(docs.flatMap((d) => d.ref_doc_id ? [d.ref_doc_id] : []))] : [];
+  const references = useLiveQuery(async () => {
+    if (!returnsOnly || !can(`${returnsOnly}.view`) || !referenceIds.length) return new Map<string, string>();
+    return new Map((await db.documents.bulkGet(referenceIds)).filter((d) => !!d).map((d) => [d!.id, String(d!.number ?? d!.local_number ?? '—')]));
+  }, [returnsOnly, referenceIds.join(','), session.user.permissions.join(',')]) ?? new Map<string, string>();
 
   // كل الفلاتر عدا النوع (لعدّ كل تبويب)
   const base = useMemo(() => {
@@ -158,6 +169,7 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
     });
   }, [docs, status, pay, dq, parties, method, cbs]);
   const ofKind = (k: string, d: any) => {
+    if (returnsOnly) return d.doc_type === returnType;
     if (purchaseOnly) return ['purchase_invoice', 'purchase_return'].includes(d.doc_type);
     const types = KINDS[k].types;
     return types.length ? types.includes(d.doc_type) : !HIDDEN_IN_ALL.includes(d.doc_type);
@@ -168,7 +180,7 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
     return sort === 'amount'
       ? l.sort((a, b) => b.total - a.total)
       : l.sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
-  }, [base, kind, sort, purchaseOnly]);
+  }, [base, kind, sort, purchaseOnly, returnsOnly]);
 
   const sum = useMemo(() => {
     const r = { sales: 0, salesN: 0, purchases: 0, purchasesN: 0, purchaseReturns: 0, purchasePaid: 0, purchaseDue: 0, receipts: 0, receiptsN: 0, due: 0, dueN: 0 };
@@ -228,7 +240,7 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
 
   const activeFilters = (status ? 1 : 0) + (pay ? 1 : 0) + (method ? 1 : 0) + (dq ? 1 : 0) + (period !== 'month' ? 1 : 0) + (kind !== 'all' ? 1 : 0);
   const clearAll = () => {
-    setKind('all');
+    setKind(returnsOnly ? 'returns' : purchaseOnly ? 'purchases' : 'all');
     setPeriod('month');
     setStatus('');
     setPay('');
@@ -241,41 +253,49 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
     for (const d of list) {
       const x = m.get(d.date) ?? { n: 0, v: 0 };
       x.n++;
-      if (d.status === 'posted' && d.doc_type === 'sale_invoice') x.v += d.total;
-      if (d.status === 'posted' && d.doc_type === 'sale_return') x.v -= d.total;
+      if (returnsOnly && d.status === 'posted') x.v += d.total;
+      else {
+        if (d.status === 'posted' && d.doc_type === 'sale_invoice') x.v += d.total;
+        if (d.status === 'posted' && d.doc_type === 'sale_return') x.v -= d.total;
+      }
       m.set(d.date, x);
     }
     return m;
-  }, [list]);
+  }, [list, returnsOnly]);
 
   const exportList = () =>
     exportExcel(
-      'الفواتير',
-      ['الرقم', 'النوع', 'التاريخ', 'الطرف', 'الإجمالي', 'المدفوع', 'المتبقي', 'طريقة الدفع', 'الحالة'],
-      list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType]?.label, d.date, parties.get(d.party_id)?.name ?? '', formatMoney(d.total), formatMoney(d.paid ?? 0), formatMoney((d.total ?? 0) - (d.paid ?? 0)), [...payParts(d, cbs).map((x) => x.name), ...(creditPart(d) > 0 ? ['آجل'] : [])].join(' + '), d.status]),
+      returnsOnly ? returnTitle : 'الفواتير',
+      ['الرقم', 'النوع', 'التاريخ', 'الطرف', ...(returnsOnly ? ['الفاتورة الأصلية'] : []), 'الإجمالي', returnsOnly ? 'الرد النقدي' : 'المدفوع', returnsOnly ? 'التسوية على الحساب' : 'المتبقي', 'طريقة الدفع', 'الحالة'],
+      list.map((d) => [d.number ?? d.local_number, DOC_TYPES[d.doc_type as DocType]?.label, d.date, parties.get(d.party_id)?.name ?? '', ...(returnsOnly ? [d.ref_doc_id ? references.get(d.ref_doc_id) ?? '—' : 'بدون فاتورة'] : []), formatMoney(d.total), formatMoney(d.paid ?? 0), formatMoney((d.total ?? 0) - (d.paid ?? 0)), [...payParts(d, cbs).map((x) => x.name), ...(creditPart(d) > 0 ? ['آجل'] : [])].join(' + '), d.status]),
     );
 
-  const showSales = !purchaseOnly && (kind === 'all' || kind === 'sales' || kind === 'returns');
-  const showPurch = kind === 'all' || kind === 'purchases' || kind === 'returns';
-  const showCash = !purchaseOnly && (kind === 'all' || kind === 'cash');
+  const showSales = !returnsOnly && !purchaseOnly && (kind === 'all' || kind === 'sales' || kind === 'returns');
+  const showPurch = !returnsOnly && (kind === 'all' || kind === 'purchases' || kind === 'returns');
+  const showCash = !returnsOnly && !purchaseOnly && (kind === 'all' || kind === 'cash');
+  const postedReturns = returnsOnly ? list.filter((d) => d.status === 'posted') : [];
+  const returnTotal = postedReturns.reduce((s, d) => s + d.total, 0);
+  const returnCash = postedReturns.reduce((s, d) => s + ((d.data?.payments as { amount: number }[] | undefined)?.reduce((v, p) => v + p.amount, 0) ?? d.paid ?? 0), 0);
 
   let lastDay = '';
   return (
     <div className="page inv-page">
       <PageHeader
-        title={purchaseOnly ? 'تقرير المشتريات' : 'الفواتير'}
+        title={returnsOnly ? returnTitle : purchaseOnly ? 'تقرير المشتريات' : 'الفواتير'}
         sub={`${list.length} مستند · ${PERIODS[period].replace('…', '')}${period !== 'all' ? ` (${start === '0000-00-00' ? 'البداية' : start} ← ${end === '9999-12-31' ? 'اليوم' : end})` : ''}`}
         actions={
           <>
             <button className="btn" onClick={exportList} disabled={!list.length}><Download /> تصدير Excel</button>
-            {can('purchases.create') && <button className={`btn${purchaseOnly ? ' primary' : ''}`} onClick={() => nav('/docs/new/purchase_invoice', purchaseOnly ? { state: { backgroundLocation: { pathname: '/purchases', search: `?${sp}` } } } : undefined)}><Plus /> فاتورة شراء</button>}
-            {!purchaseOnly && can('sales.create') && <button className="btn primary" onClick={() => nav('/docs/new/sale_invoice')}><Plus /> فاتورة بيع</button>}
+            {!returnsOnly && can('purchases.create') && <button className={`btn${purchaseOnly ? ' primary' : ''}`} onClick={() => nav('/docs/new/purchase_invoice', purchaseOnly ? { state: { backgroundLocation: { pathname: '/purchases', search: `?${sp}` } } } : undefined)}><Plus /> فاتورة شراء</button>}
+            {!returnsOnly && !purchaseOnly && can('sales.create') && <button className="btn primary" onClick={() => nav('/docs/new/sale_invoice')}><Plus /> فاتورة بيع</button>}
+            {returnsOnly && can(`${returnsOnly}.create`) && <button className="btn primary" onClick={() => nav(`/docs/new/${returnType}`, { state: { backgroundLocation: { pathname: `/returns/${returnsOnly}`, search: `?${sp}` } } })}><Plus /> {returnsOnly === 'sales' ? 'مرتجع بيع جديد' : 'مرتجع شراء جديد'}</button>}
           </>
         }
       />
 
       {/* الملخص */}
       <div className="inv-kpis">
+        {returnsOnly && <><article className="inv-kpi amber"><span className="inv-kpi-l"><RotateCcw /> إجمالي {returnTitle}</span><span className="inv-kpi-v num">{formatMoney(returnTotal)}</span><span className="inv-kpi-s">المستندات المرحلة المطابقة للفلاتر</span></article><article className="inv-kpi teal"><span className="inv-kpi-l"><Receipt /> الرد النقدي المسجل</span><span className="inv-kpi-v num">{formatMoney(returnCash)}</span><span className="inv-kpi-s">من مبالغ السداد داخل المرتجع</span></article><article className="inv-kpi red"><span className="inv-kpi-l"><FileText /> عدد المرتجعات المرحلة</span><span className="inv-kpi-v num">{postedReturns.length}</span><span className="inv-kpi-s">المسودات والملغى خارج الملخص</span></article></>}
         {showSales && can('sales.view') && (
           <button className={`inv-kpi green ${kind === 'sales' ? 'on' : ''}`} onClick={() => setKind('sales')}>
             <span className="inv-kpi-l"><ShoppingCart /> صافي المبيعات</span>
@@ -387,7 +407,7 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
                   {header && (
                     <div className="inv-day">
                       <span>{dayLabel(header)}</span>
-                      <span className="num">{dt?.n} مستند{dt && dt.v ? ` · مبيعات ${formatMoney(dt.v)}` : ''}</span>
+                      <span className="num">{dt?.n} مستند{dt && dt.v ? ` · ${returnsOnly ? 'مرتجعات' : 'مبيعات'} ${formatMoney(dt.v)}` : ''}</span>
                     </div>
                   )}
                   <div
@@ -406,6 +426,7 @@ export function InvoicesPage({ purchaseOnly = false, backgroundActive = false }:
                         {DOC_TYPES[d.doc_type as DocType]?.label} · <span className="num">{d.number ?? d.local_number}</span>
                         {d.created_at && sort === 'new' ? <> · <span className="num">{timeOf(d.created_at)}</span></> : sort === 'amount' ? <> · <span className="num">{d.date}</span></> : null}
                       </div>
+                      {returnsOnly && <div className="inv-meta">{d.ref_doc_id ? `الفاتورة الأصلية: ${references.get(d.ref_doc_id) ?? '—'}` : 'مرتجع بدون فاتورة'}</div>}
                       {ps && ps.key !== 'paid' && (
                         <div className="inv-progress" title={`مدفوع ${formatMoney(d.paid)} من ${formatMoney(d.total)}`}>
                           <i style={{ width: `${ps.pct}%` }} />

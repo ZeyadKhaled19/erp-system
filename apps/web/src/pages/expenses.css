@@ -46,6 +46,28 @@
 .expense-modal-close { position: absolute; top: 13px; left: 14px; z-index: 3; margin: 0; background: transparent; }
 .purchase-modal-backdrop { z-index: 95; }
 .expense-modal.purchase-modal { width: min(1440px, 100%); max-height: 94dvh; }
+.expense-modal.return-modal { width: min(1180px, 100%); max-height: 94dvh; }
+.return-modal .page.return-editor { padding: 18px; }
+.return-modal .return-editor .page-head { padding-inline-end: 32px; margin-bottom: 14px; }
+.return-modal .return-editor > .card.pad { padding: 14px; }
+.return-modal .return-editor > .card.pad > .grid-4 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.return-modal .return-editor > .grid-2 { gap: 12px; margin-top: 14px !important; }
+.return-modal .return-editor .sticky-actions { margin: 14px -18px -18px; padding: 12px 18px; flex-wrap: wrap; }
+.return-selection { margin-block: 14px; }
+.return-selection-heading { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.return-selection-heading p,.return-review p { margin: 5px 0 0; font-size: .8rem; }
+.return-candidate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; max-height: 220px; overflow-y: auto; }
+.return-candidate-list label { border: 1px solid var(--separator); border-radius: 9px; padding: 10px; display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: .85rem; }
+.return-candidate-list label:has(input:checked) { border-color: var(--tint); background: var(--tint-soft); }
+.return-candidate-list small { display: block; margin-top: 3px; }
+.return-candidate-list input { accent-color: var(--tint); width: 17px; height: 17px; }
+.return-review { margin-top: 14px; border-color: var(--tint); }
+.return-review > div { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; font-size: .88rem; }
+@media (max-width: 760px) {
+  .return-modal .return-editor > .card.pad > .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .return-candidate-list { grid-template-columns: minmax(0, 1fr); }
+  .return-modal .return-editor > .grid-2 { grid-template-columns: minmax(0, 1fr); }
+}
 .purchase-modal .ss.si { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; overflow: visible; padding: 16px; gap: 10px; width: 100%; box-sizing: border-box; }
 .purchase-modal .ss.si > .si-page-heading { padding-inline-end: 40px; }
 .purchase-modal .ss.si > .si-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); grid-template-rows: auto auto minmax(0, 1fr); align-items: start; align-content: start; gap: 10px; }
