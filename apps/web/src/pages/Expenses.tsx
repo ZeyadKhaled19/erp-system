@@ -135,7 +135,7 @@ export function ExpenseModal({ children, title = 'مصروف جديد', variant 
     else nav(-1);
   };
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('.confirmation-overlay, body > .overlay')) close(); };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);

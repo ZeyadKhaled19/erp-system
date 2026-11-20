@@ -152,6 +152,7 @@ export const HUBS: Hub[] = [
           { to: '/instruments', label: 'الشيكات والأقساط', icon: <CalendarClock />, grad: 'var(--grad-purple)', perm: 'treasury.view' },
           { to: '/shift', label: 'الوردية', icon: <Clock />, grad: 'var(--grad-teal)', perm: 'treasury.shift' },
           { to: '/docs/list/treasury', label: 'سجل السندات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'treasury.view' },
+          { to: '/treasury/transfers', label: 'سجل تحويلات الخزائن', icon: <ArrowLeftRight />, grad: 'var(--grad-indigo)', perm: 'treasury.view' },
           { to: '/reports/treasury', label: 'تحليل المقبوضات', icon: <PieChart />, grad: 'var(--grad-green)', perm: 'treasury.view' },
           { to: '/reports/treasury?dir=out', label: 'تحليل المصروفات', icon: <PieChart />, grad: 'var(--grad-red)', perm: 'treasury.view' },
         ],
@@ -257,6 +258,7 @@ export function activeHubKey(pathname: string): string {
   if (pathname.startsWith('/invoices')) return 'invoices';
   if (pathname.startsWith('/returns/sales')) return 'sales';
   if (pathname === '/purchases' || pathname.startsWith('/returns/purchases')) return 'purchases';
+  if (pathname.startsWith('/treasury/')) return 'treasury';
   if (pathname.startsWith('/parties/customer')) return 'customers';
   if (pathname.startsWith('/parties/supplier')) return 'suppliers';
   if (pathname.startsWith('/partners') || pathname.includes('partner_')) return 'partners';

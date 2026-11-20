@@ -2,7 +2,7 @@ import {
   computeDocument, DOC_TYPES, formatMoney, formatQty, hasPermission, mulDiv, todayISO, toBaseQty, uuid, type DocInput, type DocType,
 } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, CalendarClock, CheckCircle2, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeftRight, Banknote, CalendarClock, CheckCircle2, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
@@ -95,13 +95,15 @@ export function DocumentEditor() {
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const type = (params.type ?? existing?.doc_type) as DocType;
   const cashMovement = type === 'receipt' || type === 'payment';
+  const transferDoc = type === 'cash_transfer';
   const returnDoc = type === 'sale_return' || type === 'purchase_return';
   const [returnCandidates, setReturnCandidates] = useState<Line[]>([]);
   const [returnLoading, setReturnLoading] = useState(false);
   const returnLoadId = useRef(0);
+  const submitInFlight = useRef(false);
   const cashPartyKind = type === 'receipt' ? 'customer' : type === 'payment' ? 'supplier' : null;
-  const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(type);
-  const returnPath = returnDoc ? type === 'sale_return' ? '/returns/sales' : '/returns/purchases' : cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
+  const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer'].includes(type);
+  const returnPath = transferDoc ? '/treasury/transfers' : returnDoc ? type === 'sale_return' ? '/returns/sales' : '/returns/purchases' : cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
@@ -513,6 +515,7 @@ export function DocumentEditor() {
     if (cashPartyKind && d.party_id && parties.find((p) => p.id === d.party_id)?.kind !== cashPartyKind) return type === 'receipt' ? 'اختر عميلًا لعملية القبض' : 'اختر موردًا لعملية الصرف';
     if (['expense', 'income'].includes(type) && !d.account_id) return 'اختر الحساب';
     if (type === 'cash_transfer' && (!d.to_cashbox_id || d.to_cashbox_id === d.cashbox_id)) return 'اختر خزينة مختلفة للتحويل إليها';
+    if (transferDoc && (!cashboxes.some((c) => c.id === d.cashbox_id) || !cashboxes.some((c) => c.id === d.to_cashbox_id))) return 'اختر خزنتين مفعّلتين ضمن صلاحياتك';
     if ((type === 'partner_capital' || type === 'partner_withdrawal') && !d.partner_id) return 'اختر الشريك';
     if (!info.hasLines && type !== 'journal_voucher' && d.amount <= 0) return 'أدخل المبلغ';
     if (type === 'party_opening' && !d.party_id) return 'اختر الطرف';
@@ -529,18 +532,20 @@ export function DocumentEditor() {
   };
 
   const submit = async (action: 'draft' | 'post', addAnother = false) => {
+    if (submitInFlight.current) return;
     setError(null);
     const d = buildDoc();
     const v = validate(d);
     if (v) return setError(v);
+    submitInFlight.current = true;
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
       const ok = await ui.confirm({
         title: `حفظ ${info.label}؟`,
-        message: (EFFECT[type] ?? '') + (returnDoc ? `\nإجمالي المرتجع ${formatMoney(total)} ج.م — رد نقدي ${formatMoney(cashPaid)} ج.م — تسوية على الحساب ${formatMoney(Math.max(0, credit))} ج.م.` : '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
+        message: (EFFECT[type] ?? '') + (transferDoc ? `\nتحويل ${formatMoney(h.amount ?? 0)} ج.م من ${cashboxes.find((c) => c.id === h.cashbox_id)?.name ?? 'الخزينة الأولى'} إلى ${cashboxes.find((c) => c.id === h.to_cashbox_id)?.name ?? 'الخزينة الثانية'}.` : '') + (returnDoc ? `\nإجمالي المرتجع ${formatMoney(total)} ج.م — رد نقدي ${formatMoney(cashPaid)} ج.م — تسوية على الحساب ${formatMoney(Math.max(0, credit))} ج.م.` : '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
         confirmLabel: 'حفظ',
       });
-      if (!ok) return;
+      if (!ok) { submitInFlight.current = false; return; }
     }
     setBusy(true);
     try {
@@ -564,6 +569,7 @@ export function DocumentEditor() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      submitInFlight.current = false;
       setBusy(false);
     }
   };
@@ -587,7 +593,7 @@ export function DocumentEditor() {
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
   const backgroundLocation = (location.state as { backgroundLocation?: { pathname?: string } } | null)?.backgroundLocation;
-  if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment'].includes(existing?.doc_type ?? '') && !backgroundLocation)
+  if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer'].includes(existing?.doc_type ?? '') && !backgroundLocation)
     return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: returnPath } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
   if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
@@ -601,7 +607,7 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement ? ' cash-movement-editor' : ''}${returnDoc ? ' return-editor' : ''}`}>
+    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement || transferDoc ? ' cash-movement-editor' : ''}${returnDoc ? ' return-editor' : ''}`}>
       <PageHeader
         title={cashMovement ? `${params.id ? 'تعديل ' : ''}${type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
@@ -612,8 +618,8 @@ export function DocumentEditor() {
       {error && <div style={{ marginBottom: 12 }}><Banner kind="err">{error}</Banner></div>}
 
       {/* ---------- الرأس ---------- */}
-      <div className={`card pad${type === 'expense' || cashMovement ? ' expense-fields' : ''}`}>
-        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : cashMovement ? ' cash-movement-fields-grid' : ''}`}>
+      <div className={`card pad${type === 'expense' || cashMovement || transferDoc ? ' expense-fields' : ''}`}>
+        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : cashMovement || transferDoc ? ' cash-movement-fields-grid' : ''}`}>
           <Field label="التاريخ" className={type === 'expense' ? 'expense-date-field' : undefined}>
             <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
@@ -749,15 +755,15 @@ export function DocumentEditor() {
             <Field
               label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}
               className={type === 'expense' ? 'expense-cashbox-field' : undefined}
-              hint={type === 'expense' || cashMovement ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
+              hint={type === 'expense' || cashMovement || transferDoc ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
             >
-              <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
+              <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => setH((old: any) => ({ ...old, cashbox_id: e.target.value, to_cashbox_id: transferDoc && old.to_cashbox_id === e.target.value ? null : old.to_cashbox_id }))}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
           )}
           {type === 'cash_transfer' && (
-            <Field label="إلى خزينة">
+            <Field label="إلى خزينة" hint={`الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.to_cashbox_id)?.balance ?? 0)}`}>
               <select className="select" value={h.to_cashbox_id ?? ''} onChange={(e) => set('to_cashbox_id', e.target.value)}>
                 <option value="">اختر…</option>
                 {cashboxes.filter((c) => c.id !== h.cashbox_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -801,6 +807,14 @@ export function DocumentEditor() {
       </div>
 
       {/* ---------- السطور ---------- */}
+      {transferDoc && <section className="card pad transfer-preview"><div className="transfer-preview-head"><strong>مراجعة أثر التحويل</strong><button type="button" className="btn sm" disabled={!h.cashbox_id || !h.to_cashbox_id || h.cashbox_id === h.to_cashbox_id} onClick={() => setH((old: any) => ({ ...old, cashbox_id: old.to_cashbox_id, to_cashbox_id: old.cashbox_id }))}><ArrowLeftRight /> تبديل الاتجاه</button></div>
+        {h.cashbox_id && h.to_cashbox_id && h.cashbox_id !== h.to_cashbox_id && (h.amount ?? 0) > 0 ? <><div className="transfer-preview-grid">{[false, true].map((incoming) => {
+          const box = cashboxes.find((c) => c.id === (incoming ? h.to_cashbox_id : h.cashbox_id));
+          const balance = box?.balance ?? 0;
+          const after = balance + (incoming ? 1 : -1) * (h.amount ?? 0);
+          return <article key={String(incoming)}><span className="muted">{incoming ? 'إلى' : 'من'} {box?.name}</span><div><span>الرصيد الحالي</span><b className="num">{formatMoney(balance)}</b></div><div><span>بعد التحويل</span><b className={`num ${after < 0 ? 'red' : incoming ? 'green' : ''}`}>{formatMoney(after)}</b></div></article>;
+        })}</div><p className="muted">الأرصدة المتوقعة محسوبة من آخر رصيد على الجهاز. إجمالي رصيد الخزنتين لا يتغير بالتحويل.</p>{(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0) < (h.amount ?? 0) && <Banner kind="warn">الرصيد المتوقع للخزينة المحوّل منها سيصبح سالبًا. راجع المبلغ والرصيد قبل التأكيد.</Banner>}</> : <p className="muted">اختر خزنتين مختلفتين وأدخل المبلغ لعرض الرصيد المتوقع.</p>}
+      </section>}
       {returnDoc && returnLoading && <div className="card pad muted" role="status">جارٍ تحميل الكميات المتبقية للإرجاع…</div>}
       {returnDoc && h.ref_doc_id && !returnLoading && !params.id && <section className="card pad return-selection"><div className="return-selection-heading"><div><strong>اختر الأصناف المطلوب إرجاعها</strong><p className="muted">المتاح يستبعد الكميات المرتجعة سابقًا. عدّل الكمية في السطور المختارة أدناه.</p></div><button type="button" className="btn sm" disabled={!returnCandidates.length} onClick={() => setLines(lines.length === returnCandidates.length ? [] : returnCandidates.map((l) => ({ ...l, serials: [] })))}>{lines.length === returnCandidates.length && lines.length ? 'إلغاء الكل' : 'اختيار الكل'}</button></div><div className="return-candidate-list">{returnCandidates.map((candidate) => <label key={candidate.id}><input type="checkbox" checked={lines.some((l) => l.id === candidate.id)} onChange={(e) => setLines((old) => e.target.checked ? [...old, { ...candidate, serials: [] }] : old.filter((l) => l.id !== candidate.id))} /><span>{itemMap.get(candidate.item_id)?.name ?? 'صنف غير متاح'}<small className="muted">متاح {formatQty(candidate.max_qty ?? 0)} {candidate.unit_name}</small></span></label>)}</div>{!returnCandidates.length && <p className="muted">كل أصناف الفاتورة تم إرجاعها بالفعل، أو لا يوجد متبقٍ صالح للإرجاع.</p>}</section>}
       {info.hasLines && (
@@ -1161,9 +1175,9 @@ export function DocumentEditor() {
       </div>}
       <div className={`sticky-actions${compactDoc ? ' expense-actions' : ''}`}>
         {compactDoc ? <>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void submit('post')}>{busy ? 'جاري الحفظ…' : 'احفظ'} <CheckCircle2 /></button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void submit('post')}>{busy ? 'جاري الحفظ…' : transferDoc ? 'تأكيد التحويل' : 'احفظ'} <CheckCircle2 /></button>
           <button type="button" className="btn" disabled={busy} onClick={() => void submit('post', true)}>{busy ? 'جاري الحفظ…' : 'حفظ وضيف تاني'} <Plus /></button>
-          {cashMovement && <button type="button" className="btn" disabled={busy} onClick={() => void submit('draft')}>مسودة</button>}
+          {(cashMovement || transferDoc) && <button type="button" className="btn" disabled={busy} onClick={() => void submit('draft')}>مسودة</button>}
           <button type="button" className="btn plain" disabled={busy} onClick={() => nav(backgroundLocation ?? returnPath, { replace: true })}>رجوع</button>
         </> : <>
           <div style={{ flex: 1 }}>

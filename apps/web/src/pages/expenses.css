@@ -31,6 +31,18 @@
 .expense-search .input { width: 100%; padding-inline-start: 34px; }
 .expense-note { display: block; color: var(--label-3); font-size: .78rem; margin-top: 3px; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .expense-empty { padding: 20px; }
+.transfer-date-filter { display: flex; align-items: center; gap: 6px; font-size: .82rem; }
+.transfer-date-filter > .input { width: 155px; }
+.transfer-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 17px; }
+.transfer-pagination > span { flex: 1; font-size: .82rem; }
+.expense-modal .transfer-preview { margin: 0 20px 14px; padding: 12px; border-color: var(--separator); }
+.transfer-preview-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: .88rem; }
+.transfer-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.transfer-preview-grid article { min-width: 0; background: var(--card-2); border-radius: 9px; padding: 10px; }
+.transfer-preview-grid article > span { font-size: .82rem; font-weight: 650; }
+.transfer-preview-grid article > div { display: flex; justify-content: space-between; gap: 6px; margin-top: 8px; font-size: .78rem; }
+.transfer-preview > p { font-size: .74rem; line-height: 1.7; margin: 10px 0 0; }
+@media (max-width: 480px) { .transfer-preview-grid { grid-template-columns: minmax(0, 1fr); } }
 .cash-movement-editor .cash-movement-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .cash-movement-editor .cash-movement-fields-grid > * { min-width: 0; }
 .cash-movement-editor .cash-movement-fields-grid .input,.cash-movement-editor .cash-movement-fields-grid .select { width: 100%; box-sizing: border-box; }
