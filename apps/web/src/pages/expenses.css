@@ -75,6 +75,22 @@
 .return-candidate-list input { accent-color: var(--tint); width: 17px; height: 17px; }
 .return-review { margin-top: 14px; border-color: var(--tint); }
 .return-review > div { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; font-size: .88rem; }
+.count-review { margin-block: 12px; }
+.count-review p { font-size: .82rem; line-height: 1.7; margin: 6px 0 10px; }
+.count-review-stats { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: .85rem; }
+.count-review-stats b { margin-inline-start: 8px; }
+.count-editor .doc-lines .line { grid-template-columns: minmax(200px, 2fr) minmax(90px, 1fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(85px, 1fr) 0 36px; gap: 10px; }
+.count-editor .doc-lines .line > :nth-child(6) { overflow: hidden; }
+.count-editor > .grid-2 { grid-template-columns: minmax(0, 1fr); }
+.count-editor .textarea { min-height: 70px; }
+@media (max-width: 760px) {
+  .count-editor .doc-lines .line { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .count-editor .doc-lines .line.head { display: none; }
+  .count-editor .doc-lines .line > :first-child { grid-column: 1 / -1; }
+  .count-editor .doc-lines .line > :nth-child(4)::before { content: 'الرصيد: '; }
+  .count-editor .doc-lines .line > :nth-child(5)::before { content: 'الفرق: '; }
+  .count-editor .doc-lines .line > :nth-child(6) { display: none; }
+}
 @media (max-width: 760px) {
   .return-modal .return-editor > .card.pad > .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .return-candidate-list { grid-template-columns: minmax(0, 1fr); }

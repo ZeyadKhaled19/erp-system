@@ -4,7 +4,9 @@ import { PrintPage } from './pages/Print';
 import { Layout } from './components/Layout';
 import { useUi } from './components/ui';
 import { api, setToken, setUnauthorizedHandler } from './lib/api';
-import { setLocalIdentity, setMeta } from './lib/db';
+import { db, setLocalIdentity, setMeta } from './lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { DOC_TYPES, type DocType } from '@erp/shared';
 import { SessionContext } from './lib/hooks';
 import { getDeviceId, loadSession, saveSession, type Session } from './lib/session';
 import { startSync, stopSync } from './lib/sync';
@@ -19,6 +21,7 @@ import { DocumentView } from './pages/DocumentView';
 import { ExpensesPage, ExpenseModal } from './pages/Expenses';
 import { CashMovementsPage } from './pages/CashMovements';
 import { CashTransfersPage } from './pages/CashTransfers';
+import { StockCountsPage } from './pages/StockCounts';
 import { ItemInquiry } from './pages/ItemInquiry';
 import { ItemsPage } from './pages/Items';
 import { Login } from './pages/Login';
@@ -198,6 +201,7 @@ export function App() {
           <Route path="/treasury/receipt" element={<RequirePerm any={['treasury.view']}><CashMovementsPage key="receipt" kind="receipt" /></RequirePerm>} />
           <Route path="/treasury/payment" element={<RequirePerm any={['treasury.view']}><CashMovementsPage key="payment" kind="payment" /></RequirePerm>} />
           <Route path="/treasury/transfers" element={<RequirePerm any={['treasury.view']}><CashTransfersPage /></RequirePerm>} />
+          <Route path="/inventory/counts" element={<RequirePerm any={['inventory.view']}><StockCountsPage /></RequirePerm>} />
           <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
           <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
@@ -255,7 +259,7 @@ export function App() {
         {backgroundLocation && (
           <Routes>
             <Route path="/docs/new/:type" element={<NewDocGuard><NewDocumentModal key={loc.key} /></NewDocGuard>} />
-            <Route path="/docs/edit/:id" element={<ExpenseModal key={loc.key}><DocGuard><DocumentEditor key={loc.key} /></DocGuard></ExpenseModal>} />
+            <Route path="/docs/edit/:id" element={<DocGuard><EditDocumentModal key={loc.key} /></DocGuard>} />
           </Routes>
         )}
       </Layout>
@@ -268,6 +272,8 @@ function NewDocRoute() {
   const { type } = useParams();
   const [sp] = useSearchParams();
   const loc = useLocation();
+  if (type === 'stock_adjustment' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/inventory/counts' } }} />;
   if (type === 'purchase_invoice' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
     return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/purchases' } }} />;
   if ((type === 'sale_return' || type === 'purchase_return') && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
@@ -284,11 +290,19 @@ function NewDocRoute() {
 
 function NewDocumentModal() {
   const { type } = useParams();
+  if (type === 'stock_adjustment') return <ExpenseModal title="جرد وتسوية المخزون" variant="return"><DocumentEditor /></ExpenseModal>;
   if (type === 'purchase_invoice') return <ExpenseModal title="فاتورة شراء جديدة" variant="purchase"><NewDocRoute /></ExpenseModal>;
   if (type === 'receipt' || type === 'payment') return <ExpenseModal title={type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'} variant="cash"><DocumentEditor /></ExpenseModal>;
   if (type === 'sale_return' || type === 'purchase_return') return <ExpenseModal title={type === 'sale_return' ? 'مرتجع بيع' : 'مرتجع شراء'} variant="return"><DocumentEditor /></ExpenseModal>;
   if (type === 'cash_transfer') return <ExpenseModal title="تحويل بين الخزائن" variant="cash"><DocumentEditor /></ExpenseModal>;
   return <ExpenseModal><DocumentEditor /></ExpenseModal>;
+}
+
+function EditDocumentModal() {
+  const { id } = useParams();
+  const doc = useLiveQuery(() => id ? db.documents.get(id) : undefined, [id]);
+  if (doc === undefined) return null;
+  return <ExpenseModal title={doc.doc_type === 'stock_adjustment' ? 'تعديل الجرد' : `تعديل ${DOC_TYPES[doc.doc_type as DocType]?.label ?? 'المستند'}`} variant={doc.doc_type === 'stock_adjustment' ? 'return' : undefined}><DocumentEditor /></ExpenseModal>;
 }
 
 /** سجل مستندات وحدة: يحتاج صلاحية مشاهدة الوحدة */
