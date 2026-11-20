@@ -209,6 +209,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
   const [restMethod, setRestMethod] = useState<string>(draft.restMethod ?? '');
   const [printAfter, setPrintAfter] = useState(false);
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
   const [err, setErr] = useState<string | null>(null);
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
@@ -504,6 +505,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
   };
 
   const save = async (mode: 'new' | 'view' | 'print' | 'again') => {
+    if (saving.current) return;
     setErr(null);
     if ((mode === 'print' || printAfter) && !can(P ? 'purchases.print' : 'sales.print')) return setErr('لا تملك صلاحية طباعة الفاتورة');
     if (!lines.length) return setErr('أضف صنفًا واحدًا على الأقل');
@@ -514,22 +516,22 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       const short = [...need].filter(([id, q]) => q > (stock.get(id) ?? 0)).map(([id]) => `«${itemMap.get(id)?.name}» (المتاح ${formatQty(stock.get(id) ?? 0)})`);
       if (short.length) return setErr(`الرصيد غير كافٍ في المخزن: ${short.join('، ')}. عدّل الكمية أو احذف الصنف، أو أضف رصيدًا بفاتورة شراء أولًا.`);
     }
-    // البيع بالسالب مسموح في الإعدادات، لكن لازم تأكيد صريح قبل الحفظ
-    if (!P && settings.allow_negative_stock && shortLines.length) {
-      const ok = await ui.confirm({
-        title: 'الكمية أكبر من المتاح',
-        message: `${shortLines.map((s) => `«${s.name}»: المتاح ${formatQty(s.have)} والمطلوب ${formatQty(s.need)}`).join('، ')}. لو كملت، الرصيد هيبقى بالسالب لحد ما توصل بضاعة.`,
-        confirmLabel: 'بيع رغم كده',
-        destructive: true,
-      });
-      if (!ok) return;
-    }
     if (P && !partyId) return setErr('اختر المورد');
     if (credit > 0 && isCash) return setErr('الجزء الآجل يُسجل على عميل: اختر العميل (أو أضف عميلًا جديدًا)');
     if (credit > 0 && !canCredit) return setErr('لا تملك صلاحية البيع الآجل؛ اختر طريقة لدفع الباقي');
     if (method !== 'credit' && !box) return setErr('اختر طريقة الدفع');
+    saving.current = true;
     setBusy(true);
     try {
+      if (!P && settings.allow_negative_stock && shortLines.length) {
+        const ok = await ui.confirm({
+          title: 'الكمية أكبر من المتاح',
+          message: `${shortLines.map((s) => `«${s.name}»: المتاح ${formatQty(s.have)} والمطلوب ${formatQty(s.need)}`).join('، ')}. لو كملت، الرصيد هيبقى بالسالب لحد ما توصل بضاعة.`,
+          confirmLabel: 'بيع رغم كده',
+          destructive: true,
+        });
+        if (!ok) return;
+      }
       const id = uuid();
       const savedLineDiscounts = allocatedLineDiscounts(finalDisc);
       const payments = [
@@ -576,6 +578,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
     } catch (e) {
       setErr((e as Error).message);
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
@@ -732,9 +735,20 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       {c !== 'del' && <span className="col-grip" title="اسحب لتغيير العرض · دبل كليك للملاءمة" onPointerDown={startResize(c)} onDoubleClick={() => fitColumn(c, idx)} />}
     </th>
   );
+  const moreActions = (
+    <details className="si-more-actions">
+      <summary>المزيد</summary>
+      <button aria-busy={busy} className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
+      <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
+      <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
+      <label className="btn"><input type="checkbox" checked={printAfter} disabled={!can(P ? 'purchases.print' : 'sales.print')} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
+      <button className="btn" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`, { state: invoiceLocation.state })}><Settings2 /> فاتورة متقدمة</button>
+      {lines.length > 0 && <button className="btn danger" disabled={busy} onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
+    </details>
+  );
 
   return (
-    <div className="ss si" style={active ? undefined : { display: 'none' }}>
+    <div className={`ss si${P ? '' : ' si-sale'}`} style={active ? undefined : { display: 'none' }}>
       {/* ======= رقم الفاتورة والتاريخ والوقت + التنقل ======= */}
       <div className="si-page-heading">
         <div>
@@ -774,11 +788,12 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
       <div className="ss-top">
         <div className="ss-entry">
           <div className="ss-step" style={{ flex: 3 }}>
-            <label><b>1</b> ابحث عن الصنف</label>
+            <label htmlFor={`sale-search-${tabId}`}>ابحث عن الصنف</label>
             <div className="si-search">
               <div className="picker" style={{ flex: 1 }}>
                 <input
                   ref={searchRef}
+                  id={`sale-search-${tabId}`}
                   className="input"
                   autoFocus
                   value={q}
@@ -839,15 +854,15 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
             <div className={`ss-avail-v num ${entryAvail !== null && entryAvail <= 0 ? 'red' : ''}`} {...(entryItem ? costHover(entryItem, itemMap.get(entryItem)?.base_unit) : {})}>{entryAvail === null ? '—' : itemMap.get(entryItem!)?.is_service ? 'خدمي · بلا مخزون' : formatQty(entryAvail)}</div>
           </div>
           <div className="ss-step" ref={qtyRef} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), priceLocked ? addEntry() : (priceRef.current?.querySelector('input')?.focus(), priceRef.current?.querySelector('input')?.select()))}>
-            <label><b>2</b> الكمية</label>
+            <label>الكمية</label>
             <QtyInput value={entryQty} onChange={setEntryQty} />
           </div>
           <div className="ss-step" ref={priceRef} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEntry())}>
-            <label><b>3</b> {P ? 'سعر الشراء' : 'سعر البيع'}</label>
+            <label>{P ? 'سعر الشراء' : 'سعر البيع'}</label>
             <MoneyInput value={entryPrice} onChange={setEntryPrice} disabled={priceLocked} />
           </div>
           <div className="ss-step" style={{ flex: 'none' }}>
-            <label><b>4</b> أضف</label>
+            <label>الإضافة</label>
             <button className="btn success primary ss-add" disabled={!entryItem} onClick={() => addEntry()} aria-label="أضف" title="أضف للفاتورة (Enter)"><Check /></button>
           </div>
         </div>
@@ -993,7 +1008,7 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                 <input id={`paid-${tabId}`} ref={paidRef} className="input num" inputMode="decimal" placeholder={formatMoney(total)} value={paidText} onChange={(e) => setPaidText(e.target.value)} />
                 {remainder > 0 && (
                   <div className="si-rest">
-                    <div className="pay-line warn"><span>الباقي</span><b className="num">{formatMoney(remainder)}</b></div>
+                    <div className="pay-line warn"><span>الباقي بعد الدفعة الأولى</span><b className="num">{formatMoney(remainder)}</b></div>
                     <div className="caption">يُدفع الباقي بـ:</div>
                     <div className="si-rest-opts">
                       {boxes.filter((b) => b.id !== box).map((b) => (
@@ -1032,11 +1047,11 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                 </div>
               );
             })()}
-            <div className="si-pay-sum">
+            {P && <div className="si-pay-sum">
               <div className="row"><span>المدفوع</span><b className="num green">{formatMoney(method === 'credit' ? 0 : total - credit)}</b></div>
               <div className="row"><span>{credit > 0 ? (P ? 'المتبقي (آجل للمورد)' : 'المتبقي (آجل على العميل)') : 'المتبقي'}</span><b className={`num ${credit > 0 ? 'orange' : ''}`}>{formatMoney(credit)}</b></div>
-            </div>
-            {err && <Banner kind="err">{err}</Banner>}
+            </div>}
+            {P && err && <Banner kind="err">{err}</Banner>}
             <details className="si-more-panel">
               <summary>خصم وإضافات وملاحظات</summary>
               <div className="si-more-panel-content">
@@ -1067,23 +1082,29 @@ function SaleTab({ kind, tabId, active, onNewTab }: { kind: 'sale' | 'purchase';
                 </div>
               </div>
             </details>
-            <div className="si-bar">
+            {P && <div className="si-bar">
               <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ <kbd>F12</kbd></button>
               {P && <button className="btn" disabled={busy || !lines.length} onClick={() => void save('again')}><Plus /> حفظ وضيف تاني</button>}
               <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length || !can(P ? 'purchases.print' : 'sales.print')} onClick={() => void save('print')}><Printer /> حفظ وطباعة <kbd>F4</kbd></button>
               <button className="btn" onClick={onNewTab}><Plus /> فاتورة جديدة <kbd>F10</kbd></button>
-              <details className="si-more-actions"><summary>المزيد</summary>
-                <button aria-busy={busy} className="btn" disabled={busy || !lines.length} onClick={() => void save('view')}>حفظ وعرض <kbd>F9</kbd></button>
-                <button className="btn" disabled={!lines.length} onClick={exportLines}><FileSpreadsheet /> Excel</button>
-                <button className="btn" disabled={!lines.length} onClick={() => void shareInvoice()}><Share2 /> مشاركة</button>
-                <label className="btn"><input type="checkbox" checked={printAfter} disabled={!can(P ? 'purchases.print' : 'sales.print')} onChange={(e) => setPrintAfter(e.target.checked)} /> طباعة تلقائية بعد الحفظ</label>
-                <button className="btn" onClick={() => nav(`/docs/new/${P ? 'purchase_invoice' : 'sale_invoice'}?advanced=1`, { state: invoiceLocation.state })}><Settings2 /> فاتورة متقدمة</button>
-                {lines.length > 0 && <button className="btn danger" onClick={() => void newInvoice()}><X /> مسح الفاتورة</button>}
-              </details>
-            </div>
+              {moreActions}
+            </div>}
           </div>
         </div>
       </div>
+      {!P && <div className="si-sale-checkout">
+        {err && <div className="si-sale-error" role="alert"><Banner kind="err">{err}</Banner></div>}
+        <div className="si-sale-amounts">
+          <span>الإجمالي <b className="num">{formatMoney(total)}</b></span>
+          <span>المدفوع <b className="num">{formatMoney(total - credit)}</b></span>
+          <span>المتبقي <b className={`num${credit > 0 ? ' orange' : ''}`}>{formatMoney(credit)}</b></span>
+        </div>
+        <div className="si-sale-buttons">
+          <button aria-busy={busy} className="btn primary" disabled={busy || !lines.length} onClick={() => void save('new')}><Check /> حفظ <kbd>F12</kbd></button>
+          <button className="btn" disabled={busy || !lines.length || !can('sales.print')} onClick={() => void save('print')}><Printer /> حفظ وطباعة</button>
+          {moreActions}
+        </div>
+      </div>}
 
       {inquiry && <InquirySheet purchase={P} itemId={inquiry} partyId={partyId} showCost={showCost} cost={costs.get(inquiry)} onClose={() => setInquiry(null)} />}
       {active && hover.node}

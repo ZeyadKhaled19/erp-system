@@ -1,7 +1,7 @@
 import { formatMoney, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BarChart3, ClipboardCheck, FileClock, FileText, ShoppingCart, Tag, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { BarChart3, ClipboardCheck, FileClock, FileText, Plus, ScanLine, ShoppingCart, Tag, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { RowActions } from '../components/ListParts';
 import { HUBS } from '../components/nav';
 import { FollowUpPanel, QuickActions, ResponsiveSectionLayout, SectionCard, SectionHeader, SectionStats, SkeletonRows, pctChange, prevSpans, type FollowUpItem, type SectionStat } from '../components/Section';
@@ -78,7 +78,10 @@ export function SalesSection() {
 
   return (
     <div className="page sx-page">
-      <SectionHeader icon={<ShoppingCart />} color="blue" title="المبيعات" sub="إدارة فواتير البيع والمرتجعات وعروض الأسعار" />
+      <SectionHeader icon={<ShoppingCart />} color="blue" title="المبيعات" tools={can('sales.create') && <>
+        <Link className="btn primary" to="/docs/new/sale_invoice"><Plus /> فاتورة بيع جديدة</Link>
+        <Link className="btn" to="/pos"><ScanLine /> البيع السريع</Link>
+      </>} />
       <SectionStats items={data?.stats} />
       <HomeKpis />
       <QuickActions section="sales" defaults={SALES_ACTIONS} />
