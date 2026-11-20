@@ -255,6 +255,8 @@ export function activeHubKey(pathname: string): string {
   if (pathname.startsWith('/hub/')) return pathname.slice(5);
   if (pathname.startsWith('/pos')) return 'pos';
   if (pathname.startsWith('/invoices')) return 'invoices';
+  if (pathname.startsWith('/returns/sales')) return 'sales';
+  if (pathname === '/purchases' || pathname.startsWith('/returns/purchases')) return 'purchases';
   if (pathname.startsWith('/parties/customer')) return 'customers';
   if (pathname.startsWith('/parties/supplier')) return 'suppliers';
   if (pathname.startsWith('/partners') || pathname.includes('partner_')) return 'partners';
