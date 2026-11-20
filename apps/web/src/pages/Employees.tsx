@@ -2,14 +2,14 @@ import { formatMoney, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CalendarCheck, HandCoins, IdCard, Plus, Users, UserX, Wallet } from 'lucide-react';
 import { QuickActions, SectionHeader, SectionStats } from '../components/Section';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { ActiveBadge, Avatar, PageTabs, RowActions, TotalCards } from '../components/ListParts';
 import { Banner, DateInput, DocStatusBadge, Empty, exportExcel, Field, MoneyInput, SearchBox, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
-import { useDebounced, usePerm, useSettings } from '../lib/hooks';
+import { useDebounced, usePerm, useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { deptPath, deptTree, DeptSelect, useDeptFilter, useDeptMatcher, useJobTitles, withChildren } from '../lib/org';
 
 /** تبويبات قسم الموظفين (نفس الشريط في الأربع صفحات) */
@@ -23,7 +23,10 @@ export const EMPLOYEE_TABS = [
 ];
 
 const useEmployees = () => useLiveQuery(async () => (await db.employees.toArray()).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar')), []) ?? [];
-const useCashboxes = () => useLiveQuery(async () => (await db.cashboxes.toArray()).filter((c) => c.active !== false), []) ?? [];
+function useCashboxes() {
+  const { session: { user } } = useSession();
+  return useLiveQuery(() => userCashboxes(user), [user]) ?? [];
+}
 
 /** حقول المستند الافتراضية (المستندات بدون أصناف) */
 const blankDoc = (extra: Record<string, any>) => ({
@@ -537,7 +540,11 @@ export function AdvancesPage() {
   const empName = new Map(employees.map((e) => [e.id, e.name]));
   const docs = useLiveQuery(async () => (await db.documents.where('doc_type').equals('employee_advance').toArray()).sort((a, b) => String(b.date).localeCompare(String(a.date))), []) ?? [];
   const [open, setOpen] = useState(false);
-  const outstanding = employees.filter((e) => (e.advance_balance ?? 0) > 0);
+  const [employeeId, setEmployeeId] = useState('');
+  const [month, setMonth] = useState('');
+  const filtered = docs.filter((d) => (!employeeId || d.employee_id === employeeId) && (!month || d.date.startsWith(month + '-')));
+  const posted = filtered.filter((d) => d.status === 'posted' && !d._sync);
+  const outstanding = employees.filter((e) => (!employeeId || e.id === employeeId) && (e.advance_balance ?? 0) > 0);
 
   return (
     <div className="page">
@@ -547,17 +554,30 @@ export function AdvancesPage() {
         sub="السلفة تُصرف من الخزينة وتُخصم من راتب الموظف في مسير الرواتب"
         actions={can('employees.create') && <button className="btn primary" onClick={() => setOpen(true)}><HandCoins /> سلفة جديدة</button>}
       />
-      {outstanding.length > 0 && (
-        <TotalCards items={outstanding.slice(0, 6).map((e) => ({ label: `مستحق على ${e.name}`, value: formatMoney(e.advance_balance), tone: 'orange' as const }))} />
-      )}
-      {docs.length === 0 ? (
-        <div className="card"><Empty icon={<HandCoins />} title="لا توجد سلف بعد" /></div>
+      <TotalCards items={[
+        { label: 'رصيد السلف المستحق حاليًا', value: formatMoney(outstanding.reduce((sum, e) => sum + e.advance_balance, 0)), tone: 'orange' },
+        { label: 'السلف المصروفة في السجل المعروض', value: formatMoney(posted.reduce((sum, d) => sum + (d.total ?? d.amount ?? 0), 0)), tone: 'green' },
+        { label: 'عدد السلف المصروفة', value: posted.length, tone: 'blue' },
+      ]} />
+      <div className="row wrap">
+        <Field label="الموظف">
+          <select className="select" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+            <option value="">كل الموظفين</option>
+            {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </Field>
+        <Field label="شهر الصرف"><input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
+        {(employeeId || month) && <button type="button" className="btn" onClick={() => { setEmployeeId(''); setMonth(''); }}>مسح الفلاتر</button>}
+      </div>
+      <div className="section-title">سجل السلف</div>
+      {filtered.length === 0 ? (
+        <div className="card"><Empty icon={<HandCoins />} title={docs.length ? 'لا توجد سلف مطابقة للفلاتر' : 'لا توجد سلف بعد'} /></div>
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
             <thead><tr><th>الرقم</th><th>التاريخ</th><th>الموظف</th><th>ملاحظات</th><th>الحالة</th><th className="n">المبلغ</th></tr></thead>
             <tbody>
-              {docs.map((d) => (
+              {filtered.map((d) => (
                 <tr key={d.id} className="click" onClick={() => nav(`/docs/view/${d.id}`)}>
                   <td data-label="الرقم" className="num">{d.number ?? d.local_number}</td>
                   <td data-label="التاريخ" className="num">{d.date}</td>
@@ -571,36 +591,48 @@ export function AdvancesPage() {
           </table>
         </div>
       )}
-      {open && <AdvanceSheet onClose={() => setOpen(false)} />}
+      {open && can('employees.create') && <AdvanceSheet employeeId={employeeId} onClose={() => setOpen(false)} />}
     </div>
   );
 }
 
-function AdvanceSheet({ onClose }: { onClose: () => void }) {
+function AdvanceSheet({ employeeId, onClose }: { employeeId: string; onClose: () => void }) {
   const ui = useUi();
   const employees = useEmployees().filter((e) => e.active !== false);
   const boxes = useCashboxes();
-  const [f, setF] = useState({ employee_id: '', cashbox_id: '', amount: 0, date: todayISO(), notes: '' });
+  const [f, setF] = useState({ employee_id: employeeId, cashbox_id: '', amount: 0, date: todayISO(), notes: '' });
   const [err, setErr] = useState<string | null>(null);
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
   const box = f.cashbox_id || boxes[0]?.id || '';
+  const employee = employees.find((e) => e.id === f.employee_id);
+  const balance = employee?.advance_balance ?? 0;
   const save = async () => {
-    if (!f.employee_id) return setErr('اختر الموظف');
-    if (!box) return setErr('اختر الخزينة');
-    if (f.amount <= 0) return setErr('اكتب مبلغ السلفة');
+    if (saving.current) return;
+    if (!employee) return setErr('اختر موظفًا نشطًا');
+    if (!boxes.some((b) => b.id === box)) return setErr('اختر الخزينة');
+    if (!f.date) return setErr('اختر تاريخ الصرف');
+    if (!Number.isFinite(f.amount) || f.amount <= 0) return setErr('اكتب مبلغ السلفة');
+    saving.current = true;
+    setBusy(true);
+    setErr(null);
     try {
       await saveDocument(blankDoc({ doc_type: 'employee_advance', employee_id: f.employee_id, cashbox_id: box, amount: f.amount, date: f.date, notes: f.notes || null }), 'post');
       ui.toast('تم تسجيل السلفة');
       onClose();
     } catch (e) {
       setErr((e as Error).message);
+    } finally {
+      saving.current = false;
+      setBusy(false);
     }
   };
   return (
-    <Sheet title="سلفة جديدة" onClose={onClose} footer={<><button className="btn" onClick={onClose}>إلغاء</button><button className="btn primary" onClick={() => void save()}>حفظ وصرف السلفة</button></>}>
+    <Sheet title="سلفة جديدة" onClose={() => { if (!saving.current) onClose(); }} footer={<><button className="btn" disabled={busy} onClick={onClose}>إلغاء</button><button className="btn primary" disabled={busy} aria-busy={busy} onClick={() => void save()}>حفظ وصرف السلفة</button></>}>
       <div className="stack">
         {err && <Banner kind="err">{err}</Banner>}
         <Field label="الموظف" required>
-          <select className="select" value={f.employee_id} onChange={(e) => setF({ ...f, employee_id: e.target.value })}>
+          <select className="select" value={employee?.id ?? ''} onChange={(e) => setF({ ...f, employee_id: e.target.value })}>
             <option value="">اختر الموظف</option>
             {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{(e.advance_balance ?? 0) > 0 ? ` — عليه ${formatMoney(e.advance_balance)}` : ''}</option>)}
           </select>
@@ -615,6 +647,10 @@ function AdvanceSheet({ onClose }: { onClose: () => void }) {
           </select>
         </Field>
         <Field label="ملاحظات"><input className="input" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+        {employee && <TotalCards items={[
+          { label: 'رصيد سلف الموظف حاليًا', value: formatMoney(balance), tone: 'blue' },
+          { label: 'الرصيد المتوقع بعد الصرف', value: formatMoney(balance + f.amount), tone: 'orange' },
+        ]} />}
       </div>
     </Sheet>
   );
@@ -632,6 +668,7 @@ const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي�
 const monthLabel = (from: string) => (from ? `${MONTHS[Number(from.slice(5, 7)) - 1]} ${from.slice(0, 4)}` : '—');
 
 interface Row { employee_id: string; salary: number; absent_days: number; absence_deduction: number; bonus: number; other_deduction: number; advance_deduction: number }
+const payrollNet = (r: Row) => r.salary + r.bonus - r.absence_deduction - r.other_deduction - r.advance_deduction;
 
 export function PayrollPage() {
   const can = usePerm();
@@ -649,6 +686,8 @@ export function PayrollPage() {
   const [box, setBox] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const approving = useRef(false);
+  const [preparing, setPreparing] = useState(false);
   const [openRun, setOpenRun] = useState<string | null>(null);
   const rules = useWorkRules();
   // أيام الخصم = الغياب + الأجازات الزيادة عن المسموح في الشهر
@@ -659,19 +698,23 @@ export function PayrollPage() {
       if (r.status === 'absent') absent.set(r.employee_id, (absent.get(r.employee_id) ?? 0) + 1);
       if (r.status === 'leave') leave.set(r.employee_id, (leave.get(r.employee_id) ?? 0) + 1);
     }
-    return { absent, leave };
-  }, [from, to]) ?? { absent: new Map<string, number>(), leave: new Map<string, number>() };
-  const runs = useLiveQuery(async () => (await db.documents.where('doc_type').equals('payroll').toArray()).sort((a, b) => String(b.data?.period_from ?? b.date).localeCompare(String(a.data?.period_from ?? a.date))), []) ?? [];
+    return { absent, leave, from };
+  }, [from, to]);
+  const savedRuns = useLiveQuery(async () => (await db.documents.where('doc_type').equals('payroll').toArray()).sort((a, b) => String(b.data?.period_from ?? b.period_from ?? b.date).localeCompare(String(a.data?.period_from ?? a.period_from ?? a.date))), []);
+  const runs = savedRuns ?? [];
   const done = runs.find((d) => d.status !== 'cancelled' && (d.data?.period_from ?? d.period_from) === from);
+  const ready = savedRuns !== undefined && absences?.from === from;
+  const paid = done?.status === 'posted' && !done._sync;
+  const recordedNet = done?.payroll_rows?.reduce((total: number, row: Row) => total + payrollNet(row), 0) ?? done?.total;
 
   const rows: (Row & { extraLeave: number; name: string; job: string; balance: number; net: number })[] = employees
     .filter((e) => e.active !== false)
     .map((e) => {
-      const extraLeave = Math.max(0, (absences.leave.get(e.id) ?? 0) - rules.leaveDays);
-      const days = (absences.absent.get(e.id) ?? 0) + extraLeave;
+      const extraLeave = Math.max(0, (absences?.leave.get(e.id) ?? 0) - rules.leaveDays);
+      const days = (absences?.absent.get(e.id) ?? 0) + extraLeave;
       const base: Row = { employee_id: e.id, salary: e.salary ?? 0, absent_days: days, absence_deduction: Math.round(((e.salary ?? 0) / 30) * days), bonus: 0, other_deduction: 0, advance_deduction: 0 };
       const r = { ...base, ...(edits[e.id] ?? {}) } as Row;
-      return { ...r, extraLeave, name: e.name, job: e.job_title ?? '', balance: Math.max(0, e.advance_balance ?? 0), net: r.salary + r.bonus - r.absence_deduction - r.other_deduction - r.advance_deduction };
+      return { ...r, extraLeave, name: e.name, job: e.job_title ?? '', balance: Math.max(0, e.advance_balance ?? 0), net: payrollNet(r) };
     });
   const set = (id: string, k: keyof Row, v: number) => setEdits((m) => ({ ...m, [id]: { ...(m[id] ?? {}), [k]: v } }));
   const sum = (k: 'salary' | 'bonus' | 'absence_deduction' | 'other_deduction' | 'advance_deduction' | 'net', list = rows) => list.reduce((s, r) => s + r[k], 0);
@@ -680,26 +723,30 @@ export function PayrollPage() {
   const cashbox = box || boxes[0]?.id || '';
 
   const approve = async () => {
+    if (approving.current || !ready || done || !rows.length || !can('employees.create')) return;
     setErr(null);
     const bad = rows.find((r) => r.net < 0);
     if (bad) return setErr(`صافي راتب «${bad.name}» بالسالب — راجع الخصومات`);
     const over = rows.find((r) => r.advance_deduction > r.balance);
     if (over) return setErr(`خصم السلفة لـ«${over.name}» أكبر من رصيد سلفه`);
-    if (!cashbox) return setErr('اختر الخزينة التي تُصرف منها الرواتب');
-    const ok = await ui.confirm({ title: `اعتماد رواتب ${monthLabel(from)}؟`, message: `سيتم صرف ${formatMoney(sum('net'))} من الخزينة لـ ${rows.length} موظف وترحيل القيد.`, confirmLabel: 'اعتماد وصرف' });
-    if (!ok) return;
+    if (!boxes.some((b) => b.id === cashbox)) return setErr('اختر الخزينة التي تُصرف منها الرواتب');
+    approving.current = true;
     setBusy(true);
     try {
+      const ok = await ui.confirm({ title: `اعتماد رواتب ${monthLabel(from)}؟`, message: `سيتم صرف ${formatMoney(sum('net'))} من الخزينة لـ ${rows.length} موظف وترحيل القيد.`, confirmLabel: 'اعتماد وصرف' });
+      if (!ok) return;
       await saveDocument(blankDoc({
         doc_type: 'payroll', date: to > todayISO() ? todayISO() : to, cashbox_id: cashbox, period_from: from, period_to: to,
         payroll_rows: rows.map(({ employee_id, salary, absent_days, absence_deduction, bonus, other_deduction, advance_deduction }) => ({ employee_id, salary, absent_days, absence_deduction, bonus, other_deduction, advance_deduction })),
         notes: `رواتب ${monthLabel(from)}`,
       }), 'post');
       setEdits({});
+      setPreparing(false);
       ui.toast('تم اعتماد المسير');
     } catch (e) {
       setErr((e as Error).message);
     } finally {
+      approving.current = false;
       setBusy(false);
     }
   };
@@ -709,19 +756,30 @@ export function PayrollPage() {
       <PageTabs tabs={EMPLOYEE_TABS} />
       <PageHeader
         title="الرواتب"
-        sub={`الصافي = الراتب + المكافأة − الغياب − الجزاءات − خصم السلفة · الأجازات اللي تزيد عن ${rules.leaveDays} أيام في الشهر تتخصم زي الغياب`}
         actions={<>
-          <DeptSelect value={dept} onChange={setDept} depts={depts} />
-          <input type="month" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && (setYm(e.target.value), setEdits({}))} />
+          <input type="month" aria-label="شهر الرواتب" className="input" style={{ width: 180 }} value={ym} onChange={(e) => e.target.value && (setYm(e.target.value), setEdits({}))} />
+          {ready && !done && rows.length > 0 && <button className="btn primary" onClick={() => { setErr(null); setPreparing(true); }}><Wallet /> {can('employees.create') ? 'تجهيز مسير الشهر' : 'معاينة مسير الشهر'}</button>}
         </>}
       />
-      {err && <div style={{ marginBottom: 12 }}><Banner kind="err">{err}</Banner></div>}
+      <TotalCards items={[
+        { label: paid ? 'صافي الشهر المعتمد' : 'صافي الشهر المتوقع', value: ready ? formatMoney(recordedNet ?? sum('net')) : '—', tone: 'blue' },
+        { label: 'المصروف للشهر', value: ready ? formatMoney(paid ? done.total ?? 0 : 0) : '—', tone: 'green' },
+        { label: 'عدد الموظفين', value: ready ? (done ? (done.data?.rows ?? done.payroll_rows ?? []).length : rows.length) : '—', tone: 'purple' },
+      ]} />
       {done ? (
-        <Banner kind="ok">رواتب {monthLabel(from)} معتمدة في المسير {done.number ?? done.local_number} بإجمالي {formatMoney(done.total)}. اختر شهرًا آخر لإعداد مسير جديد.</Banner>
+        <Banner kind={paid ? 'ok' : 'info'}>مسير {monthLabel(from)} · {done.number ?? done.local_number} <DocStatusBadge status={done.status} sync={done._sync} /></Banner>
       ) : rows.length === 0 ? (
         <div className="card"><Empty icon={<Wallet />} title="لا يوجد موظفون نشطون" /></div>
-      ) : (
-        <>
+      ) : preparing ? (
+        <Sheet wide title={`مسير رواتب ${monthLabel(from)}`} onClose={() => { if (!approving.current) setPreparing(false); }} footer={<>
+          <button className="btn" disabled={busy} onClick={() => setPreparing(false)}>إغلاق</button>
+          {can('employees.create') && <button aria-busy={busy} className="btn primary" disabled={busy} onClick={() => void approve()}>اعتماد وصرف الرواتب</button>}
+        </>}>
+          {err && <Banner kind="err">{err}</Banner>}
+          <div className="row wrap">
+            <DeptSelect value={dept} onChange={setDept} depts={depts} />
+            <span className="muted small">الإجازات بعد {rules.leaveDays} أيام في الشهر تتحسب غياب.</span>
+          </div>
           {deptName && <div style={{ marginBottom: 12 }}><Banner kind="info">بتعرض موظفين «{deptName}» بس. الاعتماد بيصرف رواتب كل الموظفين ({rows.length}) في مسير واحد للشهر.</Banner></div>}
           <div className="table-wrap">
             <table className="table responsive">
@@ -732,12 +790,12 @@ export function PayrollPage() {
                     <td data-label="الموظف" className="bold"><span className="lp-name"><Avatar name={r.name} />{r.name}</span>{r.job && <div className="muted small">{r.job}</div>}</td>
                     <td data-label="الراتب" className="n">{formatMoney(r.salary)}</td>
                     <td data-label="أيام الغياب" className="n">{r.absent_days}{r.extraLeave > 0 && <div className="small orange">منها {r.extraLeave} أجازة زيادة</div>}</td>
-                    <td data-label="خصم الغياب" className="n pay-in"><MoneyInput value={r.absence_deduction} onChange={(v) => set(r.employee_id, 'absence_deduction', v)} /></td>
-                    <td data-label="مكافأة" className="n pay-in"><MoneyInput value={r.bonus} onChange={(v) => set(r.employee_id, 'bonus', v)} /></td>
-                    <td data-label="جزاءات" className="n pay-in"><MoneyInput value={r.other_deduction} onChange={(v) => set(r.employee_id, 'other_deduction', v)} /></td>
+                    <td data-label="خصم الغياب" className="n pay-in"><MoneyInput disabled={busy || !can('employees.create')} value={r.absence_deduction} onChange={(v) => set(r.employee_id, 'absence_deduction', v)} /></td>
+                    <td data-label="مكافأة" className="n pay-in"><MoneyInput disabled={busy || !can('employees.create')} value={r.bonus} onChange={(v) => set(r.employee_id, 'bonus', v)} /></td>
+                    <td data-label="جزاءات" className="n pay-in"><MoneyInput disabled={busy || !can('employees.create')} value={r.other_deduction} onChange={(v) => set(r.employee_id, 'other_deduction', v)} /></td>
                     <td data-label="خصم سلفة" className="n pay-in">
-                      <MoneyInput value={r.advance_deduction} onChange={(v) => set(r.employee_id, 'advance_deduction', v)} disabled={r.balance <= 0} />
-                      {r.balance > 0 && <button type="button" className="pay-all" onClick={() => set(r.employee_id, 'advance_deduction', r.balance)}>رصيده {formatMoney(r.balance)}</button>}
+                      <MoneyInput value={r.advance_deduction} onChange={(v) => set(r.employee_id, 'advance_deduction', v)} disabled={busy || !can('employees.create') || r.balance <= 0} />
+                      {r.balance > 0 && can('employees.create') && <button type="button" className="pay-all" disabled={busy} onClick={() => set(r.employee_id, 'advance_deduction', r.balance)}>رصيده {formatMoney(r.balance)}</button>}
                     </td>
                     <td data-label="الصافي" className={`n bold ${r.net < 0 ? 'red' : ''}`}>{formatMoney(r.net)}</td>
                   </tr>
@@ -750,15 +808,14 @@ export function PayrollPage() {
             <div className="pay-bar">
               <div className="si-grand pay-grand"><span>صافي رواتب {monthLabel(from)}{deptName ? ` — كل الإدارات (${rows.length} موظف)` : ''}</span><b className="num">{formatMoney(sum('net'))}</b></div>
               <Field label="تُصرف من">
-                <select className="select" value={cashbox} onChange={(e) => setBox(e.target.value)}>
+                <select className="select" disabled={busy} value={cashbox} onChange={(e) => setBox(e.target.value)}>
                   {boxes.map((b) => <option key={b.id} value={b.id}>{b.name} — رصيدها {formatMoney(b.balance ?? 0)}</option>)}
                 </select>
               </Field>
-              <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => void approve()}>اعتماد وصرف الرواتب</button>
             </div>
           )}
-        </>
-      )}
+        </Sheet>
+      ) : null}
 
       <div className="section-title">المسيرات السابقة</div>
       {runs.length === 0 ? (
@@ -781,8 +838,8 @@ export function PayrollPage() {
                   {openRun === d.id && (
                     <tr className="group-row"><td colSpan={6}>
                       <table className="st-items-t"><tbody>
-                        {(d.data?.rows ?? []).map((r: any) => (
-                          <tr key={r.employee_id}><td>{r.name}</td><td className="n">راتب {formatMoney(r.salary)}</td><td className="n">غياب {r.absent_days} يوم (−{formatMoney(r.absence_deduction)})</td><td className="n">مكافأة {formatMoney(r.bonus)}</td><td className="n">جزاءات {formatMoney(r.other_deduction)}</td><td className="n">سلفة −{formatMoney(r.advance_deduction)}</td><td className="n"><b>{formatMoney(r.net)}</b></td></tr>
+                        {(d.data?.rows ?? d.payroll_rows ?? []).map((r: Row & { name?: string; net?: number }) => (
+                          <tr key={r.employee_id}><td>{r.name ?? employees.find((employee) => employee.id === r.employee_id)?.name ?? '—'}</td><td className="n">راتب {formatMoney(r.salary)}</td><td className="n">غياب {r.absent_days} يوم (−{formatMoney(r.absence_deduction)})</td><td className="n">مكافأة {formatMoney(r.bonus)}</td><td className="n">جزاءات {formatMoney(r.other_deduction)}</td><td className="n">سلفة −{formatMoney(r.advance_deduction)}</td><td className="n"><b>{formatMoney(r.net ?? payrollNet(r))}</b></td></tr>
                         ))}
                       </tbody></table>
                     </td></tr>
