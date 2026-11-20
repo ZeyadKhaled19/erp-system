@@ -4,12 +4,13 @@ import { Check, FileSpreadsheet, Plus, Upload } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { saveDocument, saveMaster } from '../lib/actions';
 import { db } from '../lib/db';
-import { usePerm, useSettings } from '../lib/hooks';
+import { usePerm, useSession, useSettings } from '../lib/hooks';
 import { Banner, Field, MoneyInput, QtyInput, Sheet, useUi } from './ui';
 import { CategoryField } from './Categories';
 import { normalizeAr } from '../lib/search';
 import { findSimilarNames } from '@erp/shared';
 import { similarItemsNow, similarNameMessage, useSimilarItems } from '../lib/similarItems';
+import '../pages/items.css';
 
 async function nextCode(offset = 0) {
   const all = await db.items.toArray();
@@ -38,8 +39,12 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
   const ui = useUi();
   const can = usePerm();
   const settings = useSettings();
+  const { session } = useSession();
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState(false);
   const cats = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false), []) ?? [];
-  const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
+  const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), [session.user.warehouse_ids?.join(',')]) ?? [];
   const empty = { name: '', price: 0, cost: 0, qty: 0, barcode: '', cat: 'cat-general', unit: 'قطعة' };
   const [f, setF] = useState({ ...empty, name: initialName });
   const [wh, setWh] = useState('');
@@ -50,9 +55,17 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
   const nameErr = similarNameMessage(useSimilarItems(f.name));
 
   const save = async (andNext: boolean) => {
+    if (saving.current || created) return;
+    if (!can('items.create')) return setErr('لا تملك صلاحية إضافة الأصناف');
+    saving.current = true;
+    setBusy(true);
+    let savedItem = false;
+    try {
     setErr(null);
     const name = f.name.trim();
     if (!name) return setErr('اكتب اسم الصنف');
+    if (f.price < 0 || f.qty < 0 || f.cost < 0) return setErr('السعر والكمية والتكلفة يجب ألا تكون سالبة');
+    if (canStock && f.qty > 0 && !warehouses.some((w) => w.id === (wh || warehouses[0]?.id))) return setErr('اختر مخزنًا مسموحًا لتسجيل الرصيد');
     const sim = await similarItemsNow(name);
     if (sim.length) return setErr('لا يمكن الحفظ: اسم الصنف قريب جدًا من صنف موجود (التفاصيل تحت خانة الاسم). غيّر الاسم.');
     if (f.barcode.trim() && ((await db.items.where('barcode').equals(f.barcode.trim()).count()) || (await db.item_units.where('barcode').equals(f.barcode.trim()).count()))) {
@@ -74,10 +87,13 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
       units: [],
       prices: [],
     });
+    savedItem = true;
+    setCreated(true);
     if (canStock && f.qty > 0) await postOpening(wh || warehouses[0]?.id, [{ item_id: id, unit: f.unit.trim() || 'قطعة', qty: f.qty, cost: f.cost }]);
     onSaved?.(id);
     setAdded((a) => [{ id, name, price: f.price }, ...a]);
     if (andNext) {
+      setCreated(false);
       setF({ ...empty, cat: f.cat, unit: f.unit });
       ui.toast(`أُضيف «${name}»`);
       setTimeout(() => nameRef.current?.focus(), 30);
@@ -85,9 +101,12 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
       ui.toast(`أُضيف «${name}»`);
       onClose();
     }
+    } catch (e) { setErr(savedItem ? `الصنف اتحفظ، لكن تعذر إكمال الرصيد الافتتاحي: ${(e as Error).message}. راجع الصنف من السجل قبل إضافة رصيد جديد.` : (e as Error).message); }
+    finally { saving.current = false; setBusy(false); }
   };
 
   const onKey = (e: React.KeyboardEvent) => {
+    if (e.defaultPrevented || (e.target as HTMLElement).closest('button, summary')) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       void save(true);
@@ -97,17 +116,17 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
   return (
     <Sheet
       title="صنف جديد"
-      onClose={onClose}
+      onClose={() => { if (!saving.current) onClose(); }}
       footer={
         <>
-          {onAdvanced && <button className="btn plain" onClick={onAdvanced}>خيارات متقدمة</button>}
+          {onAdvanced && <button className="btn plain" disabled={busy || created} onClick={onAdvanced}>خيارات متقدمة</button>}
           <span className="spacer" />
-          <button className="btn" onClick={() => save(false)} disabled={!!nameErr}>حفظ وإغلاق</button>
-          <button className="btn primary" onClick={() => save(true)} disabled={!!nameErr}><Plus /> حفظ وأضف التالي</button>
+          <button className="btn" onClick={() => void save(false)} disabled={busy || created || !!nameErr}>حفظ وإغلاق</button>
+          <button className="btn primary" onClick={() => void save(true)} disabled={busy || created || !!nameErr} aria-busy={busy}><Plus /> {busy ? 'جارٍ الحفظ…' : 'حفظ وأضف التالي'}</button>
         </>
       }
     >
-      <div className="stack" onKeyDown={onKey}>
+      <div className="stack quick-item-editor" onKeyDown={onKey}>
         {err && <Banner kind="err">{err}</Banner>}
         <Field label="اسم الصنف" required error={nameErr}>
           <input ref={nameRef} aria-invalid={!!nameErr} className="input" style={{ fontSize: 17, height: 52 }} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus placeholder="مثال: شاي العروسة 250 جم" />
@@ -115,20 +134,20 @@ export function QuickItemSheet({ onClose, onSaved, onAdvanced, initialName = '' 
         <CategoryField value={f.cat} onChange={(id) => setF({ ...f, cat: id })} />
         <div className="grid grid-3">
           <Field label="سعر البيع" required><MoneyInput value={f.price} onChange={(v) => setF({ ...f, price: v })} /></Field>
-          {canStock && <Field label="الكمية الموجودة الآن" hint="اختياري"><QtyInput value={f.qty} onChange={(v) => setF({ ...f, qty: v })} /></Field>}
-          {canStock && <Field label="سعر التكلفة" hint="للكمية الموجودة"><MoneyInput value={f.cost} onChange={(v) => setF({ ...f, cost: v })} /></Field>}
-        </div>
-        <div className="grid grid-3">
           <Field label="الباركود" hint="امسحه بالماسح"><input className="input num" value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field>
           <Field label="الوحدة"><input className="input" value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} list="unit-presets" /></Field>
-          {canStock && warehouses.length > 1 && f.qty > 0 ? (
+        </div>
+        {canStock && <details className="item-editor-options"><summary>رصيد افتتاحي اختياري</summary><p className="footnote">لو عندك بضاعة موجودة بالفعل، تسجيل الكمية هنا ينشئ مستند رصيد افتتاحي عند الحفظ.</p><div className="grid grid-3">
+          <Field label="الكمية الموجودة"><QtyInput value={f.qty} onChange={(v) => setF({ ...f, qty: v })} /></Field>
+          <Field label="تكلفة الوحدة"><MoneyInput value={f.cost} onChange={(v) => setF({ ...f, cost: v })} /></Field>
+          {warehouses.length > 0 ? (
             <Field label="في مخزن">
               <select className="select" value={wh || warehouses[0]?.id} onChange={(e) => setWh(e.target.value)}>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </Field>
           ) : <div />}
-        </div>
+        </div></details>}
         <datalist id="unit-presets">{['قطعة', 'كرتونة', 'علبة', 'كيلو', 'جرام', 'لتر', 'متر', 'دستة', 'عبوة'].map((u) => <option key={u} value={u} />)}</datalist>
         <div className="footnote">اضغط Enter للحفظ وإضافة الصنف التالي مباشرة. الكود يُولّد تلقائيًا.</div>
         {added.length > 0 && (

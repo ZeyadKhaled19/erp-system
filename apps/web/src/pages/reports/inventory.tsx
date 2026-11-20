@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DateInput, exportExcel, Field, Picker, Segmented } from '../../components/ui';
 import { db } from '../../lib/db';
-import { usePerm, useRemote } from '../../lib/hooks';
+import { usePerm, useRemote, useSession } from '../../lib/hooks';
 import { CategoryFilter } from '../../components/Categories';
 import { monthStart, yearStart, docLabel, Shell, DateRange, useItemOptions, useWarehouses } from './shared';
 
@@ -79,26 +79,30 @@ export function ItemMovementReport() {
 
 // ---------------------------------------------------------------- بضاعة مخزن
 export function StockReport() {
-  const whs = useWarehouses();
+  const { session } = useSession();
+  const allWhs = useWarehouses();
+  const whs = allWhs.filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id)));
+  const [sp] = useSearchParams();
   const can = usePerm();
   const nav = useNavigate();
-  const [wh, setWh] = useState('');
+  const [wh, setWh] = useState(sp.get('wh') ?? '');
   const [nonzero, setNonzero] = useState(true);
   const [cat, setCat] = useState('');
   const catList = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar')), []) ?? [];
   // التقرير محلي بالكامل (من آخر مزامنة) ليعمل دون اتصال
   const data = useLiveQuery(async () => {
     const items = await db.items.orderBy('code').toArray();
-    const bal = await db.stock_balances.toArray();
+    const warehouseIds = whs.filter((w) => !wh || w.id === wh).map((w) => w.id);
+    const bal = warehouseIds.length ? await db.stock_balances.where('warehouse_id').anyOf(warehouseIds).toArray() : [];
     const cats = new Map((await db.categories.toArray()).map((c) => [c.id, c.name]));
-    const rows = items.map((i: any) => {
+    const rows = items.filter((i) => !i.is_service).map((i: any) => {
       const b = bal.filter((x) => x.item_id === i.id && (!wh || x.warehouse_id === wh));
       const qty = b.reduce((s, x) => s + x.qty, 0);
       // قيمة بيع تقديرية (سعر البيع × الكمية الموجبة) — منفصلة تمامًا عن التكلفة والربح
-      return { ...i, qty, value: b.reduce((s, x) => s + x.value, 0), sale_value: qty > 0 ? Math.round((qty * (i.sale_price ?? 0)) / 1000) : 0, cat: cats.get(i.category_id) };
+      return { ...i, qty, value: can('costs.view') ? b.reduce((s, x) => s + x.value, 0) : 0, sale_value: qty > 0 ? Math.round((qty * (i.sale_price ?? 0)) / 1000) : 0, cat: cats.get(i.category_id) };
     });
     return rows.filter((r) => (!nonzero || r.qty !== 0) && (!cat || r.category_id === cat));
-  }, [wh, nonzero, cat]) ?? [];
+  }, [wh, nonzero, cat, whs.map((w) => w.id).join(','), can('costs.view')]) ?? [];
   const total = data.reduce((s, r) => s + r.value, 0);
   const saleTotal = data.reduce((s, r) => s + r.sale_value, 0);
   return (

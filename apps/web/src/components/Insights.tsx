@@ -1,7 +1,7 @@
 import { formatMoney, formatQty, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
-import { usePerm } from '../lib/hooks';
+import { usePerm, useSession } from '../lib/hooks';
 import { HBarList, lastMonths, MonthBars } from './charts';
 
 /** تحليل التعامل مع عميل/مورد (من البيانات المحلية — يعمل دون اتصال) */
@@ -75,11 +75,18 @@ export function PartyInsights({ party }: { party: any }) {
 /** تحليل أداء صنف: المبيعات والربح والحركة الشهرية وأكبر العملاء */
 export function ItemInsights({ item }: { item: any }) {
   const can = usePerm();
+  const { session } = useSession();
+  const salesAllowed = can('sales.view');
+  const purchasesAllowed = can('purchases.view') && can('costs.view');
+  const stockAllowed = can('inventory.view');
+  const partiesAllowed = can('parties.view');
   const months = lastMonths(12);
   const data = useLiveQuery(async () => {
-    const lines = await db.document_lines.where('item_id').equals(item.id).toArray();
-    const docIds = [...new Set(lines.map((l) => l.document_id))];
-    const docs = new Map((await db.documents.bulkGet(docIds)).filter(Boolean).map((d) => [d!.id, d!]));
+    const types = [...(salesAllowed ? ['sale_invoice', 'sale_return'] : []), ...(purchasesAllowed ? ['purchase_invoice'] : [])];
+    if (!types.length) return null;
+    const permittedDocs = await db.documents.where('doc_type').anyOf(types).filter((d) => d.status === 'posted' && (!d.warehouse_id || !session.user.warehouse_ids || session.user.warehouse_ids.includes(d.warehouse_id))).toArray();
+    const docs = new Map(permittedDocs.map((d) => [d.id, d]));
+    const lines = permittedDocs.length ? await db.document_lines.where('document_id').anyOf(permittedDocs.map((d) => d.id)).filter((l) => l.item_id === item.id).toArray() : [];
     const since30 = new Date();
     since30.setDate(since30.getDate() - 30);
     const s30 = todayISO(since30);
@@ -106,17 +113,17 @@ export function ItemInsights({ item }: { item: any }) {
       }
       if (d.doc_type === 'purchase_invoice' && (!lastBuy || d.date > lastBuy.date)) lastBuy = { date: d.date, price: l.qty ? Math.round(((l.total - l.tax) * 1000) / l.qty) : l.price, unit: l.unit_name };
     }
-    const names = new Map((await db.parties.bulkGet([...byCust.keys()])).filter(Boolean).map((p) => [p!.id, p!.name]));
+    const names = new Map(partiesAllowed ? (await db.parties.bulkGet([...byCust.keys()])).filter(Boolean).map((p) => [p!.id, p!.name]) : []);
     const top = [...byCust.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => ({ label: names.get(id) ?? '—', value: v }));
-    const bal = (await db.stock_balances.where('item_id').equals(item.id).toArray()).reduce((s, b) => s + b.qty, 0);
+    const bal = stockAllowed ? (await db.stock_balances.where('item_id').equals(item.id).toArray()).filter((b) => !session.user.warehouse_ids || session.user.warehouse_ids.includes(b.warehouse_id)).reduce((s, b) => s + b.qty, 0) : 0;
     const daily = qty30 / 30;
     return {
       qty30, rev30, qtyAll, revAll, costAll, lastSale, lastBuy, top,
       series: months.map((m) => ({ label: m.label, value: byMonth.get(m.key) ?? 0 })),
       avgPrice: qtyAll ? Math.round((revAll * 1000) / qtyAll) : 0,
-      cover: daily > 0 ? Math.floor(bal / daily) : null,
+      cover: stockAllowed && salesAllowed && daily > 0 ? Math.max(0, Math.floor(bal / daily)) : null,
     };
-  }, [item.id]);
+  }, [item.id, salesAllowed, purchasesAllowed, stockAllowed, partiesAllowed, session.user.warehouse_ids?.join(',')]);
   if (!data) return null;
   const profit = data.revAll - data.costAll;
   const margin = data.revAll ? Math.round((profit * 1000) / data.revAll) / 10 : 0;
@@ -128,7 +135,7 @@ export function ItemInsights({ item }: { item: any }) {
         <Kpi label="متوسط سعر البيع الفعلي" value={formatMoney(data.avgPrice)} />
         {can('reports.profit') && <Kpi label="مجمل الربح" value={formatMoney(profit)} sub={`هامش ${margin}%`} tone={profit < 0 ? 'red' : 'green'} />}
         <Kpi label="آخر بيع" value={data.lastSale ?? '—'} />
-        {can('costs.view') && <Kpi label="آخر شراء" value={data.lastBuy?.date ?? '—'} sub={data.lastBuy ? `بسعر ${formatMoney(data.lastBuy.price)} / ${data.lastBuy.unit}` : undefined} />}
+        {purchasesAllowed && <Kpi label="آخر شراء" value={data.lastBuy?.date ?? '—'} sub={data.lastBuy ? `بسعر ${formatMoney(data.lastBuy.price)} / ${data.lastBuy.unit}` : undefined} />}
         {data.cover !== null && <Kpi label="الرصيد يكفي (يوم)" value={String(data.cover)} sub="حسب معدل بيع آخر 30 يومًا" tone={data.cover < 7 ? 'orange' : undefined} />}
       </div>
       <div className="grid grid-2" style={{ alignItems: 'start' }}>
@@ -136,10 +143,10 @@ export function ItemInsights({ item }: { item: any }) {
           <div className="bold">المبيعات الشهرية</div>
           <MonthBars data={data.series} />
         </div>
-        <div className="chart-card">
+        {partiesAllowed && <div className="chart-card">
           <div className="bold" style={{ marginBottom: 8 }}>أكبر العملاء لهذا الصنف</div>
           <HBarList rows={data.top} />
-        </div>
+        </div>}
       </div>
     </div>
   );

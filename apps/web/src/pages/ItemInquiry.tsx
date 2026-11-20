@@ -1,13 +1,15 @@
 import { formatMoney, formatQty } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { PackageSearch } from 'lucide-react';
+import { PackageSearch, Pencil, FileClock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Empty, SearchBox, SyncBadge } from '../components/ui';
 import { db } from '../lib/db';
 import { ItemInsights } from '../components/Insights';
-import { useDebounced, usePerm } from '../lib/hooks';
+import { useDebounced, usePerm, useSession } from '../lib/hooks';
+import { ItemEditor } from './Items';
+import './items.css';
 import { searchItems } from '../lib/search';
 
 /** استعلام عن صنف: بحث بالكود أو الاسم أو الباركود ويعرض الأسعار والأرصدة في كل مخزن (يعمل دون اتصال) */
@@ -15,6 +17,9 @@ export function ItemInquiry() {
   const [params, setParams] = useSearchParams();
   const can = usePerm();
   const nav = useNavigate();
+  const { session } = useSession();
+  const [editing, setEditing] = useState(false);
+  const [tab, setTab] = useState('details');
   const [q, setQ] = useState('');
   const dq = useDebounced(q, 150);
   const id = params.get('id');
@@ -32,17 +37,17 @@ export function ItemInquiry() {
     const item = await db.items.get(id);
     if (!item) return null;
     const units = (await db.item_units.where('item_id').equals(id).toArray()).filter((u) => u.active !== false);
-    const bal = await db.stock_balances.where('item_id').equals(id).toArray();
-    const whs = new Map((await db.warehouses.toArray()).map((w) => [w.id, w]));
+    const whs = new Map(can('inventory.view') ? (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))).map((w) => [w.id, w]) : []);
+    const bal = whs.size ? (await db.stock_balances.where('item_id').equals(id).toArray()).filter((b) => whs.has(b.warehouse_id)) : [];
     const cat = item.category_id ? await db.categories.get(item.category_id) : null;
     return { item, units, bal: bal.map((b) => ({ ...b, wh: whs.get(b.warehouse_id)?.name ?? '' })), cat };
-  }, [id]);
+  }, [id, session.user.id, session.user.permissions.join(','), session.user.warehouse_ids?.join(',')]);
 
   const total = useMemo(() => (detail?.bal ?? []).reduce((s, b) => s + b.qty, 0), [detail]);
 
   return (
     <div className="page" style={{ maxWidth: 1100 }}>
-      <PageHeader title="استعلام عن صنف" sub="ابحث بالاسم أو الكود أو امسح الباركود" />
+      <PageHeader title={detail?.item.name ?? 'استعلام عن صنف'} sub="بيانات الصنف والأسعار والمخزون حسب صلاحياتك" actions={detail && <>{can('items.edit') && <button className="btn" onClick={() => setEditing(true)}><Pencil /> تعديل الصنف</button>}{can('inventory.view') && <button className="btn primary" onClick={() => nav(`/reports/item?id=${detail.item.id}`)}><FileClock /> سجل الحركة</button>}</>} />
       <SearchBox
         value={q}
         onChange={setQ}
@@ -78,6 +83,8 @@ export function ItemInquiry() {
 
       {!dq && detail && (
         <>
+          <div className="item-inquiry-tabs" role="tablist" aria-label="تفاصيل الصنف"><button role="tab" aria-selected={tab === 'details'} className={tab === 'details' ? 'active' : ''} onClick={() => setTab('details')}>البيانات والأسعار</button>{can('inventory.view') && <button role="tab" aria-selected={tab === 'stock'} className={tab === 'stock' ? 'active' : ''} onClick={() => setTab('stock')}>الأرصدة حسب المخزن</button>}{can('sales.view') && <button role="tab" aria-selected={tab === 'insights'} className={tab === 'insights' ? 'active' : ''} onClick={() => setTab('insights')}>تحليل الصنف</button>}</div>
+          {tab === 'details' && <>
           <div className="group-header">بيانات الصنف</div>
           <div className="list">
             <Row k="الاسم" v={<span className="bold">{detail.item.name} <SyncBadge sync={detail.item._sync} error={detail.item._error} /></span>} />
@@ -103,6 +110,8 @@ export function ItemInquiry() {
             </>
           )}
 
+          </>}
+          {tab === 'stock' && can('inventory.view') && <>
           <div className="group-header">الرصيد حسب المخزن</div>
           <div className="list">
             {detail.bal.length === 0 && <div className="list-row muted">لا يوجد رصيد</div>}
@@ -113,14 +122,16 @@ export function ItemInquiry() {
           </div>
           <div className="group-footer">الأرصدة حسب آخر مزامنة مع الخادم.</div>
 
-          <ItemInsights item={detail.item} />
-          {can('inventory.view') && (
+          </>}
+          {tab === 'insights' && can('sales.view') && <ItemInsights item={detail.item} />}
+          {tab !== 'stock' && can('inventory.view') && (
             <button className="btn block" style={{ marginTop: 16 }} onClick={() => nav(`/reports/item?id=${detail.item.id}`)}>
               عرض حركة الصنف
             </button>
           )}
         </>
       )}
+      {editing && detail && <ItemEditor key={id} item={detail.item} onClose={() => setEditing(false)} />}
     </div>
   );
 }
