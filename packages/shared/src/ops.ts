@@ -350,6 +350,11 @@ export const opSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('doc.post'), id, base_version: int.nullable() }),
   z.object({ type: z.literal('doc.cancel'), id, reason: z.string().trim().min(3, 'سبب الإلغاء مطلوب').max(500) }),
   z.object({ type: z.literal('doc.close'), id, closed: z.boolean().default(true) }),
+  /**
+   * تعديل فاتورة مرحّلة: الأصلية (id) تُلغى بقيد عكسي، والجديدة (doc بمعرف جديد) تُحفظ وتُرحّل محلها
+   * في نفس المعاملة، ويتربطوا ببعض (amended_to_id / amended_from_id). لو أي جزء فشل ما يتغيرش حاجة.
+   */
+  z.object({ type: z.literal('doc.amend'), id, reason: z.string().trim().min(3, 'سبب التعديل مطلوب').max(500), doc: docSchema }),
   /** إقفال السنة: نقل صافي ربح الفترة إلى الأرباح المحتجزة وقفل الفترة حتى التاريخ */
   z.object({ type: z.literal('year.close'), id, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
   z.object({

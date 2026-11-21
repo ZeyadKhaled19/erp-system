@@ -7,7 +7,7 @@ import { lookOf, payState } from './Invoices';
 import { creditPart, payMethodLabel, payParts } from '../lib/payMethod';
 import { Banner, DocStatusBadge, Empty, Field, Sheet, useUi } from '../components/ui';
 import { DeliverSheet } from './Deliveries';
-import { cancelDocument, postDocument } from '../lib/actions';
+import { canAmend, cancelDocument, postDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useRemote, useSession, useSettings } from '../lib/hooks';
 import { setDocTitle } from '../lib/brand';
@@ -171,6 +171,11 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
               : undefined;
             nav(`/docs/edit/${doc.id}`, state);
           }}><Pencil /> تعديل</button>}
+          {!embedded && canAmend(doc, session.user.permissions) && (
+            <button className="btn" title="تلغي الفاتورة دي بقيد عكسي وتعمل واحدة جديدة مكانها" onClick={() => nav(`/docs/edit/${doc.id}?amend=1`)}><Pencil /> تعديل</button>
+          )}
+          {doc.amended_to_id && <button className="btn" onClick={() => nav(`/docs/view/${doc.amended_to_id}`)}>الفاتورة بعد التعديل</button>}
+          {doc.amended_from_id && <button className="btn" onClick={() => nav(`/docs/view/${doc.amended_from_id}`)}>الفاتورة قبل التعديل</button>}
           {canPost && (
             <button
               className="btn primary"
@@ -210,7 +215,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
       {(doc.status === 'pending_review' || doc._sync === 'conflict') && (
         <div className="no-print dv-banner"><Banner kind="warn">{doc.review_reason ?? doc._error} — يمكن لمستخدم لديه صلاحية حل التعارضات معالجته من مركز المزامنة.</Banner></div>
       )}
-      {doc.status === 'cancelled' && <div className="dv-banner"><Banner kind="err">ملغي{doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.</Banner></div>}
+      {doc.status === 'cancelled' && <div className="dv-banner"><Banner kind="err">ملغي{doc.cancel_reason ? `: ${doc.cancel_reason}` : ''}. أُبقي الأصل وعُكس أثره بقيد عكسي.{doc.amended_to_id ? ' اتعملت فاتورة جديدة بدلها.' : ''}</Banner></div>}
 
       {/* رأس الطباعة */}
       <div className="print-only" style={{ marginBottom: 16 }}>
@@ -463,7 +468,7 @@ export function DocumentView({ id: propId, embedded }: { id?: string; embedded?:
           {audit.map((a: any, i: number) => (
             <div key={i} className="list-row">
               <div className="title">
-                {a.action === 'doc.save' ? (a.details?.action === 'post' ? 'حفظ وترحيل' : 'حفظ مسودة') : a.action === 'doc.post' ? 'ترحيل' : a.action === 'doc.cancel' ? 'إلغاء' : a.action === 'conflict.resolve' ? 'حل تعارض' : a.action}
+                {a.action === 'doc.save' ? (a.details?.action === 'post' ? 'حفظ وترحيل' : 'حفظ مسودة') : a.action === 'doc.post' ? 'ترحيل' : a.action === 'doc.cancel' ? 'إلغاء' : a.action === 'doc.amend' ? 'تعديل (فاتورة جديدة بدلها)' : a.action === 'conflict.resolve' ? 'حل تعارض' : a.action}
                 <div className="sub">{a.user_name} · جهاز <span className="num">{String(a.device_id ?? '').slice(0, 8)}</span> · أُنشئ على الجهاز {a.client_created_at ? new Date(a.client_created_at).toLocaleString('ar-EG') : '—'}</div>
               </div>
               <span className={`badge ${a.sync_status === 'accepted' ? 'green' : a.sync_status === 'rejected' ? 'red' : 'orange'}`}>

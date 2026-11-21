@@ -962,16 +962,26 @@ export async function cancelDocument(t: Db, ctx: Ctx, docId: string, reason: str
   return t.one(`select * from documents where id = $1`, [docId]);
 }
 
-/** تعديل فاتورة مرحّلة: تُلغى الأصلية وتُنشأ فاتورة جديدة محلها، ويربطان ببعض */
+/** أنواع المستندات اللي ينفع تتعدل بعد الترحيل: فواتير البيع والشراء ومرتجعاتها */
+export const AMENDABLE_TYPES: DocType[] = ['sale_invoice', 'sale_return', 'purchase_invoice', 'purchase_return'];
+
+/**
+ * تعديل فاتورة مرحّلة: تُلغى الأصلية بقيد عكسي أولًا، وبعدين تُحفظ وتُرحّل فاتورة جديدة (برقم جديد) محلها،
+ * ويتربطوا ببعض. الإلغاء الأول علشان الكميات والأرصدة اللي الأصلية كانت شايلاها ترجع قبل ترحيل الجديدة
+ * (مثلًا آخر قطعة في المخزن). المستدعي بيشغّلها جوه معاملة واحدة، فلو أي خطوة فشلت ما يتغيرش حاجة.
+ */
 export async function amendDocument(t: Db, ctx: Ctx, originalId: string, newDoc: DocInput, reason: string) {
   const original = await t.one(`select * from documents where id = $1 for update`, [originalId]);
   if (!original) throw new AppError('المستند الأصلي غير موجود', 'not_found');
   if (original.status !== 'posted') throw new AppError('يمكن تعديل الفواتير المرحّلة فقط', 'state');
-  if (!DOC_TYPES[original.doc_type as DocType].noPosting && DOC_TYPES[original.doc_type as DocType].priced) {
-    // فواتير البيع/الشراء/المرتجعات فقط
-  } else {
-    throw new AppError('نوع المستند هذا لا يدعم التعديل', 'state');
-  }
+  if (!AMENDABLE_TYPES.includes(original.doc_type)) throw new AppError('نوع المستند هذا لا يدعم التعديل', 'state');
+  if (newDoc.doc_type !== original.doc_type) throw new AppError('لا يمكن تغيير نوع المستند عند التعديل');
+  if (newDoc.id === originalId) throw new AppError('الفاتورة المعدّلة تحتاج معرفًا جديدًا');
+  if (await t.one(`select 1 from documents where id = $1`, [newDoc.id])) throw new AppError('الفاتورة المعدّلة مسجلة بالفعل', 'state');
+  if (!allowed(ctx.user.warehouse_ids, original.warehouse_id)) throw new AppError('غير مسموح لك بالعمل على هذا المخزن', 'forbidden');
+  const origData = typeof original.data === 'string' ? JSON.parse(original.data || '{}') : original.data ?? {};
+  const origCashboxes = [original.cashbox_id, ...(origData.payments ?? []).map((p: any) => p.cashbox_id)].filter(Boolean);
+  if (origCashboxes.some((id: string) => !allowed(ctx.user.cashbox_ids, id))) throw new AppError('غير مسموح لك بالعمل على هذه الخزينة', 'forbidden');
   // لا يمكن تعديل فاتورة لها مستندات تابعة (مرتجعات، سندات، تسليمات...)
   const deps = await t.one(`select count(*)::int as n from documents where ref_doc_id = $1 and status = 'posted'`, [originalId]);
   if (deps && deps.n > 0) throw new AppError('لا يمكن التعديل: توجد مستندات مرحّلة مرتبطة بالأصل (مرتجعات أو سندات). ألغها أولًا', 'state');
@@ -984,51 +994,7 @@ export async function amendDocument(t: Db, ctx: Ctx, originalId: string, newDoc:
 
   await assertPeriodOpen(t, original.date);
 
-  // إنشاء الفاتورة الجديدة (بمعرف جديد) بنفس نوع المستند الأصلي
-  const newId = crypto.randomUUID();
-  const fullNewDoc: DocInput = {
-    id: newId,
-    doc_type: original.doc_type,
-    date: newDoc.date ?? original.date,
-    party_id: newDoc.party_id ?? original.party_id,
-    warehouse_id: newDoc.warehouse_id ?? original.warehouse_id,
-    to_warehouse_id: newDoc.to_warehouse_id ?? original.to_warehouse_id,
-    cashbox_id: newDoc.cashbox_id ?? original.cashbox_id,
-    to_cashbox_id: newDoc.to_cashbox_id ?? original.to_cashbox_id,
-    account_id: newDoc.account_id ?? original.account_id,
-    partner_id: newDoc.partner_id ?? original.partner_id,
-    employee_id: newDoc.employee_id ?? original.employee_id,
-    sales_rep_id: newDoc.sales_rep_id ?? original.sales_rep_id,
-    price_list_id: newDoc.price_list_id ?? original.price_list_id,
-    shift_id: newDoc.shift_id ?? original.shift_id,
-    due_date: newDoc.due_date ?? original.due_date,
-    reserve: newDoc.reserve ?? original.reserve,
-    deliver_later: newDoc.deliver_later ?? original.deliver_later,
-    order_status: newDoc.order_status ?? original.order_status,
-    shipping_company: newDoc.shipping_company ?? original.shipping_company,
-    charges: newDoc.charges ?? [],
-    payment_type: newDoc.payment_type ?? original.payment_type,
-    side: newDoc.side ?? original.side,
-    ref_doc_id: newDoc.ref_doc_id ?? original.ref_doc_id,
-    notes: newDoc.notes ?? original.notes,
-    local_number: newDoc.local_number ?? original.local_number,
-    lines: newDoc.lines,
-    journal_lines: newDoc.journal_lines,
-    payments: newDoc.payments ?? [],
-    instruments: newDoc.instruments ?? [],
-    paid: newDoc.paid ?? 0,
-    amount: newDoc.amount ?? 0,
-    discount: newDoc.discount ?? 0,
-    retained_bp: newDoc.retained_bp ?? 0,
-    from_quotation_id: newDoc.from_quotation_id ?? null,
-  };
-
-  // حفظ المسودة الجديدة
-  await saveDocument(t, ctx, fullNewDoc);
-  // ترحيل الفاتورة الجديدة
-  const posted = await postDocument(t, ctx, newId);
-
-  // إلغاء الفاتورة الأصلية مع ربطها بالجديدة
+  // 1) عكس الأصلية (زي الإلغاء بالظبط) علشان مخزونها وأرصدتها ترجع قبل الجديدة
   const today = new Date().toISOString().slice(0, 10);
   const cancelDate = original.date > today ? original.date : today;
   await reverseTracking(t, originalId);
@@ -1036,18 +1002,23 @@ export async function amendDocument(t: Db, ctx: Ctx, originalId: string, newDoc:
   await reverseDocumentJournals(t, originalId, cancelDate, ctx.user.id, `تعديل ${DOC_TYPES[original.doc_type as DocType].label} ${original.number}: ${reason}`);
   await reverseAllocations(t, originalId);
   await t.query(`update instruments set status = 'cancelled' where document_id = $1 and status = 'open'`, [originalId]);
-  if (original.doc_type === 'sale_invoice' && original.data?.from_quotation_id) {
-    await t.query(`update documents set converted_to_id = null where id = $1`, [original.data.from_quotation_id]);
+  if (original.doc_type === 'sale_invoice' && origData.from_quotation_id) {
+    await t.query(`update documents set converted_to_id = null where id = $1`, [origData.from_quotation_id]);
   }
-  await t.query(
-    `update documents set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now(), amended_to_id = $4 where id = $1`,
-    [originalId, `تعديل: ${reason}`, ctx.user.id, newId],
-  );
+  await t.query(`update documents set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now() where id = $1`, [
+    originalId, `تعديل: ${reason}`, ctx.user.id,
+  ]);
 
-  // ربط الفاتورة الجديدة بالأصل
-  await t.query(`update documents set amended_from_id = $2 where id = $1`, [newId, originalId]);
+  // 2) الفاتورة الجديدة برقم جديد، والطرف ما يتغيرش (كشف الحساب والمرتجعات مربوطين بيه)
+  const newParty = newDoc.party_id || (original.doc_type.startsWith('sale') ? CASH_CUSTOMER_ID : null);
+  if (newParty !== original.party_id) throw new AppError('لا يمكن تغيير العميل/المورد عند التعديل؛ ألغِ الفاتورة واعمل واحدة جديدة');
+  await saveDocument(t, ctx, { ...newDoc, local_number: newDoc.local_number ?? null });
+  await postDocument(t, ctx, newDoc.id);
 
-  return t.one(`select * from documents where id = $1`, [newId]);
+  // 3) الربط بين الاتنين
+  await t.query(`update documents set amended_to_id = $2 where id = $1`, [originalId, newDoc.id]);
+  await t.query(`update documents set amended_from_id = $2 where id = $1`, [newDoc.id, originalId]);
+  return t.one(`select * from documents where id = $1`, [newDoc.id]);
 }
 
 /** إنشاء وترحيل مستند داخلي (تحصيل شيك/قسط، فرق وردية) */

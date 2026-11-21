@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { Banner, DateInput, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
-import { localAvailable, priceFor, saveDocument } from '../lib/actions';
+import { amendDocument, canAmend, localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { QuickItemSheet } from '../components/QuickItem';
@@ -94,6 +94,10 @@ export function DocumentEditor() {
   const existing = useLiveQuery(async () => (params.id ? ((await db.documents.get(params.id)) ?? null) : null), [params.id]);
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const type = (params.type ?? existing?.doc_type) as DocType;
+  // تعديل فاتورة مرحّلة (?amend=1): نفس البيانات في فاتورة جديدة بمعرف جديد، والخادم يلغي الأصلية ويرحّل الجديدة مع بعض
+  const amendMode = !!params.id && sp.get('amend') === '1';
+  const amendId = useMemo(() => uuid(), []);
+  const [amendReason, setAmendReason] = useState('');
   const cashMovement = type === 'receipt' || type === 'payment';
   const transferDoc = type === 'cash_transfer';
   const countDoc = type === 'stock_adjustment';
@@ -161,17 +165,19 @@ export function DocumentEditor() {
     if (ready || !info) return;
     if (params.id) {
       if (existing === undefined || existingLines === undefined || !existing) return;
-      setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null });
+      setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null, ...(amendMode ? { local_number: null } : {}) });
       if (existing.doc_type === 'expense') {
         const details = splitExpenseNotes(existing.notes ?? '');
         setExpenseTitle(details.title);
         setExpenseMemo(details.memo);
       }
-      setLines(existingLines.map((l: any) => ({ ...l, serials: l.serials ?? [] })));
+      // في التعديل: السطور والدفعات والشيكات بمعرفات جديدة (معرفات الأصلية فضلت مستخدمة على الخادم)
+      const fresh = <T extends { id?: string }>(x: T): T => (amendMode ? { ...x, id: uuid() } : x);
+      setLines(existingLines.map((l: any) => fresh({ ...l, serials: l.serials ?? [] })));
       setJl(existing.data?.journal_lines ?? []);
-      setPayments(existing.data?.payments ?? []);
-      setInsts(existing.data?.instruments ?? []);
-      setCharges(existing.data?.charges ?? []);
+      setPayments((existing.data?.payments ?? []).map(fresh));
+      setInsts((existing.data?.instruments ?? []).map(fresh));
+      setCharges((existing.data?.charges ?? []).map(fresh));
       setPayAuto(false);
       {
         const ps = existing.data?.payments ?? [];
@@ -454,7 +460,7 @@ export function DocumentEditor() {
     const isCashDoc = ['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type);
     const pays = hasPayments ? payments.filter((p) => p.amount > 0) : [];
     return {
-      id: params.id ?? uuid(),
+      id: amendMode ? amendId : params.id ?? uuid(),
       doc_type: type,
       date: h.date,
       party_id: counterMode === 'account' && (type === 'receipt' || type === 'payment') ? null : h.party_id || null,
@@ -550,7 +556,37 @@ export function DocumentEditor() {
     return null;
   };
 
+  const submitAmend = async () => {
+    if (submitInFlight.current || !existing) return;
+    setError(null);
+    const d = buildDoc();
+    const v = validate(d) ?? (amendReason.trim().length < 3 ? 'اكتب سبب التعديل' : null);
+    if (v) return setError(v);
+    submitInFlight.current = true;
+    const ok = await ui.confirm({
+      title: `تعديل ${info.label} ${existing.number ?? existing.local_number ?? ''}؟`,
+      message: `الفاتورة الأصلية هتتلغي بقيد عكسي (وتفضل في السجل)، وهتتعمل فاتورة جديدة برقم جديد بالبيانات دي: الإجمالي ${formatMoney(total)} ج.م.\nلو الفاتورة الجديدة ما ينفعش تترحّل (مثلًا الرصيد مش كفاية)، الأصلية بتفضل زي ما هي.`,
+      confirmLabel: 'تعديل',
+    });
+    if (!ok) { submitInFlight.current = false; return; }
+    setBusy(true);
+    try {
+      await amendDocument(existing, d, amendReason.trim());
+      ui.toast(`تم حفظ تعديل ${info.label}`, 'ok', { actions: [{ label: 'طباعة', onClick: () => window.open(`/print/${d.id}?auto=1`, '_blank') }] });
+      nav(`/docs/view/${d.id}`, { replace: true });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      submitInFlight.current = false;
+      setBusy(false);
+    }
+  };
+
   const submit = async (action: 'draft' | 'post', addAnother = false) => {
+    if (amendMode) {
+      if (action === 'post') void submitAmend();
+      return;
+    }
     if (submitInFlight.current) return;
     setError(null);
     const d = buildDoc();
@@ -616,7 +652,10 @@ export function DocumentEditor() {
   if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer', 'stock_adjustment', 'stock_transfer'].includes(existing?.doc_type ?? '') && !backgroundLocation)
     return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: returnPath } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
-  if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
+  if (amendMode && existing) {
+    const why = !canAmend(existing, session.user.permissions) ? 'هذا المستند لا يمكن تعديله: التعديل لفواتير البيع والشراء المرحّلة والمتزامنة فقط، ويحتاج صلاحية الإنشاء والترحيل والإلغاء.' : null;
+    if (why) return <div className="page"><Banner kind="warn">{why}</Banner></div>;
+  } else if (params.id && existing && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
     return <div className="page"><Banner kind="warn">هذا المستند {existing.status === 'posted' ? 'مُرحّل' : 'ملغي'} ولا يمكن تعديله.</Banner></div>;
   if (!ready) return <div className="page muted">جارٍ التحميل…</div>;
 
@@ -633,7 +672,17 @@ export function DocumentEditor() {
         sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
       {myShift && hasPayments && <div style={{ marginBottom: 12 }}><Banner kind="info">وردية مفتوحة على {cashboxes.find((c) => c.id === myShift.cashbox_id)?.name}: النقدية المحصلة فيها تُحسب على الوردية.</Banner></div>}
-      {existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
+      {amendMode && (
+        <div className="card pad" style={{ marginBottom: 12 }}>
+          <div className="stack">
+            <Banner kind="warn">بتعدّل فاتورة مرحّلة: لما تحفظ، الفاتورة {existing?.number} هتتلغي بقيد عكسي وتفضل في السجل، وهتتعمل فاتورة جديدة برقم جديد مكانها. العميل/المورد ما يتغيرش.</Banner>
+            <Field label="سبب التعديل" required>
+              <input className="input" value={amendReason} onChange={(e) => setAmendReason(e.target.value)} placeholder="مثلًا: الكمية اتكتبت غلط" maxLength={500} />
+            </Field>
+          </div>
+        </div>
+      )}
+      {!amendMode && existing?._error && <div style={{ marginBottom: 12 }}><Banner kind="err">{existing._error}</Banner></div>}
       {existing?.review_reason && <div style={{ marginBottom: 12 }}><Banner kind="warn">{existing.review_reason}</Banner></div>}
       {error && <div style={{ marginBottom: 12 }}><Banner kind="err">{error}</Banner></div>}
 
@@ -1212,9 +1261,13 @@ export function DocumentEditor() {
               </>
             ) : null}
           </div>
-          <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+          {amendMode ? (
+            <button type="button" className="btn plain" disabled={busy} onClick={() => nav(`/docs/view/${params.id}`, { replace: true })}>رجوع</button>
+          ) : (
+            <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+          )}
           <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
-            {stockTransferDoc ? 'تأكيد التحويل' : info.noPosting ? 'اعتماد' : 'حفظ'}
+            {amendMode ? 'حفظ التعديل' : stockTransferDoc ? 'تأكيد التحويل' : info.noPosting ? 'اعتماد' : 'حفظ'}
           </button>
         </>}
       </div>
