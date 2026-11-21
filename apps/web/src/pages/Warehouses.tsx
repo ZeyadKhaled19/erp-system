@@ -31,13 +31,15 @@ export function WarehousesPage() {
   };
 
   return (
-    <div className="page narrow">
+    <div className="page ds-page">
       <PageHeader title="المخازن والتصنيفات" />
-      <div className="row" style={{ marginTop: 10 }}>
-        <div className="section-title" style={{ flex: 1, margin: 0 }}>المخازن</div>
+      <div className="ds-cols">
+      <section className="ds-card">
+      <div className="ds-card-h">
+        <h2>المخازن</h2>
         {can('items.create') && <button className="btn sm" onClick={() => open('warehouse', {})}><Plus /> مخزن</button>}
       </div>
-      <div className="list" style={{ marginTop: 10 }}>
+      <div className="list ds-list">
         {whs.map((w) => (
           <div key={w.id} className="list-row tappable" onClick={() => can('items.edit') && open('warehouse', w)}>
             <span className="num muted" style={{ width: 40 }}>{w.code}</span>
@@ -47,11 +49,13 @@ export function WarehousesPage() {
           </div>
         ))}
       </div>
-      <div className="row" style={{ marginTop: 26 }}>
-        <div className="section-title" style={{ flex: 1, margin: 0 }}>تصنيفات الأصناف</div>
+      </section>
+      <section className="ds-card">
+      <div className="ds-card-h">
+        <h2>تصنيفات الأصناف</h2>
         {can('items.create') && <button className="btn sm" onClick={() => open('category', {})}><Plus /> تصنيف</button>}
       </div>
-      <div className="list" style={{ marginTop: 10 }}>
+      <div className="list ds-list">
         {cats.map((c) => (
           <div key={c.id} className="list-row tappable" onClick={() => can('items.edit') && open('category', c)}>
             <div className="title">{c.name}</div>
@@ -59,6 +63,8 @@ export function WarehousesPage() {
             <SyncBadge sync={c._sync} error={c._error} />
           </div>
         ))}
+      </div>
+      </section>
       </div>
       {edit && (
         <Sheet title={edit.entity === 'warehouse' ? 'مخزن' : 'تصنيف'} onClose={() => setEdit(null)} footer={<><button className="btn" onClick={() => setEdit(null)}>إلغاء</button><button className="btn primary" onClick={save}>حفظ</button></>}>

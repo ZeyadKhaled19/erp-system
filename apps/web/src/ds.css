@@ -76,6 +76,16 @@
 .ds-card { min-width: 0; padding: var(--sp-5); }
 .ds-card-h { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); min-height: 2rem; }
 .ds-card-h h2 { display: flex; align-items: center; gap: var(--sp-2); margin: 0; font-size: var(--text-lg); font-weight: 700; color: var(--heading); }
+/* تخطيط عام للصفحات: مسافات ثابتة، عمودين متساويين، وقائمة جوه كارت من غير إطار تاني */
+.ds-page { display: flex; flex-direction: column; gap: var(--sp-5); }
+.ds-page > .page-head { margin-bottom: 0; }
+.ds-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-5); align-items: start; }
+:root .ds-card > .list.ds-list { border: 0; border-radius: 0; box-shadow: none; background: transparent; margin: 0; }
+:root .ds-list > .list-row { padding-inline: var(--sp-1); }
+:root .ds-list > .list-row.tappable:hover { background: var(--brand-50); }
+/* صفحات النماذج الضيقة (النسخ الاحتياطي، إقفال السنة): بتبدأ من نفس حافة باقي الصفحات بدل ما تبقى في النص */
+:root .page.narrow { margin-inline: 0 auto; max-width: 56rem; }
+@media (max-width: 980px) { .ds-cols { grid-template-columns: minmax(0, 1fr); } }
 .ds-ic { width: var(--icon-lg); height: var(--icon-lg); color: var(--tint); stroke-width: 2; flex-shrink: 0; }
 .ds-dark { background: var(--surface-dark); border-color: var(--surface-dark); color: var(--on-dark); }
 :root .large-title { font-size: var(--text-page-title); font-weight: 700; color: var(--heading); letter-spacing: -.2px; }
@@ -233,8 +243,8 @@
 /* آخر العمليات */
 .home-recent { display: flex; flex-direction: column; }
 .home-recent-wrap { overflow-x: auto; margin-inline: calc(var(--sp-2) * -1); padding-inline: var(--sp-2); }
-:root .home-recent .badge.green, :root[data-theme] .home-recent .badge.green { background: var(--brand-100); color: var(--brand-text); }
-:root .home-recent .badge.green::before { display: none; }
+:root :is(.home-recent, .sx-table) .badge.green, :root[data-theme] :is(.home-recent, .sx-table) .badge.green { background: var(--brand-100); color: var(--brand-text); }
+:root :is(.home-recent, .sx-table) .badge.green::before { display: none; }
 
 /* إجراءات سريعة */
 .home-actions { display: flex; flex-direction: column; }
@@ -252,6 +262,48 @@
 /* ---------- 9) صفحات الأقسام: نفس لغة الكروت (sections.css بيتحمّل بعد كده، فالـ:root بيعليها) ---------- */
 :root .sx-kpi, :root .sx-hero, :root .sx-quick button, :root .sx-link { border-radius: var(--radius-card); }
 :root .sx-quick button:hover, :root .sx-link:hover { border-color: var(--brand-300); background: var(--brand-50); }
+
+/* شرائط المؤشرات في الشاشات (المصروفات، الخزائن، الجرد، الأصناف، الفواتير، ...):
+   نفس شكل مؤشرات الرئيسية — كارت واحد أبيض والمؤشرات جواه بفواصل، والأيقونة في مربع برتقالي فاتح */
+:root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0;
+  padding: var(--sp-4) 0; margin-bottom: var(--sp-5);
+  border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-surface);
+}
+:root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) > :is(.expense-kpi, .item-kpi, .inv-kpi, .kpi, .lp-total) {
+  position: relative; min-width: 0; margin: 0; padding: var(--sp-1) var(--sp-5);
+  border: 0; border-inline-start: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; color: var(--heading); text-align: start;
+}
+:root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) > :first-child { border-inline-start: 0; }
+:root :is(.items-kpis, .inv-kpis) > button:is(.item-kpi, .inv-kpi), :root .inv-kpi { cursor: pointer; }
+:root :is(.items-kpis, .inv-kpis) > :is(button, .inv-kpi):hover { background: var(--brand-50); }
+:root .inv-kpi::before { display: none; }
+:root .inv-kpi.on { background: var(--brand-50); box-shadow: inset 0 -3px 0 var(--tint); border-color: var(--line); }
+:root .inv-kpi-l svg { color: var(--tint); }
+:root .inv-kpi.red .inv-kpi-l svg { color: var(--danger); }
+:root .inv-kpi-v, :root .expense-kpi strong, :root .item-kpi strong, :root .kpi .k-value { font-size: var(--text-2xl); font-weight: 700; color: var(--heading); }
+:root .expense-kpi > div > .muted:first-child, :root .item-kpi span, :root .inv-kpi-l, :root .kpi .k-label { font-size: var(--text-base); font-weight: 700; color: var(--heading); }
+:root .lp-total { display: flex; flex-direction: column; gap: 2px; }
+:root .lp-total-l { font-size: var(--text-base); font-weight: 700; color: var(--heading); }
+:root .lp-total-v { font-size: var(--text-2xl); font-weight: 700; color: var(--heading); }
+:root .lp-total.green .lp-total-v { color: var(--success-text); }
+:root .lp-total.red .lp-total-v { color: var(--danger-text); }
+:root .lp-total.orange .lp-total-v { color: var(--warning-text); }
+:root .expense-kpi { display: flex; align-items: center; gap: var(--sp-3); }
+:root .expense-kpi > div { flex: 1; display: grid; justify-items: start; text-align: start; gap: 2px; }
+:root .expense-kpi strong { justify-self: start; }
+:root .expense-kpi-icon { order: 2; width: 2.75rem; height: 2.75rem; border-radius: var(--radius-control); }
+:root .expense-kpi-icon:is(.orange, .blue, .green) { background: var(--brand-50); color: var(--tint); }
+:root .expense-kpi-icon.red { background: var(--danger-soft); color: var(--danger); }
+:root .item-kpi { display: flex; align-items: center; gap: var(--sp-3); font: inherit; }
+:root .item-kpi > svg { order: 2; flex-shrink: 0; width: 2.75rem; height: 2.75rem; padding: .75rem; border-radius: var(--radius-control); background: var(--brand-50); color: var(--tint); }
+:root .item-kpi > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+@media (max-width: 760px) {
+  :root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--sp-4); padding: var(--sp-3) 0; }
+  :root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) > * { padding: var(--sp-1) var(--sp-3); }
+  :root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) > :nth-child(odd) { border-inline-start: 0; }
+  :root .expense-kpi-icon, :root .item-kpi > svg { display: none; }
+}
 
 /* كروت الاختصارات (الإعدادات وغيرها): لون واحد هو البرتقالي بدل ألوان كتير، ومن غير خط ملون تحت */
 :root .sc { --sc-c: var(--tint); border-radius: var(--radius-card); border-color: var(--line); box-shadow: var(--shadow-surface); }

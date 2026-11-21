@@ -83,9 +83,8 @@ export function SalesSection() {
         <Link className="btn" to="/pos"><ScanLine /> البيع السريع</Link>
       </>} />
       <SectionStats items={data?.stats} />
-      <HomeKpis />
-      <QuickActions section="sales" defaults={SALES_ACTIONS} />
       <ResponsiveSectionLayout
+        actions={<QuickActions section="sales" defaults={SALES_ACTIONS} stack />}
         side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
         main={can('sales.view') && (
           <SectionCard icon={<FileText />} title="آخر فواتير البيع" moreTo="/invoices" className="sx-recent">
@@ -118,6 +117,7 @@ export function SalesSection() {
           </SectionCard>
         )}
       />
+      <HomeKpis />
     </div>
   );
 }

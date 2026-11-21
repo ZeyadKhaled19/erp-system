@@ -63,10 +63,13 @@ export function UsersPage() {
   };
 
   return (
-    <div className="page narrow">
+    <div className="page ds-page">
       <PageHeader title="المستخدمون والصلاحيات" sub="تحتاج هذه الشاشة اتصالًا بالخادم للحفظ." />
-      <div className="row"><div className="section-title" style={{ flex: 1, margin: 0 }}>المستخدمون</div><button className="btn sm primary" onClick={() => { setErr(null); setU({ username: '', full_name: '', role_id: 'role-cashier', active: true, password: '', own_cashbox: false }); }}><Plus /> مستخدم</button></div>
-      <div className="list" style={{ marginTop: 10 }}>
+      {/* المستخدمون والأدوار جنب بعض في كروت، وصفحة البداية تحتهم */}
+      <div className="ds-cols">
+      <section className="ds-card">
+      <div className="ds-card-h"><h2>المستخدمون</h2><button className="btn sm primary" onClick={() => { setErr(null); setU({ username: '', full_name: '', role_id: 'role-cashier', active: true, password: '', own_cashbox: false }); }}><Plus /> مستخدم</button></div>
+      <div className="list ds-list">
         {users.map((x) => (
           <div key={x.id} className="list-row tappable" onClick={() => { setErr(null); setU({ ...x, password: '' }); }}>
             <div className="title">{x.full_name}<div className="sub">{x.username} · {roleName.get(x.role_id)}</div></div>
@@ -75,13 +78,17 @@ export function UsersPage() {
           </div>
         ))}
       </div>
-      <div className="row" style={{ marginTop: 26 }}><div className="section-title" style={{ flex: 1, margin: 0 }}>الأدوار</div><button className="btn sm" onClick={() => { setErr(null); setR({ name: '', permissions: [] }); }}><Plus /> دور</button></div>
-      <div className="list" style={{ marginTop: 10 }}>
+      </section>
+      <section className="ds-card">
+      <div className="ds-card-h"><h2>الأدوار</h2><button className="btn sm" onClick={() => { setErr(null); setR({ name: '', permissions: [] }); }}><Plus /> دور</button></div>
+      <div className="list ds-list">
         {roles.map((x) => (
           <div key={x.id} className="list-row tappable" onClick={() => { setErr(null); x.id !== 'role-admin' && setR({ ...x }); }}>
             <div className="title">{x.name}<div className="sub">{x.permissions.includes('*') ? 'كل الصلاحيات' : `${x.permissions.length} صلاحية`}</div></div>
           </div>
         ))}
+      </div>
+      </section>
       </div>
 
       <RoleHomes roles={roles} />
@@ -198,9 +205,9 @@ function RoleHomes({ roles }: { roles: any[] }) {
     }
   };
   return (
-    <>
-      <div className="section-title" style={{ marginTop: 26 }}>صفحة البداية لكل دور</div>
-      <div className="list">
+    <section className="ds-card">
+      <div className="ds-card-h"><h2>صفحة البداية لكل دور</h2></div>
+      <div className="list ds-list">
         {roles.map((r) => {
           const perms: string[] = r.permissions ?? [];
           const options = WORKSPACES.filter((w) => canUseWorkspace(w.id, perms));
@@ -225,7 +232,7 @@ function RoleHomes({ roles }: { roles: any[] }) {
         })}
       </div>
       <div className="footnote" style={{ marginTop: 6 }}>صفحة البداية لا تمنح أي صلاحية؛ تظهر فقط المساحات التي يملك الدور صلاحية فتحها.</div>
-    </>
+    </section>
   );
 }
 

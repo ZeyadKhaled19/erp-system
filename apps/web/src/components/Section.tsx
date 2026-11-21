@@ -160,7 +160,7 @@ function readSaved(uid: string, section: string): string[] | null {
  * العمليات السريعة: أزرار بأيقونات ملونة، الأولى زرقاء ممتلئة.
  * بتظهر بس العمليات المسموحة للمستخدم، و«تخصيص» بيحفظ اختياره لكل قسم على الجهاز.
  */
-export function QuickActions({ section, defaults }: { section: string; defaults: string[] }) {
+export function QuickActions({ section, defaults, stack = false }: { section: string; defaults: string[]; /** عمودي في العمود الجانبي (زي «إجراءات سريعة» في الرئيسية) */ stack?: boolean }) {
   const nav = useNavigate();
   const { session } = useSession();
   const uid = session.user.id;
@@ -184,9 +184,9 @@ export function QuickActions({ section, defaults }: { section: string; defaults:
     setEditing(false);
   };
   return (
-    <section className={`sx-card sx-actions ${editing ? 'editing' : ''}`} aria-labelledby={`sx-qa-${section}`}>
+    <section className={`sx-card sx-actions ${stack ? 'stack' : 'bar'} ${editing ? 'editing' : ''}`} aria-labelledby={`sx-qa-${section}`}>
       <div className="sx-card-h">
-        <h2 id={`sx-qa-${section}`}><Zap className="sx-h-ic c-orange" /> العمليات السريعة <Hint side="start" text={CARD_HINTS['العمليات السريعة']} /></h2>
+        <h2 id={`sx-qa-${section}`}><Zap className="sx-h-ic c-orange" /> إجراءات سريعة <Hint side="start" text={CARD_HINTS['العمليات السريعة']} /></h2>
         {editing ? (
           <span className="sx-chips">
             <button type="button" className="mc-chip" onClick={() => setEditing(false)}>إلغاء</button>
@@ -198,7 +198,7 @@ export function QuickActions({ section, defaults }: { section: string; defaults:
       </div>
       {editing ? (
         <div className="mc-fav-pick">
-          <div className="mc-fav-hint">اختار لحد {MAX_ACTIONS} عمليات بالترتيب ({draft.length}/{MAX_ACTIONS}) — الأولى بتظهر زرقاء.</div>
+          <div className="mc-fav-hint">اختار لحد {MAX_ACTIONS} عمليات بالترتيب ({draft.length}/{MAX_ACTIONS}) — الأولى بتظهر برتقالي.</div>
           <div className="mc-fav-opts">
             {available.map((a) => {
               const i = draft.indexOf(a.key);
@@ -215,8 +215,8 @@ export function QuickActions({ section, defaults }: { section: string; defaults:
       ) : (
         <div className="sx-action-row">
           {chosen.map((a, i) => (
-            <button key={a.key} type="button" className={`sx-action ${i === 0 ? 'primary' : ''}`} onClick={() => { recordUse(uid, a.key); nav(a.to); }}>
-              <span className={`sx-action-ic c-${ACTION_COLOR[a.key] ?? 'blue'}`} aria-hidden="true">{a.icon}</span>
+            <button key={a.key} type="button" className={`ds-btn sx-action ${i === 0 ? 'primary' : 'outline'}`} onClick={() => { recordUse(uid, a.key); nav(a.to); }}>
+              <span className="sx-action-ic" aria-hidden="true">{a.icon}</span>
               <span className="sx-action-l">{a.label}</span>
             </button>
           ))}
@@ -260,9 +260,11 @@ export function FollowUpPanel({ title = 'المتابعة', icon, items }: { tit
       <div className="sx-follow-list">
         {items.map((r) => (
           <button key={r.key} type="button" className="sx-follow-row" title={r.title} onClick={() => nav(r.to)}>
-            <span className="sx-follow-ic">{r.icon}</span>
+            {/* زي «مهام تحتاج متابعة»: العدد في مربع برتقالي أول السطر، ولو مفيش عدد الأيقونة */}
+            {r.count !== undefined && r.count > 0
+              ? <span className={`sx-follow-n num tone-${r.tone ?? 'blue'}`}>{r.count}</span>
+              : <span className="sx-follow-ic">{r.icon}</span>}
             <span className="sx-follow-l">{r.label}</span>
-            {r.count !== undefined && r.count > 0 && <span className={`mc-count ${r.tone ?? 'blue'} num`}>{r.count}</span>}
             <ChevronLeft className="sx-chev" />
           </button>
         ))}
@@ -271,12 +273,16 @@ export function FollowUpPanel({ title = 'المتابعة', icon, items }: { tit
   );
 }
 
-/** المحتوى الرئيسي (ثلثين) + المتابعة (ثلث، على اليمين) — بيتحطوا تحت بعض في الشاشات الصغيرة */
-export function ResponsiveSectionLayout({ main, side }: { main?: ReactNode; side?: ReactNode }) {
-  if (!side || !main) return <div className="sx-body single">{main || side}</div>;
+/**
+ * زي الرئيسية: عمود جانبي على اليمين (إجراءات سريعة ثم المتابعة) والمحتوى الرئيسي على الشمال.
+ * بيتحطوا تحت بعض في الشاشات الصغيرة (المحتوى الأول).
+ */
+export function ResponsiveSectionLayout({ main, side, actions }: { main?: ReactNode; side?: ReactNode; actions?: ReactNode }) {
+  const aside = (actions || side) ? <>{actions}{side}</> : null;
+  if (!aside || !main) return <div className="sx-body single">{main || aside}</div>;
   return (
     <div className="sx-body">
-      <div className="sx-side">{side}</div>
+      <div className="sx-side">{aside}</div>
       <div className="sx-main">{main}</div>
     </div>
   );

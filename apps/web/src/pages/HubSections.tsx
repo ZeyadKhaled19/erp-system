@@ -109,8 +109,8 @@ export function PurchasesSection() {
     <div className="page sx-page">
       <SectionHeader icon={<ShoppingBag />} color="purple" title="المشتريات" sub="فواتير الشراء والمرتجعات ومستحقات الموردين" />
       <SectionStats items={data?.stats} />
-      <QuickActions section="purchases" defaults={['purchase_invoice', 'purchase_return', 'payment', 'supplier_new', 'item_new', 'expense']} />
       <ResponsiveSectionLayout
+        actions={<QuickActions section="purchases" defaults={['purchase_invoice', 'purchase_return', 'payment', 'supplier_new', 'item_new', 'expense']} stack />}
         side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
         main={can('purchases.view') && <RecentDocs title="آخر فواتير المشتريات" icon={<FileText />} moreTo="/docs/list/purchases" docs={data?.recent} partyHead="المورد" module="purchases" empty="لسه مفيش فواتير شراء." />}
       />
@@ -164,8 +164,8 @@ export function InventorySection() {
     <div className="page sx-page">
       <SectionHeader icon={<Package />} color="orange" title="المخزون" sub="الأصناف والأرصدة والجرد والتحويلات" />
       <SectionStats items={data?.stats} />
-      <QuickActions section="inventory" defaults={['item_new', 'stock_adjustment', 'stock_transfer', 'item_inquiry', 'purchase_invoice', 'opening_stock']} />
       <ResponsiveSectionLayout
+        actions={<QuickActions section="inventory" defaults={['item_new', 'stock_adjustment', 'stock_transfer', 'item_inquiry', 'purchase_invoice', 'opening_stock']} stack />}
         side={<>
           <FollowUpPanel icon={<ClipboardCheck />} items={follow} />
           {reports.length > 0 && <FollowUpPanel title="تقارير المخزون" icon={<BarChart3 />} items={reports} />}
@@ -236,10 +236,11 @@ export function TreasurySection() {
     <div className="page sx-page">
       <SectionHeader icon={<Wallet />} color="blue" title="الخزائن والحسابات" sub="القبض والصرف والمصروفات وأرصدة الخزائن" />
       <SectionStats items={data?.stats} />
-      <QuickActions section="treasury" defaults={['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'shift']} />
       <ResponsiveSectionLayout
-        side={<>
-          <FollowUpPanel icon={<ClipboardCheck />} items={follow} />
+        actions={<QuickActions section="treasury" defaults={['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'shift']} stack />}
+        side={<FollowUpPanel icon={<ClipboardCheck />} items={follow} />}
+        main={<>
+          <RecentDocs title="آخر السندات" icon={<FileText />} moreTo="/docs/list/treasury" docs={data?.recent} partyHead="الطرف / الخزينة" module="treasury" typeCol empty="لسه مفيش سندات قبض أو صرف." />
           {data && data.boxes.length > 0 && (
             <SectionCard icon={<Wallet />} title="أرصدة الخزائن" moreTo="/cashboxes">
               <div className="sx-follow-list">
@@ -254,7 +255,6 @@ export function TreasurySection() {
             </SectionCard>
           )}
         </>}
-        main={<RecentDocs title="آخر السندات" icon={<FileText />} moreTo="/docs/list/treasury" docs={data?.recent} partyHead="الطرف / الخزينة" module="treasury" typeCol empty="لسه مفيش سندات قبض أو صرف." />}
       />
     </div>
   );
@@ -308,8 +308,8 @@ export function ReportsSection() {
     <div className="page sx-page">
       <SectionHeader icon={<BarChart3 />} color="pink" title="التقارير والحسابات" sub="الأرباح والميزانية وتحليل المبيعات وتقارير المخزون والخزينة" />
       <SectionStats items={data?.stats} />
-      <QuickActions section="reports" defaults={['journal_voucher', 'expense', 'receipt', 'payment', 'income', 'cash_transfer']} />
       <ResponsiveSectionLayout
+        actions={<QuickActions section="reports" defaults={['journal_voucher', 'expense', 'receipt', 'payment', 'income', 'cash_transfer']} stack />}
         side={accounts.length > 0 && <FollowUpPanel title="الحسابات" icon={<BookOpen />} items={accounts} />}
         main={(top.length > 0 || more.length > 0) && <>
           {top.length > 0 && <SectionCard icon={<BarChart3 />} title="أهم التقارير"><LinkGrid items={top} /></SectionCard>}

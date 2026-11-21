@@ -17,11 +17,13 @@ export function ListsPage() {
   const [pl, setPl] = useState<any | null>(null);
   const [rep, setRep] = useState<any | null>(null);
   return (
-    <div className="page narrow">
+    <div className="page ds-page">
       <PageHeader title="قوائم الأسعار والمندوبون" />
-      <div className="row"><div className="section-title" style={{ flex: 1, margin: 0 }}>قوائم الأسعار</div>{can('settings.manage') && <button className="btn sm" onClick={() => setPl({ name: '', sort: lists.length + 1, active: true })}><Plus /> قائمة</button>}</div>
-      <div className="footnote" style={{ margin: '6px 0 10px' }}>تُحدد أسعار كل صنف لكل قائمة من شاشة الصنف. العميل يرتبط بقائمة افتراضية، ويمكن تغييرها في الفاتورة لمن لديه صلاحية تغيير الأسعار.</div>
-      <div className="list">
+      <div className="ds-cols">
+      <section className="ds-card">
+      <div className="ds-card-h"><h2>قوائم الأسعار</h2>{can('settings.manage') && <button className="btn sm" onClick={() => setPl({ name: '', sort: lists.length + 1, active: true })}><Plus /> قائمة</button>}</div>
+      <div className="footnote" style={{ margin: '0 0 10px' }}>تُحدد أسعار كل صنف لكل قائمة من شاشة الصنف. العميل يرتبط بقائمة افتراضية، ويمكن تغييرها في الفاتورة لمن لديه صلاحية تغيير الأسعار.</div>
+      <div className="list ds-list">
         {lists.map((l) => (
           <div key={l.id} className="list-row tappable" onClick={() => can('settings.manage') && setPl(l)}>
             <span className="num muted" style={{ width: 30 }}>{l.sort}</span>
@@ -31,8 +33,10 @@ export function ListsPage() {
           </div>
         ))}
       </div>
-      <div className="row" style={{ marginTop: 26 }}><div className="section-title" style={{ flex: 1, margin: 0 }}>مندوبو المبيعات</div>{can('parties.create') && <button className="btn sm" onClick={() => setRep({ name: '', phone: '', commission_bp: 0, active: true })}><Plus /> مندوب</button>}</div>
-      <div className="list" style={{ marginTop: 10 }}>
+      </section>
+      <section className="ds-card">
+      <div className="ds-card-h"><h2>مندوبو المبيعات</h2>{can('parties.create') && <button className="btn sm" onClick={() => setRep({ name: '', phone: '', commission_bp: 0, active: true })}><Plus /> مندوب</button>}</div>
+      <div className="list ds-list">
         {reps.length === 0 && <div className="list-row muted">لا يوجد</div>}
         {reps.map((r) => (
           <div key={r.id} className="list-row tappable" onClick={() => can('parties.edit') && setRep(r)}>
@@ -42,6 +46,8 @@ export function ListsPage() {
             <SyncBadge sync={r._sync} error={r._error} />
           </div>
         ))}
+      </div>
+      </section>
       </div>
       {pl && (
         <Sheet title={pl.id ? 'تعديل قائمة' : 'قائمة جديدة'} onClose={() => setPl(null)} footer={<><button className="btn" onClick={() => setPl(null)}>إلغاء</button><button className="btn primary" disabled={!pl.name?.trim()} onClick={async () => { await saveMaster('price_list', pl.id ?? uuid(), { name: pl.name.trim(), sort: Number(pl.sort) || 0, active: pl.active }, pl.id ? pl : null); ui.toast('تم الحفظ'); setPl(null); }}>حفظ</button></>}>
