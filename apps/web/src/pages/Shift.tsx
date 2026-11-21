@@ -1,91 +1,146 @@
 import { formatMoney, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Clock } from 'lucide-react';
-import { useState } from 'react';
+import { CalendarClock, Check, Clock, Plus, Search } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { PageHeader } from '../components/Layout';
-import { Banner, Field, MoneyInput, useUi } from '../components/ui';
+import { PageTabs, TREASURY_TABS, TotalCards } from '../components/ListParts';
+import { Banner, Empty, Field, MoneyInput, Sheet, exportExcel, useUi } from '../components/ui';
 import { closeShift, openShift } from '../lib/actions';
 import { db } from '../lib/db';
-import { useRemote, useSession } from '../lib/hooks';
+import { useRemote, useSession, userCashboxes } from '../lib/hooks';
+import './expenses.css';
 
 /** وردية الكاشير: فتح بعهدة، وإقفال بجرد نقدي، والفرق يُسجل عجزًا أو زيادة */
 export function ShiftPage() {
   const { session } = useSession();
-  const ui = useUi();
-  const cashboxes = useLiveQuery(async () => (await db.cashboxes.toArray()).filter((c) => c.active !== false && c.kind === 'cash'), []) ?? [];
+  const cashboxes = useLiveQuery(async () => (await userCashboxes(session.user)).filter((cashbox) => cashbox.kind === 'cash'), [session.user.id, session.user.cashbox_ids?.join(',')]) ?? [];
   const shifts = useLiveQuery(async () => (await db.cashier_shifts.where('user_id').equals(session.user.id).toArray()).sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at))), []) ?? [];
   const open = shifts.find((s) => s.status === 'open');
-  const [cb, setCb] = useState('');
-  const [float, setFloat] = useState(0);
-  const [counted, setCounted] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [dialog, setDialog] = useState<'open' | 'close' | null>(null);
+  const [query, setQuery] = useState('');
   const exp = useRemote<any>(open && !open._sync ? `/api/shifts/${open.id}/expected` : null, [open?.row_version]);
-  const cbName = (id: string) => cashboxes.find((c) => c.id === id)?.name ?? '';
+  const cashboxNames = new Map(cashboxes.map((cashbox) => [cashbox.id, cashbox.name]));
+  const closed = shifts.filter((shift) => shift.status === 'closed' && (!query.trim() || cashboxNames.get(shift.cashbox_id)?.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
+  const expected = exp.data?.expected ?? null;
+  const exportHistory = () => exportExcel('سجل الورديات', ['الخزينة', 'بداية الوردية', 'نهاية الوردية', 'عهدة البداية', 'المتوقع', 'الفعلي', 'الفرق'], closed.map((shift) => [cashboxNames.get(shift.cashbox_id) ?? '', new Date(shift.opened_at).toLocaleString('ar-EG'), shift.closed_at ? new Date(shift.closed_at).toLocaleString('ar-EG') : '', formatMoney(shift.opening_float), shift.expected_cash != null ? formatMoney(shift.expected_cash) : '', shift.counted_cash != null ? formatMoney(shift.counted_cash) : '', shift.difference != null ? formatMoney(shift.difference) : '']));
 
   return (
-    <div className="page narrow">
-      <PageHeader title="الوردية" sub={session.user.full_name} />
-      {!open ? (
-        <div className="card pad stack">
-          <div className="row"><Clock /> <span className="bold">لا توجد وردية مفتوحة</span></div>
-          <Field label="الخزينة (درج النقدية)">
-            <select className="select" value={cb || cashboxes[0]?.id || ''} onChange={(e) => setCb(e.target.value)}>
-              {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
-          <Field label="عهدة البداية (النقدية الموجودة في الدرج الآن)"><MoneyInput value={float} onChange={setFloat} /></Field>
-          <button
-            className="btn primary lg"
-            disabled={!(cb || cashboxes[0])}
-            onClick={async () => {
-              await openShift(uuid(), cb || cashboxes[0].id, float, session.user.id);
-              ui.toast('فُتحت الوردية');
-            }}
-          >
-            فتح الوردية
-          </button>
-        </div>
+    <div className="page expenses-page">
+      <PageTabs tabs={TREASURY_TABS} />
+      <PageHeader title="الوردية" actions={open
+        ? <button className="btn primary" onClick={() => setDialog('close')}><Check /> مراجعة وإقفال الوردية</button>
+        : <button className="btn primary" disabled={!cashboxes.length} onClick={() => setDialog('open')}><Plus /> فتح وردية</button>} />
+      <TotalCards items={[
+        { label: 'حالة الوردية', value: open ? 'مفتوحة' : 'مقفولة', tone: open ? 'green' : 'blue' },
+        { label: 'عهدة البداية', value: formatMoney(open?.opening_float ?? 0), tone: 'purple' },
+        { label: 'المتوقع في الدرج', value: expected == null ? '—' : formatMoney(expected), tone: 'orange' },
+      ]} />
+      {open ? (
+        <section className="card pad stack">
+          <div className="row wrap"><span className="badge green">وردية مفتوحة</span><span className="bold">{cashboxNames.get(open.cashbox_id) ?? 'خزينة غير متاحة'}</span><span className="spacer" /><span className="caption">منذ {new Date(open.opened_at).toLocaleString('ar-EG')}</span></div>
+          {open._sync ? <Banner kind="info">الوردية محفوظة على الجهاز وبانتظار المزامنة. المتوقع يظهر بعد قبولها على الخادم.</Banner> : null}
+          {exp.error ? <Banner kind="warn">{exp.error}</Banner> : null}
+          <div className="grid grid-3">
+            <div className="card pad"><span className="muted small">عهدة البداية</span><div className="bold num">{formatMoney(open.opening_float)}</div></div>
+            <div className="card pad"><span className="muted small">صافي حركة الوردية</span><div className="bold num">{exp.data ? formatMoney(exp.data.movement) : '—'}</div></div>
+            <div className="card pad"><span className="muted small">المتوقع في الدرج</span><div className="bold num">{expected == null ? '—' : formatMoney(expected)}</div></div>
+          </div>
+        </section>
       ) : (
-        <div className="stack">
-          <div className="card pad stack">
-            <div className="row"><span className="badge green">مفتوحة</span><span className="bold">{cbName(open.cashbox_id)}</span><span className="spacer" /><span className="caption">منذ {new Date(open.opened_at).toLocaleString('ar-EG')}</span></div>
-            {open._sync && <Banner kind="info">الوردية بانتظار المزامنة؛ المتوقع يظهر بعد قبولها على الخادم.</Banner>}
-            <div className="list" style={{ background: 'var(--bg)' }}>
-              <div className="list-row" style={{ background: 'transparent' }}><div className="title">عهدة البداية</div><span className="num">{formatMoney(open.opening_float)}</span></div>
-              {exp.data && <div className="list-row" style={{ background: 'transparent' }}><div className="title">صافي حركة الوردية</div><span className="num">{formatMoney(exp.data.movement)}</span></div>}
-              {exp.data && <div className="list-row" style={{ background: 'transparent' }}><div className="title bold">المتوقع في الدرج</div><span className="num bold">{formatMoney(exp.data.expected)}</span></div>}
-            </div>
-            {exp.error && <Banner kind="warn">{exp.error}</Banner>}
-          </div>
-          <div className="card pad stack">
-            <Field label="النقدية الفعلية بعد العد"><MoneyInput value={counted} onChange={setCounted} /></Field>
-            {exp.data && <div className={`bold ${counted - exp.data.expected < 0 ? 'red' : counted - exp.data.expected > 0 ? 'green' : ''}`}>الفرق: {formatMoney(counted - exp.data.expected)} {counted - exp.data.expected < 0 ? '(عجز)' : counted - exp.data.expected > 0 ? '(زيادة)' : ''}</div>}
-            <Field label="ملاحظات"><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-            <button
-              className="btn primary lg"
-              onClick={async () => {
-                const ok = await ui.confirm({ title: 'إقفال الوردية؟', message: 'يُحسب الفرق بين المتوقع والفعلي ويُسجل قيد عجز/زيادة الخزينة إن وجد.', confirmLabel: 'إقفال' });
-                if (!ok) return;
-                await closeShift(open.id, counted, todayISO(), notes || undefined);
-                ui.toast('أُقفلت الوردية');
-              }}
-            >
-              إقفال الوردية
-            </button>
-          </div>
-        </div>
+        <section className="card"><Empty icon={<Clock />} title="لا توجد وردية مفتوحة">{cashboxes.length ? <button className="btn primary" onClick={() => setDialog('open')}><Plus /> فتح وردية</button> : <span className="muted">لا توجد خزينة نقدية مسموح بها للمستخدم.</span>}</Empty></section>
       )}
-      <div className="section-title">الورديات السابقة</div>
-      <div className="list">
-        {shifts.filter((s) => s.status === 'closed').slice(0, 30).map((s) => (
-          <div key={s.id} className="list-row">
-            <div className="title">{cbName(s.cashbox_id)}<div className="sub">{new Date(s.opened_at).toLocaleString('ar-EG')} ← {s.closed_at ? new Date(s.closed_at).toLocaleString('ar-EG') : ''}</div></div>
-            <span className="num">{s.counted_cash != null ? formatMoney(s.counted_cash) : ''}</span>
-            {s.difference ? <span className={`badge ${s.difference < 0 ? 'red' : 'green'}`}>{formatMoney(s.difference)}</span> : <span className="badge green">مطابق</span>}
-          </div>
-        ))}
-        {!shifts.some((s) => s.status === 'closed') && <div className="list-row muted">لا يوجد</div>}
-      </div>
+      <section className="card expense-history">
+        <div className="expense-history-head"><div><h2>سجل الورديات</h2><p className="muted">{closed.length} وردية سابقة للمستخدم الحالي</p></div><button className="btn sm" disabled={!closed.length} onClick={exportHistory}>تصدير السجل</button></div>
+        <div className="expense-filters"><label className="expense-search"><Search /><input className="input" aria-label="البحث في الورديات" placeholder="ابحث باسم الخزينة" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
+        {!closed.length ? <div className="expense-empty"><Empty icon={<CalendarClock />} title={shifts.some((shift) => shift.status === 'closed') ? 'لا توجد ورديات مطابقة' : 'لا توجد ورديات سابقة'} /></div> : (
+          <div className="table-wrap"><table className="table responsive">
+            <thead><tr><th>الخزينة</th><th>بداية الوردية</th><th>نهاية الوردية</th><th className="n">المتوقع</th><th className="n">الفعلي</th><th className="n">الفرق</th></tr></thead>
+            <tbody>{closed.slice(0, 50).map((shift) => <tr key={shift.id}>
+              <td data-label="الخزينة" className="bold">{cashboxNames.get(shift.cashbox_id) ?? '—'}</td>
+              <td data-label="بداية الوردية" className="num">{new Date(shift.opened_at).toLocaleString('ar-EG')}</td>
+              <td data-label="نهاية الوردية" className="num">{shift.closed_at ? new Date(shift.closed_at).toLocaleString('ar-EG') : '—'}</td>
+              <td data-label="المتوقع" className="n">{shift.expected_cash != null ? formatMoney(shift.expected_cash) : '—'}</td>
+              <td data-label="الفعلي" className="n">{shift.counted_cash != null ? formatMoney(shift.counted_cash) : '—'}</td>
+              <td data-label="الفرق" className={`n bold ${shift.difference && shift.difference < 0 ? 'red' : shift.difference && shift.difference > 0 ? 'green' : ''}`}>{shift.difference != null ? formatMoney(shift.difference) : 'بانتظار المزامنة'}</td>
+            </tr>)}</tbody>
+          </table></div>
+        )}
+      </section>
+      {dialog === 'open' ? <OpenShiftSheet cashboxes={cashboxes} userId={session.user.id} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'close' && open ? <CloseShiftSheet shift={open} expected={expected} onClose={() => setDialog(null)} /> : null}
     </div>
   );
+}
+
+function OpenShiftSheet({ cashboxes, userId, onClose }: { cashboxes: any[]; userId: string; onClose: () => void }) {
+  const ui = useUi();
+  const [cashboxId, setCashboxId] = useState('');
+  const [openingFloat, setOpeningFloat] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const cashbox = cashboxes.find((item) => item.id === (cashboxId || cashboxes[0]?.id));
+  const save = async () => {
+    if (saving.current) return;
+    if (!cashbox) return setError('اختر خزينة نقدية مسموحًا بها');
+    if (openingFloat < 0) return setError('عهدة البداية لا يمكن أن تكون سالبة');
+    saving.current = true;
+    setBusy(true);
+    try {
+      await openShift(uuid(), cashbox.id, openingFloat, userId);
+      ui.toast('فُتحت الوردية');
+      onClose();
+    } catch (openError) {
+      setError((openError as Error).message);
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
+  };
+  return <Sheet title="فتح وردية" onClose={() => { if (!saving.current) onClose(); }} footer={<><button className="btn" disabled={busy} onClick={onClose}>إلغاء</button><button className="btn primary" aria-busy={busy} disabled={busy || !cashbox} onClick={() => void save()}>فتح الوردية</button></>}>
+    <div className="stack">
+      {error ? <Banner kind="err">{error}</Banner> : null}
+      <Field label="الخزينة النقدية"><select className="select" value={cashbox?.id ?? ''} onChange={(event) => setCashboxId(event.target.value)}>{cashboxes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+      <Field label="عهدة البداية" hint="النقدية الموجودة في درج الكاشير الآن"><MoneyInput value={openingFloat} onChange={setOpeningFloat} /></Field>
+      {cashbox ? <div className="card pad"><span className="muted small">رصيد الخزينة الحالي</span><div className="bold num">{formatMoney(cashbox.balance ?? 0)}</div></div> : null}
+    </div>
+  </Sheet>;
+}
+
+function CloseShiftSheet({ shift, expected, onClose }: { shift: any; expected: number | null; onClose: () => void }) {
+  const ui = useUi();
+  const [counted, setCounted] = useState(expected ?? 0);
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const difference = expected == null ? null : counted - expected;
+  const save = async () => {
+    if (saving.current) return;
+    if (counted < 0) return setError('النقدية الفعلية لا يمكن أن تكون سالبة');
+    saving.current = true;
+    setBusy(true);
+    try {
+      await closeShift(shift.id, counted, todayISO(), notes.trim() || undefined);
+      ui.toast('أُقفلت الوردية');
+      onClose();
+    } catch (closeError) {
+      setError((closeError as Error).message);
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
+  };
+  return <Sheet title="مراجعة وإقفال الوردية" onClose={() => { if (!saving.current) onClose(); }} footer={<><button className="btn" disabled={busy} onClick={onClose}>رجوع</button><button className="btn primary" aria-busy={busy} disabled={busy} onClick={() => void save()}>إقفال الوردية</button></>}>
+    <div className="stack">
+      {error ? <Banner kind="err">{error}</Banner> : null}
+      {expected == null ? <Banner kind="warn">المتوقع غير متاح حاليًا. اكتب النقدية الفعلية، وسيُحسب الفرق عند المزامنة.</Banner> : null}
+      <div className="grid grid-2">
+        <div className="card pad"><span className="muted small">المتوقع في الدرج</span><div className="bold num">{expected == null ? '—' : formatMoney(expected)}</div></div>
+        <div className="card pad"><span className="muted small">الفرق المتوقع</span><div className={`bold num ${difference != null && difference < 0 ? 'red' : difference != null && difference > 0 ? 'green' : ''}`}>{difference == null ? 'يُحسب عند المزامنة' : `${formatMoney(difference)} ${difference < 0 ? '(عجز)' : difference > 0 ? '(زيادة)' : '(مطابق)'}`}</div></div>
+      </div>
+      <Field label="النقدية الفعلية بعد العد"><MoneyInput value={counted} onChange={setCounted} /></Field>
+      <Field label="ملاحظات"><input className="input" value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
+    </div>
+  </Sheet>;
 }
