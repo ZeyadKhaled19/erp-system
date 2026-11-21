@@ -308,6 +308,11 @@
 /* أيقونة نوع المستند في قائمة الفواتير: برتقالي فاتح لكل الأنواع (المرتجع والملغي بيبانوا من الشارة جنبه) */
 :root .inv-ic { --c: var(--tint); background: var(--brand-50); color: var(--tint); }
 
+/* فاتورة البيع/الشراء: أزرار طريقة الدفع على قد اسمها وبتلف لسطر جديد، علشان الأسماء الطويلة (vodafone Cash) ما تتقطعش */
+:root .si .ss-pay { display: flex; flex-wrap: wrap; gap: .375rem; }
+:root .si .ss-pay button { flex: 1 1 auto; min-width: 4.75rem; justify-content: center; }
+:root .si .ss-pay button > span:not(.si-pin) { white-space: nowrap; overflow: visible; }
+
 /* كروت الاختصارات (الإعدادات وغيرها): لون واحد هو البرتقالي بدل ألوان كتير، ومن غير خط ملون تحت */
 :root .sc { --sc-c: var(--tint); border-radius: var(--radius-card); border-color: var(--line); box-shadow: var(--shadow-surface); }
 :root .sc::after { display: none; }
