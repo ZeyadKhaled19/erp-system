@@ -140,19 +140,26 @@
   .sx-stat-ic { display: none; }
   .sx-stat-v { font-size: var(--text-xl); }
   .sx-stat-l { font-size: var(--text-sm); }
-  .sx-actions .sx-action-row, .sx-actions.stack .sx-action-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
-  .sx-action { min-height: 2.875rem; font-size: var(--text-sm); padding: 0 var(--sp-3); }
+  .sx-actions.bar .sx-action-row, .sx-actions.stack .sx-action-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+  .sx-action { min-height: 2.875rem; font-size: var(--text-sm); padding: var(--sp-1) var(--sp-3); gap: var(--sp-2); }
+  .sx-action .sx-action-l { white-space: normal; line-height: 1.25; text-align: start; overflow: visible; }
+  .sx-action svg { width: var(--icon-md); height: var(--icon-md); }
   .sx-card { padding: var(--sp-4); }
-  /* آخر الفواتير: سطرين لكل فاتورة (العميل والإجمالي، ثم الرقم والتاريخ والحالة) */
-  .sx-recent .table.responsive tr { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "party party party total" "no date . status"; column-gap: .5rem; row-gap: 2px; padding: .625rem .375rem; align-items: center; }
-  .sx-recent .table.responsive td { display: block; width: auto; padding: 0; background: none; }
-  .sx-recent .table.responsive td::before { content: none; }
-  .sx-recent .table.responsive td:nth-child(1) { grid-area: no; font-size: var(--text-xs); color: var(--label-2); font-weight: 600; }
-  .sx-recent .table.responsive td:nth-child(2) { grid-area: date; font-size: var(--text-xs); color: var(--label-2); }
-  .sx-recent .table.responsive td:nth-child(3) { grid-area: party; font-weight: 700; font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sx-recent .table.responsive td:nth-child(4) { grid-area: total; font-size: var(--text-base); }
-  .sx-recent .table.responsive td:nth-child(5) { grid-area: status; justify-self: end; }
-  .sx-recent .table.responsive td:nth-child(6) { display: none; }
+  /* آخر المستندات في كل الأقسام: سطرين لكل مستند (الطرف والإجمالي، ثم الرقم والتاريخ والنوع والحالة) بدل كارت بست سطور.
+     بالاسم (data-label) مش بالترتيب، علشان الجداول اللي فيها عمود «النوع» تشتغل بنفس الشكل */
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) {
+    display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; grid-template-areas: "party party party party total" "no date type . status";
+    column-gap: .5rem; row-gap: 2px; padding: .625rem .375rem; align-items: center;
+  }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td { display: block; width: auto; padding: 0; background: none; border: 0; }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td::before { content: none; }
+  .sx-table .table.responsive td:is([data-label="الرقم"], [data-label="رقم الفاتورة"]) { grid-area: no; font-size: var(--text-xs); color: var(--label-2); font-weight: 600; }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td[data-label="التاريخ"] { grid-area: date; font-size: var(--text-xs); color: var(--label-2); }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td[data-label="النوع"] { grid-area: type; font-size: var(--text-xs); color: var(--label-2); }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td:not([data-label="الرقم"]):not([data-label="رقم الفاتورة"]):not([data-label="التاريخ"]):not([data-label="النوع"]):not([data-label="الإجمالي"]):not([data-label="الحالة"]):not([data-label=""]) { grid-area: party; font-weight: 700; font-size: var(--text-base); color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td[data-label="الإجمالي"] { grid-area: total; font-size: var(--text-base); text-align: end; }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td[data-label="الحالة"] { grid-area: status; justify-self: end; }
+  .sx-table .table.responsive tr:has(> td[data-label="الرقم"], > td[data-label="رقم الفاتورة"]) > td[data-label=""] { display: none; }
 }
 
 /* ---------- شبكة الروابط (التقارير والإعدادات): أيقونة برتقالي + اسم + وصف ---------- */
