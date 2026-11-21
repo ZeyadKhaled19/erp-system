@@ -6,6 +6,7 @@ import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { NEST_OPTIONAL } from '../../scripts/nest-optional.mjs';
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const root = path.resolve(desktop, '..');
@@ -28,7 +29,8 @@ await build({
   sourcemap: false,
   legalComments: 'none',
   // PGlite بتقرا ملفات wasm من جنبها، فبتتسطب كمكتبة عادية في desktop/node_modules؛ pg (PostgreSQL) مش مستخدمة هنا
-  external: ['@electric-sql/pglite', 'pg-native'],
+  // + حزم NestJS الاختيارية اللي مش مستخدمة (شوف scripts/nest-optional.mjs)
+  external: ['@electric-sql/pglite', 'pg-native', ...NEST_OPTIONAL],
   banner: {
     js: "import { createRequire as __cr } from 'node:module'; import { fileURLToPath as __fu } from 'node:url'; import { dirname as __dn } from 'node:path'; const require = __cr(import.meta.url); const __filename = __fu(import.meta.url); const __dirname = __dn(__filename);",
   },

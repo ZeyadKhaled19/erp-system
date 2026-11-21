@@ -27,6 +27,13 @@
 | جرد وتسوية | الفرق بين الكمية الفعلية ورصيد النظام وقت الترحيل: المخزون ↔ فروقات الجرد |
 | بضاعة أول المدة / رصيد افتتاحي | المخزون أو الطرف ↔ أرصدة افتتاحية |
 
+## 2.5 الخادم (NestJS)
+
+- تطبيق NestJS واحد على Fastify. المسارات في `apps/server/src/modules/*` (health، auth، sync، reports، admin، backups، licensing)، وكل موديول فيه controller رفيع وservice.
+- المنطق المحاسبي في `posting/` و`ops.ts` و`reports.ts`. ده مستقل عن NestJS والكنترولرز بتناديه.
+- كل مسار محتاج دخول إلا اللي متعلّم `@Public()`، والصلاحية بـ `@Perm()`. والعمليات نفسها بتتحقق من الصلاحيات تاني جوه `applyOp` والترحيل.
+- التفاصيل والقرارات في [nestjs-migration.md](nestjs-migration.md).
+
 ## 3. المزامنة (`apps/web/src/lib/sync.ts`, `apps/server/src/ops.ts`)
 
 1. **الكتابة:** كل كتابة هي «عملية» (op) بمعرّف `op_id` فريد. العملية بتتحفظ مع الأثر المحلي في نفس معاملة IndexedDB.

@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"],
-    "lib": ["ES2022"]
+    "lib": ["ES2022"],
+    // NestJS decorators. No emitDecoratorMetadata: every bundler here is esbuild (tsx, Vercel, desktop),
+    // which can't emit it, so every injected constructor parameter names its token with @Inject(...).
+    "experimentalDecorators": true
   },
   "include": ["src", "test"]
 }

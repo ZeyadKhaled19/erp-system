@@ -7,6 +7,7 @@ import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { NEST_OPTIONAL } from './nest-optional.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, '.vercel/output');
@@ -32,7 +33,8 @@ await build({
   sourcemap: false,
   legalComments: 'none',
   // PGlite للتشغيل المحلي فقط (تُحمّل عند الحاجة ولا تُستخدم على Vercel)، وpg-native اختياري
-  external: ['@electric-sql/pglite', 'pg-native'],
+  // + حزم NestJS الاختيارية اللي بيحمّلها لو موجودة بس (مش مستخدمة عندنا، ومش مسطبة)
+  external: ['@electric-sql/pglite', 'pg-native', ...NEST_OPTIONAL],
   // مكتبات CommonJS داخل حزمة ESM تحتاج require و __dirname
   banner: {
     js: "import { createRequire as __cr } from 'node:module'; import { fileURLToPath as __fu } from 'node:url'; import { dirname as __dn } from 'node:path'; const require = __cr(import.meta.url); const __filename = __fu(import.meta.url); const __dirname = __dn(__filename);",
