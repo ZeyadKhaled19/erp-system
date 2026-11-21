@@ -1,12 +1,11 @@
 import { DOC_TYPES, formatMoney, formatQty, todayISO, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Pencil, Plus, Truck, Users, Wallet, UserCheck, FileClock } from 'lucide-react';
+import { Pencil, Plus, Truck, Users, Wallet, UserCheck, FileClock, ArrowDownLeft, ArrowUpRight, ShoppingBag, ShoppingCart, Phone, MapPin } from 'lucide-react';
 import { QuickActions, SectionHeader, SectionStats } from '../components/Section';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { DatePicker } from '../components/DatePicker';
-import { Banner, DocStatusBadge, Empty, exportExcel, savePdf, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
+import { Banner, DateInput, DocStatusBadge, Empty, exportExcel, savePdf, Field, MoneyInput, SearchBox, Segmented, Sheet, Switch, SyncBadge, useUi } from '../components/ui';
 import { saveMaster } from '../lib/actions';
 import { PartyInsights } from '../components/Insights';
 import { PartyGroupSheet } from '../components/CustomerFields';
@@ -14,6 +13,7 @@ import { customOf, fieldValueText, PartyFieldInputs, PartyFieldsManager, usePart
 import { ActiveBadge, PageTabs, RowActions } from '../components/ListParts';
 import { db } from '../lib/db';
 import { useDebounced, usePerm, useRemote } from '../lib/hooks';
+import './parties.css';
 
 const KIND_LABEL = { customer: { one: 'عميل', many: 'العملاء', bal: 'مستحق عليه' }, supplier: { one: 'مورد', many: 'الموردون', bal: 'مستحق له' } } as const;
 
@@ -22,7 +22,9 @@ export function PartiesPage() {
   const can = usePerm();
   const nav = useNavigate();
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'all' | 'balance'>('all');
+  const [filter, setFilter] = useState<'all' | 'balance' | 'due' | 'credit'>('all');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [sort, setSort] = useState('name');
   const [grp, setGrp] = useState('');
   const [grpSheet, setGrpSheet] = useState<any | undefined>(undefined);
   // فلتر بخانة حرة: «id الخانة:id الاختيار» أو «id الخانة:__none» (الرابط القديم ?brand= بيفضل شغال)
@@ -52,26 +54,39 @@ export function PartiesPage() {
     const s = dq.trim().toLowerCase();
     return parties.filter((p) => (!grp || p.group_id === grp)
       && (!ff || (() => { const [fid, oid] = ff.split(':'); const v = customOf(p)[fid]; return oid === '__none' ? !v : v === oid; })())
-      && (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s))) && (filter === 'all' || p.balance !== 0));
-  }, [parties, dq, filter, grp, ff]);
+      && (activeFilter === 'all' || (activeFilter === 'active' ? p.active !== false : p.active === false))
+      && (!s || [p.name, p.code, p.phone].some((v) => v?.toLowerCase().includes(s)))
+      && (filter === 'all' || (filter === 'due' && (p.balance ?? 0) > 0) || (filter === 'credit' && (p.balance ?? 0) < 0) || (filter === 'balance' && (p.balance ?? 0) !== 0)))
+      .sort((a, b) => sort === 'balance' ? (b.balance ?? 0) - (a.balance ?? 0) : a.name.localeCompare(b.name, 'ar'));
+  }, [parties, dq, filter, grp, ff, activeFilter, sort]);
   const total = list.reduce((s, p) => s + (p.balance ?? 0), 0);
   // مؤشرات القسم من كل العملاء/الموردين (مش من نتيجة البحث)
   const activeParties = parties.filter((p) => p.active !== false);
   const withBal = parties.filter((p) => (p.balance ?? 0) !== 0);
-  const allBal = parties.reduce((s, p) => s + (p.balance ?? 0), 0);
+  const allBal = parties.reduce((s, p) => s + Math.max(0, p.balance ?? 0), 0);
+  const reverseBalance = parties.reduce((s, p) => s + Math.max(0, -(p.balance ?? 0)), 0);
+  const allowedTypes = Object.entries(DOC_TYPES).filter(([, info]) => can(`${info.module}.view`)).map(([type]) => type);
+  const activity = useLiveQuery(async () => {
+    if (!allowedTypes.length) return new Map<string, string>();
+    const docs = await db.documents.where('doc_type').anyOf(allowedTypes).toArray();
+    const result = new Map<string, string>();
+    for (const d of docs) if (d.status === 'posted' && d.party_id && d.date > (result.get(d.party_id) ?? '')) result.set(d.party_id, d.date);
+    return result;
+  }, [allowedTypes.join(',')]) ?? new Map<string, string>();
   const openDocs = useLiveQuery(async () => {
+    if (!can(kind === 'customer' ? 'sales.view' : 'purchases.view')) return null;
     const t = kind === 'customer' ? 'sale_invoice' : 'purchase_invoice';
     return (await db.documents.where('doc_type').equals(t).toArray()).filter((d) => d.status === 'posted' && !d.closed && d.total > d.paid).length;
-  }, [kind]) ?? 0;
+  }, [kind, allowedTypes.join(',')]);
 
   return (
-    <div className="page">
+    <div className="page parties-page">
       <PageTabs tabs={[{ to: '/parties/customer', label: 'العملاء' }, { to: '/parties/supplier', label: 'الموردون' }]} />
       <SectionHeader
         icon={kind === 'customer' ? <Users /> : <Truck />}
         color={kind === 'customer' ? 'teal' : 'purple'}
         title={L.many}
-        sub={`${list.length} · إجمالي ${L.bal}: ${formatMoney(total)}`}
+        sub={`${list.length} حساب · صافي الرصيد المعروض: ${formatMoney(total)}`}
         tools={
           <>
             <button className="btn" onClick={() => exportExcel(L.many, ['الكود', 'الاسم', 'الهاتف', 'الرصيد'], list.map((p) => [p.code, p.name, p.phone, formatMoney(p.balance ?? 0)]))}>
@@ -88,17 +103,20 @@ export function PartiesPage() {
       <div className="sx-top">
         <SectionStats items={[
           { key: 'count', label: kind === 'customer' ? 'العملاء النشطين' : 'الموردين النشطين', value: activeParties.length, sub: `من ${parties.length}`, icon: <Users />, color: 'blue' },
-          { key: 'bal', label: kind === 'customer' ? 'مستحقات العملاء' : 'مستحقات الموردين', value: formatMoney(allBal), icon: <Wallet />, color: kind === 'customer' ? 'orange' : 'purple', valueTone: allBal < 0 ? 'red' : undefined },
+          { key: 'bal', label: kind === 'customer' ? 'مستحق لنا من العملاء' : 'مستحق علينا للموردين', value: formatMoney(allBal), sub: 'الأرصدة الموجبة فقط', icon: <Wallet />, color: kind === 'customer' ? 'orange' : 'purple' },
+          { key: 'reverse', label: kind === 'customer' ? 'أرصدة لصالح العملاء' : 'أرصدة لنا عند الموردين', value: formatMoney(reverseBalance), sub: 'الأرصدة العكسية بالقيمة المطلقة', icon: <Wallet />, color: 'green' },
           { key: 'withbal', label: 'لهم رصيد', value: withBal.length, icon: <UserCheck />, color: 'teal' },
-          { key: 'open', label: kind === 'customer' ? 'فواتير بيع آجلة' : 'فواتير شراء آجلة', value: openDocs, sub: 'غير مسددة بالكامل', icon: <FileClock />, color: 'red', to: kind === 'customer' ? '/receivables' : undefined },
+          ...(openDocs != null ? [{ key: 'open', label: kind === 'customer' ? 'فواتير بيع آجلة' : 'فواتير شراء آجلة', value: openDocs, sub: 'غير مسددة بالكامل', icon: <FileClock />, color: 'red' as const, to: '/receivables' }] : []),
         ]} />
         <QuickActions section={`parties-${kind}`} defaults={kind === 'customer' ? ['customer_new', 'receipt', 'sale_invoice', 'quotation'] : ['supplier_new', 'payment', 'purchase_invoice', 'purchase_return']} />
       </div>
-      <div className="row wrap" style={{ marginBottom: 12 }}>
+      <div className="card party-list-filters">
         <div style={{ flex: 1, minWidth: 220 }}>
           <SearchBox value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو الهاتف" />
         </div>
-        <Segmented value={filter} onChange={setFilter} options={[{ value: 'all', label: 'الكل' }, { value: 'balance', label: 'لهم رصيد' }]} />
+        <select className="select" aria-label="فلتر الرصيد" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}><option value="all">كل الأرصدة</option><option value="due">{kind === 'customer' ? 'عليهم مستحقات' : 'لهم مستحقات'}</option><option value="credit">{kind === 'customer' ? 'رصيد لصالح العميل' : 'رصيد لصالحنا'}</option><option value="balance">كل من له رصيد</option></select>
+        <select className="select" aria-label="حالة الطرف" value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">موقوف</option></select>
+        <select className="select" aria-label="ترتيب الأطراف" value={sort} onChange={(e) => setSort(e.target.value)}><option value="name">الاسم أبجديًا</option><option value="balance">الأعلى مستحقًا</option></select>
       </div>
       {kind === 'customer' && (
         <div className="seg-chips" style={{ marginBottom: 12 }}>
@@ -144,8 +162,8 @@ export function PartiesPage() {
                 <th>الهاتف</th>
                 {kind === 'customer' && <th>النوع</th>}
                 {fields.map((f) => <th key={f.id}>{f.name}</th>)}
-                <th className="n">{L.bal}</th>
-                <th>الحالة</th>
+                <th className="n">الرصيد</th>
+                <th>آخر تعامل</th><th>الحالة</th>
                 <th />
               </tr>
             </thead>
@@ -159,7 +177,8 @@ export function PartiesPage() {
                   <td data-label="الهاتف" className="num muted">{p.phone ?? '—'}</td>
                   {kind === 'customer' && <td data-label="النوع">{p.group_id ? <span className="badge">{groupName.get(p.group_id) ?? '—'}</span> : <span className="muted">—</span>}</td>}
                   {fields.map((f) => { const t = fieldValueText(f, customOf(p)[f.id]); return <td key={f.id} data-label={f.name}>{t || <span className="muted">—</span>}</td>; })}
-                  <td data-label={L.bal} className={`n bold ${(p.balance ?? 0) < 0 ? 'red' : ''}`}>{formatMoney(p.balance ?? 0)}</td>
+                  <td data-label="الرصيد" className={`n bold ${(p.balance ?? 0) < 0 ? 'green' : ''}`}>{formatMoney(Math.abs(p.balance ?? 0))}<small className="party-balance-caption">{(p.balance ?? 0) < 0 ? kind === 'customer' ? 'لصالح العميل' : 'لصالحنا' : (p.balance ?? 0) > 0 ? L.bal : 'مسوّى'}</small></td>
+                  <td data-label="آخر تعامل" className="num muted">{activity.get(p.id) ?? '—'}</td>
                   <td data-label="الحالة"><ActiveBadge active={p.active !== false} /></td>
                   <td data-label="" className="lp-act-cell">
                     <RowActions
@@ -168,6 +187,7 @@ export function PartiesPage() {
                       onEdit={can('parties.edit') ? () => setEditing(p) : undefined}
                     >
                       <SyncBadge sync={p._sync} error={p._error} />
+                      {p.active !== false && can('treasury.create') && <button className="btn sm party-inline-action" title={kind === 'customer' ? 'قبض من هذا العميل' : 'صرف لهذا المورد'} onClick={(e) => { e.stopPropagation(); nav(`/docs/new/${kind === 'customer' ? 'receipt' : 'payment'}?party=${encodeURIComponent(p.id)}`); }}>{kind === 'customer' ? <ArrowDownLeft /> : <ArrowUpRight />}{kind === 'customer' ? 'قبض' : 'صرف'}</button>}
                     </RowActions>
                   </td>
                 </tr>
@@ -183,6 +203,9 @@ export function PartiesPage() {
 
 export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer' | 'supplier'; party: any | null; onClose: () => void; onSaved?: (id: string) => void }) {
   const ui = useUi();
+  const can = usePerm();
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
   const L = KIND_LABEL[kind];
   const [f, setF] = useState<any>(() => ({
     code: party?.code ?? '',
@@ -207,6 +230,11 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
   const set = (k: string, v: unknown) => setF((p: any) => ({ ...p, [k]: v }));
 
   const save = async () => {
+    if (saving.current) return;
+    if (!can(party ? 'parties.edit' : 'parties.create')) return setErr('لا تملك صلاحية حفظ هذه البيانات');
+    saving.current = true;
+    setBusy(true);
+    try {
     setErr(null);
     let code = f.code.trim();
     if (!code) {
@@ -231,23 +259,25 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
     ui.toast('تم الحفظ');
     onSaved?.(id);
     onClose();
+    } catch (e) { setErr((e as Error).message || 'تعذر الحفظ. حاول مرة أخرى.'); }
+    finally { saving.current = false; setBusy(false); }
   };
 
   return (
     <Sheet
       title={party ? `تعديل ${L.one}` : `${L.one} جديد`}
-      onClose={onClose}
+      onClose={() => { if (!saving.current) onClose(); }}
       footer={
         <>
-          <button className="btn" onClick={onClose}>إلغاء</button>
-          <button className="btn primary" onClick={save}>حفظ</button>
+          <button className="btn" disabled={busy} onClick={onClose}>إلغاء</button>
+          <button className="btn primary" disabled={busy} aria-busy={busy} onClick={() => void save()}>{busy ? 'جارٍ الحفظ…' : 'حفظ البيانات'}</button>
         </>
       }
     >
-      <div className="stack">
+      <div className="stack party-editor">
         {err && <Banner kind="err">{err}</Banner>}
         <div className="grid grid-2">
-          <Field label="الاسم *">
+          <Field label={`اسم ال${L.one}`} required error={err === 'الاسم مطلوب' ? err : undefined}>
             <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} autoFocus />
           </Field>
           <Field label="الكود" hint="يُولّد تلقائيًا إذا تُرك فارغًا">
@@ -256,21 +286,15 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
           <Field label="الهاتف">
             <input className="input num" value={f.phone} onChange={(e) => set('phone', e.target.value)} inputMode="tel" />
           </Field>
-          <Field label="الرقم الضريبي">
-            <input className="input num" value={f.tax_no} onChange={(e) => set('tax_no', e.target.value)} />
-          </Field>
         </div>
         <Field label="العنوان">
           <input className="input" value={f.address} onChange={(e) => set('address', e.target.value)} />
         </Field>
-        {kind === 'customer' && (
+        {kind === 'customer' && <Field label="نوع العميل"><select className="select" value={f.group_id ?? ''} onChange={(e) => set('group_id', e.target.value || null)}><option value="">بدون تصنيف</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></Field>}
+        <details className="party-editor-options"><summary>البيانات المالية والضريبية <span>الحد الائتماني والأسعار وشروط السداد</span></summary>
+          <Field label="الرقم الضريبي"><input className="input num" value={f.tax_no} onChange={(e) => set('tax_no', e.target.value)} /></Field>
+          {kind === 'customer' && (
           <div className="grid grid-2">
-            <Field label="نوع العميل">
-              <select className="select" value={f.group_id ?? ''} onChange={(e) => set('group_id', e.target.value || null)}>
-                <option value="">—</option>
-                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-            </Field>
             <Field label="الحد الائتماني" hint="0 = بدون حد">
               <MoneyInput value={f.credit_limit} onChange={(v) => set('credit_limit', v)} />
             </Field>
@@ -280,16 +304,19 @@ export function PartyEditor({ kind, party, onClose, onSaved }: { kind: 'customer
               </select>
             </Field>
             <Field label="نسبة خصم افتراضية %"><input className="input num" inputMode="decimal" value={f.discount_pct} onChange={(e) => set('discount_pct', e.target.value)} /></Field>
-            <Field label="تاريخ مراجعة الحساب" hint="للتذكير بمراجعة/تحصيل الحساب"><DatePicker value={f.review_date ?? ''} onChange={(review_date) => set('review_date', review_date)} /></Field>
+            <Field label="تاريخ مراجعة الحساب" hint="للتذكير بمراجعة/تحصيل الحساب"><DateInput className="input" value={f.review_date ?? ''} onChange={(e) => set('review_date', e.target.value)} /></Field>
           </div>
         )}
-        <div className="grid grid-2"><PartyFieldInputs kind={kind} value={f.custom} onChange={(v) => set('custom', v)} /></div>
         <Field label="أيام الاستحقاق للفواتير الآجلة" hint="0 = حسب الإعدادات العامة">
           <input className="input num" type="number" min={0} value={f.due_days} onChange={(e) => set('due_days', Math.max(0, Number(e.target.value) || 0))} />
         </Field>
+        </details>
+        <details className="party-editor-options"><summary>الخانات الإضافية والملاحظات <span>بياناتك المخصصة وملاحظات الحساب</span></summary>
+        <div className="grid grid-2"><PartyFieldInputs kind={kind} value={f.custom} onChange={(v) => set('custom', v)} /></div>
         <Field label="ملاحظات">
           <textarea className="textarea" value={f.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
         </Field>
+        </details>
         <div className="row">
           <Switch checked={f.active} onChange={(v) => set('active', v)} /> {f.active ? 'نشط' : 'موقوف'}
         </div>
@@ -303,16 +330,32 @@ export function PartyDetail() {
   const can = usePerm();
   const nav = useNavigate();
   const [edit, setEdit] = useState(false);
+  const [tab, setTab] = useState<'statement' | 'documents' | 'insights'>('statement');
+  const [documentQuery, setDocumentQuery] = useState('');
+  const [documentPage, setDocumentPage] = useState(0);
   const [range, setRange] = useState({ from: `${todayISO().slice(0, 4)}-01-01`, to: todayISO() });
   const L = KIND_LABEL[kind];
-  const party = useLiveQuery(() => db.parties.get(id), [id]);
-  const docs = useLiveQuery(async () => (await db.documents.where('party_id').equals(id).toArray()).filter((d) => !d.amended_to_id).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 50), [id]) ?? [];
+  const party = useLiveQuery(async () => (await db.parties.get(id)) ?? null, [id]);
+  const allowedTypes = Object.entries(DOC_TYPES).filter(([, info]) => can(`${info.module}.view`)).map(([type]) => type);
+  const docs = useLiveQuery(async () => {
+    if (!allowedTypes.length) return [];
+    return (await db.documents.where('doc_type').anyOf(allowedTypes).toArray()).filter((d) => d.party_id === id && !d.amended_to_id).sort((a, b) => (b.date + (b.created_at ?? '')).localeCompare(a.date + (a.created_at ?? '')));
+  }, [id, allowedTypes.join(',')]) ?? [];
   const [byItems, setByItems] = useState(false);
-  const st = useRemote<any>(party && !party._sync ? `/api/reports/party/${id}?from=${range.from}&to=${range.to}${byItems ? '&items=1' : ''}` : null, [party?.row_version]);
-  if (!party) return <div className="page"><Empty title="غير موجود" /></div>;
+  const st = useRemote<any>(party && !party._sync && tab === 'statement' ? `/api/reports/party/${id}?from=${range.from}&to=${range.to}${byItems ? '&items=1' : ''}` : null, [party?.row_version]);
+  if (party === undefined) return <div className="page muted">جارٍ تحميل بيانات الحساب…</div>;
+  if (!party || party.kind !== kind) return <div className="page"><Empty title="الحساب غير موجود" /></div>;
+  const posted = docs.filter((d) => d.status === 'posted');
+  const last = posted[0];
+  const openInvoices = posted.filter((d) => d.doc_type === (kind === 'customer' ? 'sale_invoice' : 'purchase_invoice') && !d.closed && d.total > d.paid);
+  const filteredDocs = docs.filter((d) => d.date >= range.from && d.date <= range.to && (!documentQuery.trim() || [d.number, d.local_number, d.notes, DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.label].some((s) => s?.includes(documentQuery.trim()))));
+  const pageCount = Math.max(1, Math.ceil(filteredDocs.length / 20));
+  const safePage = Math.min(documentPage, pageCount - 1);
+  const balanceLabel = (party.balance ?? 0) < 0 ? kind === 'customer' ? 'رصيد لصالح العميل' : 'رصيد لنا عند المورد' : kind === 'customer' ? 'مستحق لنا من العميل' : 'مستحق علينا للمورد';
+  const statement = !st.loading && !st.error && !party._sync ? st.data : null;
 
   return (
-    <div className="page">
+    <div className="page party-detail-page">
       <PageHeader
         title={party.name}
         sub={<>{L.one} · كود <span className="num">{party.code}</span>{party.phone ? <> · <span className="num">{party.phone}</span></> : null} <SyncBadge sync={party._sync} error={party._error} /></>}
@@ -320,23 +363,27 @@ export function PartyDetail() {
           <>
             {can('parties.edit') && <button className="btn" onClick={() => setEdit(true)}><Pencil /> تعديل</button>}
             {can('treasury.create') && (
-              <button className="btn" onClick={() => nav(`/docs/new/${kind === 'customer' ? 'receipt' : 'payment'}?party=${id}`)}>
-                {kind === 'customer' ? 'سند قبض' : 'سند صرف'}
+              <button className="btn" disabled={party.active === false} onClick={() => nav(`/docs/new/${kind === 'customer' ? 'receipt' : 'payment'}?party=${id}`)}>
+                {kind === 'customer' ? <ArrowDownLeft /> : <ArrowUpRight />}{kind === 'customer' ? 'قبض من العميل' : 'صرف للمورد'}
               </button>
             )}
             {can(kind === 'customer' ? 'sales.create' : 'purchases.create') && (
-              <button className="btn primary" onClick={() => nav(`/docs/new/${kind === 'customer' ? 'sale_invoice' : 'purchase_invoice'}?party=${id}`)}>
-                <Plus /> فاتورة
+              <button className="btn primary" disabled={party.active === false} onClick={() => nav(`/docs/new/${kind === 'customer' ? 'sale_invoice' : 'purchase_invoice'}?party=${id}`)}>
+                {kind === 'customer' ? <ShoppingCart /> : <ShoppingBag />}{kind === 'customer' ? 'فاتورة بيع' : 'فاتورة شراء'}
               </button>
             )}
           </>
         }
       />
-      <div className="grid grid-3">
+      <div className="card party-profile-strip"><span className="party-profile-avatar">{party.name.slice(0, 1)}</span><div><strong>{party.name}</strong><div className="muted">{party.phone && <span><Phone /> <span className="num">{party.phone}</span></span>}{party.address && <span><MapPin /> {party.address}</span>}{!party.phone && !party.address && <span>أضف بيانات التواصل من تعديل الحساب</span>}</div></div><ActiveBadge active={party.active !== false} /></div>
+      <div className="party-detail-stats">
         <div className="card stat">
-          <div className="stat-label">{L.bal}</div>
-          <div className={`stat-value num ${party.balance < 0 ? 'red' : ''}`}>{formatMoney(party.balance ?? 0)}</div>
+          <div className="stat-label">{balanceLabel}</div>
+          <div className={`stat-value num ${party.balance < 0 ? 'green' : ''}`}>{formatMoney(Math.abs(party.balance ?? 0))}</div>
+          <div className="muted small">الرصيد الحالي المسجل للحساب</div>
         </div>
+        <div className="card stat"><div className="stat-label">آخر تعامل مرحّل</div><div className="party-stat-date num">{last?.date ?? 'لا يوجد'}</div><div className="muted small">{last ? `${DOC_TYPES[last.doc_type as keyof typeof DOC_TYPES]?.label} · ${last.number ?? last.local_number ?? ''}` : 'حسب المستندات المتاحة ضمن صلاحياتك'}</div></div>
+        {can(kind === 'customer' ? 'sales.view' : 'purchases.view') && <button className="card stat party-stat-button" onClick={() => { setTab('documents'); setDocumentQuery(''); }}><div className="stat-label">متبقي الفواتير المفتوحة</div><div className="stat-value num">{formatMoney(openInvoices.reduce((s, d) => s + d.total - d.paid, 0))}</div><div className="muted small">{openInvoices.length} فاتورة · افتح السجل</div></button>}
         {kind === 'customer' && (
           <div className="card stat">
             <div className="stat-label">الحد الائتماني</div>
@@ -351,21 +398,22 @@ export function PartyDetail() {
         )}
       </div>
 
-      <PartyInsights party={party} />
-
+      <div className="party-detail-tabs no-print" role="tablist" aria-label="تفاصيل الحساب">{([{ id: 'statement', label: 'كشف الحساب' }, { id: 'documents', label: 'الفواتير والحركات' }, ...(can(kind === 'customer' ? 'sales.view' : 'purchases.view') ? [{ id: 'insights', label: 'تحليل التعاملات' }] : [])] as const).map((item) => <button key={item.id} role="tab" aria-selected={tab === item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id as typeof tab)}>{item.label}</button>)}</div>
+      {tab === 'insights' && can(kind === 'customer' ? 'sales.view' : 'purchases.view') && <PartyInsights party={party} />}
+      {tab === 'statement' && <section className="card party-statement-panel">
       <div className="row wrap" style={{ marginTop: 22, marginBottom: 10 }}>
         <div className="section-title" style={{ margin: 0, flex: 1 }}>كشف الحساب</div>
-        <DatePicker className="input" style={{ width: 160 }} value={range.from} onChange={(from) => setRange({ ...range, from })} aria-label="من تاريخ" />
-        <DatePicker className="input" style={{ width: 160 }} value={range.to} onChange={(to) => setRange({ ...range, to })} aria-label="إلى تاريخ" />
+        <label className="party-date-label">من<DateInput className="input" value={range.from} max={range.to} onChange={(e) => setRange({ ...range, from: e.target.value })} /></label>
+        <label className="party-date-label">إلى<DateInput className="input" value={range.to} min={range.from} onChange={(e) => setRange({ ...range, to: e.target.value })} /></label>
         <Segmented value={byItems ? '1' : '0'} onChange={(v) => setByItems(v === '1')} options={[{ value: '0', label: 'مختصر' }, { value: '1', label: 'بالأصناف' }]} />
-        {st.data && (
+        {statement && (
           <button
             className="btn"
             onClick={() =>
               exportExcel(
                 `كشف حساب ${party.name}${byItems ? ' بالأصناف' : ''}`,
                 ['التاريخ', 'المستند', 'البيان', 'مدين', 'دائن', 'الرصيد'],
-                st.data.lines.flatMap((l: any) => [
+                statement.lines.flatMap((l: any) => [
                   [l.date, l.doc_number, l.memo, formatMoney(l.debit), formatMoney(l.credit), formatMoney(l.balance)],
                   ...(l.items ?? []).map((x: any) => ['', '', `   ${x.name} — ${formatQty(x.qty)} ${x.unit_name} × ${formatMoney(x.price)}${x.discount ? ` خصم ${formatMoney(x.discount)}` : ''} = ${formatMoney(x.total)}`, '', '', '']),
                 ]),
@@ -375,12 +423,13 @@ export function PartyDetail() {
             تصدير Excel
           </button>
         )}
-        <button className="btn no-print" onClick={() => savePdf(`كشف حساب ${party.name}`)}>PDF</button>
-        <button className="btn no-print" onClick={() => window.print()}>طباعة</button>
+        <button className="btn no-print" disabled={!statement} onClick={() => savePdf(`كشف حساب ${party.name}`)}>PDF</button>
+        <button className="btn no-print" disabled={!statement} onClick={() => window.print()}>طباعة</button>
       </div>
       {party._sync && <Banner kind="info">هذا الطرف لم يُزامن بعد؛ الكشف يظهر بعد قبوله على الخادم.</Banner>}
+      {st.loading && <div className="muted" role="status">جارٍ تحميل كشف الحساب…</div>}
       {st.error && <Banner kind="warn">{st.error}</Banner>}
-      {st.data && (
+      {statement && (
         <div className="table-wrap">
           <table className="table responsive">
             <thead>
@@ -396,9 +445,9 @@ export function PartyDetail() {
             <tbody>
               <tr>
                 <td colSpan={5} className="muted">رصيد أول المدة</td>
-                <td className="n bold">{formatMoney(st.data.opening)}</td>
+                <td className="n bold">{formatMoney(statement.opening)}</td>
               </tr>
-              {st.data.lines.map((l: any, i: number) => (
+              {statement.lines.map((l: any, i: number) => (
                 <Fragment key={i}>
                 <tr className={l.document_id ? 'click' : ''} onClick={() => l.document_id && nav(`/docs/view/${l.document_id}`)}>
                   <td data-label="التاريخ" className="num">{l.date}</td>
@@ -434,19 +483,21 @@ export function PartyDetail() {
             <tfoot>
               <tr>
                 <td colSpan={5}>الرصيد الختامي</td>
-                <td className="n">{formatMoney(st.data.closing)}</td>
+                <td className="n">{formatMoney(statement.closing)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       )}
 
-      <div className="section-title">المستندات</div>
-      {docs.length === 0 ? (
+      </section>}
+      {tab === 'documents' && <section className="card party-documents-panel">
+      <div className="party-documents-toolbar"><h2>الفواتير والحركات</h2><SearchBox value={documentQuery} onChange={(v) => { setDocumentQuery(v); setDocumentPage(0); }} placeholder="رقم المستند أو نوع الحركة أو الملاحظات" /><label className="party-date-label">من<DateInput value={range.from} max={range.to} onChange={(e) => { setRange({ ...range, from: e.target.value }); setDocumentPage(0); }} /></label><label className="party-date-label">إلى<DateInput value={range.to} min={range.from} onChange={(e) => { setRange({ ...range, to: e.target.value }); setDocumentPage(0); }} /></label></div>
+      {filteredDocs.length === 0 ? (
         <div className="card pad muted">لا توجد مستندات</div>
       ) : (
         <div className="list">
-          {docs.map((d) => (
+          {filteredDocs.slice(safePage * 20, safePage * 20 + 20).map((d) => (
             <div key={d.id} className="list-row tappable" onClick={() => nav(`/docs/view/${d.id}`)}>
               <div className="title">
                 {DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.label} <span className="num muted">{d.number ?? d.local_number}</span>
@@ -461,6 +512,8 @@ export function PartyDetail() {
           ))}
         </div>
       )}
+      <div className="party-pagination"><span className="muted">{filteredDocs.length} مستند · صفحة {safePage + 1} من {pageCount}</span><button className="btn sm" disabled={!safePage} onClick={() => setDocumentPage(safePage - 1)}>السابق</button><button className="btn sm" disabled={safePage + 1 >= pageCount} onClick={() => setDocumentPage(safePage + 1)}>التالي</button></div>
+      </section>}
       {edit && <PartyEditor kind={kind} party={party} onClose={() => setEdit(false)} />}
     </div>
   );

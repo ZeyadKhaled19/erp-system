@@ -1,0 +1,55 @@
+.party-list-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px; margin-bottom: 14px; }
+.party-list-filters > .select { flex: 0 1 170px; min-width: 130px; }
+.parties-page .table-wrap { border: 1px solid var(--separator); border-radius: 14px; background: var(--card); }
+.party-inline-action { white-space: nowrap; }
+.party-inline-action svg { width: 15px; height: 15px; }
+.party-balance-caption { display: block; color: var(--label-2); font-size: .72rem; font-weight: 400; margin-top: 3px; }
+.party-profile-strip { display: flex; align-items: center; gap: 14px; padding: 18px; margin-bottom: 14px; }
+.party-profile-avatar { width: 48px; height: 48px; flex: 0 0 48px; display: grid; place-items: center; border-radius: 14px; background: var(--tint-soft); color: var(--tint); font-size: 1.4rem; font-weight: 800; }
+.party-profile-strip > div { flex: 1; min-width: 0; }
+.party-profile-strip strong { font-size: 1.05rem; }
+.party-profile-strip .muted { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 5px; font-size: .85rem; }
+.party-profile-strip .muted > span { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
+.party-profile-strip svg { width: 14px; height: 14px; }
+.party-detail-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.party-detail-stats > .stat { padding: 16px; min-width: 0; }
+.party-detail-stats .stat-value { font-size: 1.55rem; margin-block: 7px; }
+.party-stat-date { font-size: 1.2rem; font-weight: 750; margin-block: 12px; }
+.party-stat-button { font: inherit; text-align: right; cursor: pointer; color: var(--heading); }
+.party-stat-button:hover { border-color: var(--tint); }
+.party-detail-tabs { display: flex; gap: 6px; flex-wrap: wrap; background: var(--card); padding: 6px; border: 1px solid var(--separator); border-radius: 12px; margin-bottom: 16px; }
+.party-detail-tabs button { border: 0; background: transparent; color: var(--label-2); font: inherit; font-size: .9rem; font-weight: 600; padding: 10px 18px; border-radius: 8px; cursor: pointer; }
+.party-detail-tabs button.active { background: var(--tint-soft); color: var(--tint); }
+.party-statement-panel,.party-documents-panel { padding: 16px; }
+.party-statement-panel > .row { margin-top: 0 !important; }
+.party-date-label { display: flex; gap: 6px; align-items: center; color: var(--label-2); font-size: .82rem; }
+.party-date-label > .input { width: 150px; }
+.party-documents-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.party-documents-toolbar h2 { font-size: 1rem; margin: 0; flex: 1; }
+.party-documents-toolbar .search-box { min-width: 210px; }
+.party-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 14px; }
+.party-pagination > span { flex: 1; font-size: .85rem; }
+.sheet:has(.party-editor) { width: min(640px, 100%); border-radius: 16px; }
+.party-editor .grid { gap: 12px; }
+.party-editor .field { min-width: 0; }
+.party-editor .input,.party-editor .select { width: 100%; box-sizing: border-box; }
+.party-editor-options { border: 1px solid var(--separator); border-radius: 10px; padding: 0 12px 12px; }
+.party-editor-options:not([open]) { padding-bottom: 0; }
+.party-editor-options > summary { font-weight: 650; font-size: .9rem; padding: 12px 0; cursor: pointer; }
+.party-editor-options > summary span { display: block; margin: 4px 15px 0 0; font-size: .76rem; color: var(--label-2); font-weight: 400; }
+.party-editor-options[open] > .field { margin-block: 10px; }
+.party-editor .textarea { min-height: 64px; height: 64px; }
+@media (max-width: 700px) {
+  .party-list-filters > .select { flex: 1 1 130px; }
+  .party-profile-strip { padding: 13px; gap: 10px; }
+  .party-detail-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .party-detail-stats .stat-value { font-size: 1.2rem; }
+  .party-detail-tabs button { flex: 1; padding: 9px 8px; font-size: .8rem; }
+  .party-statement-panel,.party-documents-panel { padding: 12px; }
+  .party-documents-toolbar > .party-date-label { flex: 1; }
+  .party-date-label > .input { min-width: 0; width: 100%; }
+}
+@media print {
+  .party-detail-page button,.party-pagination { display: none !important; }
+  .party-statement-panel { border: 0; box-shadow: none; padding: 0; }
+}

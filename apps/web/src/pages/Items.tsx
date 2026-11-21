@@ -1,7 +1,7 @@
 import { bpToPercent, formatMoney, formatQty, parsePercentBp, uuid } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Package, Plus, Trash2 } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Package, Plus, Trash2, Boxes, TriangleAlert, Wallet, PackageX } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
 import { ActiveBadge, RowActions } from '../components/ListParts';
@@ -10,13 +10,20 @@ import { saveMaster } from '../lib/actions';
 import { ImportItemsSheet, QuickItemSheet } from '../components/QuickItem';
 import { CategoryField, CategoryFilter } from '../components/Categories';
 import { db } from '../lib/db';
-import { useDebounced, usePerm, useSettings } from '../lib/hooks';
+import { useDebounced, usePerm, useSession, useSettings } from '../lib/hooks';
 import { searchItems } from '../lib/search';
 import { similarItemsNow, similarNameMessage, useSimilarItems } from '../lib/similarItems';
+import './items.css';
 
 export function ItemsPage() {
   const can = usePerm();
   const nav = useNavigate();
+  const { session } = useSession();
+  const stockAllowed = can('inventory.view');
+  const costAllowed = stockAllowed && can('costs.view');
+  const [warehouse, setWarehouse] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  const [page, setPage] = useState(0);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
   const [showInactive, setShowInactive] = useState(false);
@@ -36,17 +43,25 @@ export function ItemsPage() {
 
   const data = useLiveQuery(async () => {
     const items = await db.items.orderBy('code').toArray();
-    const bal = await db.stock_balances.toArray();
+    const warehouses = stockAllowed ? (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))) : [];
+    const warehouseIds = warehouses.filter((w) => !warehouse || w.id === warehouse).map((w) => w.id);
+    const bal = warehouseIds.length ? await db.stock_balances.where('warehouse_id').anyOf(warehouseIds).toArray() : [];
     const qty = new Map<string, number>();
+    const value = new Map<string, number>();
     bal.forEach((b) => qty.set(b.item_id, (qty.get(b.item_id) ?? 0) + b.qty));
+    if (costAllowed) bal.forEach((b) => value.set(b.item_id, (value.get(b.item_id) ?? 0) + b.value));
     const cats = await db.categories.toArray();
-    return { items, qty, cats };
-  }, []);
+    return { items, qty, cats, value, warehouses };
+  }, [warehouse, stockAllowed, costAllowed, session.user.id, session.user.warehouse_ids?.join(',')]);
 
   const list = useMemo(() => {
     if (!data) return [];
-    return searchItems(data.items.filter((i) => (showInactive || i.active !== false) && (!cat || i.category_id === cat)), dq);
-  }, [data, dq, cat, showInactive]);
+    return searchItems(data.items.filter((i) => {
+      if ((!showInactive && i.active === false) || (cat && i.category_id !== cat)) return false;
+      const qty = data.qty.get(i.id) ?? 0;
+      return stockFilter === 'all' || (stockFilter === 'service' ? i.is_service : !i.is_service && (stockFilter === 'low' ? i.reorder_level > 0 && qty <= i.reorder_level : stockFilter === 'zero' ? qty === 0 : qty < 0));
+    }), dq);
+  }, [data, dq, cat, showInactive, stockFilter]);
   const catName = new Map((data?.cats ?? []).map((c) => [c.id, c.name]));
   // عدد الأصناف في كل تصنيف (حسب البحث وإظهار الموقوفة)
   const catCounts = useMemo(() => {
@@ -75,12 +90,19 @@ export function ItemsPage() {
   const rows = showGroups
     ? [...list].sort((a, b) => String(catName.get(a.category_id) ?? 'ي').localeCompare(String(catName.get(b.category_id) ?? 'ي'), 'ar') || String(a.code).localeCompare(String(b.code), 'ar', { numeric: true }))
     : list;
+  const activeItems = (data?.items ?? []).filter((i) => i.active !== false);
+  const stocked = activeItems.filter((i) => !i.is_service);
+  const lowCount = stocked.filter((i) => i.reorder_level > 0 && (data?.qty.get(i.id) ?? 0) <= i.reorder_level).length;
+  const zeroCount = stocked.filter((i) => (data?.qty.get(i.id) ?? 0) === 0).length;
+  const stockValue = stocked.reduce((sum, i) => sum + (data?.value.get(i.id) ?? 0), 0);
+  const pageCount = Math.max(1, Math.ceil(rows.length / 40));
+  const safePage = Math.min(page, pageCount - 1);
 
   return (
-    <div className="page">
+    <div className="page items-page">
       <PageHeader
-        title="الأصناف"
-        sub={`${list.length} صنف`}
+        title="الأصناف والمخزون"
+        sub={`${list.length} صنف · أرصدة محلية من المخازن المسموح بها`}
         actions={
           <>
             <button
@@ -88,8 +110,8 @@ export function ItemsPage() {
               onClick={() =>
                 exportExcel(
                   'الأصناف',
-                  ['الكود', 'الاسم', 'الباركود', 'التصنيف', 'الوحدة', 'سعر البيع', 'سعر الجملة', 'الرصيد', 'حد الطلب'],
-                  list.map((i) => [i.code, i.name, i.barcode, catName.get(i.category_id), i.base_unit, formatMoney(i.sale_price), formatMoney(i.wholesale_price), formatQty(data?.qty.get(i.id) ?? 0), formatQty(i.reorder_level)]),
+                  ['الكود', 'الاسم', 'الباركود', 'التصنيف', 'الوحدة', 'سعر البيع', 'سعر الجملة', ...(stockAllowed ? ['الرصيد', 'حد الطلب'] : [])],
+                  list.map((i) => [i.code, i.name, i.barcode, catName.get(i.category_id), i.base_unit, formatMoney(i.sale_price), formatMoney(i.wholesale_price), ...(stockAllowed ? [i.is_service ? '—' : formatQty(data?.qty.get(i.id) ?? 0), formatQty(i.reorder_level)] : [])]),
                 )
               }
             >
@@ -104,9 +126,14 @@ export function ItemsPage() {
           </>
         }
       />
-      <div className="row wrap" style={{ marginBottom: 12 }}>
+      <section className="items-kpis" aria-label="ملخص الأصناف والمخزون">
+        <article className="card item-kpi"><Package /><div><span>الأصناف النشطة</span><strong className="num">{activeItems.length}</strong><small>{stocked.length} مخزني · {activeItems.length - stocked.length} خدمة</small></div></article>
+        {stockAllowed && <><button className="card item-kpi" onClick={() => { setStockFilter('low'); setPage(0); }}><TriangleAlert /><div><span>وصلت لحد الطلب</span><strong className="num">{lowCount}</strong><small>اضغط لعرض النواقص</small></div></button><button className="card item-kpi" onClick={() => { setStockFilter('zero'); setPage(0); }}><PackageX /><div><span>الرصيد صفر</span><strong className="num">{zeroCount}</strong><small>ضمن المخازن المختارة</small></div></button></>}
+        {costAllowed && <article className="card item-kpi"><Wallet /><div><span>قيمة المخزون بالتكلفة</span><strong className="num">{formatMoney(stockValue)}</strong><small>للأصناف النشطة والمخازن المختارة</small></div></article>}
+      </section>
+      <div className="card items-filters">
         <div style={{ flex: 1, minWidth: 220 }}>
-          <SearchBox value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو الباركود" autoFocus />
+          <SearchBox value={q} onChange={(v) => { setQ(v); setPage(0); }} placeholder="بحث بالاسم أو الكود أو الباركود" autoFocus />
         </div>
         {catCounts.size > 1 && (
           <label className="row small muted">
@@ -116,9 +143,10 @@ export function ItemsPage() {
         <label className="row small muted">
           <Switch checked={showInactive} onChange={setShowInactive} /> الموقوفة
         </label>
+        {stockAllowed && <><select className="select" aria-label="المخزن" value={warehouse} onChange={(e) => { setWarehouse(e.target.value); setPage(0); }}><option value="">كل المخازن المسموح بها</option>{data?.warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select><select className="select" aria-label="حالة المخزون" value={stockFilter} onChange={(e) => { setStockFilter(e.target.value); setPage(0); }}><option value="all">كل الأصناف</option><option value="low">وصلت لحد الطلب</option><option value="zero">رصيد صفر</option><option value="negative">رصيد سالب</option><option value="service">خدمات فقط</option></select></>}
       </div>
       <div style={{ marginBottom: 12 }}>
-        <CategoryFilter value={cat} onChange={setCat} counts={catCounts} />
+        <CategoryFilter value={cat} onChange={(v) => { setCat(v); setPage(0); }} counts={catCounts} />
       </div>
       {list.length === 0 ? (
         <div className="card">
@@ -137,33 +165,35 @@ export function ItemsPage() {
                 <th>النوع</th>
                 <th>الوحدة</th>
                 <th className="n">سعر البيع</th>
-                <th className="n">الرصيد</th>
+                {stockAllowed && <th className="n">الرصيد</th>}
                 <th>الحالة</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {rows.map((i, idx) => {
+              {rows.slice(safePage * 40, safePage * 40 + 40).map((i, localIndex) => {
+                const idx = safePage * 40 + localIndex;
                 const qty = data?.qty.get(i.id) ?? 0;
-                const low = i.reorder_level > 0 && qty <= i.reorder_level;
-                const head = showGroups && (idx === 0 || rows[idx - 1].category_id !== i.category_id);
+                const low = !i.is_service && i.reorder_level > 0 && qty <= i.reorder_level;
+                const head = showGroups && (localIndex === 0 || rows[idx - 1].category_id !== i.category_id);
                 return (
                   <Fragment key={i.id}>
                   {head && (
                     <tr className="group-row">
-                      <td colSpan={9}>{catName.get(i.category_id) ?? 'بدون تصنيف'} <span className="muted small num">{catCounts.get(i.category_id ?? '') ?? 0} صنف</span></td>
+                      <td colSpan={stockAllowed ? 9 : 8}>{catName.get(i.category_id) ?? 'بدون تصنيف'} <span className="muted small num">{catCounts.get(i.category_id ?? '') ?? 0} صنف</span></td>
                     </tr>
                   )}
-                  <tr className="click" onClick={() => (can('items.edit') ? setEditing(i) : nav(`/items/inquiry?id=${i.id}`))}>
+                  <tr className="click" onClick={() => nav(`/items/inquiry?id=${i.id}`)}>
                     <td data-label="الكود" className="num">{i.code}</td>
                     <td data-label="الاسم">
                       <span className="bold">{i.name}</span>
+                      {i.barcode && <small className="item-barcode num">{i.barcode}</small>}
                     </td>
                     <td data-label="التصنيف" className="muted">{catName.get(i.category_id) ?? '—'}</td>
                     <td data-label="النوع">{i.is_service ? <span className="badge orange">خدمة</span> : <span className="badge green">مخزني</span>}</td>
                     <td data-label="الوحدة">{i.base_unit}</td>
                     <td data-label="سعر البيع" className="n">{formatMoney(i.sale_price)}</td>
-                    <td data-label="الرصيد" className={`n ${low ? 'red bold' : ''}`}>{i.is_service ? '—' : formatQty(qty)}</td>
+                    {stockAllowed && <td data-label="الرصيد" className={`n ${low || qty < 0 ? 'red bold' : ''}`}>{i.is_service ? '—' : formatQty(qty)}{!i.is_service && low && <small className="item-stock-note">حد الطلب {formatQty(i.reorder_level)}</small>}</td>}
                     <td data-label="الحالة"><ActiveBadge active={i.active !== false} /></td>
                     <td data-label="" className="lp-act-cell">
                       <RowActions openLabel="بحث عن الصنف" onOpen={() => nav(`/items/inquiry?id=${i.id}`)} onEdit={can('items.edit') ? () => setEditing(i) : undefined}>
@@ -178,6 +208,7 @@ export function ItemsPage() {
           </table>
         </div>
       )}
+      <div className="items-pagination"><span className="muted">{rows.length} صنف · صفحة {safePage + 1} من {pageCount}</span><button className="btn sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>السابق</button><button className="btn sm" disabled={safePage + 1 >= pageCount} onClick={() => setPage(safePage + 1)}>التالي</button>{stockAllowed && <button className="btn sm" onClick={() => nav(`/reports/stock${warehouse ? `?wh=${encodeURIComponent(warehouse)}` : ''}`)}><Boxes /> تقرير المخزون</button>}</div>
       {editing && <ItemEditor item={editing.id ? editing : null} onClose={() => setEditing(null)} />}
       {quick && <QuickItemSheet onClose={() => setQuick(false)} onAdvanced={() => { setQuick(false); setEditing({}); }} />}
       {importing && <ImportItemsSheet onClose={() => setImporting(false)} />}
@@ -187,6 +218,9 @@ export function ItemsPage() {
 
 export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClose: () => void; onSaved?: (id: string) => void }) {
   const ui = useUi();
+  const can = usePerm();
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
   const settings = useSettings();
   const cats = useLiveQuery(() => db.categories.toArray(), []) ?? [];
   const existingUnits = useLiveQuery(async () => (item ? (await db.item_units.where('item_id').equals(item.id).toArray()).filter((u) => u.active !== false) : []), [item?.id]);
@@ -231,6 +265,12 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
   };
 
   const save = async () => {
+    if (saving.current) return;
+    if (!can(item ? 'items.edit' : 'items.create')) return setErr('لا تملك صلاحية حفظ الصنف');
+    if (item && (!existingUnits || !existingPrices)) return setErr('انتظر تحميل بيانات الصنف');
+    saving.current = true;
+    setBusy(true);
+    try {
     setErr(null);
     if (!f.code.trim() || !f.name.trim()) return setErr('الكود والاسم مطلوبان');
     const sim = await similarItemsNow(f.name, item);
@@ -268,21 +308,23 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
     ui.toast(item ? 'تم حفظ التعديل' : 'تمت إضافة الصنف');
     onSaved?.(id);
     onClose();
+    } catch (e) { setErr((e as Error).message || 'تعذر حفظ الصنف'); }
+    finally { saving.current = false; setBusy(false); }
   };
 
   return (
     <Sheet
       title={item ? 'تعديل صنف' : 'صنف جديد'}
-      onClose={onClose}
+      onClose={() => { if (!saving.current) onClose(); }}
       wide
       footer={
         <>
-          <button className="btn" onClick={onClose}>إلغاء</button>
-          <button className="btn primary" onClick={save} disabled={!!nameErr} title={nameErr ? 'غيّر اسم الصنف أولًا' : undefined}>حفظ</button>
+          <button className="btn" disabled={busy} onClick={onClose}>إلغاء</button>
+          <button className="btn primary" onClick={() => void save()} disabled={busy || !!nameErr || (!!item && (!existingUnits || !existingPrices))} aria-busy={busy} title={nameErr ? 'غيّر اسم الصنف أولًا' : undefined}>{busy ? 'جارٍ الحفظ…' : 'حفظ البيانات'}</button>
         </>
       }
     >
-      <div className="stack">
+      <div className="stack item-editor">
         {err && <Banner kind="err">{err}</Banner>}
         {item?._sync === 'rejected' && <Banner kind="err">لم يُقبل آخر حفظ على الخادم: {item._error}</Banner>}
         <div className="grid grid-3">
@@ -325,6 +367,7 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
             </div>
           </Field>
         </div>
+        <details className="item-editor-options"><summary>نوع الصنف والتتبع والصلاحية</summary>
         <div className="list" style={{ background: 'var(--bg)' }}>
           <div className="list-row" style={{ background: 'transparent' }}>
             <div className="title">خدمة بدون مخزون<div className="sub">مثل التركيب والصيانة: لا رصيد ولا تكلفة</div></div>
@@ -345,6 +388,8 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
             </div>
           )}
         </div>
+        </details>
+        <details className="item-editor-options"><summary>أسعار قوائم الأسعار</summary>
         {priceLists.length > 0 && (
           <>
             <div className="bold" style={{ marginTop: 6 }}>أسعار قوائم الأسعار</div>
@@ -368,6 +413,8 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
             </div>
           </>
         )}
+        </details>
+        <details className="item-editor-options"><summary>الوحدات الإضافية والملاحظات</summary>
         <Field label="ملاحظات">
           <textarea className="textarea" value={f.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
         </Field>
@@ -407,6 +454,7 @@ export function ItemEditor({ item, onClose, onSaved }: { item: any | null; onClo
             </div>
           );
         })}
+        </details>
       </div>
     </Sheet>
   );

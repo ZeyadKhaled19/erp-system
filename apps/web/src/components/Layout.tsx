@@ -37,8 +37,8 @@ export function SyncPill() {
         : 'متصل ومتزامن';
   return (
     <button className={`sync-pill ${cls}`} onClick={() => nav('/sync')} title={s.lastError ?? text} aria-label={text}>
-      {s.syncing ? <RefreshCw className="spin" /> : !reachable ? <CloudOff /> : <span className="dot" />}
-      <span>{text}</span>
+      <span className="sync-mark" aria-hidden="true">{s.syncing ? <RefreshCw className="spin" /> : !reachable ? <CloudOff /> : <span className="dot" />}</span>
+      <span className="sync-label">{text}</span>
     </button>
   );
 }

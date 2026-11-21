@@ -1,7 +1,7 @@
 import {
   AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Barcode, BarChart3, BookOpen, BookPlus, Boxes, Building2, CalendarClock, ClipboardCheck,
   Clock, FileText, HardDriveDownload, Home, Landmark, ListTree, Package, PackagePlus, PackageSearch, PieChart, Receipt, RefreshCw, RotateCcw, Scale,
-  IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
+  IdCard, ScrollText, Settings, ShieldCheck, ShoppingBag, ShoppingCart, Sparkles, Tags, TrendingUp, Truck, Undo2, UserPlus, Users, Wallet, Warehouse, Zap,
 } from 'lucide-react';
 import { Fingerprint, HandCoins, Network, ShoppingBasket } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -54,6 +54,7 @@ export const HUBS: Hub[] = [
         title: 'المتابعة',
         links: [
           { to: '/docs/list/sales', label: 'سجل المبيعات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'sales.view' },
+          { to: '/returns/sales', label: 'تقرير مرتجعات البيع', icon: <Undo2 />, grad: 'var(--grad-orange)', perm: 'sales.view' },
           { to: '/receivables', label: 'الفواتير الآجلة', icon: <CalendarClock />, grad: 'var(--grad-red)', perm: 'sales.view' },
           { to: '/deliveries', label: 'متابعة التسليم', icon: <Truck />, grad: 'var(--grad-brown)', perm: 'sales.view' },
           { to: '/parties/customer', label: 'العملاء', icon: <Users />, grad: 'var(--grad-indigo)', perm: 'parties.view' },
@@ -79,7 +80,8 @@ export const HUBS: Hub[] = [
       {
         title: 'المتابعة',
         links: [
-          { to: '/docs/list/purchases', label: 'سجل المشتريات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'purchases.view' },
+          { to: '/purchases', label: 'تقرير المشتريات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'purchases.view' },
+          { to: '/returns/purchases', label: 'تقرير مرتجعات الشراء', icon: <RotateCcw />, grad: 'var(--grad-orange)', perm: 'purchases.view' },
           { to: '/parties/supplier', label: 'الموردون', icon: <Truck />, grad: 'var(--grad-brown)', perm: 'parties.view' },
         ],
       },
@@ -105,8 +107,8 @@ export const HUBS: Hub[] = [
       {
         title: 'حركات المخزن',
         links: [
-          { to: '/docs/new/stock_transfer', label: 'تحويل بين المخازن', icon: <ArrowLeftRight />, grad: 'var(--grad-purple)', perm: 'inventory.create' },
-          { to: '/docs/new/stock_adjustment', label: 'تسوية المخزون', icon: <ClipboardCheck />, grad: 'var(--grad-pink)', perm: 'inventory.create' },
+          { to: '/inventory/transfers', label: 'تحويل بين المخازن', icon: <ArrowLeftRight />, grad: 'var(--grad-purple)', perm: 'inventory.view' },
+          { to: '/inventory/counts', label: 'تسوية المخزون', icon: <ClipboardCheck />, grad: 'var(--grad-pink)', perm: 'inventory.view' },
           { to: '/docs/new/opening_stock', label: 'مخزون افتتاحي', icon: <PackagePlus />, grad: 'var(--grad-gray)', perm: 'inventory.create' },
           { to: '/docs/list/inventory', label: 'حركة المخزون', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'inventory.view' },
         ],
@@ -150,6 +152,7 @@ export const HUBS: Hub[] = [
           { to: '/instruments', label: 'الشيكات والأقساط', icon: <CalendarClock />, grad: 'var(--grad-purple)', perm: 'treasury.view' },
           { to: '/shift', label: 'الوردية', icon: <Clock />, grad: 'var(--grad-teal)', perm: 'treasury.shift' },
           { to: '/docs/list/treasury', label: 'سجل السندات', icon: <FileText />, grad: 'var(--grad-teal)', perm: 'treasury.view' },
+          { to: '/treasury/transfers', label: 'سجل تحويلات الخزائن', icon: <ArrowLeftRight />, grad: 'var(--grad-indigo)', perm: 'treasury.view' },
           { to: '/reports/treasury', label: 'تحليل المقبوضات', icon: <PieChart />, grad: 'var(--grad-green)', perm: 'treasury.view' },
           { to: '/reports/treasury?dir=out', label: 'تحليل المصروفات', icon: <PieChart />, grad: 'var(--grad-red)', perm: 'treasury.view' },
         ],
@@ -249,9 +252,13 @@ export const hubPath = (h: Hub) => h.to ?? `/hub/${h.key}`;
 /** القسم الذي تنتمي إليه الصفحة الحالية (لتمييزه في الشريط الجانبي) */
 export function activeHubKey(pathname: string): string {
   if (pathname === '/') return 'home';
+  if (pathname.startsWith('/insights')) return 'insights';
   if (pathname.startsWith('/hub/')) return pathname.slice(5);
   if (pathname.startsWith('/pos')) return 'pos';
   if (pathname.startsWith('/invoices')) return 'invoices';
+  if (pathname.startsWith('/returns/sales')) return 'sales';
+  if (pathname === '/purchases' || pathname.startsWith('/returns/purchases')) return 'purchases';
+  if (pathname.startsWith('/treasury/')) return 'treasury';
   if (pathname.startsWith('/parties/customer')) return 'customers';
   if (pathname.startsWith('/parties/supplier')) return 'suppliers';
   if (pathname.startsWith('/partners') || pathname.includes('partner_')) return 'partners';
@@ -285,6 +292,8 @@ export interface Section {
   /** يظهر لمن يملك أيًا منها (فارغ = للجميع) */
   perms: string[];
   hubs: string[];
+  /** Ø¥Ø®ÙØ§Ø¡ Ø§Ù„Ù‚Ø³Ù… Ù…Ù† Ø§Ø®ØªØµØ§Ø±Ø§Øª Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ© Ù…Ø¹ Ø§Ù„Ø¥Ø¨Ù‚Ø§Ø¡ Ø¹Ù„Ù‰ Ø¸Ù‡ÙˆØ±Ù‡ ÙÙŠ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© */
+  homeCard?: boolean;
   /** روابط إضافية أعلى القائمة المنسدلة */
   extra?: NavLink[];
 }
@@ -316,6 +325,7 @@ export const SECTIONS: Section[] = [
       { to: '/docs/new/partner_withdrawal', label: 'سحب من الشريك', icon: <ArrowUpRight />, grad: '', perm: 'partners.create' },
     ],
   },
+  { key: 'insights', label: 'نبض المحل', icon: <Sparkles />, cardIcon: <Sparkles />, color: 'violet', to: '/insights', perms: ['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view'], hubs: ['insights'], homeCard: false },
 ];
 
 /** أقسام قائمة الترس (غير الظاهرة في الشريط) — الشركاء اتنقلوا للشريط بطلب المستخدم 2026-11-14 */

@@ -426,9 +426,18 @@ async function handleDocCancel(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.can
 async function handleDocAmend(t: Db, ctx: Ctx, op: Extract<Op, { type: 'doc.amend' }>): Promise<OpResult> {
   const original = await t.one(`select doc_type from documents where id = $1`, [op.id]);
   if (!original) throw new AppError('المستند الأصلي غير موجود', 'not_found');
+  // التعديل = إلغاء الأصلية + ترحيل البديلة، فبيحتاج صلاحيات الاتنين
   need(ctx.user, docPerm(original.doc_type, 'edit'));
   need(ctx.user, docPerm(original.doc_type, 'post'));
-  const r = await amendDocument(t, ctx, op.id, op.doc, op.reason ?? '', op.payment_allocations);
+  need(ctx.user, docPerm(original.doc_type, 'cancel'));
+  let r;
+  try {
+    r = await amendDocument(t, ctx, op.id, op.doc, op.reason ?? '', op.payment_allocations);
+  } catch (e) {
+    // لو البديلة محتاجة مراجعة (رصيد أو حد ائتمان) التعديل كله بيترفض بسبب واضح، مش «خطأ مؤقت» يتعاد للأبد
+    if (e instanceof ReviewError) throw new AppError(`ما ينفعش التعديل: ${e.message}. الفاتورة الأصلية فضلت زي ما هي`, 'state');
+    throw e;
+  }
   return { op_id: '', status: 'accepted', result: { id: r.id, number: r.number, status: 'posted', version: r.version } };
 }
 

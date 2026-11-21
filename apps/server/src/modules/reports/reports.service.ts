@@ -129,8 +129,8 @@ export class ReportsService {
     const invoice = await this.db.one(`select id, doc_type, status, party_id, warehouse_id from documents where id = $1`, [id]);
     if (!invoice) throw new AppError('الفاتورة غير موجودة', 'not_found');
     if (invoice.doc_type !== 'purchase_invoice' || invoice.status !== 'posted') throw new AppError('تعديل الفاتورة متاح لفاتورة شراء مرحّلة فقط', 'state');
-    if (!can(user, 'purchases.view') || !can(user, 'purchases.edit') || !can(user, 'purchases.post')) {
-      throw new AppError('تحتاج إلى صلاحيات مشاهدة وتعديل وترحيل المشتريات', 'forbidden');
+    if (!can(user, 'purchases.view') || !can(user, 'purchases.edit') || !can(user, 'purchases.post') || !can(user, 'purchases.cancel')) {
+      throw new AppError('تحتاج إلى صلاحيات مشاهدة وتعديل وترحيل وإلغاء المشتريات', 'forbidden');
     }
     assertWarehouseScope(user, invoice.warehouse_id);
     const sources = await this.db.query(

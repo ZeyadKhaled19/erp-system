@@ -156,7 +156,7 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
     // قسم من غير مجموعات (زي الشركاء) بيظهر كرابط واحد لصفحته، ومعاه روابطه الإضافية لو ليه
     .map((h) => ({ title: h.label, links: linksOf(can, h.groups.length ? h.groups.flatMap((g) => g.links) : [{ to: h.to!, label: h.label, icon: h.icon, grad: '', perm: h.perm }, ...(GEAR_EXTRA[h.key] ?? [])]) }))
     .filter((g) => g.links.length);
-  // جوه برنامج الويندوز بس: «برنامج الويندوز» (التحديثات والنسخ الاحتياطي) أول رابط في الإعدادات
+  // جوه برنامج الويندوز بس: التحديثات والنسخ الاحتياطي والأجهزة المتصلة.
   if (isDesktop() && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [{ to: '/desktop', label: 'برنامج الويندوز', icon: <Laptop />, grad: '' }, ...gearGroups[0].links] };
   // موقع صاحب السيستم بس: «التراخيص والتجارب» (اللي سجلوا وأكواد التفعيل)
   if (lic?.vendor && can('settings.manage') && gearGroups.length) gearGroups[0] = { ...gearGroups[0], links: [...gearGroups[0].links, { to: '/owner', label: 'لوحة صاحب السيستم', icon: <Gauge />, grad: '' }, { to: '/licenses', label: 'التراخيص والتجارب', icon: <KeyRound />, grad: '' }] };

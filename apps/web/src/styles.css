@@ -269,10 +269,11 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-base
 
 /* ---------- النوافذ المنبثقة ---------- */
 .overlay {
-  position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.25);
+  position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.25);
   display: grid; place-items: center; padding: 1.25rem;
   animation: fade .2s var(--ease);
 }
+.overlay-above-expense-modal { z-index: 1100; }
 .sheet {
   background: var(--bg); border-radius: var(--radius-l); box-shadow: var(--shadow-pop);
   width: min(35rem, 100%); max-height: calc(100% - 2.5rem); display: flex; flex-direction: column;
@@ -309,7 +310,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-base
 @keyframes up { from { transform: translateY(100%) } }
 
 /* ---------- إشعارات عابرة ---------- */
-.toasts { position: fixed; top: calc(0.875rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; pointer-events: none; }
+.overlay.confirmation-overlay { z-index: 1100; }
+.toasts { position: fixed; top: calc(0.875rem + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 1200; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; pointer-events: none; }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 1rem; border-radius: var(--r-pill);
   background: var(--bar); backdrop-filter: blur(30px); box-shadow: var(--shadow-pop); font-size: var(--text-base); font-weight: 500;

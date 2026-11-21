@@ -1,14 +1,15 @@
 import { DOC_TYPES, formatMoney, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarClock } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlertTriangle, CalendarCheck, CalendarClock, Search, Wallet } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { DatePicker } from '../components/DatePicker';
-import { Empty, exportExcel, Field, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
+import { PageTabs, TREASURY_TABS, TotalCards } from '../components/ListParts';
+import { Banner, DateInput, Empty, exportExcel, Field, Segmented, Sheet, SyncBadge, useUi } from '../components/ui';
 import { closeCreditInvoice, settleInstrument } from '../lib/actions';
 import { db } from '../lib/db';
-import { useMap, usePerm } from '../lib/hooks';
+import { useMap, usePerm, useSession, userCashboxes } from '../lib/hooks';
+import './expenses.css';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   open: { label: 'مفتوح', cls: 'orange' },
@@ -27,33 +28,59 @@ export function InstrumentsPage() {
   const [status, setStatus] = useState('open');
   const [kind, setKind] = useState('');
   const [until, setUntil] = useState('');
+  const [query, setQuery] = useState('');
   const [act, setAct] = useState<{ x: any; action: 'collect' | 'bounce' | 'close' } | null>(null);
   const today = todayISO();
+  const weekEnd = new Date(today + 'T00:00:00');
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekEndISO = weekEnd.toISOString().slice(0, 10);
 
   const rows = useLiveQuery(async () => (await db.instruments.toArray()).sort((a, b) => String(a.due_date).localeCompare(String(b.due_date))), []) ?? [];
-  const list = rows.filter((x) => x.direction === dir && (status === 'all' || x.status === status) && (!kind || x.kind === kind) && (!until || x.due_date <= until));
+  const directionRows = rows.filter((instrument) => instrument.direction === dir);
+  const list = directionRows
+    .filter((instrument) => (status === 'all' || instrument.status === status) && (!kind || instrument.kind === kind) && (!until || instrument.due_date <= until))
+    .filter((instrument) => !query.trim() || [instrument.cheque_no, instrument.bank, parties.get(instrument.party_id)?.name].some((value) => value?.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const total = list.reduce((s, x) => s + x.amount, 0);
-  const overdue = list.filter((x) => x.status === 'open' && x.due_date < today).reduce((s, x) => s + x.amount, 0);
+  const openRows = directionRows.filter((instrument) => instrument.status === 'open');
+  const overdueRows = openRows.filter((instrument) => instrument.due_date < today);
+  const dueSoonRows = openRows.filter((instrument) => instrument.due_date >= today && instrument.due_date <= weekEndISO);
+  const sum = (instruments: any[]) => instruments.reduce((totalAmount, instrument) => totalAmount + instrument.amount, 0);
 
   return (
-    <div className="page">
+    <div className="page expenses-page">
+      <PageTabs tabs={TREASURY_TABS} />
       <PageHeader
         title="الشيكات والأقساط"
-        sub={`${list.length} · الإجمالي ${formatMoney(total)}${overdue ? ` · متأخر ${formatMoney(overdue)}` : ''}`}
-        actions={<button className="btn" onClick={() => exportExcel('الشيكات والأقساط', ['النوع', 'الطرف', 'الاستحقاق', 'المبلغ', 'رقم الشيك', 'البنك', 'الحالة'], list.map((x) => [x.kind === 'cheque' ? 'شيك' : 'قسط', parties.get(x.party_id)?.name, x.due_date, formatMoney(x.amount), x.cheque_no, x.bank, STATUS[x.status]?.label]))}>تصدير Excel</button>}
+        actions={<button className="btn" disabled={!list.length} onClick={() => exportExcel('الشيكات والأقساط', ['الاتجاه', 'النوع', 'الطرف', 'الاستحقاق', 'المبلغ', 'رقم الشيك', 'البنك', 'الحالة'], list.map((instrument) => [instrument.direction === 'in' ? 'وارد' : 'صادر', instrument.kind === 'cheque' ? 'شيك' : 'قسط', parties.get(instrument.party_id)?.name, instrument.due_date, formatMoney(instrument.amount), instrument.cheque_no, instrument.bank, STATUS[instrument.status]?.label]))}>تصدير السجل</button>}
       />
+      <TotalCards items={[
+        { label: dir === 'in' ? 'مستحق التحصيل' : 'مستحق السداد', value: formatMoney(sum(openRows)), tone: 'blue' },
+        { label: 'متأخر حتى اليوم', value: formatMoney(sum(overdueRows)), tone: 'red' },
+        { label: 'مستحق خلال 7 أيام', value: formatMoney(sum(dueSoonRows)), tone: 'orange' },
+      ]} />
       <div className="row wrap" style={{ marginBottom: 12 }}>
         <Segmented value={dir} onChange={setDir} options={[{ value: 'in', label: 'واردة (من العملاء)' }, { value: 'out', label: 'صادرة (للموردين)' }]} />
-        <Segmented value={status} onChange={setStatus} options={[{ value: 'open', label: 'مفتوحة' }, { value: 'collected', label: 'محصلة' }, { value: 'bounced', label: 'مرتدة' }, { value: 'closed', label: 'مغلقة' }, { value: 'all', label: 'الكل' }]} />
+      </div>
+      <div className="expense-filters">
+        <label className="expense-search"><Search /><input className="input" aria-label="البحث في الشيكات والأقساط" placeholder="ابحث بالطرف أو رقم الشيك أو البنك" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <select className="select" aria-label="حالة المتابعة" value={status} onChange={(event) => setStatus(event.target.value)}>
+          <option value="open">مفتوحة</option><option value="collected">محصلة</option><option value="bounced">مرتدة</option><option value="closed">مغلقة</option><option value="all">كل الحالات</option>
+        </select>
         <select className="select" style={{ width: 170 }} value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="">شيكات وأقساط</option>
           <option value="cheque">شيكات</option>
           <option value="installment">أقساط</option>
         </select>
-        <label className="row small muted">استحقاق حتى <DatePicker className="input" style={{ width: 160 }} value={until} onChange={setUntil} aria-label="استحقاق حتى" /></label>
+        <label className="expense-filter-field">استحقاق حتى <DateInput value={until} onChange={(e) => setUntil(e.target.value)} /></label>
+        {(query || kind || until || status !== 'open') ? <button className="btn sm" onClick={() => { setQuery(''); setKind(''); setUntil(''); setStatus('open'); }}>مسح الفلاتر</button> : null}
       </div>
+      <section className="expense-kpis" aria-label="ملخص السجل المعروض">
+        <article className="card expense-kpi"><span className="expense-kpi-icon blue"><Wallet /></span><div><span className="muted">إجمالي السجل المعروض</span><strong className="num">{formatMoney(total)}</strong><small className="muted">{list.length} بند مطابق للفلاتر</small></div></article>
+        <article className="card expense-kpi"><span className="expense-kpi-icon red"><AlertTriangle /></span><div><span className="muted">بنود متأخرة</span><strong className="num">{overdueRows.length}</strong><small className="muted">{formatMoney(sum(overdueRows))}</small></div></article>
+        <article className="card expense-kpi"><span className="expense-kpi-icon orange"><CalendarCheck /></span><div><span className="muted">قادمة خلال أسبوع</span><strong className="num">{dueSoonRows.length}</strong><small className="muted">{formatMoney(sum(dueSoonRows))}</small></div></article>
+      </section>
       {list.length === 0 ? (
-        <div className="card"><Empty icon={<CalendarClock />} title="لا يوجد" /></div>
+        <div className="card"><Empty icon={<CalendarClock />} title={rows.length ? 'لا توجد بنود مطابقة للفلاتر' : 'لا توجد شيكات أو أقساط بعد'} /></div>
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
@@ -95,11 +122,17 @@ export function InstrumentsPage() {
 
 function SettleSheet({ x, action, partyName, onClose }: { x: any; action: 'collect' | 'bounce' | 'close'; partyName?: string; onClose: () => void }) {
   const ui = useUi();
-  const cashboxes = useLiveQuery(async () => (await db.cashboxes.toArray()).filter((c) => c.active !== false), []) ?? [];
+  const { session } = useSession();
+  const cashboxes = useLiveQuery(() => userCashboxes(session.user), [session.user.id, session.user.cashbox_ids?.join(',')]) ?? [];
   const [cb, setCb] = useState<string>('');
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState('');
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const title = action === 'collect' ? (x.direction === 'in' ? 'تحصيل' : 'سداد') : action === 'bounce' ? 'ارتداد شيك' : 'إغلاق المتابعة';
+  const cashbox = cashboxes.find((item) => item.id === (cb || cashboxes[0]?.id));
+  const expectedBalance = (cashbox?.balance ?? 0) + (x.direction === 'in' ? x.amount : -x.amount);
   const effect =
     action === 'collect'
       ? x.kind === 'cheque'
@@ -111,17 +144,30 @@ function SettleSheet({ x, action, partyName, onClose }: { x: any; action: 'colle
   return (
     <Sheet
       title={title}
-      onClose={onClose}
+      onClose={() => { if (!saving.current) onClose(); }}
       footer={
         <>
-          <button className="btn" onClick={onClose}>رجوع</button>
+          <button className="btn" disabled={busy} onClick={onClose}>رجوع</button>
           <button
             className={`btn primary ${action === 'bounce' ? 'danger' : ''}`}
-            disabled={action === 'collect' && !(cb || cashboxes[0])}
+            aria-busy={busy}
+            disabled={busy || (action === 'collect' && !cashbox)}
             onClick={async () => {
-              await settleInstrument(x, action, { cashbox_id: action === 'collect' ? cb || cashboxes[0]?.id : null, date, note: note || undefined });
-              ui.toast('سيُطبق عند المزامنة');
-              onClose();
+              if (saving.current) return;
+              if (action === 'collect' && !cashbox) return setError('اختر خزينة أو حسابًا بنكيًا مسموحًا');
+              saving.current = true;
+              setBusy(true);
+              setError(null);
+              try {
+                await settleInstrument(x, action, { cashbox_id: action === 'collect' ? cashbox?.id : null, date, note: note || undefined });
+                ui.toast('سيُطبق عند المزامنة');
+                onClose();
+              } catch (settleError) {
+                setError((settleError as Error).message);
+              } finally {
+                saving.current = false;
+                setBusy(false);
+              }
             }}
           >
             تأكيد
@@ -130,18 +176,25 @@ function SettleSheet({ x, action, partyName, onClose }: { x: any; action: 'colle
       }
     >
       <div className="stack">
+        {error ? <Banner kind="err">{error}</Banner> : null}
         <div className="card pad">
           {x.kind === 'cheque' ? `شيك ${x.cheque_no ?? ''} ${x.bank ?? ''}` : 'قسط'} — {partyName} — <span className="num bold">{formatMoney(x.amount)}</span> — استحقاق <span className="num">{x.due_date}</span>
         </div>
         <div className="footnote">{effect}</div>
         {action === 'collect' && (
-          <Field label="الخزينة / البنك">
-            <select className="select" value={cb || cashboxes[0]?.id || ''} onChange={(e) => setCb(e.target.value)}>
-              {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
+          <>
+            <Field label="الخزينة / البنك">
+              <select className="select" value={cashbox?.id ?? ''} onChange={(e) => setCb(e.target.value)}>
+                {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+            {cashbox ? <div className="grid grid-2">
+              <div className="card pad"><span className="muted small">الرصيد الحالي</span><div className="bold num">{formatMoney(cashbox.balance ?? 0)}</div></div>
+              <div className="card pad"><span className="muted small">الرصيد المتوقع بعد العملية</span><div className={`bold num ${expectedBalance < 0 ? 'red' : ''}`}>{formatMoney(expectedBalance)}</div></div>
+            </div> : <Banner kind="warn">لا توجد خزينة أو حساب بنكي مسموح للمستخدم.</Banner>}
+          </>
         )}
-        {action !== 'close' && <Field label="التاريخ"><DatePicker value={date} onChange={setDate} /></Field>}
+        {action !== 'close' && <Field label="التاريخ"><DateInput className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>}
         <Field label="ملاحظة"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
       </div>
     </Sheet>

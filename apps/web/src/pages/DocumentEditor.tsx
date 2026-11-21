@@ -2,12 +2,11 @@ import {
   computeDocument, DOC_TYPES, formatMoney, formatQty, hasPermission, mulDiv, todayISO, toBaseQty, uuid, type DocInput, type DocType,
 } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, CalendarClock, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeftRight, Banknote, CalendarClock, CheckCircle2, ChevronLeft, Clock3, CreditCard, Plus, ScanLine, SplitSquareHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/Layout';
-import { DatePicker } from '../components/DatePicker';
-import { Banner, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
+import { Banner, DateInput, Field, MoneyInput, Picker, QtyInput, Segmented, Sheet, Switch, useUi, type PickOption } from '../components/ui';
 import { amendPurchaseInvoice, localAvailable, priceFor, saveDocument } from '../lib/actions';
 import { db } from '../lib/db';
 import { useRemote, useSession, useSettings, userCashboxes } from '../lib/hooks';
@@ -36,6 +35,14 @@ interface Pay {
   cashbox_id: string;
   amount: number;
 }
+
+const EXPENSE_MEMO_MARKER = '\nملاحظات إضافية: ';
+const splitExpenseNotes = (value: string) => {
+  const index = value.indexOf(EXPENSE_MEMO_MARKER);
+  return index < 0
+    ? { title: value, memo: '' }
+    : { title: value.slice(0, index), memo: value.slice(index + EXPENSE_MEMO_MARKER.length) };
+};
 interface Charge {
   id: string;
   name: string;
@@ -88,6 +95,7 @@ export function DocumentEditor() {
   const params = useParams();
   const [sp] = useSearchParams();
   const amendMode = sp.get('amend') === '1';
+  const location = useLocation();
   const nav = useNavigate();
   const ui = useUi();
   const { session } = useSession();
@@ -98,14 +106,26 @@ export function DocumentEditor() {
   const existingLines = useLiveQuery(async () => (params.id ? db.document_lines.where('document_id').equals(params.id).sortBy('line_no') : []), [params.id]);
   const amendmentInfo = useRemote<AmendmentInfo>(amendMode && params.id ? `/api/documents/${params.id}/amendment` : null, [params.id, existing?.row_version]);
   const type = (params.type ?? existing?.doc_type) as DocType;
+  const cashMovement = type === 'receipt' || type === 'payment';
+  const transferDoc = type === 'cash_transfer';
+  const countDoc = type === 'stock_adjustment';
+  const stockTransferDoc = type === 'stock_transfer';
+  const returnDoc = type === 'sale_return' || type === 'purchase_return';
+  const [returnCandidates, setReturnCandidates] = useState<Line[]>([]);
+  const [returnLoading, setReturnLoading] = useState(false);
+  const returnLoadId = useRef(0);
+  const submitInFlight = useRef(false);
+  const cashPartyKind = type === 'receipt' ? 'customer' : type === 'payment' ? 'supplier' : null;
+  const compactDoc = ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer'].includes(type);
+  const returnPath = stockTransferDoc ? '/inventory/transfers' : countDoc ? '/inventory/counts' : transferDoc ? '/treasury/transfers' : returnDoc ? type === 'sale_return' ? '/returns/sales' : '/returns/purchases' : cashMovement ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners';
   const info = DOC_TYPES[type];
 
   const items = useLiveQuery(() => db.items.toArray(), []) ?? [];
   const catNames = useLiveQuery(async () => new Map((await db.categories.toArray()).map((c) => [c.id, c.name])), []) ?? new Map<string, string>();
   const units = useLiveQuery(() => db.item_units.toArray(), []) ?? [];
   const parties = useLiveQuery(() => db.parties.toArray(), []) ?? [];
-  const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), []) ?? [];
-  const allWarehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false), []) ?? [];
+  const warehouses = useLiveQuery(async () => (await db.warehouses.toArray()).filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id))), [session.user.id, session.user.warehouse_ids?.join(',')]) ?? [];
+  const allWarehouses = warehouses;
   const cashboxes = useLiveQuery(
     async () =>
       userCashboxes(session.user),
@@ -139,6 +159,8 @@ export function DocumentEditor() {
   const [amendReason, setAmendReason] = useState('');
   const [amendPaymentsOpen, setAmendPaymentsOpen] = useState(false);
   const [amendPaymentAllocations, setAmendPaymentAllocations] = useState<{ source_id: string; amount: number }[]>([]);
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseMemo, setExpenseMemo] = useState('');
   const [avail, setAvail] = useState<Record<string, number>>({});
   const [newItem, setNewItem] = useState(false);
   const [newParty, setNewParty] = useState(false);
@@ -160,12 +182,20 @@ export function DocumentEditor() {
     if (ready || !info) return;
     if (params.id) {
       if (existing === undefined || existingLines === undefined || !existing) return;
-      setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null });
-      setLines(existingLines.map((l: any) => ({ ...l, id: amendMode ? uuid() : l.id, serials: l.serials ?? [] })));
+      setH({ ...existing, from_quotation_id: existing.data?.from_quotation_id ?? null, ...(amendMode ? { local_number: null } : {}) });
+      if (existing.doc_type === 'expense') {
+        const details = splitExpenseNotes(existing.notes ?? '');
+        setExpenseTitle(details.title);
+        setExpenseMemo(details.memo);
+      }
+      // في التعديل: السطور والدفعات والشيكات بمعرفات جديدة (معرفات الأصلية فضلت مستخدمة على الخادم)
+      const fresh = <T extends { id?: string }>(x: T): T => (amendMode ? { ...x, id: uuid() } : x);
+      setLines(existingLines.map((l: any) => fresh({ ...l, serials: l.serials ?? [] })));
       setJl(existing.data?.journal_lines ?? []);
-      setPayments((existing.data?.payments ?? []).map((p: Pay) => amendMode ? { ...p, id: uuid() } : p));
-      setInsts((existing.data?.instruments ?? []).map((x: Inst) => amendMode ? { ...x, id: uuid() } : x));
-      setCharges(existing.data?.charges ?? []);
+      setPayments((existing.data?.payments ?? []).map(fresh));
+      setInsts((existing.data?.instruments ?? []).map(fresh));
+      setCharges((existing.data?.charges ?? []).map(fresh));
+      setPayAuto(false);
       {
         const ps = existing.data?.payments ?? [];
         const ins = existing.data?.instruments ?? [];
@@ -202,6 +232,10 @@ export function DocumentEditor() {
       order_status: '',
       notes: sp.get('note') ?? '',
     });
+    if (type === 'expense') {
+      setExpenseTitle(sp.get('note') ?? '');
+      setExpenseMemo('');
+    }
     setJl([
       { account_id: '', party_id: null, debit: 0, credit: 0, memo: '' },
       { account_id: '', party_id: null, debit: 0, credit: 0, memo: '' },
@@ -229,25 +263,32 @@ export function DocumentEditor() {
 
   // ---------------- المرتجع من فاتورة
   const refDocs = useLiveQuery(async () => {
-    if (!info?.refType || !h.party_id) return [];
-    return (await db.documents.where('party_id').equals(h.party_id).toArray())
-      .filter((d) => d.doc_type === info.refType && d.status === 'posted' && !d._sync)
+    if (!info?.refType || !h.party_id || !can(`${info.module}.view`)) return [];
+    return (await db.documents.where('doc_type').equals(info.refType).toArray())
+      .filter((d) => d.party_id === h.party_id && d.status === 'posted' && !d._sync && (!d.warehouse_id || !session.user.warehouse_ids || session.user.warehouse_ids.includes(d.warehouse_id)))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [info?.refType, h.party_id]) ?? [];
+  }, [info?.refType, h.party_id, session.user.permissions.join(','), session.user.warehouse_ids?.join(',')]) ?? [];
 
   const loadRef = useCallback(
     async (refId: string | null) => {
+      const request = ++returnLoadId.current;
       set('ref_doc_id', refId);
+      setReturnCandidates([]);
+      setLines([]);
       if (!refId) {
-        setLines([]);
+        setReturnLoading(false);
         return;
       }
+      setReturnLoading(true);
+      try {
       const ref = await db.documents.get(refId);
+      if (!ref || ref.doc_type !== info?.refType || ref.status !== 'posted' || ref._sync || !can(`${info.module}.view`) || (ref.warehouse_id && session.user.warehouse_ids && !session.user.warehouse_ids.includes(ref.warehouse_id))) throw new Error('الفاتورة غير متاحة للمرتجع ضمن صلاحياتك');
       const refLines = await db.document_lines.where('document_id').equals(refId).sortBy('line_no');
       const prior = (await db.documents.where('ref_doc_id').equals(refId).toArray()).filter((d) => d.status === 'posted' && d.id !== params.id && d.doc_type === type);
       const returned = new Map<string, number>();
       for (const p of prior) for (const l of await db.document_lines.where('document_id').equals(p.id).toArray()) returned.set(l.ref_line_id, (returned.get(l.ref_line_id) ?? 0) + l.base_qty);
-      setLines(
+      if (request !== returnLoadId.current) return;
+      setReturnCandidates(
         refLines
           .map((l) => {
             const remainingBase = l.base_qty - (returned.get(l.id) ?? 0);
@@ -257,9 +298,12 @@ export function DocumentEditor() {
           })
           .filter((l) => l.max_qty > 0),
       );
+      set('party_id', ref.party_id);
       if (ref?.warehouse_id) set('warehouse_id', ref.warehouse_id);
+      } catch (e) { if (request === returnLoadId.current) { setError((e as Error).message); set('ref_doc_id', null); } }
+      finally { if (request === returnLoadId.current) setReturnLoading(false); }
     },
-    [params.id, type],
+    [params.id, type, info?.refType, session.user.permissions.join(','), session.user.warehouse_ids?.join(',')],
   );
   useEffect(() => {
     if (ready && !params.id && h.ref_doc_id && lines.length === 0) void loadRef(h.ref_doc_id);
@@ -282,11 +326,14 @@ export function DocumentEditor() {
   const addItem = async (itemId: string, unitName?: string) => {
     const it = itemMap.get(itemId);
     if (!it) return;
+    if ((countDoc || stockTransferDoc) && it.is_service) return ui.toast('الخدمات ليس لها مخزون', 'err');
+    if (countDoc && lines.some((l) => l.item_id === itemId)) return ui.toast('الصنف موجود بالفعل؛ عدّل عدده في السطر الحالي', 'info');
     const u = unitOptions(itemId).find((x) => x.name === (unitName ?? it.base_unit))!;
     const price = await defaultPrice(itemId, u);
     const partyDisc = isSale && party?.discount_bp ? Math.round((price * party.discount_bp) / 10000) : 0;
     setLines((ls) => {
       const same = ls.find((l) => l.item_id === itemId && l.unit_name === u.name && !l.ref_line_id && !it.track_serial);
+      if (countDoc && ls.some((l) => l.item_id === itemId)) return ls;
       if (same && type !== 'stock_adjustment') return ls.map((l) => (l === same ? { ...l, qty: l.qty + 1000, discount: l.discount + partyDisc } : l));
       return [...ls, { id: uuid(), item_id: itemId, unit_name: u.name, unit_factor: u.factor, qty: type === 'stock_adjustment' ? 0 : 1000, price, discount: partyDisc, tax_rate_bp: info.priced ? it.tax_rate_bp ?? 0 : 0, serials: [] }];
     });
@@ -322,6 +369,7 @@ export function DocumentEditor() {
   };
 
   useEffect(() => {
+    if (countDoc || stockTransferDoc) setAvail({});
     if (!info?.stock || !h.warehouse_id) return;
     let alive = true;
     (async () => {
@@ -332,7 +380,7 @@ export function DocumentEditor() {
     return () => {
       alive = false;
     };
-  }, [lines, h.warehouse_id, info?.stock, params.id]);
+  }, [lines, h.warehouse_id, info?.stock, params.id, countDoc, stockTransferDoc]);
 
   // ---------------- الحساب
   const calc = useMemo(() => {
@@ -372,6 +420,12 @@ export function DocumentEditor() {
     return [...need.entries()].filter(([id, q]) => q > (avail[id] ?? 0)).map(([id, q]) => ({ item: itemMap.get(id), need: q, have: avail[id] ?? 0 }));
   }, [lines, avail, info, itemMap]);
 
+  const transferNeed = useMemo(() => {
+    const quantities = new Map<string, number>();
+    if (stockTransferDoc) for (const l of lines) if (l.item_id) quantities.set(l.item_id, (quantities.get(l.item_id) ?? 0) + toBaseQty(l.qty, l.unit_factor));
+    return quantities;
+  }, [lines, stockTransferDoc]);
+
   const jlTotals = useMemo(() => ({ dr: jl.reduce((s, l) => s + (l.debit || 0), 0), cr: jl.reduce((s, l) => s + (l.credit || 0), 0) }), [jl]);
 
   // ---------------- خيارات
@@ -380,7 +434,10 @@ export function DocumentEditor() {
     const p = parties.find((x) => x.id === v);
     setH((o: any) => ({ ...o, party_id: v, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
     if (isSale && p?.price_list_id && p.price_list_id !== h.price_list_id) void repriceAll(p.price_list_id);
-    if (info?.refType) {
+    if (info?.refType || cashMovement) {
+      ++returnLoadId.current;
+      setReturnLoading(false);
+      setReturnCandidates([]);
       set('ref_doc_id', null);
       setLines([]);
     }
@@ -388,9 +445,9 @@ export function DocumentEditor() {
   const partyOptions: PickOption[] = useMemo(
     () =>
       parties
-        .filter((p) => p.active !== false && (info?.partyKind === 'any' || !info?.partyKind || p.kind === info.partyKind || type === 'party_opening'))
+        .filter((p) => p.active !== false && (cashPartyKind ? p.kind === cashPartyKind : (info?.partyKind === 'any' || !info?.partyKind || p.kind === info.partyKind || type === 'party_opening')))
         .map((p) => ({ id: p.id, label: p.name, sub: `${p.kind === 'customer' ? 'عميل' : 'مورد'} · ${p.code}`, search: `${p.name} ${p.code} ${p.phone ?? ''}` })),
-    [parties, info, type],
+    [parties, info, type, cashPartyKind],
   );
   // رصيد كل صنف في المخزن المختار (للعرض في قائمة الاختيار وتحت السطور — لا يُطبع)
   const whStock = useLiveQuery(
@@ -403,7 +460,7 @@ export function DocumentEditor() {
   const itemOptions: PickOption[] = useMemo(
     () =>
       items
-        .filter((i) => i.active !== false && (!catFilter || i.category_id === catFilter || usedItems.includes(i.id)))
+        .filter((i) => i.active !== false && (!(countDoc || stockTransferDoc) || !i.is_service) && (!catFilter || i.category_id === catFilter || usedItems.includes(i.id)))
         .map((i) => ({
           id: i.id,
           label: i.name,
@@ -411,7 +468,7 @@ export function DocumentEditor() {
           search: `${i.name} ${i.code} ${i.barcode ?? ''}`,
           group: (i.category_id && catNames.get(i.category_id)) || undefined,
         })),
-    [items, whStock, info?.stock, catFilter, catNames, usedItems],
+    [items, whStock, info?.stock, catFilter, catNames, usedItems, countDoc, stockTransferDoc],
   );
   const leafAccounts = (filter?: (a: any) => boolean): PickOption[] =>
     accounts.filter((a) => !a.is_group && a.active !== false && (!filter || filter(a))).map((a) => ({ id: a.id, label: a.name, sub: a.code, search: `${a.code} ${a.name}` }));
@@ -449,7 +506,9 @@ export function DocumentEditor() {
       discount: info.priced ? h.discount ?? 0 : 0,
       ref_doc_id: h.ref_doc_id || null,
       side: type === 'party_opening' ? h.side : null,
-      notes: h.notes || null,
+      notes: type === 'expense'
+        ? `${expenseTitle.trim()}${expenseMemo.trim() ? `${EXPENSE_MEMO_MARKER}${expenseMemo.trim()}` : ''}` || null
+        : h.notes || null,
       local_number: h.local_number ?? null,
       retained_bp: 0,
       lines: lines
@@ -463,8 +522,16 @@ export function DocumentEditor() {
   };
 
   const validate = (d: DocInput): string | null => {
+    if (returnLoading) return 'انتظر تحميل أصناف الفاتورة';
     if (!d.date) return 'التاريخ مطلوب';
     if (info.hasLines && d.lines.length === 0) return 'أضف صنفًا واحدًا على الأقل';
+    if (stockTransferDoc && !warehouses.some((w) => w.id === d.warehouse_id)) return 'اختر مخزن مصدر مفعّلًا ضمن صلاحياتك';
+    if (stockTransferDoc && !allWarehouses.some((w) => w.id === d.to_warehouse_id)) return 'اختر مخزن وجهة مفعّلًا';
+    if (stockTransferDoc && d.lines.some((l) => itemMap.get(l.item_id)?.is_service)) return 'الخدمات لا تُحوّل بين المخازن؛ احذفها من التحويل';
+    if (countDoc && !warehouses.some((w) => w.id === d.warehouse_id)) return 'اختر مخزنًا مفعّلًا ضمن صلاحياتك';
+    if (countDoc && d.lines.some((l) => l.qty < 0)) return 'العدد الفعلي لا يمكن أن يكون سالبًا؛ استخدم صفرًا للصنف غير الموجود';
+    if (countDoc && new Set(d.lines.map((l) => l.item_id)).size !== d.lines.length) return 'أدخل كل صنف مرة واحدة في الجرد؛ اجمع كمياته في وحدة واحدة';
+    if (countDoc && d.lines.some((l) => itemMap.get(l.item_id)?.is_service)) return 'الخدمات ليس لها مخزون؛ احذفها من الجرد';
     if (info.stock === 'transfer' && (!d.to_warehouse_id || d.to_warehouse_id === d.warehouse_id)) return 'اختر مخزنًا مختلفًا للتحويل إليه';
     if (info.stock !== 'adjust' && d.lines.some((l) => l.qty <= 0)) return 'كل الكميات يجب أن تكون أكبر من صفر';
     if (lines.some((l) => l.max_qty !== undefined && l.qty > l.max_qty)) return 'كمية المرتجع أكبر من المتبقي في الفاتورة';
@@ -488,8 +555,10 @@ export function DocumentEditor() {
       if (charges.some((c) => c.amount > 0 && (!c.name.trim() || (c.mode === 'expense' && !c.cashbox_id)))) return 'أكمل بيانات الإضافات والمصروفات (الاسم والخزينة)';
     }
     if (['receipt', 'payment'].includes(type) && !d.party_id && !d.account_id) return 'اختر الطرف أو الحساب';
+    if (cashPartyKind && d.party_id && parties.find((p) => p.id === d.party_id)?.kind !== cashPartyKind) return type === 'receipt' ? 'اختر عميلًا لعملية القبض' : 'اختر موردًا لعملية الصرف';
     if (['expense', 'income'].includes(type) && !d.account_id) return 'اختر الحساب';
     if (type === 'cash_transfer' && (!d.to_cashbox_id || d.to_cashbox_id === d.cashbox_id)) return 'اختر خزينة مختلفة للتحويل إليها';
+    if (transferDoc && (!cashboxes.some((c) => c.id === d.cashbox_id) || !cashboxes.some((c) => c.id === d.to_cashbox_id))) return 'اختر خزنتين مفعّلتين ضمن صلاحياتك';
     if ((type === 'partner_capital' || type === 'partner_withdrawal') && !d.partner_id) return 'اختر الشريك';
     if (!info.hasLines && type !== 'journal_voucher' && d.amount <= 0) return 'أدخل المبلغ';
     if (type === 'party_opening' && !d.party_id) return 'اختر الطرف';
@@ -545,7 +614,8 @@ export function DocumentEditor() {
     }
   };
 
-  const submit = async (action: 'draft' | 'post') => {
+  const submit = async (action: 'draft' | 'post', addAnother = false) => {
+    if (submitInFlight.current) return;
     setError(null);
     if (amendMode && action !== 'post') return setError('تعديل الفاتورة المرحّلة يتم من خطوة مراجعة المدفوعات.');
     const d = buildDoc();
@@ -553,16 +623,16 @@ export function DocumentEditor() {
     const v = validate(d);
     if (v) return setError(v);
     if (amendMode) { if (amendmentInfo.loading) return setError('جارٍ تحميل سندات الدفع المرتبطة.'); if (amendmentInfo.error || !amendmentInfo.data) return setError('تعذر تحميل المدفوعات المرتبطة.'); setAmendPaymentsOpen(true); return; }
+    submitInFlight.current = true;
     if (action === 'post') {
       const extra = shortages.length ? `\n\nتنبيه: الرصيد المتاح على هذا الجهاز أقل من المطلوب لـ ${shortages.map((s) => s.item?.name).join('، ')}. إذا لم يكفِ الرصيد مركزيًا سيُحفظ المستند بحالة «يحتاج مراجعة».` : '';
+      const transferSummary = stockTransferDoc ? `\nمن ${warehouses.find((w) => w.id === h.warehouse_id)?.name} إلى ${allWarehouses.find((w) => w.id === h.to_warehouse_id)?.name} — ${transferNeed.size} أصناف مختلفة.` : '';
       const ok = await ui.confirm({
-        title: `حفظ ${info.label}؟`,
-        message: amendMode
-          ? `سيتم حفظ التعديلات على الفاتورة مع تسجيل أثرها المحاسبي والمخزني.${extra}`
-          : (EFFECT[type] ?? '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
+        title: stockTransferDoc ? 'تأكيد تحويل البضاعة؟' : `حفظ ${info.label}؟`,
+        message: (EFFECT[type] ?? '') + transferSummary + (transferDoc ? `\nتحويل ${formatMoney(h.amount ?? 0)} ج.م من ${cashboxes.find((c) => c.id === h.cashbox_id)?.name ?? 'الخزينة الأولى'} إلى ${cashboxes.find((c) => c.id === h.to_cashbox_id)?.name ?? 'الخزينة الثانية'}.` : '') + (returnDoc ? `\nإجمالي المرتجع ${formatMoney(total)} ج.م — رد نقدي ${formatMoney(cashPaid)} ج.م — تسوية على الحساب ${formatMoney(Math.max(0, credit))} ج.م.` : '') + extra + (info.noPosting ? '' : '\nبعد الحفظ لا يمكن التعديل؛ التصحيح يكون بالإلغاء أو المرتجع.'),
         confirmLabel: 'حفظ',
       });
-      if (!ok) return;
+      if (!ok) { submitInFlight.current = false; return; }
     }
     setBusy(true);
     try {
@@ -573,10 +643,20 @@ export function DocumentEditor() {
           { label: 'جديد', onClick: () => nav(`/docs/new/${d.doc_type}`) },
         ] : [],
       });
+      if (compactDoc || returnDoc || countDoc || stockTransferDoc) {
+        const background = (location.state as { backgroundLocation?: { pathname?: string; search?: string } } | null)?.backgroundLocation;
+        if (addAnother) {
+          nav(`/docs/new/${type}?again=${Date.now()}`, { replace: true, state: { backgroundLocation: background ?? { pathname: returnPath } } });
+        } else {
+          nav(background ?? returnPath, { replace: true });
+        }
+        return;
+      }
       nav(`/docs/view/${d.id}`, { replace: true });
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      submitInFlight.current = false;
       setBusy(false);
     }
   };
@@ -599,6 +679,9 @@ export function DocumentEditor() {
   });
 
   if (!info) return <div className="page"><Banner kind="err">نوع مستند غير معروف</Banner></div>;
+  const backgroundLocation = (location.state as { backgroundLocation?: { pathname?: string } } | null)?.backgroundLocation;
+  if (params.id && ['expense', 'partner_withdrawal', 'receipt', 'payment', 'cash_transfer', 'stock_adjustment', 'stock_transfer'].includes(existing?.doc_type ?? '') && !backgroundLocation)
+    return <Navigate to={`/docs/edit/${params.id}`} replace state={{ backgroundLocation: { pathname: returnPath } }} />;
   if (type === 'profit_distribution') return <div className="page"><Banner kind="info">توزيع الأرباح يتم من شاشة الشركاء.</Banner></div>;
   if (params.id && existing && !amendMode && existing.status !== 'draft' && existing.status !== 'pending_review' && existing._sync !== 'rejected')
     return <div className="page"><Banner kind="warn">هذا المستند {existing.status === 'posted' ? 'مُرحّل' : 'ملغي'} ولا يمكن تعديله.</Banner></div>;
@@ -616,10 +699,10 @@ export function DocumentEditor() {
   const showLineAdd = !info.refType || freeReturn;
 
   return (
-    <div className="page">
+    <div className={`page${compactDoc ? ' expense-editor' : ''}${cashMovement || transferDoc ? ' cash-movement-editor' : ''}${returnDoc || countDoc || stockTransferDoc ? ' return-editor' : ''}${countDoc || stockTransferDoc ? ' count-editor' : ''}${stockTransferDoc ? ' stock-transfer-editor' : ''}`}>
       <PageHeader
-        title={amendMode ? `تعديل ${info.label}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
-        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : h.from_quotation_id ? 'تحويل عرض سعر إلى فاتورة' : 'نموذج جديد'}
+        title={amendMode ? `تعديل ${info.label}` : cashMovement ? `${params.id ? 'تعديل ' : ''}${type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'}` : type === 'expense' ? `${params.id ? 'تعديل مصروف' : 'مصروف جديد'}` : `${params.id ? 'تعديل ' : ''}${info.label}`}
+        sub={existing ? <span className="num">{existing.number ?? existing.local_number}</span> : type === 'expense' ? `هيتخصم من الخزنة اللي تختارها${myShift ? ' (خزنة الوردية مختارة تلقائيًا)' : ''}.` : type === 'partner_withdrawal' ? 'صرف من الخزنة من غير ما يتحسب مصروف على الأرباح.' : h.from_quotation_id ? 'تحويل عرض أسعار إلى فاتورة' : 'مستند جديد'}
       />
       {amendMode && <div style={{ marginBottom: 12 }}><Banner kind="warn">سيتم حفظ التعديلات على الفاتورة بنفس رقمها، مع تسجيل أثرها على المخزون والحسابات. راجع سندات الصرف ومبالغها في الخطوة التالية. يجب معالجة المرتجعات أو المستندات التابعة قبل التعديل.</Banner></div>}
       {amendMode && amendmentInfo.error && <div style={{ marginBottom: 12 }}><Banner kind="err">تعذر تحميل سندات الدفع: {amendmentInfo.error}</Banner></div>}
@@ -629,10 +712,10 @@ export function DocumentEditor() {
       {error && <div style={{ marginBottom: 12 }}><Banner kind="err">{error}</Banner></div>}
 
       {/* ---------- الرأس ---------- */}
-      <div className="card pad">
-        <div className="grid grid-4">
-          <Field label="التاريخ">
-            <DatePicker value={h.date} onChange={(date) => set('date', date)} />
+      <div className={`card pad${type === 'expense' || cashMovement || transferDoc ? ' expense-fields' : ''}`}>
+        <div className={`grid grid-4${type === 'expense' ? ' expense-fields-grid' : cashMovement || transferDoc ? ' cash-movement-fields-grid' : ''}`}>
+          <Field label="التاريخ" className={type === 'expense' ? 'expense-date-field' : undefined}>
+            <DateInput className="input" value={h.date} onChange={(e) => set('date', e.target.value)} />
           </Field>
 
           {info.partyKind === 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
@@ -641,28 +724,28 @@ export function DocumentEditor() {
             </div>
           )}
           {(info.partyKind || type === 'party_opening') && info.partyKind !== 'customer' && ((type !== 'receipt' && type !== 'payment') || counterMode === 'party') && (
-            <Field label={info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
+            <Field label={type === 'receipt' ? 'العميل' : type === 'payment' || info.partyKind === 'supplier' ? 'المورد' : 'الطرف'}>
               <div className="row" style={{ gap: 6 }}>
                 <div style={{ flex: 1 }}>
                   <Picker
                     value={h.party_id}
                     options={partyOptions}
                     onChange={onPartyChange}
-                    placeholder="ابحث بالاسم أو الكود"
-                    createLabel={info.partyKind === 'supplier' ? 'مورد' : 'طرف'}
+                    placeholder={cashPartyKind === 'customer' ? 'ابحث عن العميل بالاسم أو الكود' : cashPartyKind === 'supplier' ? 'ابحث عن المورد بالاسم أو الكود' : 'ابحث بالاسم أو الكود'}
+                    createLabel={cashPartyKind === 'supplier' || info.partyKind === 'supplier' ? 'مورد' : cashPartyKind === 'customer' ? 'عميل' : 'طرف'}
                     onCreate={can('parties.create') && info.partyKind ? (t) => { setNewPartyName(t); setNewParty(true); } : undefined}
                   />
                 </div>
-                {info.partyKind !== 'any' && can('parties.create') && (
-                  <button type="button" className="icon-btn" title="إضافة جديد" onClick={() => setNewParty(true)}><UserPlus /></button>
+                {(cashPartyKind || info.partyKind !== 'any') && can('parties.create') && (
+                  <button type="button" className="icon-btn" title={cashPartyKind === 'supplier' ? 'إضافة مورد' : cashPartyKind === 'customer' ? 'إضافة عميل' : 'إضافة جديد'} aria-label={cashPartyKind === 'supplier' ? 'إضافة مورد' : cashPartyKind === 'customer' ? 'إضافة عميل' : 'إضافة جديد'} onClick={() => { setNewPartyName(''); setNewParty(true); }}><UserPlus /></button>
                 )}
               </div>
             </Field>
           )}
 
           {(type === 'receipt' || type === 'payment') && (
-            <Field label="الطرف المقابل">
-              <Segmented block value={counterMode} onChange={setCounterMode} options={[{ value: 'party', label: 'عميل/مورد' }, { value: 'account', label: 'حساب' }]} />
+            <Field label={type === 'receipt' ? 'جهة القبض' : 'الطرف المقابل'}>
+              <Segmented block value={counterMode} onChange={setCounterMode} options={[{ value: 'party', label: type === 'receipt' ? 'عميل' : 'مورد' }, { value: 'account', label: 'حساب' }]} />
             </Field>
           )}
           {(type === 'receipt' || type === 'payment') && counterMode === 'account' && (
@@ -671,23 +754,22 @@ export function DocumentEditor() {
             </Field>
           )}
           {(type === 'expense' || type === 'income') && (
-            <Field label={type === 'expense' ? 'بند المصروف' : 'بند الإيراد'}>
-              <div className="row" style={{ gap: 6 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Picker
-                    value={h.account_id}
-                    options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
-                    onChange={(v) => set('account_id', v)}
-                    createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
-                    onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
-                  />
-                </div>
-                {can('accounts.manage') && (
-                  <button type="button" className="icon-btn" aria-label={type === 'expense' ? 'إضافة بند مصروف جديد' : 'إضافة بند إيراد جديد'} title={type === 'expense' ? 'إضافة بند مصروف جديد' : 'إضافة بند إيراد جديد'} onClick={() => setNewAccount({ name: '' })}>
-                    <Plus />
-                  </button>
-                )}
+            <Field label={type === 'expense' ? 'البند' : 'بند الإيراد'} className={type === 'expense' ? 'expense-category-field' : undefined}>
+              <div className={type === 'expense' ? 'expense-account-field' : undefined}>
+                <Picker
+                  value={h.account_id}
+                  options={leafAccounts((a) => a.type === (type === 'expense' ? 'expense' : 'revenue') && !['cogs', 'inventory_diff', 'cost_variance', 'sales', 'sales_returns', 'sales_discount', 'cash_over_short'].includes(a.system_key))}
+                  onChange={(v) => set('account_id', v)}
+                  createLabel={type === 'expense' ? 'بند مصروف' : 'بند إيراد'}
+                  onCreate={can('accounts.manage') ? (t) => setNewAccount({ name: t }) : undefined}
+                />
+                {type === 'expense' && can('accounts.manage') && <button type="button" className="icon-btn expense-add-account" title="إضافة بند مصروف جديد" aria-label="إضافة بند مصروف جديد" onClick={() => setNewAccount({ name: '' })}><Plus /></button>}
               </div>
+            </Field>
+          )}
+          {type === 'expense' && (
+            <Field label="اسم المصروف (اختياري)" className="expense-title-field">
+              <input className="input" value={expenseTitle} onChange={(e) => setExpenseTitle(e.target.value)} placeholder="مثال: فاتورة كهربا شهر 9" autoFocus />
             </Field>
           )}
           {type === 'expense' && reps.length > 0 && accounts.find((a) => a.id === h.account_id)?.system_key === 'commissions' && (
@@ -764,14 +846,18 @@ export function DocumentEditor() {
           )}
 
           {['receipt', 'payment', 'expense', 'income', 'cash_transfer', 'partner_capital', 'partner_withdrawal'].includes(type) && (
-            <Field label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}>
-              <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => set('cashbox_id', e.target.value)}>
+            <Field
+              label={type === 'cash_transfer' ? 'من خزينة' : 'الخزينة'}
+              className={type === 'expense' ? 'expense-cashbox-field' : undefined}
+              hint={type === 'expense' || cashMovement || transferDoc ? `الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0)}` : undefined}
+            >
+              <select className="select" value={h.cashbox_id ?? ''} onChange={(e) => setH((old: any) => ({ ...old, cashbox_id: e.target.value, to_cashbox_id: transferDoc && old.to_cashbox_id === e.target.value ? null : old.to_cashbox_id }))}>
                 {cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
           )}
           {type === 'cash_transfer' && (
-            <Field label="إلى خزينة">
+            <Field label="إلى خزينة" hint={`الرصيد ${formatMoney(cashboxes.find((c) => c.id === h.to_cashbox_id)?.balance ?? 0)}`}>
               <select className="select" value={h.to_cashbox_id ?? ''} onChange={(e) => set('to_cashbox_id', e.target.value)}>
                 <option value="">اختر…</option>
                 {cashboxes.filter((c) => c.id !== h.cashbox_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -784,8 +870,13 @@ export function DocumentEditor() {
             </Field>
           )}
           {!info.hasLines && type !== 'journal_voucher' && (
-            <Field label="المبلغ">
-              <MoneyInput value={h.amount} onChange={(v) => set('amount', v)} autoFocus />
+            <Field label="المبلغ" className={type === 'expense' ? 'expense-amount-field' : undefined}>
+              <MoneyInput value={h.amount} onChange={(v) => set('amount', v)} autoFocus={type !== 'expense'} />
+            </Field>
+          )}
+          {type === 'expense' && (
+            <Field label="ملاحظات" className="expense-memo-field">
+              <textarea className="textarea" rows={2} value={expenseMemo} onChange={(e) => setExpenseMemo(e.target.value)} />
             </Field>
           )}
           {(type === 'receipt' || type === 'payment') && counterMode === 'party' && h.party_id && (
@@ -810,6 +901,18 @@ export function DocumentEditor() {
       </div>
 
       {/* ---------- السطور ---------- */}
+      {stockTransferDoc && <section className="card pad count-review"><div className="stock-transfer-review-head"><div><strong>من {warehouses.find((w) => w.id === h.warehouse_id)?.name ?? 'اختر المصدر'} ← إلى {allWarehouses.find((w) => w.id === h.to_warehouse_id)?.name ?? 'اختر الوجهة'}</strong><p className="muted">الكميات تُخصم من المصدر وتُضاف للوجهة بتكلفتها الحالية. المتبقي معاينة من بيانات الجهاز؛ الرصيد النهائي يُراجع عند المزامنة.</p></div><button type="button" className="btn sm" disabled={!warehouses.some((w) => w.id === h.to_warehouse_id) || h.warehouse_id === h.to_warehouse_id} onClick={() => setH((old: any) => ({ ...old, warehouse_id: old.to_warehouse_id, to_warehouse_id: old.warehouse_id }))}><ArrowLeftRight /> تبديل الاتجاه</button></div><div className="count-review-stats"><span>أصناف مختلفة <b className="num">{transferNeed.size}</b></span><span>سطور التحويل <b className="num">{lines.filter((l) => l.item_id).length}</b></span></div></section>}
+      {countDoc && <section className="card pad count-review"><strong>أدخل العدد الموجود فعليًا، وليس مقدار الفرق</strong><p className="muted">الصفر يعني أن الصنف غير موجود. الأصناف غير المضافة للجرد لا تتغير. الرصيد والفرق معاينة حسب بيانات الجهاز؛ الفرق النهائي يُحسب عند الترحيل بعد المزامنة.</p><div className="count-review-stats"><span>سطور الجرد <b className="num">{lines.filter((l) => l.item_id).length}</b></span><span>بزيادة <b className="num green">{lines.filter((l) => avail[l.item_id] !== undefined && toBaseQty(l.qty, l.unit_factor) > avail[l.item_id]).length}</b></span><span>بعجز <b className="num red">{lines.filter((l) => avail[l.item_id] !== undefined && toBaseQty(l.qty, l.unit_factor) < avail[l.item_id]).length}</b></span></div></section>}
+      {transferDoc && <section className="card pad transfer-preview"><div className="transfer-preview-head"><strong>مراجعة أثر التحويل</strong><button type="button" className="btn sm" disabled={!h.cashbox_id || !h.to_cashbox_id || h.cashbox_id === h.to_cashbox_id} onClick={() => setH((old: any) => ({ ...old, cashbox_id: old.to_cashbox_id, to_cashbox_id: old.cashbox_id }))}><ArrowLeftRight /> تبديل الاتجاه</button></div>
+        {h.cashbox_id && h.to_cashbox_id && h.cashbox_id !== h.to_cashbox_id && (h.amount ?? 0) > 0 ? <><div className="transfer-preview-grid">{[false, true].map((incoming) => {
+          const box = cashboxes.find((c) => c.id === (incoming ? h.to_cashbox_id : h.cashbox_id));
+          const balance = box?.balance ?? 0;
+          const after = balance + (incoming ? 1 : -1) * (h.amount ?? 0);
+          return <article key={String(incoming)}><span className="muted">{incoming ? 'إلى' : 'من'} {box?.name}</span><div><span>الرصيد الحالي</span><b className="num">{formatMoney(balance)}</b></div><div><span>بعد التحويل</span><b className={`num ${after < 0 ? 'red' : incoming ? 'green' : ''}`}>{formatMoney(after)}</b></div></article>;
+        })}</div><p className="muted">الأرصدة المتوقعة محسوبة من آخر رصيد على الجهاز. إجمالي رصيد الخزنتين لا يتغير بالتحويل.</p>{(cashboxes.find((c) => c.id === h.cashbox_id)?.balance ?? 0) < (h.amount ?? 0) && <Banner kind="warn">الرصيد المتوقع للخزينة المحوّل منها سيصبح سالبًا. راجع المبلغ والرصيد قبل التأكيد.</Banner>}</> : <p className="muted">اختر خزنتين مختلفتين وأدخل المبلغ لعرض الرصيد المتوقع.</p>}
+      </section>}
+      {returnDoc && returnLoading && <div className="card pad muted" role="status">جارٍ تحميل الكميات المتبقية للإرجاع…</div>}
+      {returnDoc && h.ref_doc_id && !returnLoading && !params.id && <section className="card pad return-selection"><div className="return-selection-heading"><div><strong>اختر الأصناف المطلوب إرجاعها</strong><p className="muted">المتاح يستبعد الكميات المرتجعة سابقًا. عدّل الكمية في السطور المختارة أدناه.</p></div><button type="button" className="btn sm" disabled={!returnCandidates.length} onClick={() => setLines(lines.length === returnCandidates.length ? [] : returnCandidates.map((l) => ({ ...l, serials: [] })))}>{lines.length === returnCandidates.length && lines.length ? 'إلغاء الكل' : 'اختيار الكل'}</button></div><div className="return-candidate-list">{returnCandidates.map((candidate) => <label key={candidate.id}><input type="checkbox" checked={lines.some((l) => l.id === candidate.id)} onChange={(e) => setLines((old) => e.target.checked ? [...old, { ...candidate, serials: [] }] : old.filter((l) => l.id !== candidate.id))} /><span>{itemMap.get(candidate.item_id)?.name ?? 'صنف غير متاح'}<small className="muted">متاح {formatQty(candidate.max_qty ?? 0)} {candidate.unit_name}</small></span></label>)}</div>{!returnCandidates.length && <p className="muted">كل أصناف الفاتورة تم إرجاعها بالفعل، أو لا يوجد متبقٍ صالح للإرجاع.</p>}</section>}
       {info.hasLines && (
         <>
           <div className="row wrap" style={{ margin: '18px 0 10px' }}>
@@ -835,7 +938,7 @@ export function DocumentEditor() {
               <div>الوحدة</div>
               <div>{type === 'stock_adjustment' ? 'الكمية الفعلية' : 'الكمية'}</div>
               <div>{type === 'stock_adjustment' || type === 'stock_transfer' ? 'الرصيد الحالي' : type === 'opening_stock' || isPurchase ? 'التكلفة' : 'السعر'}</div>
-              <div>{info.priced ? 'الخصم' : type === 'stock_adjustment' ? 'الفرق' : ''}</div>
+              <div>{info.priced ? 'الخصم' : type === 'stock_adjustment' ? 'الفرق' : stockTransferDoc ? 'المتبقي بالمصدر' : ''}</div>
               <div>{info.priced || type === 'opening_stock' ? 'الإجمالي' : ''}</div>
               <div />
             </div>
@@ -898,6 +1001,8 @@ export function DocumentEditor() {
                         <MoneyInput value={l.discount} onChange={(v) => updLine(l.id, { discount: v })} disabled={discountLocked} />
                       ) : type === 'stock_adjustment' && haveInUnit !== undefined ? (
                         <span className={`num bold ${l.qty - haveInUnit < 0 ? 'red' : l.qty - haveInUnit > 0 ? 'green' : 'muted'}`}>{formatQty(l.qty - haveInUnit)}</span>
+                      ) : stockTransferDoc && have !== undefined ? (
+                        <span className={`num bold ${have - (transferNeed.get(l.item_id) ?? 0) < 0 ? 'red' : 'green'}`}>{formatQty(mulDiv(have - (transferNeed.get(l.item_id) ?? 0), 1000, l.unit_factor))}</span>
                       ) : null}
                     </div>
                     <div className="total">{calc && !calc.error && calc.lines[idx] ? formatMoney(calc.lines[idx].total) : ''}</div>
@@ -914,7 +1019,7 @@ export function DocumentEditor() {
                       )}
                       {needsExpiry && (
                         <Field label={`تاريخ الصلاحية${it.expiry_default_days ? ` (افتراضيًا بعد ${it.expiry_default_days} يوم)` : ''}`} className="" >
-                          <DatePicker className="input" style={{ width: 180 }} value={l.expiry ?? ''} onChange={(expiry) => updLine(l.id, { expiry: expiry || null })} aria-label="تاريخ الصلاحية" />
+                          <DateInput className="input" style={{ width: 180 }} value={l.expiry ?? ''} onChange={(e) => updLine(l.id, { expiry: e.target.value || null })} />
                         </Field>
                       )}
                     </div>
@@ -1112,7 +1217,7 @@ export function DocumentEditor() {
                           <option value="installment">قسط</option>
                         </select>
                         <div style={{ width: 120 }}><MoneyInput value={x.amount} onChange={(v) => upd({ amount: v })} /></div>
-                        <DatePicker className="input" style={{ width: 150 }} value={x.due_date} onChange={(due_date) => upd({ due_date })} title="تاريخ الاستحقاق" />
+                        <DateInput className="input" style={{ width: 150 }} value={x.due_date} onChange={(e) => upd({ due_date: e.target.value })} title="تاريخ الاستحقاق" />
                         {x.kind === 'cheque' && <input className="input num" style={{ width: 110 }} placeholder="رقم الشيك" value={x.cheque_no ?? ''} onChange={(e) => upd({ cheque_no: e.target.value })} />}
                         {x.kind === 'cheque' && <input className="input" style={{ width: 120 }} placeholder="البنك" value={x.bank ?? ''} onChange={(e) => upd({ bank: e.target.value })} />}
                         <button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => setInsts(insts.filter((_, j) => j !== i))} aria-label="حذف"><Trash2 /></button>
@@ -1121,20 +1226,22 @@ export function DocumentEditor() {
                   })}
                   {credit > 0 && (
                     <Field label="تاريخ استحقاق الجزء الآجل" hint="فارغ = حسب أيام الاستحقاق للطرف أو الإعدادات">
-                      <DatePicker className="input" style={{ width: 180 }} value={h.due_date ?? ''} onChange={(due_date) => set('due_date', due_date || null)} aria-label="تاريخ الاستحقاق" />
+                      <DateInput className="input" style={{ width: 180 }} value={h.due_date ?? ''} onChange={(e) => set('due_date', e.target.value || null)} />
                     </Field>
                   )}
                 </>
               )}
             </div>
           )}
-          <div className="card pad">
-            <Field label={type === 'stock_adjustment' ? 'سبب الجرد/التسوية *' : 'ملاحظات'}>
-              <textarea className="textarea" value={h.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
-            </Field>
-          </div>
+          {type !== 'expense' && (
+            <div className="card pad">
+              <Field label={type === 'stock_adjustment' ? 'سبب الجرد/التسوية *' : 'ملاحظات'}>
+                <textarea className="textarea" value={h.notes ?? ''} onChange={(e) => set('notes', e.target.value)} />
+              </Field>
+            </div>
+          )}
         </div>
-        {calc && !calc.error && (
+        {type !== 'expense' && calc && !calc.error && (
           <div className="card pad totals-box">
             {info.priced && (
               <>
@@ -1160,34 +1267,47 @@ export function DocumentEditor() {
         )}
         {calc?.error && <Banner kind="err">{calc.error}</Banner>}
       </div>
-      <div className="footnote" style={{ marginTop: 14 }}>
+      {returnDoc && <section className="card pad return-review" aria-label="مراجعة أثر المرتجع"><strong>مراجعة المرتجع قبل الحفظ</strong><div><span>إجمالي المرتجع</span><b className="num">{formatMoney(total)}</b></div><div><span>{type === 'sale_return' ? 'رد نقدية للعميل من الخزينة' : 'نقدية مستردة من المورد للخزينة'}</span><b className="num">{formatMoney(cashPaid)}</b></div><div><span>تسوية على حساب {party?.name ?? (type === 'sale_return' ? 'العميل' : 'المورد')}</span><b className="num">{formatMoney(Math.max(0, credit))}</b></div><p className="muted">{type === 'sale_return' ? 'الكميات المختارة ستعود للمخزن، وقيمة المرتجع تُسوّى حسب طريقة الرد المحددة.' : 'الكميات المختارة ستخرج من المخزن، وقيمة المرتجع تُسوّى حسب طريقة الرد المحددة.'}</p></section>}
+      {!compactDoc && <div className="footnote" style={{ marginTop: 14 }}>
         الاختصارات: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ · <kbd>Ctrl</kbd>+<kbd>S</kbd> مسودة · <kbd>F2</kbd> الباركود
-      </div>
-      <div className="sticky-actions">
-        <div style={{ flex: 1 }}>
-          {(calc && !calc.error) || !info.hasLines ? (
-            <>
-              <div className="caption">الإجمالي</div>
-              <div className="sa-total num">{formatMoney(info.hasLines ? total : type === 'journal_voucher' ? jlTotals.dr : h.amount ?? 0)}</div>
-            </>
-          ) : null}
-        </div>
-        {!amendMode && <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>}
-        <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
-          {amendMode ? 'التالي: مراجعة المدفوعات' : info.noPosting ? 'اعتماد' : 'حفظ'}
-        </button>
+      </div>}
+      <div className={`sticky-actions${compactDoc ? ' expense-actions' : ''}`}>
+        {compactDoc ? <>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void submit('post')}>{busy ? 'جاري الحفظ…' : transferDoc ? 'تأكيد التحويل' : 'احفظ'} <CheckCircle2 /></button>
+          <button type="button" className="btn" disabled={busy} onClick={() => void submit('post', true)}>{busy ? 'جاري الحفظ…' : 'حفظ وضيف تاني'} <Plus /></button>
+          {(cashMovement || transferDoc) && <button type="button" className="btn" disabled={busy} onClick={() => void submit('draft')}>مسودة</button>}
+          <button type="button" className="btn plain" disabled={busy} onClick={() => nav(backgroundLocation ?? returnPath, { replace: true })}>رجوع</button>
+        </> : <>
+          <div style={{ flex: 1 }}>
+            {(calc && !calc.error) || !info.hasLines ? (
+              <>
+                <div className="caption">الإجمالي</div>
+                <div className="sa-total num">{formatMoney(info.hasLines ? total : type === 'journal_voucher' ? jlTotals.dr : h.amount ?? 0)}</div>
+              </>
+            ) : null}
+          </div>
+          {amendMode ? (
+            <button type="button" className="btn plain" disabled={busy} onClick={() => nav(`/docs/view/${params.id}`, { replace: true })}>رجوع</button>
+          ) : (
+            <button aria-busy={busy} className="btn" disabled={busy} onClick={() => submit('draft')} title="Ctrl+S">حفظ كمسودة</button>
+          )}
+          <button aria-busy={busy} className="btn primary lg" disabled={busy} onClick={() => submit('post')} title="Ctrl+Enter" style={{ minWidth: 160 }}>
+            {amendMode ? 'التالي: مراجعة المدفوعات' : stockTransferDoc ? 'تأكيد التحويل' : info.noPosting ? 'اعتماد' : 'حفظ'}
+          </button>
+        </>}
       </div>
 
       {newItem && <QuickItemSheet initialName={newItemName} onClose={() => { setNewItem(false); setNewItemName(''); }} onSaved={(id) => setTimeout(() => void addItem(id), 80)} />}
       {newAccount && <QuickAccountSheet type={type === 'income' ? 'revenue' : 'expense'} initialName={newAccount.name} onClose={() => setNewAccount(null)} onSaved={(id) => set('account_id', id)} />}
       {newParty && (
         <QuickPartySheet
-          kind={info.partyKind === 'supplier' ? 'supplier' : 'customer'}
+          key={cashPartyKind ?? info.partyKind}
+          kind={cashPartyKind === 'supplier' || info.partyKind === 'supplier' ? 'supplier' : 'customer'}
           initialName={newPartyName}
           onClose={() => { setNewParty(false); setNewPartyName(''); }}
           onSaved={(id) => {
             const p = parties.find((x) => x.id === id);
-            setH((o: any) => ({ ...o, party_id: id, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
+            setH((o: any) => ({ ...o, party_id: id, ref_doc_id: cashMovement ? null : o.ref_doc_id, price_list_id: isSale ? p?.price_list_id ?? o.price_list_id : o.price_list_id }));
           }}
         />
       )}
@@ -1279,7 +1399,7 @@ function InstallmentPlan({ amount, start, onClose, onApply }: { amount: number; 
         <div className="footnote">المبلغ المقسط: <span className="num bold">{formatMoney(amount)}</span></div>
         <div className="grid grid-3">
           <Field label="عدد الأقساط"><input className="input num" type="number" min={1} max={120} value={n} onChange={(e) => setN(Math.max(1, Math.min(120, Number(e.target.value) || 1)))} /></Field>
-          <Field label="أول استحقاق"><DatePicker value={first} onChange={setFirst} /></Field>
+          <Field label="أول استحقاق"><DateInput className="input" value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
           <Field label="كل (شهر)"><input className="input num" type="number" min={1} max={12} value={every} onChange={(e) => setEvery(Math.max(1, Number(e.target.value) || 1))} /></Field>
         </div>
         <div className="list">

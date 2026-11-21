@@ -1,4 +1,4 @@
-import { computeDocument, DOC_TYPES, toBaseQty, type DocInput, type MasterEntity } from '@erp/shared';
+import { computeDocument, DOC_TYPES, hasPermission, toBaseQty, type DocInput, type MasterEntity } from '@erp/shared';
 import { db } from './db';
 import { enqueue, nextLocalNumber } from './sync';
 
@@ -67,6 +67,21 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
   const info = DOC_TYPES[doc.doc_type];
   const baseVersion = existing ? (existing.version ?? 1) : null;
   if (!existing && !doc.local_number) doc.local_number = await nextLocalNumber();
+  const write = localDocWriter(doc, action === 'post' ? 'posted' : 'draft', existing, baseVersion);
+  return enqueue(
+    { type: 'doc.save', action, base_version: baseVersion, doc },
+    {
+      label: `${action === 'post' ? 'ترحيل' : 'حفظ مسودة'} ${info.label} ${existing?.number ?? doc.local_number ?? ''}`,
+      entity: 'document',
+      entity_id: doc.id,
+      apply: write,
+    },
+  );
+}
+
+/** الكتابة المحلية المتفائلة لمستند وسطوره (نفس حسابات الخادم) */
+function localDocWriter(doc: DocInput, status: 'draft' | 'posted', existing: Record<string, any> | null | undefined, baseVersion: number | null, extra: Record<string, unknown> = {}) {
+  const info = DOC_TYPES[doc.doc_type];
   let totals = { gross: 0, discount: 0, tax: 0, total: 0, lines: [] as ReturnType<typeof computeDocument>['lines'] };
   if (info.priced || doc.doc_type === 'opening_stock') {
     totals = computeDocument(
@@ -82,47 +97,40 @@ export async function saveDocument(doc: DocInput, action: 'draft' | 'post', exis
   const chequePaid = (doc.instruments ?? []).filter((x) => x.kind === 'cheque').reduce((s, x) => s + x.amount, 0);
   const paid = info.priced ? (info.noPosting ? 0 : cashPaid + chequePaid) : totals.total;
 
-  return enqueue(
-    { type: 'doc.save', action, base_version: baseVersion, doc },
-    {
-      label: `${action === 'post' ? 'ترحيل' : 'حفظ مسودة'} ${info.label} ${existing?.number ?? doc.local_number ?? ''}`,
-      entity: 'document',
-      entity_id: doc.id,
-      apply: async () => {
-        const { lines, journal_lines, payments, instruments, from_quotation_id, charges, ...header } = doc;
-        await db.documents.put({
-          ...(existing ?? {}),
-          ...header,
-          gross: totals.gross,
-          discount: totals.discount,
-          tax: totals.tax,
-          total: totals.total,
-          paid,
-          data: { journal_lines, payments, instruments, from_quotation_id, charges },
-          charges_total: chargesAdd,
-          status: action === 'post' ? 'posted' : 'draft',
-          number: existing?.number ?? null,
-          version: (baseVersion ?? 0) + 1,
-          created_at: existing?.created_at ?? new Date().toISOString(),
-          _sync: 'pending',
-          _error: undefined,
-        });
-        await db.document_lines.where('document_id').equals(doc.id).delete();
-        await db.document_lines.bulkPut(
-          lines.map((l, i) => ({
-            ...l,
-            document_id: doc.id,
-            line_no: i + 1,
-            base_qty: toBaseQty(l.qty, l.unit_factor),
-            tax: totals.lines[i]?.tax ?? 0,
-            total: totals.lines[i]?.total ?? 0,
-            discount: totals.lines[i]?.line_discount ?? 0,
-            doc_discount: totals.lines[i]?.doc_discount ?? 0,
-          })),
-        );
-      },
-    },
-  );
+  return async () => {
+    const { lines, journal_lines, payments, instruments, from_quotation_id, charges, ...header } = doc;
+    await db.documents.put({
+      ...(existing ?? {}),
+      ...header,
+      ...extra,
+      gross: totals.gross,
+      discount: totals.discount,
+      tax: totals.tax,
+      total: totals.total,
+      paid,
+      data: { journal_lines, payments, instruments, from_quotation_id, charges },
+      charges_total: chargesAdd,
+      status,
+      number: existing?.number ?? null,
+      version: (baseVersion ?? 0) + 1,
+      created_at: existing?.created_at ?? new Date().toISOString(),
+      _sync: 'pending',
+      _error: undefined,
+    });
+    await db.document_lines.where('document_id').equals(doc.id).delete();
+    await db.document_lines.bulkPut(
+      lines.map((l, i) => ({
+        ...l,
+        document_id: doc.id,
+        line_no: i + 1,
+        base_qty: toBaseQty(l.qty, l.unit_factor),
+        tax: totals.lines[i]?.tax ?? 0,
+        total: totals.lines[i]?.total ?? 0,
+        discount: totals.lines[i]?.line_discount ?? 0,
+        doc_discount: totals.lines[i]?.doc_discount ?? 0,
+      })),
+    );
+  };
 }
 
 export async function postDocument(doc: Record<string, any>) {

@@ -54,6 +54,7 @@ export function QuickAccountSheet({ type, initialName = '', onClose, onSaved }: 
       title={TITLE[type]}
       subtitle={type === 'expense' ? 'أضف البند مرة واحدة ليظهر في المصروفات والتقارير.' : 'أضف البند مرة واحدة ليظهر في الإيرادات والتقارير.'}
       onClose={onClose}
+      overlayClassName="overlay-above-expense-modal"
       footer={
         <>
           <button className="btn" onClick={onClose}>إلغاء</button>

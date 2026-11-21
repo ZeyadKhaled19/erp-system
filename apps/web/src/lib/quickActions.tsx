@@ -32,7 +32,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { key: 'supplier_new', label: 'مورد جديد', icon: <UserPlus />, to: '/parties/supplier?new=1', perm: 'parties.create', group: 'الأطراف', creates: true, ws: ['inventory'] },
   { key: 'receipt', label: 'قبض من عميل', icon: <ArrowDownLeft />, to: '/docs/new/receipt', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['dashboard', 'accounting', 'sales'] },
   { key: 'payment', label: 'صرف لمورد', icon: <ArrowUpRight />, to: '/docs/new/payment', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['accounting'] },
-  { key: 'expense', label: 'مصروف', icon: <Receipt />, to: '/expenses?new=1', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['dashboard', 'accounting'] },
+  { key: 'expense', label: 'مصروف', icon: <Receipt />, to: '/docs/new/expense', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['dashboard', 'accounting'] },
   { key: 'income', label: 'إيراد آخر', icon: <TrendingUp />, to: '/docs/new/income', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: [] },
   { key: 'cash_transfer', label: 'تحويل بين الخزائن', icon: <ArrowLeftRight />, to: '/docs/new/cash_transfer', perm: 'treasury.create', group: 'الخزينة', creates: true, ws: ['accounting'] },
   { key: 'purchase_invoice', label: 'فاتورة شراء', icon: <ShoppingBag />, to: '/docs/new/purchase_invoice', perm: 'purchases.create', group: 'المشتريات', creates: true, ws: ['dashboard', 'inventory'] },

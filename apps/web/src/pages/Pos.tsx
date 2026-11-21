@@ -1,6 +1,6 @@
 import { computeDocument, formatMoney, formatQty, hasPermission, parseMoney, todayISO, uuid, type DocInput } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Banknote, Check, ChevronDown, ChevronUp, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, BarChart3, Check, ChevronDown, ChevronUp, CreditCard, History, LayoutGrid, List, PackageCheck, Plus, Printer, ScanLine, ShoppingCart, Star, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner, DocStatusBadge, MoneyInput, Picker, Sheet, useUi } from '../components/ui';
@@ -14,6 +14,7 @@ import { useSession, useSettings, userCashboxes } from '../lib/hooks';
 import { useCostMap } from '../lib/costs';
 import { CostCard, useHoverCard } from '../components/HoverCard';
 import { setDocTitle } from '../lib/brand';
+import { HomeKpis } from '../components/HomeKpis';
 
 interface CartLine {
   item_id: string;
@@ -54,6 +55,7 @@ export function PosPage() {
   });
   const [active, setActive] = useState(tabs[0]);
   const [sums, setSums] = useState<Record<string, PosSummary>>({});
+  const [showAnalytics, setShowAnalytics] = useState(false);
   useEffect(() => posStore('erp.pos.tabs', tabs), [tabs]);
   const cur = tabs.includes(active) ? active : tabs[0];
   useEffect(() => {
@@ -99,6 +101,12 @@ export function PosPage() {
 
   return (
     <div className="pos-wrap">
+      <div className="pos-analysis-row">
+        <details className="pos-analytics" onToggle={(e) => setShowAnalytics(e.currentTarget.open)}>
+          <summary><BarChart3 /> تحليل المبيعات</summary>
+          {showAnalytics && <div className="pos-analytics-panel"><HomeKpis /></div>}
+        </details>
+      </div>
       <div className="pos-tabs" role="tablist" aria-label="عمليات البيع المفتوحة">
         {tabs.map((id, i) => {
           const sm = sums[id];
@@ -164,6 +172,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
     }
   });
   const [cart, setCart] = useState<CartLine[]>(draft.cart ?? []);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [partyId, setPartyId] = useState(draft.partyId ?? 'party-cash-customer');
   const [pickParty, setPickParty] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -209,6 +218,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const parties = useLiveQuery(async () => (await db.parties.where('kind').equals('customer').toArray()).filter((p) => p.active !== false), []) ?? [];
   const party = parties.find((p) => p.id === partyId);
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+  const lastAdded = cart.find((line) => line.item_id === lastAddedId);
 
   const shown = useMemo(() => {
     const fav = new Set(favs);
@@ -238,14 +248,16 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   };
   const add = async (itemId: string, qty = 1000) => {
     const it = itemMap.get(itemId);
-    if (!it) return;
-    if (!fits(itemId, (cart.find((l) => l.item_id === itemId)?.qty ?? 0) + qty)) return;
+    if (!it || qty <= 0) return false;
+    if (!fits(itemId, (cart.find((l) => l.item_id === itemId)?.qty ?? 0) + qty)) return false;
     const price = await priceFor(it, { name: it.base_unit, factor: 1000, sale_price: it.sale_price, wholesale_price: it.wholesale_price }, party?.price_list_id ?? 'pl-retail');
     setCart((c) => {
       const ex = c.find((l) => l.item_id === itemId);
       if (ex) return c.map((l) => (l === ex ? { ...l, qty: l.qty + qty } : l));
       return [...c, { item_id: itemId, qty, price, discount: 0, tax_rate_bp: it.tax_rate_bp ?? 0 }];
     });
+    setLastAddedId(itemId);
+    return true;
   };
   const setQty = (itemId: string, qty: number) => (qty > (cart.find((l) => l.item_id === itemId)?.qty ?? 0) && !fits(itemId, qty)) || setCart((c) => (qty <= 0 ? c.filter((l) => l.item_id !== itemId) : c.map((l) => (l.item_id === itemId ? { ...l, qty } : l))));
 
@@ -257,15 +269,13 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
     if (!code) return;
     const unit = await db.item_units.where('barcode').equals(code).first();
     if (unit) {
-      await add(unit.item_id, Math.round(unit.factor * n));
-      setQ('');
+      if (await add(unit.item_id, Math.round(unit.factor * n))) setQ('');
       return;
     }
     const it = (await db.items.where('barcode').equals(code).first()) ?? (await db.items.where('code').equals(code).first());
     const found = it ?? (mm ? searchItems(items, code)[0] : shown[sugHl]);
     if (found) {
-      await add(found.id, Math.round(1000 * n));
-      setQ('');
+      if (await add(found.id, Math.round(1000 * n))) setQ('');
     } else ui.toast(`لا يوجد صنف باسم أو كود «${code}»`, 'err');
   };
 
@@ -315,6 +325,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
   const newSale = () => {
     if (onFinished()) return;
     setCart([]);
+    setLastAddedId(null);
     setPartyId('party-cash-customer');
     setDone(null);
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -333,11 +344,12 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             <ScanLine />
             <input
               ref={searchRef}
+              aria-label="البحث عن صنف أو مسح الباركود"
               autoFocus
               value={q}
               onChange={(e) => { setQ(e.target.value); setSugHl(0); }}
               onKeyDown={(e) => {
-                if (e.key === 'ArrowDown' && q.trim()) { e.preventDefault(); setSugHl((h) => Math.min(h + 1, Math.min(shown.length, LIMIT) - 1)); }
+                if (e.key === 'ArrowDown' && q.trim()) { e.preventDefault(); setSugHl((h) => Math.max(0, Math.min(h + 1, Math.min(shown.length, LIMIT) - 1))); }
                 else if (e.key === 'ArrowUp' && q.trim()) { e.preventDefault(); setSugHl((h) => Math.max(h - 1, 0)); }
                 else if (e.key === 'Escape') setQ('');
                 else if (e.key === 'Enter') { e.preventDefault(); void onSearchEnter(); }
@@ -354,11 +366,13 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
             </select>
           )}
         </div>
-        <div className="footnote hide-mobile" aria-label="اختصارات البيع السريع">
-          <span><kbd>F2</kbd> البحث عن صنف</span>
-          <span><kbd>F3</kbd> عملية بيع جديدة</span>
-          <span><kbd>F9</kbd> الدفع</span>
-          <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> الدفع</span>
+        <div className="pos-added-status" aria-live="polite">
+          {lastAdded && <div className="pos-last-added">
+            <Check aria-hidden="true" />
+            <span>آخر إضافة <b>{itemMap.get(lastAdded.item_id)?.name}</b></span>
+            <b className="num">{formatQty(lastAdded.qty)} {itemMap.get(lastAdded.item_id)?.base_unit}</b>
+            <button type="button" className="btn sm only-mobile" onClick={() => setCartOpen(true)}>عرض السلة</button>
+          </div>}
         </div>
         <div className="pos-tools">
           <div className="pos-cats">
@@ -486,7 +500,7 @@ function PosSale({ tabId, active, onSummary, onFinished }: { tabId: string; acti
               onCreate={can('parties.create') ? (t) => { setNewCustomerName(t); setPickParty(false); setNewCustomer(true); } : undefined}
             />
             <button className="btn" onClick={() => { setPartyId('party-cash-customer'); setPickParty(false); }}>عميل نقدي</button>
-            <button className="btn" onClick={() => { setPickParty(false); setNewCustomer(true); }}><UserRound /> إضافة عميل جديد</button>
+            {can('parties.create') && <button className="btn" onClick={() => { setPickParty(false); setNewCustomer(true); }}><UserRound /> إضافة عميل جديد</button>}
           </div>
         </Sheet>
       )}
@@ -608,6 +622,7 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
   const [received, setReceived] = useState('');
   const [rest, setRest] = useState<string>(''); // طريقة الباقي: id خزينة أو 'credit'
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
   const [err, setErr] = useState<string | null>(null);
   const amountRef = useRef<HTMLInputElement>(null);
 
@@ -641,27 +656,37 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
   };
 
   const confirm = async () => {
+    if (saving.current) return;
     setErr(null);
-    if (!prim) return setErr('لا توجد خزائن. أضفها من «الخزائن والبنوك»');
+    if ((!isCredit && !primBox) || (isCredit && !canCredit)) return setErr('اختر طريقة دفع متاحة');
     if (!isCredit && recv <= 0) return setErr('اكتب المبلغ المستلم');
-    if (remainder > 0 && !isCredit && !rest) return setErr(`حدد طريقة دفع الباقي (${formatMoney(remainder)})`);
+    if (remainder > 0 && !isCredit && !restBox && !(rest === 'credit' && canCredit)) return setErr(`حدد طريقة دفع الباقي (${formatMoney(remainder)})`);
     if (credit > 0 && isCashCustomer) return setErr('الجزء الآجل يحتاج عميلًا مسجلًا: اختره أو أضف عميلًا جديدًا');
     const payments: { cashbox_id: string; amount: number }[] = [];
     if (!isCredit && paidPrimary > 0) payments.push({ cashbox_id: prim, amount: paidPrimary });
     if (!isCredit && remainder > 0 && restBox) payments.push({ cashbox_id: restBox.id, amount: remainder });
+    saving.current = true;
     setBusy(true);
     try {
       await onPaid({ payments, credit, change });
     } catch (e) {
       setErr((e as Error).message);
+      saving.current = false;
       setBusy(false);
     }
   };
 
   return (
-    <Sheet title="الدفع" onClose={onClose}>
+    <Sheet title="الدفع" onClose={() => { if (!saving.current) onClose(); }} footer={<>
+      <button className="btn" disabled={busy} onClick={onClose}>رجوع للسلة</button>
+      <button aria-busy={busy} className="btn primary" disabled={busy} onClick={() => void confirm()}><Check /> تأكيد البيع</button>
+    </>}>
       <div className="stack" onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLInputElement).closest('.pay-amount') && (e.preventDefault(), void confirm())}>
         <div className="big-amount num">{formatMoney(total)}</div>
+        <div className="pos-payment-summary">
+          <span>المدفوع <b className="num">{formatMoney(paidPrimary + (restBox ? remainder : 0))}</b></span>
+          <span>{credit > 0 ? 'المتبقي آجل' : 'المتبقي للسداد'} <b className="num">{formatMoney(restBox && !isCredit ? 0 : remainder)}</b></span>
+        </div>
         {err && <Banner kind="err">{err}</Banner>}
 
         <div className="pay-methods" style={{ gridTemplateColumns: `repeat(${Math.min(boxes.length + (canCredit ? 1 : 0), 4)}, 1fr)` }}>
@@ -714,7 +739,6 @@ function PaySheet({ total, party, canCredit, onClose, onPaid, onPickParty }: { t
             ))}
           </div>
         )}
-        <button aria-busy={busy} className="btn success primary xl block" disabled={busy} onClick={confirm}><Check /> تأكيد البيع</button>
       </div>
     </Sheet>
   );

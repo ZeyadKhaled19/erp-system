@@ -27,11 +27,24 @@ export function Dashboard() {
   const settings = useSettings();
   const [editCards, setEditCards] = useState(false);
   const perms = session.user.permissions;
-  const recent = useLiveQuery(async () =>
-    (await db.documents.orderBy('date').reverse().limit(200).toArray())
-      .filter((d) => { const m = DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.module; return !!m && hasPermission(perms, `${m}.view`); })
-      .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
-      .slice(0, 6), [perms.join(',')]);
+  const permsKey = perms.join(',');
+  const allowedDocTypes = useMemo(() => Object.entries(DOC_TYPES)
+    .filter(([, meta]) => !!meta.module && hasPermission(perms, `${meta.module}.view`))
+    .map(([type]) => type), [permsKey]);
+  const allowedTypesKey = allowedDocTypes.join(',');
+  const recent = useLiveQuery(async () => {
+    if (!allowedDocTypes.length) return [];
+    // اقرأ آخر المستندات من الأنواع المسموح بها فقط؛ لا نجلب مستندات الأقسام المحجوبة ثم نخفيها.
+    const batches = await Promise.all(allowedDocTypes.map((type) => db.documents
+      .where('[doc_type+date]')
+      .between([type, '0000-01-01'], [type, '9999-12-31'], true, true)
+      .reverse()
+      .limit(30)
+      .toArray()));
+    return batches.flat()
+      .sort((a, b) => String(b.created_at ?? b.date).localeCompare(String(a.created_at ?? a.date)))
+      .slice(0, 6);
+  }, [allowedTypesKey]);
 
   return (
     <div className="page mc-home">
@@ -237,7 +250,8 @@ function Favorites() {
 /** كل الشاشات اللي ينفع تبقى كارت في الرئيسية: الأقسام أولًا، ثم صفحات كل قسم بلونه */
 interface CardOpt { key: string; label: string; icon: ReactNode; color: SectionColor; to: string; perms: string[]; group: string }
 const CARD_OPTIONS: CardOpt[] = (() => {
-  const out: CardOpt[] = SECTIONS.map((s) => ({ key: `sec:${s.key}`, label: s.label, icon: s.cardIcon, color: s.color, to: s.to, perms: s.perms, group: 'الأقسام' }));
+  const homeSections = SECTIONS.filter((s) => s.homeCard !== false);
+  const out: CardOpt[] = homeSections.map((s) => ({ key: `sec:${s.key}`, label: s.label, icon: s.cardIcon, color: s.color, to: s.to, perms: s.perms, group: 'الأقسام' }));
   const seen = new Set(out.map((o) => o.to));
   const add = (hubKey: string, color: SectionColor, group: string) => {
     const h = HUBS.find((x) => x.key === hubKey);
@@ -252,12 +266,12 @@ const CARD_OPTIONS: CardOpt[] = (() => {
       out.push({ key: l.to, label: l.label, icon: l.icon, color, to: l.to, perms: l.perm ? [l.perm] : [], group });
     }
   };
-  for (const s of SECTIONS) for (const hk of s.hubs) add(hk, s.color, s.label);
+  for (const s of homeSections) for (const hk of s.hubs) add(hk, s.color, s.label);
   for (const hk of GEAR_HUBS) add(hk, 'indigo', HUBS.find((x) => x.key === hk)?.label ?? '');
   return out;
 })();
 const MAX_CARDS = 8;
-const CARDS_DEFAULT = SECTIONS.map((s) => `sec:${s.key}`);
+const CARDS_DEFAULT = SECTIONS.filter((s) => s.homeCard !== false).map((s) => `sec:${s.key}`);
 const cardsKey = (uid: string) => `erp.homeCards.v1.${uid}`;
 function readCards(uid: string): string[] | null {
   try {

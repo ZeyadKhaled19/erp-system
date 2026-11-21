@@ -1063,8 +1063,36 @@ export async function amendDocument(
     from_quotation_id: newDoc.from_quotation_id ?? null,
   };
 
+  // العميل/المورد ما يتغيرش: كشف الحساب وسندات الدفع اللي بتتنقل مربوطين بيه
+  if (fullNewDoc.party_id !== original.party_id) throw new AppError('لا يمكن تغيير العميل/المورد عند تعديل الفاتورة؛ ألغها واعمل فاتورة جديدة', 'validation');
+
+  /** عكس أثر الأصلية (مخزون، قيود، تخصيصاتها كمصدر، شيكات مفتوحة) وتعليمها ملغية — الأصل بيفضل في السجل */
+  const today = new Date().toISOString().slice(0, 10);
+  const cancelDate = original.date > today ? original.date : today;
+  const reverseOriginal = async () => {
+    await reverseTracking(t, originalId);
+    await reverseStockMoves(t, originalId, cancelDate);
+    const auditReason = reason.trim() || 'بدون سبب محدد';
+    await reverseDocumentJournals(t, originalId, cancelDate, ctx.user.id, `تعديل ${DOC_TYPES[original.doc_type as DocType].label} ${original.number}: ${auditReason}`);
+    await reverseAllocations(t, originalId);
+    await t.query(`update instruments set status = 'cancelled' where document_id = $1 and status = 'open'`, [originalId]);
+    if (original.doc_type === 'sale_invoice' && original.data?.from_quotation_id) {
+      await t.query(`update documents set converted_to_id = null where id = $1`, [original.data.from_quotation_id]);
+    }
+    await t.query(`update documents set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now() where id = $1`, [
+      originalId, reason.trim() ? `تعديل: ${reason.trim()}` : 'تم تعديل الفاتورة', ctx.user.id,
+    ]);
+  };
+  /**
+   * الترتيب حسب اتجاه المخزون:
+   * - فاتورة بتصرف بضاعة (بيع، مرتجع شراء): نعكس الأصلية الأول علشان كمياتها ترجع المخزن (آخر قطعة) ورصيد العميل يرجع قبل فحص الحد الائتماني.
+   * - فاتورة بتدخّل بضاعة (شراء، مرتجع بيع): نرحّل الجديدة الأول، لأن عكس الأصلية الأول بيترفض لو جزء من بضاعتها اتصرف.
+   */
+  const reverseFirst = DOC_TYPES[original.doc_type as DocType].stock === 'out';
+
   // إفساح رقم الفاتورة الحالي للبيانات التي سيجري ترحيلها مع بقاء العملية داخل المعاملة.
   if (original.number) await t.query(`update documents set number = null where id = $1`, [originalId]);
+  if (reverseFirst) await reverseOriginal();
 
   // حفظ البيانات المعدلة تحت رقم الفاتورة الحالي
   await saveDocument(t, ctx, fullNewDoc);
@@ -1095,23 +1123,10 @@ export async function amendDocument(
   }
 
   // إخفاء نسخة ما قبل التعديل من رقم الفاتورة مع إبقاء سجلها المحاسبي، ثم إعادة استخدام رقمها للبيانات المعدلة.
-  const today = new Date().toISOString().slice(0, 10);
-  const cancelDate = original.date > today ? original.date : today;
-  await reverseTracking(t, originalId);
-  await reverseStockMoves(t, originalId, cancelDate);
-  const auditReason = reason.trim() || 'بدون سبب محدد';
-  await reverseDocumentJournals(t, originalId, cancelDate, ctx.user.id, `تعديل ${DOC_TYPES[original.doc_type as DocType].label} ${original.number}: ${auditReason}`);
-  await reverseAllocations(t, originalId);
-  await t.query(`update instruments set status = 'cancelled' where document_id = $1 and status = 'open'`, [originalId]);
-  if (original.doc_type === 'sale_invoice' && original.data?.from_quotation_id) {
-    await t.query(`update documents set converted_to_id = null where id = $1`, [original.data.from_quotation_id]);
-  }
-  await t.query(
-    `update documents set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now(), amended_to_id = $4 where id = $1`,
-    [originalId, reason.trim() ? `تعديل: ${reason.trim()}` : 'تم تعديل الفاتورة', ctx.user.id, newId],
-  );
+  if (!reverseFirst) await reverseOriginal();
 
-  // ربط نسخة سجل التعديل بالرقم الظاهر للمستخدم
+  // ربط الاتنين ببعض (بعد ما الجديدة اتسجلت، علشان المفتاح الأجنبي)
+  await t.query(`update documents set amended_to_id = $2 where id = $1`, [originalId, newId]);
   await t.query(`update documents set amended_from_id = $2 where id = $1`, [newId, originalId]);
 
   return t.one(`select * from documents where id = $1`, [newId]);

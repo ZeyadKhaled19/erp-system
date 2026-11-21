@@ -8,6 +8,7 @@ const ACTION: Record<string, string> = {
   'doc.save': 'حفظ مستند',
   'doc.post': 'ترحيل مستند',
   'doc.cancel': 'إلغاء مستند',
+  'doc.amend': 'تعديل فاتورة مرحّلة',
   'conflict.resolve': 'حل تعارض',
   login: 'تسجيل دخول',
   login_failed: 'محاولة دخول فاشلة',

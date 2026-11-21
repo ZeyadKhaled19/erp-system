@@ -3,11 +3,10 @@ import { DOC_TYPES, formatMoney, formatQty, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { exportExcel, Field, Picker, Segmented } from '../../components/ui';
+import { DateInput, exportExcel, Field, Picker, Segmented } from '../../components/ui';
 import { db } from '../../lib/db';
-import { usePerm, useRemote } from '../../lib/hooks';
+import { usePerm, useRemote, useSession } from '../../lib/hooks';
 import { CategoryFilter } from '../../components/Categories';
-import { DatePicker } from '../../components/DatePicker';
 import { monthStart, yearStart, docLabel, Shell, DateRange, useItemOptions, useWarehouses } from './shared';
 
 // ---------------------------------------------------------------- حركة صنف
@@ -80,27 +79,30 @@ export function ItemMovementReport() {
 
 // ---------------------------------------------------------------- بضاعة مخزن
 export function StockReport() {
-  const whs = useWarehouses();
+  const { session } = useSession();
+  const allWhs = useWarehouses();
+  const whs = allWhs.filter((w) => w.active !== false && (!session.user.warehouse_ids || session.user.warehouse_ids.includes(w.id)));
+  const [sp] = useSearchParams();
   const can = usePerm();
   const nav = useNavigate();
-  const [wh, setWh] = useState('');
-  const [sp] = useSearchParams();
+  const [wh, setWh] = useState(sp.get('wh') ?? '');
   const [balanceView, setBalanceView] = useState<'nonzero' | 'all' | 'zero'>(() => sp.get('stock') === 'zero' ? 'zero' : 'nonzero');
   const [cat, setCat] = useState('');
   const catList = useLiveQuery(async () => (await db.categories.toArray()).filter((c) => c.active !== false).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar')), []) ?? [];
   // التقرير محلي بالكامل (من آخر مزامنة) ليعمل دون اتصال
   const data = useLiveQuery(async () => {
     const items = await db.items.orderBy('code').toArray();
-    const bal = await db.stock_balances.toArray();
+    const warehouseIds = whs.filter((w) => !wh || w.id === wh).map((w) => w.id);
+    const bal = warehouseIds.length ? await db.stock_balances.where('warehouse_id').anyOf(warehouseIds).toArray() : [];
     const cats = new Map((await db.categories.toArray()).map((c) => [c.id, c.name]));
-    const rows = items.map((i: any) => {
+    const rows = items.filter((i) => !i.is_service).map((i: any) => {
       const b = bal.filter((x) => x.item_id === i.id && (!wh || x.warehouse_id === wh));
       const qty = b.reduce((s, x) => s + x.qty, 0);
       // قيمة بيع تقديرية (سعر البيع × الكمية الموجبة) — منفصلة تمامًا عن التكلفة والربح
-      return { ...i, qty, value: b.reduce((s, x) => s + x.value, 0), sale_value: qty > 0 ? Math.round((qty * (i.sale_price ?? 0)) / 1000) : 0, cat: cats.get(i.category_id) };
+      return { ...i, qty, value: can('costs.view') ? b.reduce((s, x) => s + x.value, 0) : 0, sale_value: qty > 0 ? Math.round((qty * (i.sale_price ?? 0)) / 1000) : 0, cat: cats.get(i.category_id) };
     });
     return rows.filter((r) => (balanceView === 'all' || (balanceView === 'zero' ? !r.is_service && r.qty === 0 : r.qty !== 0)) && (!cat || r.category_id === cat));
-  }, [wh, balanceView, cat]) ?? [];
+  }, [wh, balanceView, cat, whs.map((w) => w.id).join(','), can('costs.view')]) ?? [];
   const total = data.reduce((s, r) => s + r.value, 0);
   const saleTotal = data.reduce((s, r) => s + r.sale_value, 0);
   return (
@@ -296,7 +298,7 @@ export function ExpiryReport() {
       filters={
         <>
           <Field label="المخزن"><select className="select" value={wh} onChange={(e) => setWh(e.target.value)}><option value="">كل المخازن</option>{whs.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
-          <Field label="صلاحية حتى تاريخ"><DatePicker value={until} onChange={setUntil} /></Field>
+          <Field label="صلاحية حتى تاريخ"><DateInput className="input" value={until} onChange={(e) => setUntil(e.target.value)} /></Field>
         </>
       }
       actions={r.data && <button className="btn" onClick={() => exportExcel('الصلاحية', ['الصنف', 'المخزن', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية'], r.data.rows.map((x: any) => [x.name, x.warehouse_name, x.expiry, x.days_left, formatQty(x.qty)]))}>تصدير Excel</button>}

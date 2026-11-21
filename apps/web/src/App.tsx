@@ -4,7 +4,9 @@ import { PrintPage } from './pages/Print';
 import { Layout } from './components/Layout';
 import { useUi } from './components/ui';
 import { api, setToken, setUnauthorizedHandler } from './lib/api';
-import { setLocalIdentity, setMeta } from './lib/db';
+import { db, setLocalIdentity, setMeta } from './lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { DOC_TYPES, type DocType } from '@erp/shared';
 import { SessionContext } from './lib/hooks';
 import { getDeviceId, loadSession, saveSession, type Session } from './lib/session';
 import { startSync, stopSync } from './lib/sync';
@@ -15,8 +17,12 @@ import { CashboxesPage } from './pages/Cashboxes';
 import { Dashboard } from './pages/Dashboard';
 import { DocumentEditor } from './pages/DocumentEditor';
 import { DocumentsList } from './pages/DocumentsList';
-import { ExpensesPage } from './pages/Expenses';
 import { DocumentView } from './pages/DocumentView';
+import { ExpensesPage, ExpenseModal } from './pages/Expenses';
+import { CashMovementsPage } from './pages/CashMovements';
+import { CashTransfersPage } from './pages/CashTransfers';
+import { StockCountsPage } from './pages/StockCounts';
+import { StockTransfersPage } from './pages/StockTransfers';
 import { ItemInquiry } from './pages/ItemInquiry';
 import { ItemsPage } from './pages/Items';
 import { Login } from './pages/Login';
@@ -39,6 +45,7 @@ import { HubPage } from './pages/Hub';
 import { PosPage } from './pages/Pos';
 import { InvoicesPage } from './pages/Invoices';
 import { SimpleSalePage } from './pages/SimpleSale';
+import { BusinessInsightsPage } from './pages/BusinessInsights';
 import { AdvancesPage, AttendancePage, AttendanceReportPage, EmployeesPage, PayrollPage } from './pages/Employees';
 import { OrgStructurePage } from './pages/OrgStructure';
 import { DocGuard, HomeRoute, HubGuard, NewDocGuard, RequirePerm } from './components/Guard';
@@ -62,6 +69,7 @@ export function App() {
   });
   const ui = useUi();
   const loc = useLocation();
+  const backgroundLocation = (loc.state as { backgroundLocation?: typeof loc } | null)?.backgroundLocation;
   const lic = useLicenseInfo();
 
   useEffect(() => {
@@ -182,18 +190,27 @@ export function App() {
     <SessionContext.Provider value={ctx}>
       {lic?.license?.status === 'trial' && <TrialPill license={lic.license} contact={lic.contact} />}
       <Layout>
-        <Routes>
+        <Routes location={backgroundLocation ?? loc}>
           <Route path="/" element={<HomeRoute><Dashboard /></HomeRoute>} />
+          <Route path="/insights" element={<RequirePerm any={['reports.view', 'sales.view', 'purchases.view', 'inventory.view', 'treasury.view', 'parties.view', 'employees.view']}><BusinessInsightsPage /></RequirePerm>} />
           <Route path="/hub/:key" element={<HubGuard><HubPage /></HubGuard>} />
           <Route path="/pos" element={<RequirePerm any={['sales.create']}><PosPage /></RequirePerm>} />
-          <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage /></RequirePerm>} />
+          <Route path="/invoices" element={<RequirePerm any={['sales.view', 'purchases.view']}><InvoicesPage backgroundActive={!!backgroundLocation} /></RequirePerm>} />
+          <Route path="/purchases" element={<RequirePerm any={['purchases.view']}><InvoicesPage purchaseOnly backgroundActive={!!backgroundLocation} /></RequirePerm>} />
+          <Route path="/returns/sales" element={<RequirePerm any={['sales.view']}><InvoicesPage key="sales-returns" returnsOnly="sales" backgroundActive={!!backgroundLocation} /></RequirePerm>} />
+          <Route path="/returns/purchases" element={<RequirePerm any={['purchases.view']}><InvoicesPage key="purchase-returns" returnsOnly="purchases" backgroundActive={!!backgroundLocation} /></RequirePerm>} />
+          <Route path="/treasury/receipt" element={<RequirePerm any={['treasury.view']}><CashMovementsPage key="receipt" kind="receipt" /></RequirePerm>} />
+          <Route path="/treasury/payment" element={<RequirePerm any={['treasury.view']}><CashMovementsPage key="payment" kind="payment" /></RequirePerm>} />
+          <Route path="/treasury/transfers" element={<RequirePerm any={['treasury.view']}><CashTransfersPage /></RequirePerm>} />
+          <Route path="/inventory/counts" element={<RequirePerm any={['inventory.view']}><StockCountsPage /></RequirePerm>} />
+          <Route path="/inventory/transfers" element={<RequirePerm any={['inventory.view']}><StockTransfersPage /></RequirePerm>} />
           <Route path="/reports/commissions" element={<RequirePerm any={['reports.view']}><CommissionsPage /></RequirePerm>} />
           <Route path="/year-end" element={<RequirePerm any={['period.lock']}><YearEndPage /></RequirePerm>} />
           <Route path="/items" element={<RequirePerm any={['items.view']}><ItemsPage /></RequirePerm>} />
           <Route path="/items/inquiry" element={<RequirePerm any={['items.view']}><ItemInquiry /></RequirePerm>} />
           <Route path="/warehouses" element={<RequirePerm any={['inventory.view']}><WarehousesPage /></RequirePerm>} />
-          <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage /></RequirePerm>} />
-          <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail /></RequirePerm>} />
+          <Route path="/parties/:kind" element={<RequirePerm any={['parties.view']}><PartiesPage key={loc.pathname} /></RequirePerm>} />
+          <Route path="/parties/:kind/:id" element={<RequirePerm any={['parties.view']}><PartyDetail key={loc.pathname} /></RequirePerm>} />
           <Route path="/cashboxes" element={<RequirePerm any={['treasury.view']}><CashboxesPage /></RequirePerm>} />
           <Route path="/expenses" element={<RequirePerm any={['treasury.view', 'treasury.create']}><ExpensesPage /></RequirePerm>} />
           <Route path="/accounts" element={<RequirePerm any={['accounts.view']}><AccountsPage /></RequirePerm>} />
@@ -241,6 +258,12 @@ export function App() {
           <Route path="/audit" element={<RequirePerm any={['audit.view']}><AuditPage /></RequirePerm>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {backgroundLocation && (
+          <Routes>
+            <Route path="/docs/new/:type" element={<NewDocGuard><NewDocumentModal key={loc.key} /></NewDocGuard>} />
+            <Route path="/docs/edit/:id" element={<DocGuard><EditDocumentModal key={loc.key} /></DocGuard>} />
+          </Routes>
+        )}
       </Layout>
     </SessionContext.Provider>
   );
@@ -250,9 +273,41 @@ export function App() {
 function NewDocRoute() {
   const { type } = useParams();
   const [sp] = useSearchParams();
+  const loc = useLocation();
+  if (type === 'stock_transfer' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/inventory/transfers' } }} />;
+  if (type === 'stock_adjustment' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/inventory/counts' } }} />;
+  if (type === 'purchase_invoice' && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: '/purchases' } }} />;
+  if ((type === 'sale_return' || type === 'purchase_return') && !(loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation)
+    return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: type === 'sale_return' ? '/returns/sales' : '/returns/purchases' } }} />;
+  if (type === 'expense' || type === 'partner_withdrawal' || type === 'receipt' || type === 'payment' || type === 'cash_transfer') {
+    const backgroundLocation = (loc.state as { backgroundLocation?: unknown } | null)?.backgroundLocation;
+    if (!backgroundLocation) return <Navigate to={`${loc.pathname}${loc.search}`} replace state={{ backgroundLocation: { pathname: type === 'cash_transfer' ? '/treasury/transfers' : type === 'receipt' || type === 'payment' ? `/treasury/${type}` : type === 'expense' ? '/expenses' : '/hub/partners' } }} />;
+    return null;
+  }
   if (type === 'sale_invoice' && !sp.get('advanced') && !sp.get('quotation') && !sp.get('ref')) return <SimpleSalePage key="sale" />;
   if (type === 'purchase_invoice' && !sp.get('advanced') && !sp.get('ref')) return <SimpleSalePage key="purchase" kind="purchase" />;
   return <DocumentEditor key={type} />;
+}
+
+function NewDocumentModal() {
+  const { type } = useParams();
+  if (type === 'stock_transfer') return <ExpenseModal title="تحويل البضاعة بين المخازن" variant="return"><DocumentEditor /></ExpenseModal>;
+  if (type === 'stock_adjustment') return <ExpenseModal title="جرد وتسوية المخزون" variant="return"><DocumentEditor /></ExpenseModal>;
+  if (type === 'purchase_invoice') return <ExpenseModal title="فاتورة شراء جديدة" variant="purchase"><NewDocRoute /></ExpenseModal>;
+  if (type === 'receipt' || type === 'payment') return <ExpenseModal title={type === 'receipt' ? 'قبض من عميل' : 'صرف لمورد'} variant="cash"><DocumentEditor /></ExpenseModal>;
+  if (type === 'sale_return' || type === 'purchase_return') return <ExpenseModal title={type === 'sale_return' ? 'مرتجع بيع' : 'مرتجع شراء'} variant="return"><DocumentEditor /></ExpenseModal>;
+  if (type === 'cash_transfer') return <ExpenseModal title="تحويل بين الخزائن" variant="cash"><DocumentEditor /></ExpenseModal>;
+  return <ExpenseModal><DocumentEditor /></ExpenseModal>;
+}
+
+function EditDocumentModal() {
+  const { id } = useParams();
+  const doc = useLiveQuery(() => id ? db.documents.get(id) : undefined, [id]);
+  if (doc === undefined) return null;
+  return <ExpenseModal title={doc.doc_type === 'stock_adjustment' ? 'تعديل الجرد' : `تعديل ${DOC_TYPES[doc.doc_type as DocType]?.label ?? 'المستند'}`} variant={['stock_adjustment', 'stock_transfer'].includes(doc.doc_type) ? 'return' : undefined}><DocumentEditor /></ExpenseModal>;
 }
 
 /** سجل مستندات وحدة: يحتاج صلاحية مشاهدة الوحدة */

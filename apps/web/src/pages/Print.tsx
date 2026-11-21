@@ -1,10 +1,12 @@
 import { DOC_TYPES, formatMoney, formatQty, hasPermission, tafqeetEGP, type DocType } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { payMethodLabel } from '../lib/payMethod';
 import { db } from '../lib/db';
 import { useSession, useSettings } from '../lib/hooks';
+import { PRINT_DEFAULTS, printPreferencesKey, readPrintPreferences, type PrintPreferences } from '../lib/printPreferences';
+import './print-studio.css';
 
 /**
  * قوالب الطباعة (تعمل دون اتصال من البيانات المحلية):
@@ -55,15 +57,13 @@ const PAGE_CSS: Record<PrintTemplate, string> = {
 
 export function PrintPage() {
   const { id = '' } = useParams();
-  const [sp] = useSearchParams();
-  const nav = useNavigate();
   const settings = useSettings();
   const { session } = useSession();
   const doc = useLiveQuery(() => db.documents.get(id), [id]);
   const docModule = doc ? DOC_TYPES[doc.doc_type as DocType]?.module : null;
-  const permissionDenied = docModule === 'sales'
+  const permissionDenied = !!docModule && (!hasPermission(session.user.permissions, `${docModule}.view`) || (docModule === 'sales'
     ? !hasPermission(session.user.permissions, 'sales.print')
-    : docModule === 'purchases' && !hasPermission(session.user.permissions, 'purchases.print');
+    : docModule === 'purchases' && !hasPermission(session.user.permissions, 'purchases.print')));
   const data = useLiveQuery(async () => {
     if (!doc || permissionDenied) return null;
     const lines = await db.document_lines.where('document_id').equals(id).sortBy('line_no');
@@ -80,53 +80,98 @@ export function PrintPage() {
     return { lines, items, party, wh, wh2, cbs, acc, partner, insts, user, rep };
   }, [doc, id, permissionDenied]);
 
-  const tpl = (sp.get('t') as PrintTemplate) || (doc ? defaultTemplate(doc, settings) : 'a4');
-  const auto = sp.get('auto') === '1';
-
   useEffect(() => {
     document.title = doc ? `${DOC_TYPES[doc.doc_type as DocType]?.label} ${doc.number ?? doc.local_number}` : 'طباعة';
   }, [doc]);
-  useEffect(() => {
-    if (!auto || !doc || !data || permissionDenied) return;
-    // ننتظر تحميل الخطوط ثم نفتح نافذة الطباعة
-    let done = false;
-    void document.fonts.ready.then(() => {
-      if (!done) setTimeout(() => window.print(), 250);
-    });
-    return () => {
-      done = true;
-    };
-  }, [auto, doc, data, permissionDenied]);
 
   if (doc && permissionDenied) return <div role="alert" style={{ padding: 30 }}>لا تملك صلاحية طباعة هذا المستند</div>;
   if (doc === undefined || (doc && !data)) return <div style={{ padding: 30 }}>جارٍ التحضير…</div>;
   if (!doc) return <div style={{ padding: 30 }}>المستند غير موجود على هذا الجهاز</div>;
-  const thermal = tpl === 'thermal80' || tpl === 'thermal58';
+  return <PrintStudio key={id} doc={doc} d={data!} settings={settings} userId={session.user.id} />;
+}
 
+async function waitForPrintAssets() {
+  await document.fonts.ready;
+  await Promise.race([
+    Promise.allSettled([...document.querySelectorAll<HTMLImageElement>('.paper img')].map((img) => img.decode())),
+    new Promise((resolve) => setTimeout(resolve, 2500)),
+  ]);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
+function PrintStudio({ doc, d, settings, userId }: P & { userId: string }) {
+  const [sp, setSp] = useSearchParams();
+  const nav = useNavigate();
+  const [prefs, setPrefs] = useState(() => readPrintPreferences(userId, doc.doc_type, !!settings.print_show_balance));
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const autoPrinted = useRef(false);
+  const allowed = templatesFor(doc, d.insts.some((x: any) => x.kind === 'installment'));
+  const requested = sp.get('t') || prefs.template || defaultTemplate(doc, settings);
+  const tpl: PrintTemplate = allowed.includes(requested as PrintTemplate) ? requested as PrintTemplate : allowed[0];
+  const auto = sp.get('auto') === '1';
+  const update = (next: Partial<PrintPreferences>) => { setPrefs((old) => ({ ...old, ...next })); setSaved(false); setSaveError(false); };
+  const print = async () => {
+    if (printing) return;
+    setPrinting(true);
+    try { await waitForPrintAssets(); window.print(); }
+    finally { setPrinting(false); }
+  };
+  useEffect(() => {
+    if (!auto || autoPrinted.current) return;
+    let cancelled = false;
+    void waitForPrintAssets().then(() => {
+      if (!cancelled && !autoPrinted.current) { autoPrinted.current = true; window.print(); }
+    });
+    return () => { cancelled = true; };
+  }, [auto]);
+  const printSettings = { ...settings, print_logo: prefs.showLogo ? settings.print_logo : null, print_show_balance: prefs.showBalance };
+  const thermal = tpl === 'thermal80' || tpl === 'thermal58';
+  const paperRef = useRef<HTMLDivElement>(null);
+  const [thermalHeight, setThermalHeight] = useState(100);
+  useEffect(() => {
+    if (!thermal || !paperRef.current) return;
+    const paper = paperRef.current;
+    const measure = () => { if (!window.matchMedia('print').matches) setThermalHeight(Math.max(40, Math.ceil(paper.getBoundingClientRect().height * 25.4 / 96))); };
+    const observer = new ResizeObserver(measure);
+    observer.observe(paper);
+    measure();
+    return () => observer.disconnect();
+  }, [thermal, tpl]);
+  const pageCss = thermal ? `@page { size: ${tpl === 'thermal58' ? 58 : 80}mm ${thermalHeight}mm; margin: ${tpl === 'thermal58' ? 1.5 : 2}mm; }` : PAGE_CSS[tpl];
   return (
-    <div className={`print-root tpl-${tpl}`}>
-      <style>{PRINT_CSS + PAGE_CSS[tpl]}</style>
-      <div className="print-toolbar no-print">
-        <button className="btn" onClick={() => nav(-1)}>رجوع</button>
-        <select className="select" style={{ width: 230 }} value={tpl} onChange={(e) => nav(`/print/${id}?t=${e.target.value}`, { replace: true })}>
-          {templatesFor(doc, data!.insts.some((x) => x.kind === 'installment')).map((t) => (
-            <option key={t} value={t}>{TEMPLATE_LABEL[t]}</option>
-          ))}
-        </select>
-        <button className="btn primary" onClick={() => window.print()}>طباعة</button>
-        <button className="btn" title="في نافذة الطباعة اختر «حفظ كـ PDF»" onClick={() => window.print()}>حفظ PDF</button>
+    <div className={`print-root tpl-${tpl} design-${prefs.design}${prefs.showNotes ? '' : ' hide-print-notes'}${prefs.showSignatures ? '' : ' hide-print-signatures'}`}>
+      <style>{PRINT_CSS + pageCss}</style>
+      <div className="print-toolbar studio-toolbar no-print">
+        <div className="studio-heading"><strong>استوديو طباعة الفواتير</strong><span>{title(doc)} · {num(doc)} · معاينة ببيانات المستند الفعلية</span></div>
+        <div className="studio-actions"><button className="btn" onClick={() => nav(`/docs/view/${doc.id}`)}>رجوع للمستند</button><button className="btn" disabled={printing} title="اختر حفظ كـ PDF من نافذة الطباعة" onClick={() => void print()}>حفظ PDF</button><button className="btn primary" disabled={printing} onClick={() => void print()}>{printing ? 'جارٍ تجهيز الطباعة…' : 'طباعة الفاتورة'}</button></div>
       </div>
-      <div className={thermal ? 'paper thermal' : 'paper'}>
+      <div className="print-workspace">
+      <aside className="print-controls no-print" aria-label="تخصيص قالب الطباعة">
+        <section><h2>مقاس ونوع المستند</h2><div className="print-template-grid">{allowed.map((t) => <button key={t} className={`print-template${tpl === t ? ' active' : ''}${t.startsWith('thermal') ? ' thermal-choice' : ''}`} aria-pressed={tpl === t} onClick={() => { const next = new URLSearchParams(sp); next.set('t', t); next.delete('auto'); setSp(next, { replace: true }); update({ template: t }); }}><span className="print-template-icon" aria-hidden="true"><i /><i /><i /></span>{TEMPLATE_LABEL[t]}</button>)}</div></section>
+        {!thermal && <label className="print-choice">تصميم القالب<select value={prefs.design} onChange={(e) => update({ design: e.target.value as PrintPreferences['design'] })}><option value="modern">احترافي — هوية MOTORCO</option><option value="minimal">بسيط — موفر للحبر</option><option value="classic">كلاسيكي — حدود واضحة</option></select></label>}
+        <label className="print-choice">حجم الخط<select value={prefs.fontSize} onChange={(e) => update({ fontSize: Number(e.target.value) })}>{[10, 11, 12, 13].map((size) => <option key={size} value={size}>{size === 10 ? 'مدمج' : size === 11 ? 'متوازن' : size === 12 ? 'واضح' : 'كبير'}</option>)}</select></label>
+        <details><summary>البيانات الظاهرة في الطباعة</summary><div className="print-checks" style={{ marginTop: 12 }}>
+          {([['showLogo', 'شعار الشركة'], ['showCodes', 'أكواد الأصناف'], ['showNotes', 'الملاحظات'], ['showSignatures', 'التوقيعات'], ['showBalance', 'رصيد الحساب الحالي'], ['smartColumns', 'إخفاء عمود الخصم إذا كان فارغًا']] as const).filter(([key]) => key === 'showCodes' ? d.lines.length > 0 && tpl !== 'contract' : key === 'showSignatures' ? !thermal : key === 'showBalance' ? !!d.party && tpl !== 'contract' && tpl !== 'delivery' : key === 'smartColumns' ? !thermal && tpl !== 'voucher' && tpl !== 'contract' && tpl !== 'delivery' && d.lines.length > 0 : key === 'showNotes' ? tpl !== 'contract' : true).map(([key, label]) => <label key={key}><input type="checkbox" checked={prefs[key]} onChange={(e) => update({ [key]: e.target.checked })} />{label}</label>)}
+        </div></details>
+        <section><button className="btn primary" onClick={() => { try { localStorage.setItem(printPreferencesKey(userId, doc.doc_type), JSON.stringify({ ...prefs, template: tpl })); setSaved(true); setSaveError(false); } catch { setSaved(false); setSaveError(true); } }}>حفظ كقالب افتراضي لي</button><p className={saved ? 'print-saved' : ''} role="status">{saveError ? 'تعذر حفظ التفضيلات على الجهاز. يمكنك الطباعة باختياراتك الحالية.' : saved ? 'تم حفظ القالب لهذا النوع من المستندات على هذا الجهاز.' : 'اختيارك يُحفظ لحسابك على هذا الجهاز، ويستخدم في الطباعة التالية.'}</p></section>
+        <p>القالب يتكيف مع الضريبة والخصومات والأقساط المسجلة. بيانات المسودات والملغى تظهر بوضوح.</p>
+        <button className="btn" onClick={() => { update({ ...PRINT_DEFAULTS, showBalance: !!settings.print_show_balance }); const next = new URLSearchParams(sp); next.delete('t'); next.delete('auto'); setSp(next, { replace: true }); }}>استعادة إعدادات الشركة</button>
+      </aside>
+      <main className="print-preview"><div className="print-preview-caption no-print">{TEMPLATE_LABEL[tpl]} · {thermal ? 'مناسب للطابعة الحرارية' : 'معاينة حجم الورق الفعلي'} · ج.م</div>
+      <div ref={paperRef} className={thermal ? 'paper thermal' : 'paper'} style={{ fontSize: `${thermal ? prefs.fontSize - (tpl === 'thermal58' ? 3 : 1) : prefs.fontSize}pt` } as CSSProperties}>
         {thermal ? (
-          <Thermal doc={doc} d={data!} settings={settings} />
+          <Thermal doc={doc} d={d} settings={printSettings} prefs={prefs} />
         ) : tpl === 'voucher' ? (
-          <Voucher doc={doc} d={data!} settings={settings} />
+          <Voucher doc={doc} d={d} settings={printSettings} />
         ) : tpl === 'contract' ? (
-          <Contract doc={doc} d={data!} settings={settings} />
+          <Contract doc={doc} d={d} settings={printSettings} />
         ) : (
-          <Full doc={doc} d={data!} settings={settings} delivery={tpl === 'delivery'} />
+          <Full doc={doc} d={d} settings={printSettings} prefs={prefs} delivery={tpl === 'delivery'} />
         )}
       </div>
+      </main></div>
     </div>
   );
 }
@@ -153,6 +198,7 @@ function Header({ doc, settings, label }: { doc: any; settings: Record<string, a
         <div>التاريخ: <span className="ltr">{doc.date}</span></div>
         {doc.status === 'cancelled' && <div className="p-cancel">ملغي</div>}
         {doc.status === 'draft' && <div className="p-cancel">مسودة</div>}
+        {doc.status !== 'posted' && doc.status !== 'draft' && doc.status !== 'cancelled' && <div className="p-cancel">بانتظار المراجعة — غير معتمد</div>}
       </div>
     </div>
   );
@@ -168,11 +214,12 @@ function Signatures({ labels }: { labels: string[] }) {
   );
 }
 
-function Full({ doc, d, settings, delivery }: P & { delivery: boolean }) {
+function Full({ doc, d, settings, delivery, prefs }: P & { delivery: boolean; prefs: PrintPreferences }) {
   const info = DOC_TYPES[doc.doc_type as DocType];
   const priced = !delivery && (info.priced || doc.doc_type === 'opening_stock');
   const charges: any[] = doc.data?.charges ?? [];
   const payments: any[] = doc.data?.payments ?? [];
+  const showDiscount = !prefs.smartColumns || d.lines.some((l: any) => (l.discount ?? 0) + (l.doc_discount ?? 0) !== 0);
   return (
     <>
       <Header doc={doc} settings={settings} label={delivery ? `إذن تسليم بضاعة — ${title(doc)}` : undefined} />
@@ -185,12 +232,13 @@ function Full({ doc, d, settings, delivery }: P & { delivery: boolean }) {
         {d.rep && <Cell k="المندوب" v={d.rep.name} />}
         {doc.shipping_company && <Cell k="الشحن" v={doc.shipping_company} />}
       </div>
+      {info.priced && !delivery && <div className="p-status-strip"><span>حالة السداد: <b>{doc.paid >= doc.total ? 'مسدد بالكامل' : doc.paid > 0 ? 'مسدد جزئيًا' : 'غير مسدد'}</b></span><span>عدد الأصناف: <b>{d.lines.length}</b></span><span>العملة: <b>جنيه مصري</b></span></div>}
       {d.lines.length > 0 && (
         <table className="p-table">
           <thead>
             <tr>
               <th>#</th><th>الصنف</th><th>الوحدة</th><th>الكمية</th>
-              {priced && <><th>السعر</th><th>الخصم</th>{doc.tax > 0 && <th>الضريبة</th>}<th>الإجمالي</th></>}
+              {priced && <><th>السعر</th>{showDiscount && <th>الخصم</th>}{doc.tax > 0 && <th>الضريبة</th>}<th>الإجمالي</th></>}
               {delivery && <th>المستلم فعليًا</th>}
             </tr>
           </thead>
@@ -201,13 +249,14 @@ function Full({ doc, d, settings, delivery }: P & { delivery: boolean }) {
                 <tr key={l.id}>
                   <td>{l.line_no}</td>
                   <td>
-                    {it?.name}
+                    {it?.name ?? 'صنف غير متاح'}
+                    {prefs.showCodes && it?.code && <div className="p-item-code ltr">{it.code}</div>}
                     {l.serials?.length ? <div className="p-small">سيريال: <span className="ltr">{l.serials.join(', ')}</span></div> : null}
                     {l.expiry ? <div className="p-small">صلاحية: <span className="ltr">{l.expiry}</span></div> : null}
                   </td>
                   <td>{l.unit_name}</td>
                   <td className="n">{formatQty(l.qty)}</td>
-                  {priced && <><td className="n">{formatMoney(l.price)}</td><td className="n">{(l.discount || l.doc_discount) ? formatMoney((l.discount ?? 0) + (l.doc_discount ?? 0)) : ''}</td>{doc.tax > 0 && <td className="n">{formatMoney(l.tax ?? 0)}</td>}<td className="n">{formatMoney(l.total ?? 0)}</td></>}
+                  {priced && <><td className="n">{formatMoney(l.price)}</td>{showDiscount && <td className="n">{(l.discount || l.doc_discount) ? formatMoney((l.discount ?? 0) + (l.doc_discount ?? 0)) : ''}</td>}{doc.tax > 0 && <td className="n">{formatMoney(l.tax ?? 0)}</td>}<td className="n">{formatMoney(l.total ?? 0)}</td></>}
                   {delivery && <td />}
                 </tr>
               );
@@ -224,7 +273,7 @@ function Full({ doc, d, settings, delivery }: P & { delivery: boolean }) {
       {!delivery && (
         <div className="p-bottom">
           <div className="p-notes">
-            {doc.notes && <div><b>ملاحظات:</b> {doc.notes}</div>}
+            {doc.notes && <div className="p-optional-notes"><b>ملاحظات:</b> {doc.notes}</div>}
             {priced && doc.total > 0 && <div className="p-words">{tafqeetEGP(doc.total)}</div>}
             {payments.length > 0 && <div><b>السداد:</b> {payments.map((p) => `${d.cbs.get(p.cashbox_id)?.name}: ${formatMoney(p.amount)}`).join(' · ')}</div>}
             {d.insts.length > 0 && <div><b>شيكات وأقساط:</b> {d.insts.map((x: any) => `${x.kind === 'cheque' ? `شيك ${x.cheque_no ?? ''}` : 'قسط'} ${x.due_date}: ${formatMoney(x.amount)}`).join(' · ')}</div>}
@@ -245,7 +294,7 @@ function Full({ doc, d, settings, delivery }: P & { delivery: boolean }) {
           </table>
         </div>
       )}
-      {delivery && doc.notes && <div style={{ marginTop: 10 }}><b>ملاحظات:</b> {doc.notes}</div>}
+      {delivery && doc.notes && <div className="p-optional-notes" style={{ marginTop: 10 }}><b>ملاحظات:</b> {doc.notes}</div>}
       <Signatures labels={delivery ? ['أمين المخزن', 'المستلم'] : info.priced ? ['المحاسب', d.party?.kind === 'supplier' ? 'المورد' : 'العميل'] : ['أعده', 'اعتمده']} />
       {settings.invoice_footer && <div className="p-footer">{settings.invoice_footer}</div>}
       <div className="p-meta">طُبع {new Date().toLocaleString('ar-EG')}{d.user ? ` — أعده ${d.user.full_name}` : ''}</div>
@@ -280,7 +329,8 @@ function Voucher({ doc, d, settings }: P) {
         <div className="p-line"><span>مبلغ وقدره:</span><b>{tafqeetEGP(doc.total)}</b></div>
         {d.acc && d.party && <div className="p-line"><span>الحساب:</span><b>{d.acc.name}</b></div>}
         <div className="p-line"><span>{incoming ? 'في خزينة' : 'من خزينة'}:</span><b>{d.cbs.get(doc.cashbox_id)?.name}</b></div>
-        {doc.notes && <div className="p-line"><span>وذلك عن:</span><b>{doc.notes}</b></div>}
+        {doc.notes && <div className="p-line p-optional-notes"><span>وذلك عن:</span><b>{doc.notes}</b></div>}
+        {settings.print_show_balance && d.party && <div className="p-line"><span>رصيد الحساب الحالي:</span><b className="ltr">{formatMoney(d.party.balance ?? 0)}</b></div>}
       </div>
       <Signatures labels={['أمين الخزينة', 'المحاسب', incoming ? 'المسلِّم' : 'المستلم']} />
       <div className="p-meta">طُبع {new Date().toLocaleString('ar-EG')}{d.user ? ` — أعده ${d.user.full_name}` : ''}</div>
@@ -342,7 +392,7 @@ const DEFAULT_TERMS = `شروط العقد:
 3) تظل ملكية البضاعة للطرف الأول حتى سداد كامل الثمن.
 4) حُرر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها.`;
 
-function Thermal({ doc, d, settings }: P) {
+function Thermal({ doc, d, settings, prefs }: P & { prefs: PrintPreferences }) {
   const info = DOC_TYPES[doc.doc_type as DocType];
   const charges: any[] = doc.data?.charges ?? [];
   const payments: any[] = doc.data?.payments ?? [];
@@ -358,13 +408,15 @@ function Thermal({ doc, d, settings }: P) {
       <div className="t-sep" />
       <div className="t-row"><span>{title(doc)}</span><b className="ltr">{num(doc)}</b></div>
       <div className="t-row"><span>التاريخ</span><span className="ltr">{doc.date} {doc.created_at ? new Date(doc.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : ''}</span></div>
-      {d.party && d.party.id !== 'party-cash-customer' && <div className="t-row"><span>العميل</span><span>{d.party.name}</span></div>}
+      {doc.status !== 'posted' && <div className="p-document-state">{doc.status === 'draft' ? 'مسودة — غير معتمدة' : doc.status === 'cancelled' ? 'مستند ملغي' : 'بانتظار المراجعة'}</div>}
+      {d.party && d.party.id !== 'party-cash-customer' && <div className="t-row"><span>{d.party.kind === 'supplier' ? 'المورد' : 'العميل'}</span><span>{d.party.name}</span></div>}
       {d.user && <div className="t-row"><span>الكاشير</span><span>{d.user.full_name}</span></div>}
       <div className="t-sep" />
       {info.priced ? (
         d.lines.map((l: any) => (
           <div key={l.id} className="t-item">
             <div>{d.items.get(l.item_id)?.name}</div>
+            {prefs.showCodes && <div className="t-small ltr">{d.items.get(l.item_id)?.code}</div>}
             <div className="t-row"><span className="ltr">{formatQty(l.qty)} × {formatMoney(l.price)}</span><b className="ltr">{formatMoney(l.total)}</b></div>
             {(l.discount || l.doc_discount) ? <div className="t-row t-small"><span>خصم</span><span className="ltr">-{formatMoney((l.discount ?? 0) + (l.doc_discount ?? 0))}</span></div> : null}
           </div>
@@ -372,7 +424,7 @@ function Thermal({ doc, d, settings }: P) {
       ) : (
         <>
           <div className="t-row"><span>{d.party?.name ?? d.partner?.name ?? d.acc?.name}</span></div>
-          {doc.notes && <div>{doc.notes}</div>}
+          {doc.notes && <div className="p-optional-notes">{doc.notes}</div>}
         </>
       )}
       <div className="t-sep" />
@@ -383,6 +435,9 @@ function Thermal({ doc, d, settings }: P) {
       {info.priced && <div className="t-row"><span>طريقة الدفع</span><span>{payMethodLabel(doc, d.cbs)}</span></div>}
       {payments.map((p) => <div key={p.id} className="t-row"><span>{d.cbs.get(p.cashbox_id)?.name}</span><span className="ltr">{formatMoney(p.amount)}</span></div>)}
       {info.priced && doc.total - doc.paid > 0 && <div className="t-row"><span>المتبقي (آجل)</span><span className="ltr">{formatMoney(doc.total - doc.paid)}</span></div>}
+      {info.priced && <div className="t-row"><span>المسدد</span><span className="ltr">{formatMoney(doc.paid ?? 0)}</span></div>}
+      {info.priced && doc.notes && <div className="p-optional-notes t-small">ملاحظات: {doc.notes}</div>}
+      {settings.print_show_balance && d.party && d.party.id !== 'party-cash-customer' && <div className="t-row"><span>رصيد الحساب الحالي</span><span className="ltr">{formatMoney(d.party.balance ?? 0)}</span></div>}
       <div className="t-sep" />
       {settings.invoice_footer && <div className="t-center">{settings.invoice_footer}</div>}
       <div className="t-center t-small">{doc.status === 'cancelled' ? '*** ملغي ***' : 'شكرًا لزيارتكم'}</div>
@@ -399,11 +454,12 @@ function Cell({ k, v }: { k: string; v: ReactNode }) {
 const PRINT_CSS = `
 .print-root { background: #e9e9ee; min-height: 100vh; padding: 16px 0 40px; color: #000; }
 .print-toolbar { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; justify-content: center; padding: 10px; background: rgba(242,242,247,.9); backdrop-filter: blur(20px); margin-bottom: 14px; }
-.paper { background: #fff; margin: 0 auto; width: 210mm; min-height: 280mm; padding: 14mm; box-shadow: 0 4px 24px rgba(0,0,0,.12); font-size: 11.5pt; line-height: 1.5; }
-.tpl-a5 .paper { width: 148mm; min-height: 200mm; padding: 9mm; font-size: 10pt; }
-.tpl-voucher .paper { width: 210mm; min-height: 140mm; padding: 10mm; }
-.paper.thermal { width: 80mm; min-height: auto; padding: 3mm; font-size: 9.5pt; font-family: var(--font); }
-.tpl-thermal58 .paper.thermal { width: 58mm; padding: 2mm; font-size: 8pt; }
+.paper { background: #fff; margin: 0 auto; width: 210mm; min-height: 297mm; padding: 12mm; box-shadow: 0 4px 24px rgba(0,0,0,.12); font-size: 11.5pt; line-height: 1.5; }
+.tpl-a5 .paper { width: 148mm; min-height: 210mm; padding: 8mm; font-size: 10pt; }
+.tpl-voucher .paper { width: 210mm; min-height: 148mm; padding: 8mm; }
+.tpl-contract .paper { padding: 14mm; }
+.paper.thermal { width: 80mm; min-height: auto; padding: 2mm; font-size: 9.5pt; font-family: var(--font); }
+.tpl-thermal58 .paper.thermal { width: 58mm; padding: 1.5mm; font-size: 8pt; }
 .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 .n { text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .p-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
