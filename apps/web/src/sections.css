@@ -63,7 +63,7 @@
 /* ---------- 3) إجراءات سريعة: أول زرار برتقالي ممتلئ والباقي بحد (ds-btn) ---------- */
 .sx-action-row { display: grid; gap: var(--sp-3); }
 .sx-actions.stack .sx-action-row { grid-template-columns: minmax(0, 1fr); }
-.sx-actions.bar .sx-action-row { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
+.sx-actions.bar .sx-action-row { grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); }
 .sx-actions.bar .sx-action { min-height: 2.875rem; justify-content: center; font-size: var(--text-base); }
 .sx-action-l { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sx-actions.stack .sx-action-l { flex: 1; }
@@ -73,7 +73,7 @@
   .sx-actions.bar:not(.editing) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--sp-4); padding-block: var(--sp-3); }
   .sx-actions.bar:not(.editing) > .sx-card-h { display: contents; }
   .sx-actions.bar:not(.editing) h2 { grid-column: 1; grid-row: 1; white-space: nowrap; }
-  .sx-actions.bar:not(.editing) .sx-action-row { grid-column: 2; grid-row: 1; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: var(--sp-2); }
+  .sx-actions.bar:not(.editing) .sx-action-row { grid-column: 2; grid-row: 1; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: var(--sp-2); }
   .sx-actions.bar:not(.editing) > .sx-card-h > .mc-chip { grid-column: 3; grid-row: 1; }
 }
 .mc-fav-ic[class*="c-"] { color: var(--c); }

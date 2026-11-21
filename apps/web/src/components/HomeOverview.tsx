@@ -83,6 +83,12 @@ export function ActivityCard() {
   const area = points.length ? `${line} L${x(points[points.length - 1].h).toFixed(1)},${y(0)} L${x(points[0].h).toFixed(1)},${y(0)} Z` : '';
   const labelEvery = W < 480 ? (endH - startH > 12 ? 4 : 3) : endH - startH > 12 ? 3 : 2;
   const last = points[points.length - 1];
+  // ساعات المحور كل labelEvery، وآخر ساعة دايمًا ظاهرة؛ لو قريبة من اللي قبلها نشيل اللي قبلها علشان ما يتداخلوش
+  const timeLabels = Array.from({ length: endH - startH + 1 }, (_, i) => startH + i).filter((h) => (h - startH) % labelEvery === 0);
+  if (timeLabels[timeLabels.length - 1] !== endH) {
+    if (timeLabels.length > 1 && endH - timeLabels[timeLabels.length - 1] < labelEvery) timeLabels.pop();
+    timeLabels.push(endH);
+  }
 
   return (
     <section className="ds-card ds-dark home-activity" aria-labelledby="home-activity-t">
@@ -110,7 +116,7 @@ export function ActivityCard() {
               <text x={padL - 8} y={y(step * k) + 4} className="ha-axis" textAnchor="end">{axisMoney(step * k)}</text>
             </g>
           ))}
-          {Array.from({ length: endH - startH + 1 }, (_, i) => startH + i).filter((h) => (h - startH) % labelEvery === 0 || h === endH).map((h) => (
+          {timeLabels.map((h) => (
             <text key={h} x={x(h)} y={H - 8} className="ha-axis" textAnchor="middle">{`${String(h).padStart(2, '0')}:00`}</text>
           ))}
           {area && <path d={area} fill="url(#home-activity-fill)" />}

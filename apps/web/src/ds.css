@@ -296,7 +296,7 @@
 :root .expense-kpi-icon:is(.orange, .blue, .green) { background: var(--brand-50); color: var(--tint); }
 :root .expense-kpi-icon.red { background: var(--danger-soft); color: var(--danger); }
 :root .item-kpi { display: flex; align-items: center; gap: var(--sp-3); font: inherit; }
-:root .item-kpi > svg { order: 2; flex-shrink: 0; width: 2.75rem; height: 2.75rem; padding: .75rem; border-radius: var(--radius-control); background: var(--brand-50); color: var(--tint); }
+:root .item-kpi > svg { order: 2; flex-shrink: 0; box-sizing: content-box; width: var(--icon-lg); height: var(--icon-lg); padding: .75rem; stroke-width: 1.9; border-radius: var(--radius-control); background: var(--brand-50); color: var(--tint); }
 :root .item-kpi > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
 @media (max-width: 760px) {
   :root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--sp-4); padding: var(--sp-3) 0; }
@@ -304,6 +304,9 @@
   :root :is(.expense-kpis, .items-kpis, .inv-kpis, .kpis, .lp-totals) > :nth-child(odd) { border-inline-start: 0; }
   :root .expense-kpi-icon, :root .item-kpi > svg { display: none; }
 }
+
+/* أيقونة نوع المستند في قائمة الفواتير: برتقالي فاتح لكل الأنواع (المرتجع والملغي بيبانوا من الشارة جنبه) */
+:root .inv-ic { --c: var(--tint); background: var(--brand-50); color: var(--tint); }
 
 /* كروت الاختصارات (الإعدادات وغيرها): لون واحد هو البرتقالي بدل ألوان كتير، ومن غير خط ملون تحت */
 :root .sc { --sc-c: var(--tint); border-radius: var(--radius-card); border-color: var(--line); box-shadow: var(--shadow-surface); }
