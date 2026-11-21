@@ -2,6 +2,8 @@ node_modules/
 dist/
 data/
 backups/
+# كود موديول النسخ الاحتياطي في الخادم (مش ملفات نسخ)
+!apps/server/src/modules/backups/
 *.log
 .env
 .env.*
