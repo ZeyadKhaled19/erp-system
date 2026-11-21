@@ -53,6 +53,7 @@ export function QuickAccountSheet({ type, initialName = '', onClose, onSaved }: 
     <Sheet
       title={TITLE[type]}
       onClose={onClose}
+      overlayClassName="overlay-above-expense-modal"
       footer={
         <>
           <button className="btn" onClick={onClose}>إلغاء</button>

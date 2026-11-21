@@ -264,14 +264,14 @@ export function Banner({ kind = 'info', children }: { kind?: 'info' | 'warn' | '
 
 // ---------------------------------------------------------------- نوافذ
 
-export function Sheet({ title, onClose, children, footer, wide, leading }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; leading?: ReactNode }) {
+export function Sheet({ title, onClose, children, footer, wide, leading, overlayClassName }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; leading?: ReactNode; overlayClassName?: string }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
   return createPortal(
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`overlay${overlayClassName ? ` ${overlayClassName}` : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`sheet ${wide ? 'wide' : ''}`} role="dialog" aria-modal>
         <div className="sheet-head">
           <div style={{ minWidth: 70 }}>{leading}</div>

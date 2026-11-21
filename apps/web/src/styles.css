@@ -273,6 +273,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-base
   display: grid; place-items: center; padding: 1.25rem;
   animation: fade .2s var(--ease);
 }
+.overlay-above-expense-modal { z-index: 1100; }
 .sheet {
   background: var(--bg); border-radius: var(--radius-l); box-shadow: var(--shadow-pop);
   width: min(35rem, 100%); max-height: calc(100% - 2.5rem); display: flex; flex-direction: column;
