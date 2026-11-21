@@ -1,0 +1,299 @@
+/* =====================================================================
+   ds.css — نظام التصميم الموحد (2026-11-21، على التصميم المعتمد للرئيسية)
+   آخر ملف شكل بيتحمّل. كل الألوان والمقاسات من tokens.css (var(--…)) — مفيش ألوان ثابتة هنا.
+   بيشتغل على أسماء الكلاسات الموجودة بس (مفيش ستايل على كل العناصر)، و:root قبل القاعدة
+   بيعليها درجة علشان ملفات الصفحات اللي بتتحمّل بعدين ما تغطّيش عليها.
+   عرض فقط: لا يغيّر أي منطق.
+
+   الأقسام:
+   1) الشريط العلوي   2) الصفحة والكروت   3) الأزرار   4) الخانات
+   5) الجداول والشارات 6) النوافذ والقوائم 7) الحالات الفاضية والرسائل
+   8) الرئيسية        9) صفحات الأقسام     10) الموبايل والتابلت
+   ===================================================================== */
+
+/* ---------- 1) الشريط العلوي: فحمي، اللوجو يمين، الأقسام كلام بخط برتقالي تحت النشط، والأيقونات شمال ---------- */
+:root .nav-bar.mc-top { background: var(--nav-bg) !important; border-bottom: 0; box-shadow: 0 1px 0 var(--nav-border); }
+:root .mc-top .mc-company, :root .mc-top .mc-brand-sep { display: none; }
+:root .mc-top .mc-system { display: inline; color: var(--nav-text); font-size: var(--text-2xl); font-weight: 700; letter-spacing: -.2px; max-width: none; }
+:root .mc-top .mc-brand { gap: .625rem; }
+:root .mc-top .mc-icon-btn, :root .mc-top .mc-search {
+  width: 2.5rem; height: 2.5rem; padding: 0; justify-content: center;
+  border: 0; border-radius: var(--radius-control); background: transparent; color: var(--nav-text);
+  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+:root .mc-top .mc-search > span, :root .mc-top .mc-search > kbd { display: none; }
+:root .mc-top .mc-icon-btn:hover, :root .mc-top .mc-icon-btn.open, :root .mc-top .mc-search:hover { background: var(--nav-hover); color: var(--nav-text); }
+:root .mc-top .mc-icon-btn.on { color: var(--tint); }
+:root .mc-top .mc-icon-btn svg, :root .mc-top .mc-search svg { width: var(--icon-lg); height: var(--icon-lg); stroke-width: 1.9; }
+:root .mc-top .mc-dot { background: var(--tint); box-shadow: 0 0 0 2px var(--nav-bg); }
+:root .mc-top .sync-pill { width: 2.5rem; min-width: 2.5rem; flex-basis: 2.5rem; padding: 0; justify-content: center; background: transparent; }
+:root .mc-top .sync-label { display: none; }
+
+:root .mc-nav-item { background: transparent; border: 0; border-radius: 0; color: var(--nav-muted); font-weight: 600; box-shadow: none; position: relative; }
+:root .mc-nav-ic { display: none; }
+:root .mc-nav-item:hover, :root .mc-nav-item.open { background: transparent; color: var(--nav-text); }
+:root .mc-nav-item.on { background: transparent; color: var(--tint); box-shadow: none; }
+:root .mc-nav-item.on::after { content: ''; position: absolute; inset-inline: .5rem; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--tint); }
+:root .mc-nav-item:focus-visible { outline: 2px solid var(--tint); outline-offset: -4px; border-radius: var(--r-xs); }
+
+@media (min-width: 1181px) {
+  :root .nav-bar.mc-top { min-height: 4.25rem; padding-block: env(safe-area-inset-top) 0; gap: .75rem; padding-inline: var(--page-gutter); }
+  :root .mc-top .mc-nav-in { gap: .25rem; }
+  :root .mc-top .mc-nav-item { height: 4.25rem; padding: 0 .875rem; font-size: var(--text-md); border: 0; }
+  :root .mc-top .mc-nav-item.on { border: 0; box-shadow: none; }
+}
+@media (min-width: 1181px) and (max-width: 1365px) {
+  :root .mc-top .mc-nav-item { padding: 0 .5rem; font-size: var(--text-base); }
+  :root .mc-top .mc-system { font-size: var(--text-xl); }
+}
+/* تابلت (صفين): صف الهوية والأيقونات، وتحته الأقسام بتتحرك يمين وشمال لو مش كافية */
+@media (max-width: 1180px) {
+  :root .mc-top .mc-nav-item { height: 2.75rem; padding: 0 .75rem; font-size: var(--text-base); }
+}
+
+/* قائمة الأقسام المنسدلة والترس والإشعارات */
+:root .tn-pop { border-radius: var(--radius-card); border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow-pop); }
+:root .tn-link { border-radius: var(--r-sm); }
+:root .tn-link:hover, :root .tn-link.on { background: var(--brand-50); color: var(--brand-text); }
+:root .tn-link.on .tn-ic, :root .tn-link:hover .tn-ic { color: var(--tint); }
+
+/* تبويبات الشاشات تحت الشريط: هادية وفاتحة علشان ما تنافسش الشريط */
+:root .screen-tabs.mc-tabs { background: var(--bg); border-bottom: 1px solid var(--line); padding-inline: var(--page-gutter); }
+:root .mc-tabs .st-tab { border-radius: var(--radius-control); box-shadow: none; background: transparent; border-color: transparent; }
+:root .mc-tabs .st-tab:hover { background: var(--surface); border-color: var(--line); }
+:root .mc-tabs .st-tab.on { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow-surface); color: var(--heading); }
+:root .mc-plus { border-radius: var(--radius-control); }
+
+/* ---------- 2) الصفحة والكروت: خلفية رمادي فاتح وكروت بيضا بزاوية وظل ناعم ---------- */
+:root .page { padding-inline: var(--page-gutter); }
+.ds-card,
+:root .card, :root .mc-panel, :root .sx-card, :root .list, :root .stat, :root .kpi, :root .tile,
+:root .hk-kpi, :root .hk-card, :root .ex-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-surface);
+}
+:root .hk-kpi.dark { background: var(--surface-dark); border-color: var(--surface-dark); }
+:root .tile:hover, :root .mc-card:hover { box-shadow: var(--shadow-surface-hover); }
+.ds-card { min-width: 0; padding: var(--sp-5); }
+.ds-card-h { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); min-height: 2rem; }
+.ds-card-h h2 { display: flex; align-items: center; gap: var(--sp-2); margin: 0; font-size: var(--text-lg); font-weight: 700; color: var(--heading); }
+.ds-ic { width: var(--icon-lg); height: var(--icon-lg); color: var(--tint); stroke-width: 2; flex-shrink: 0; }
+.ds-dark { background: var(--surface-dark); border-color: var(--surface-dark); color: var(--on-dark); }
+:root .large-title { font-size: var(--text-page-title); font-weight: 700; color: var(--heading); letter-spacing: -.2px; }
+:root .page-sub { color: var(--label-2); }
+:root .section-title { font-size: var(--text-lg); font-weight: 700; color: var(--heading); }
+
+/* ---------- 3) الأزرار: أساسي برتقالي ممتلئ، وثانوي أبيض بحد ---------- */
+:root .btn {
+  border-radius: var(--radius-control); font-weight: 600; box-shadow: none;
+  transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+:root .btn:not(.primary):not(.plain):hover:not(:disabled) { border-color: var(--brand-300); color: var(--brand-text); background: var(--brand-50); }
+:root .btn.primary { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+:root .btn.primary:hover:not(:disabled) { background: var(--tint-press); border-color: var(--tint-press); }
+:root .btn.danger.primary { background: var(--danger); border-color: var(--danger); color: #fff; }
+:root .btn.success.primary { background: var(--success); border-color: var(--success); color: #fff; }
+:root .btn:disabled, :root .btn[aria-disabled="true"], .ds-btn:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
+:root .btn svg { width: var(--icon-md); height: var(--icon-md); }
+:root .icon-btn { border-radius: var(--radius-control); }
+:root .mc-chip { border-radius: var(--radius-control); border-color: var(--line); background: var(--surface); }
+:root .mc-chip:hover { border-color: var(--brand-300); color: var(--brand-text); }
+:root .mc-chip.primary { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+
+.ds-btn {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: 3.25rem; padding: 0 var(--sp-4);
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--heading);
+  font: inherit; font-size: var(--text-md); font-weight: 700; text-align: start; cursor: pointer;
+  transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+.ds-btn svg { width: var(--icon-xl); height: var(--icon-xl); stroke-width: 1.8; color: var(--tint); flex-shrink: 0; }
+.ds-btn.outline:hover { border-color: var(--tint); background: var(--brand-50); }
+.ds-btn.primary { background: var(--tint); border-color: var(--tint); color: var(--on-tint); }
+.ds-btn.primary svg { color: currentColor; }
+.ds-btn.primary:hover { background: var(--tint-press); border-color: var(--tint-press); }
+.ds-btn:active { transform: translateY(1px); }
+
+/* التركيز بالكيبورد: حلقة برتقالي واضحة على كل حاجة بتتداس */
+:root :where(.btn, .ds-btn, .icon-btn, .mc-chip, .tile, .mc-card, .home-task, .st-tab, .tn-link):focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+
+/* ---------- 4) الخانات: زاوية موحدة، وتركيز بحد برتقالي وحلقة خفيفة ---------- */
+:root .input, :root .select, :root .textarea, :root .search { border-radius: var(--radius-control); }
+:root .input:hover:not(:disabled):not(:focus), :root .select:hover:not(:disabled):not(:focus), :root .textarea:hover:not(:disabled):not(:focus) { border-color: var(--input-border-hover); }
+:root .input:focus, :root .select:focus, :root .textarea:focus { border-color: var(--tint); box-shadow: var(--focus-ring); outline: none; }
+:root .input:disabled, :root .select:disabled, :root .textarea:disabled { background: var(--input-disabled); color: var(--label-3); cursor: not-allowed; }
+:root .search:focus-within { border-color: var(--tint); box-shadow: var(--focus-ring); }
+:root .segmented { border-radius: var(--radius-control); background: var(--surface-2); border: 1px solid var(--line); }
+:root .segmented button { border-radius: var(--r-sm); font-weight: 600; color: var(--label-2); }
+:root .segmented button:hover:not(.on) { color: var(--heading); }
+:root .segmented button.on, :root[data-theme="dark"] .segmented button.on { background: var(--surface); color: var(--brand-text); font-weight: 700; box-shadow: var(--shadow-surface); }
+:root .segmented button.on::after { display: none; }
+
+/* ---------- 5) الجداول والشارات: رأس رمادي بزوايا، صفوف هادية، وحالات على شكل كبسولة ---------- */
+:root .table-wrap { border-radius: var(--radius-card); border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow-surface); }
+:root .table th, :root .table thead th { background: var(--surface-2); color: var(--heading); font-size: var(--text-sm); font-weight: 700; }
+:root .table tbody tr:hover td, :root .table tr.click:hover td { background: var(--brand-50); }
+:root .badge { border-radius: var(--radius-pill); padding: .1875rem .625rem; font-weight: 600; }
+.ds-pill { display: inline-flex; align-items: center; gap: .25rem; height: 1.625rem; padding: 0 .625rem; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
+.ds-pill.brand { background: var(--brand-100); color: var(--brand-text); }
+.ds-pill.neutral { background: var(--neutral-soft); color: var(--neutral-text); }
+.ds-pill.danger { background: var(--danger-soft); color: var(--danger-text); }
+
+.ds-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--text-base); }
+.ds-table th { background: var(--surface-2); color: var(--heading); font-size: var(--text-sm); font-weight: 700; text-align: start; padding: .75rem 1rem; white-space: nowrap; }
+.ds-table th:first-child { border-start-start-radius: var(--r-sm); border-end-start-radius: var(--r-sm); }
+.ds-table th:last-child { border-start-end-radius: var(--r-sm); border-end-end-radius: var(--r-sm); }
+.ds-table td { padding: .75rem 1rem; border-bottom: 1px solid var(--line); color: var(--label); vertical-align: middle; }
+.ds-table tbody tr:last-child td { border-bottom: 0; }
+.ds-table tr.click { cursor: pointer; }
+.ds-table tr.click:hover td { background: var(--brand-50); }
+.ds-table tr.click:focus-visible { outline: 2px solid var(--tint); outline-offset: -2px; }
+.ds-table .n { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ds-table td.n b { color: var(--heading); font-weight: 700; }
+.ds-table td.n small { color: var(--label-2); }
+
+/* ---------- 6) النوافذ والقوائم ---------- */
+:root .sheet, :root .overlay .sheet { border-radius: var(--r-lg); border: 1px solid var(--line); box-shadow: var(--shadow-pop); }
+:root .sheet-head { border-bottom: 1px solid var(--line); }
+:root .sheet-head h3 { color: var(--heading); }
+:root .sheet-foot { background: var(--surface-2); border-top: 1px solid var(--line); }
+:root .picker-opt.hl, :root .picker-opt:hover { background: var(--brand-50); }
+
+/* ---------- 7) الحالات الفاضية والرسائل ---------- */
+.ds-empty, :root .mc-empty {
+  display: grid; place-items: center; min-height: 6rem; padding: var(--sp-5); text-align: center;
+  border: 1px dashed var(--line); border-radius: var(--radius-control); background: var(--surface-2); color: var(--label-2); font-size: var(--text-sm);
+}
+:root .empty { border-radius: var(--radius-card); }
+:root .empty svg { color: var(--brand-300); }
+
+/* ---------- 8) الرئيسية (زي التصميم المعتمد بالترتيب) ---------- */
+.home-ds { display: flex; flex-direction: column; gap: var(--sp-5); }
+.home-hello { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
+.home-hello h1 { margin: 0; font-size: var(--text-hero); font-weight: 700; color: var(--heading); letter-spacing: -.3px; line-height: 1.3; }
+.home-hello p { margin: var(--sp-1) 0 0; color: var(--label-2); font-size: var(--text-md); }
+.home-when { display: inline-flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); color: var(--label); font-size: var(--text-md); font-weight: 500; white-space: nowrap; }
+.home-when svg { width: var(--icon-lg); height: var(--icon-lg); color: var(--tint); }
+
+.home-row { display: grid; gap: var(--sp-5); align-items: stretch; }
+/* أول عنصر بيقع يمين (عربي): المهام يمين وحركة الشغل شمال، والإجراءات يمين والجدول شمال */
+.home-row-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1.85fr); }
+.home-row-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 2.6fr); }
+
+/* حركة الشغل */
+.home-activity { display: flex; flex-direction: column; gap: var(--sp-3); }
+.home-activity-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-direction: row-reverse; }
+.home-activity-title h2 { display: flex; align-items: center; gap: var(--sp-2); margin: 0; font-size: var(--text-xl); font-weight: 700; color: var(--on-dark); }
+.home-activity-title > span { display: block; margin-top: var(--sp-1); color: var(--on-dark-2); font-size: var(--text-sm); }
+.home-activity-total { display: flex; flex-direction: column; align-items: flex-end; padding-inline-end: var(--sp-3); border-inline-end: 3px solid var(--tint); }
+.home-activity-total b { font-size: var(--text-4xl); font-weight: 700; color: var(--on-dark); line-height: 1.1; direction: ltr; unicode-bidi: isolate; }
+.home-activity-total b small { font-size: var(--text-xl); font-weight: 600; }
+.home-activity-total > span { color: var(--on-dark-2); font-size: var(--text-sm); margin-top: var(--sp-1); }
+.home-activity .qhint > svg { color: var(--on-dark-2); }
+.home-activity-chart { flex: 1; min-width: 0; display: flex; align-items: flex-end; direction: ltr; }
+.home-activity-chart svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.ha-grid { stroke: var(--surface-dark-2); stroke-dasharray: 3 4; stroke-width: 1; }
+.ha-axis { fill: var(--on-dark-2); font-size: 11px; font-family: var(--font); }
+.ha-line { fill: none; stroke: var(--tint); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.ha-dot { fill: var(--on-dark); stroke: var(--tint); stroke-width: 3; }
+
+/* مهام تحتاج متابعة */
+.home-tasks { display: flex; flex-direction: column; }
+.home-task-list { display: flex; flex-direction: column; }
+.home-task {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%; padding: var(--sp-3) var(--sp-1);
+  border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer;
+  border-radius: 0; transition: background-color var(--motion-fast) ease;
+}
+.home-task:last-child { border-bottom: 0; }
+.home-task:hover { background: var(--brand-50); }
+.home-task-n { display: grid; place-items: center; min-width: 2.75rem; height: 2rem; padding: 0 .5rem; border-radius: var(--r-sm); background: var(--tint); color: var(--on-tint); font-weight: 700; font-size: var(--text-md); flex-shrink: 0; }
+.home-task-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.home-task-l { font-size: var(--text-md); font-weight: 700; color: var(--heading); }
+.home-task-s { font-size: var(--text-sm); color: var(--label-2); margin-top: .125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-task-chev { width: var(--icon-md); height: var(--icon-md); color: var(--label-2); flex-shrink: 0; }
+
+/* المؤشرات الأربعة */
+.home-kpis { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); padding: var(--sp-4) 0; }
+.home-kpi { position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-1) var(--sp-5); min-width: 0; }
+.home-kpi + .home-kpi { border-inline-start: 1px solid var(--line); }
+.home-kpi .hk-hit { position: absolute; inset: 0; z-index: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--r-sm); }
+.home-kpi .hk-hit:hover { background: var(--brand-50); }
+.home-kpi-t { position: relative; z-index: 1; display: flex; flex-direction: column; min-width: 0; pointer-events: none; }
+.home-kpi-t .qhint { pointer-events: auto; }
+.home-kpi-l { font-size: var(--text-md); font-weight: 700; color: var(--heading); display: flex; align-items: center; gap: var(--sp-1); }
+.home-kpi-v { display: flex; align-items: baseline; gap: var(--sp-2); margin-top: var(--sp-1); color: var(--heading); }
+.home-kpi-v b { font-size: var(--text-3xl); font-weight: 700; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-kpi-v small { font-size: var(--text-md); font-weight: 600; color: var(--label); }
+.home-kpi-s { font-size: var(--text-xs); color: var(--label-2); margin-top: .125rem; }
+.home-spark { position: relative; z-index: 1; width: 5.75rem; height: 2.25rem; flex-shrink: 0; pointer-events: none; }
+.home-spark-l { fill: none; stroke: var(--tint); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.home-spark-a { fill: var(--brand-100); }
+.home-kpi-ic { position: relative; z-index: 1; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: var(--radius-control); background: var(--brand-50); color: var(--tint); flex-shrink: 0; pointer-events: none; }
+.home-kpi-ic svg { width: var(--icon-lg); height: var(--icon-lg); }
+
+/* آخر العمليات */
+.home-recent { display: flex; flex-direction: column; }
+.home-recent-wrap { overflow-x: auto; margin-inline: calc(var(--sp-2) * -1); padding-inline: var(--sp-2); }
+:root .home-recent .badge.green, :root[data-theme] .home-recent .badge.green { background: var(--brand-100); color: var(--brand-text); }
+:root .home-recent .badge.green::before { display: none; }
+
+/* إجراءات سريعة */
+.home-actions { display: flex; flex-direction: column; }
+.home-action-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.home-action-ic { display: grid; place-items: center; }
+.home-action-l { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-actions .mc-fav-pick { margin-top: 0; }
+
+/* ملخص الأداء والكروت تحت الجزء الأساسي */
+.home-ds .hk { margin: 0; }
+.home-cards-h { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.home-cards-h h2 { margin: 0; font-size: var(--text-lg); font-weight: 700; color: var(--heading); }
+.home-ds .mc-cards { margin: 0; }
+
+/* ---------- 9) صفحات الأقسام: نفس لغة الكروت (sections.css بيتحمّل بعد كده، فالـ:root بيعليها) ---------- */
+:root .sx-kpi, :root .sx-hero, :root .sx-quick button, :root .sx-link { border-radius: var(--radius-card); }
+:root .sx-quick button:hover, :root .sx-link:hover { border-color: var(--brand-300); background: var(--brand-50); }
+
+/* كروت الاختصارات (الإعدادات وغيرها): لون واحد هو البرتقالي بدل ألوان كتير، ومن غير خط ملون تحت */
+:root .sc { --sc-c: var(--tint); border-radius: var(--radius-card); border-color: var(--line); box-shadow: var(--shadow-surface); }
+:root .sc::after { display: none; }
+:root .sc:hover { transform: none; border-color: var(--brand-300); box-shadow: var(--shadow-surface-hover); }
+:root .sc .sc-icon { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: var(--radius-card); background: var(--brand-50); }
+:root .sc .sc-icon svg { width: 1.75rem; height: 1.75rem; stroke-width: 1.8; }
+:root .sc .sc-label { font-weight: 700; }
+
+/* ---------- 10) التابلت والموبايل ---------- */
+@media (max-width: 1180px) {
+  .home-row-top, .home-row-bottom { grid-template-columns: minmax(0, 1fr); }
+  .home-row-top > .home-activity { order: -1; }
+  .home-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--sp-4); }
+  .home-kpi:nth-child(odd) { border-inline-start: 0; }
+  .home-row-bottom > .home-actions { order: 1; }
+}
+@media (max-width: 760px) {
+  .home-ds { gap: var(--sp-4); }
+  .ds-card { padding: var(--sp-4); }
+  .home-hello h1 { font-size: var(--text-xl); }
+  .home-when { margin-top: 0; font-size: var(--text-sm); }
+  .home-activity-head { flex-direction: column; align-items: stretch; }
+  .home-activity-total { align-items: flex-start; border-inline-end: 0; border-inline-start: 3px solid var(--tint); padding-inline: var(--sp-3) 0; }
+  .home-activity-total b { font-size: var(--text-3xl); }
+  .home-kpi { padding: var(--sp-1) var(--sp-3); flex-direction: column; align-items: flex-start; }
+  .home-kpi-v b { font-size: var(--text-2xl); }
+  .home-spark { width: 100%; height: 1.75rem; }
+  .home-kpi-ic { display: none; }
+  /* آخر العمليات: كل عملية كارت صغير بدل جدول عريض */
+  .ds-table thead { display: none; }
+  .ds-table, .ds-table tbody, .ds-table tr, .ds-table td { display: block; width: 100%; }
+  .ds-table tr { padding: var(--sp-3) 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: .25rem var(--sp-3); }
+  .ds-table tbody tr:last-child { border-bottom: 0; }
+  .ds-table td { padding: 0; border: 0; width: auto; }
+  .ds-table td:nth-child(1) { font-weight: 700; color: var(--heading); }
+  .ds-table td:nth-child(3), .ds-table td:nth-child(4) { color: var(--label-2); font-size: var(--text-sm); }
+  .ds-table .n { text-align: end; }
+}
+
+/* تقليل الحركة: من غير انتقالات */
+@media (prefers-reduced-motion: reduce) {
+  .ds-btn, .home-task, :root .btn, :root .mc-top .mc-icon-btn { transition: none; }
+  .ds-btn:active { transform: none; }
+}

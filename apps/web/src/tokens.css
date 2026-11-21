@@ -143,6 +143,65 @@
   --r-xl: 1.25rem;
   --r-xs: .375rem;
   --zebra: #0f172a04;
+
+  /* ===== نظام التصميم الموحد (ds.css بيستخدمه) — 2026-11-21 ===== */
+  /* درجات البرتقالي محسوبة من --tint علشان أوضاع الألوان تفضل شغالة */
+  --brand-50: color-mix(in srgb, var(--tint) 6%, var(--card));
+  --brand-100: color-mix(in srgb, var(--tint) 12%, var(--card));
+  --brand-200: color-mix(in srgb, var(--tint) 24%, var(--card));
+  --brand-300: color-mix(in srgb, var(--tint) 45%, var(--card));
+  --brand-500: var(--tint);
+  --brand-600: var(--tint-press);
+  --brand-700: color-mix(in srgb, var(--tint) 78%, #000);
+  --brand-text: var(--tint-press);
+  /* ألوان الحالة بأسماء معناها */
+  --success: var(--green);
+  --success-soft: var(--green-soft);
+  --success-text: var(--green-text);
+  --warning: var(--orange);
+  --warning-soft: var(--orange-soft);
+  --warning-text: var(--orange-text);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+  --danger-text: var(--red-text);
+  --neutral-soft: var(--card-2);
+  --neutral-text: var(--label-2);
+  /* الأسطح */
+  --surface: var(--card);
+  --surface-2: var(--card-2);
+  --surface-dark: #1d2027;
+  --surface-dark-2: #2a2e37;
+  --on-dark: #f3f4f6;
+  --on-dark-2: #a0a5b1;
+  --line: var(--separator);
+  /* مسافات (شبكة 4px) */
+  --sp-1: .25rem;
+  --sp-2: .5rem;
+  --sp-3: .75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --page-gutter: clamp(1rem, 2vw, 1.75rem);
+  /* زوايا */
+  --radius-control: .625rem;
+  --radius-card: .875rem;
+  --radius-pill: 999px;
+  /* ظلال ناعمة للكروت البيضا */
+  --shadow-surface: 0 1px 2px #1012180a, 0 2px 8px #10121808;
+  --shadow-surface-hover: 0 2px 4px #1012180d, 0 8px 20px #1012180f;
+  /* حالات التفاعل */
+  --focus-ring: 0 0 0 3px var(--tint-ring);
+  --disabled-opacity: .5;
+  /* مقاسات الأيقونات */
+  --icon-xs: .875rem;
+  --icon-sm: 1rem;
+  --icon-md: 1.125rem;
+  --icon-lg: 1.25rem;
+  --icon-xl: 1.5rem;
+  /* الحركة */
+  --motion-fast: .12s;
+  --motion: .18s;
 }
 
 /* الوضع الغامق (رمادي غامق) */
@@ -214,6 +273,12 @@
   --grad-orange: #c98a1c;
   --grad-red: #d04848;
   --zebra: #ffffff05;
+  /* نظام التصميم الموحد */
+  --brand-text: #fb923c;
+  --surface-dark: #18191d;
+  --surface-dark-2: #26282e;
+  --shadow-surface: none;
+  --shadow-surface-hover: 0 6px 18px #00000040;
 }
 
 /* وضع كحلي */

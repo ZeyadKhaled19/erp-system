@@ -22,6 +22,8 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 // النسخة الحادة آخر ملف تصميم (بعد sections.css اللي بيتحمّل من داخل App)
 import './sharp.css';
+// نظام التصميم الموحد: آخر طبقة (ds.css) — كل قيمه من tokens.css
+import './ds.css';
 import { UiProvider } from './components/ui';
 import { DesktopBridge } from './components/DesktopBridge';
 import { initBrand } from './lib/brand';

@@ -301,13 +301,13 @@ export function Layout({ children }: { children: ReactNode }) {
             </a>
             <div className="nav-title" id="nav-title-slot" />
             <div className="spacer" />
+            <span className="only-mobile"><NewMenu /></span>
+            <SyncPill />
             <button className="mc-search hide-mobile" onClick={() => setSearchOpen(true)} title="بحث (Ctrl K)" aria-label="بحث">
               <Search />
               <span>بحث</span>
               <kbd>Ctrl K</kbd>
             </button>
-            <span className="only-mobile"><NewMenu /></span>
-            <SyncPill />
             <button className="icon-btn only-mobile" onClick={() => setSearchOpen(true)} aria-label="بحث">
               <Search />
             </button>

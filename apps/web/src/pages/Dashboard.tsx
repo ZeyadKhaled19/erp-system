@@ -1,13 +1,14 @@
 import { DOC_TYPES, formatMoney, hasPermission, todayISO } from '@erp/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  ArrowDownLeft, Fingerprint, CalendarClock, CalendarDays, Check, ChevronLeft, ClipboardList, Clock3, FileText, Package, PackagePlus, RotateCcw, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Star, Truck, TrendingDown, TrendingUp, Users, Wallet, Zap,
+  Bell, Box, CalendarClock, CalendarDays, Check, ChevronLeft, Coins, FilePlus2, Fingerprint, FileText, Layers, Package, RotateCcw, ShieldAlert, ShoppingCart, SlidersHorizontal, Truck, Users, Wallet, Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocStatusBadge } from '../components/ui';
 import { Hint } from '../components/Hint';
 import { HomeKpis } from '../components/HomeKpis';
+import { ActivityCard, KpiStrip } from '../components/HomeOverview';
 import { GEAR_HUBS, HUBS, SECTIONS, type SectionColor } from '../components/nav';
 import { db } from '../lib/db';
 import { useWorkCounts } from '../lib/alerts';
@@ -43,72 +44,93 @@ export function Dashboard() {
       .toArray()));
     return batches.flat()
       .sort((a, b) => String(b.created_at ?? b.date).localeCompare(String(a.created_at ?? a.date)))
-      .slice(0, 6);
+      .slice(0, 5);
   }, [allowedTypesKey]);
 
-  return (
-    <div className="page mc-home">
-      <HomeHeader name={session.user.full_name} company={settings.company_name || ''} system={systemName({ system_name: settings.system_name ?? '' })} onCustomize={editCards ? undefined : () => setEditCards(true)} />
+  const partyNames = useLiveQuery(async () => {
+    const ids = [...new Set((recent ?? []).map((d) => d.party_id).filter(Boolean))] as string[];
+    const rows = ids.length ? await db.parties.bulkGet(ids) : [];
+    return new Map(rows.filter(Boolean).map((p) => [p!.id, p!.name as string]));
+  }, [recent]);
 
-      <div className="mc-panels">
+  // الترتيب زي التصميم المعتمد بالظبط: الترحيب ← حركة الشغل + المهام ← المؤشرات ← آخر العمليات + إجراءات سريعة
+  // وبعده باقي مميزات الرئيسية اللي كانت موجودة (ملخص الأداء بالفترات والكروت) من غير ما يتشال حاجة.
+  return (
+    <div className="page mc-home home-ds">
+      <HomeHeader system={systemName({ system_name: settings.system_name ?? '' })} company={settings.company_name || ''} name={session.user.full_name} />
+
+      <div className="home-row home-row-top">
         <QuickTasks />
+        <ActivityCard />
+      </div>
+
+      <KpiStrip />
+
+      <div className="home-row home-row-bottom">
         <Favorites />
+        <section className="ds-card home-recent" aria-labelledby="home-recent-t">
+          <div className="ds-card-h">
+            <h2 id="home-recent-t"><Layers className="ds-ic" /> آخر العمليات <Hint side="start" text="آخر 5 مستندات اتعملت على الجهاز ده من الأقسام اللي عندك صلاحية تشوفها. دوس على أي واحد يفتحه." /></h2>
+          </div>
+          {recent?.length ? (
+            <div className="home-recent-wrap">
+              <table className="ds-table">
+                <thead>
+                  <tr><th>رقم المستند</th><th>النوع</th><th>الطرف</th><th>التاريخ</th><th className="n">القيمة</th><th>الحالة</th></tr>
+                </thead>
+                <tbody>
+                  {recent.map((d) => (
+                    <tr key={d.id} className="click" tabIndex={0} onClick={() => nav(`/docs/view/${d.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') nav(`/docs/view/${d.id}`); }}>
+                      <td className="num" data-label="رقم المستند">{d.number ?? d.local_number ?? '—'}</td>
+                      <td data-label="النوع">{DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.label ?? d.doc_type}</td>
+                      <td data-label="الطرف">{(d.party_id && partyNames?.get(d.party_id)) || <span className="muted">—</span>}</td>
+                      <td className="num" data-label="التاريخ">{when(d.created_at, d.date)}</td>
+                      <td className="n num" data-label="القيمة"><b>{formatMoney(d.total)}</b> <small>ج.م</small></td>
+                      <td data-label="الحالة"><DocStatusBadge status={d.status} sync={d._sync} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="ds-empty">لا توجد عمليات بعد. ابدأ بإضافة الأصناف، ثم فاتورة شراء أو «بيع سريع».</div>
+          )}
+        </section>
       </div>
 
       <HomeKpis />
 
+      <div className="home-cards-h">
+        <h2>أقسامي</h2>
+        {!editCards && <button type="button" className="mc-chip" onClick={() => setEditCards(true)} title="اختار الكروت اللي تظهر في الرئيسية"><SlidersHorizontal /> تخصيص الكروت</button>}
+      </div>
       <HomeCards editing={editCards} onDone={() => setEditCards(false)} />
-
-      <div className="section-title">آخر العمليات <Hint side="start" text="آخر 6 مستندات اتعملت على الجهاز ده من الأقسام اللي عندك صلاحية تشوفها. دوس على أي واحد يفتحه." /></div>
-      {recent?.length ? (
-        <div className="list">
-          {recent.map((d) => (
-            <div key={d.id} className="list-row tappable with-icon" onClick={() => nav(`/docs/view/${d.id}`)}>
-              <span className="sb-icon" style={{ background: d.doc_type.startsWith('sale') ? 'var(--grad-green)' : d.doc_type.startsWith('purchase') ? 'var(--grad-purple)' : 'var(--grad-blue)', color: '#fff' }}>
-                {d.doc_type.startsWith('sale') ? <ShoppingCart /> : d.doc_type.startsWith('purchase') ? <ShoppingBag /> : <Wallet />}
-              </span>
-              <div className="title">
-                {DOC_TYPES[d.doc_type as keyof typeof DOC_TYPES]?.label} <span className="num muted">{d.number ?? d.local_number}</span>
-                <div className="sub num">{d.date}</div>
-              </div>
-              <DocStatusBadge status={d.status} sync={d._sync} />
-              <div className="num bold">{formatMoney(d.total)}</div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card pad muted">لا توجد عمليات بعد. ابدأ بإضافة الأصناف، ثم فاتورة شراء أو «بيع سريع».</div>
-      )}
     </div>
   );
 }
 
-/** «مرحبًا بك، الاسم 👋» + سطر الشركة، وكبسولة التاريخ والوقت (تتحدث كل نصف دقيقة) */
-function HomeHeader({ name, company, system, onCustomize }: { name: string; company: string; system: string; onCustomize?: () => void }) {
+/** «2025-01-23 17:42» من وقت التسجيل، أو التاريخ بس لو الوقت مش معروف */
+function when(created: string | undefined, date: string) {
+  const t = created ? new Date(created) : null;
+  if (!t || Number.isNaN(t.getTime()) || todayISO(t) !== date) return date;
+  return `${date} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+}
+
+/** «مرحبًا بك في نظام …» + سطر النظرة العامة، والتاريخ على الشمال (بيتحدث كل نص دقيقة) */
+function HomeHeader({ system, company, name }: { system: string; company: string; name: string }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(t);
   }, []);
   const date = now.toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const time = now.toLocaleTimeString('ar-EG-u-nu-latn', { hour: 'numeric', minute: '2-digit' });
   return (
-    <div className="mc-hello">
-      <div className="mc-hello-t">
-        <h1>
-          <span className="mc-wave" aria-hidden="true">👋</span>
-          مرحبًا بك، <span className="mc-hello-n">{name.trim()}</span>
-        </h1>
-        <div className="mc-hello-s">{company ? <>{company} · <bdi>{system}</bdi></> : <bdi>{system}</bdi>}</div>
+    <div className="home-hello">
+      <div className="home-hello-t">
+        <h1>مرحبًا بك في نظام <bdi>{system}</bdi></h1>
+        <p title={[name.trim(), company].filter(Boolean).join(' · ')}>نظرة عامة على أداء النشاط اليوم</p>
       </div>
-      <div className="mc-hello-side">
-        {onCustomize && <button type="button" className="mc-chip" onClick={onCustomize} title="اختار الكروت اللي تظهر في الرئيسية"><SlidersHorizontal /> تخصيص الكروت</button>}
-        <div className="mc-when">
-          <span><CalendarDays /> {date}</span>
-          <i aria-hidden="true" />
-          <span className="num"><Clock3 /> {time}</span>
-        </div>
-      </div>
+      <div className="home-when"><CalendarDays /> <span>{date}</span></div>
     </div>
   );
 }
@@ -118,34 +140,37 @@ function QuickTasks() {
   const nav = useNavigate();
   const can = usePerm();
   const w = useWorkCounts();
-  const rows: { show: boolean; n: number; label: string; to: string; icon: ReactNode; tone: string; title?: string }[] = [
-    { show: can('sales.view'), n: w.overdue, label: 'فواتير تحتاج متابعة', to: '/receivables', icon: <FileText />, tone: 'red', title: 'فواتير بيع آجلة عدّى ميعاد سدادها' },
-    { show: can('inventory.view'), n: w.reorder, label: 'أصناف تحت حد الطلب', to: '/reports/reorder', icon: <Package />, tone: 'orange' },
-    { show: can('parties.view'), n: w.customers, label: 'مستحقات على العملاء', to: '/parties/customer', icon: <Users />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.customersAmount)}` },
-    { show: can('parties.view'), n: w.suppliers, label: 'مستحقات للموردين', to: '/parties/supplier', icon: <Truck />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.suppliersAmount)}` },
-    { show: true, n: w.review, label: 'عمليات تحتاج مراجعة', to: '/sync', icon: <ShieldAlert />, tone: 'red' },
-    { show: can('treasury.view'), n: w.dueSoon, label: 'شيكات وأقساط مستحقة خلال أسبوع', to: '/instruments', icon: <CalendarClock />, tone: 'orange' },
-    { show: can('sales.view'), n: w.pendingDelivery, label: 'فواتير بانتظار التسليم', to: '/deliveries', icon: <Truck />, tone: 'blue' },
+  const rows: { show: boolean; n: number; label: string; sub: string; to: string; icon: ReactNode; tone: string; title?: string }[] = [
+    { show: can('sales.view'), n: w.overdue, label: 'فواتير مبيعات غير مسددة', sub: `يوجد ${w.overdue} فواتير آجلة عدّى ميعاد سدادها`, to: '/receivables', icon: <FileText />, tone: 'red', title: 'فواتير بيع آجلة عدّى ميعاد سدادها' },
+    { show: can('inventory.view'), n: w.reorder, label: 'أصناف وصلت لحد إعادة الطلب', sub: `يوجد ${w.reorder} أصناف بحاجة إلى إعادة طلب`, to: '/reports/reorder', icon: <Package />, tone: 'orange' },
+    { show: can('parties.view'), n: w.customers, label: 'مستحقات على العملاء', sub: `إجمالي المستحق ${formatMoney(w.customersAmount)} ج.م`, to: '/parties/customer', icon: <Users />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.customersAmount)}` },
+    { show: can('parties.view'), n: w.suppliers, label: 'مستحقات للموردين', sub: `إجمالي المستحق ${formatMoney(w.suppliersAmount)} ج.م`, to: '/parties/supplier', icon: <Truck />, tone: 'blue', title: `إجمالي المستحق: ${formatMoney(w.suppliersAmount)}` },
+    { show: true, n: w.review, label: 'عمليات تحتاج مراجعة', sub: `يوجد ${w.review} عمليات مرفوضة أو فيها تعارض`, to: '/sync', icon: <ShieldAlert />, tone: 'red' },
+    { show: can('treasury.view'), n: w.dueSoon, label: 'شيكات وأقساط مستحقة', sub: `يوجد ${w.dueSoon} مستحقة خلال أسبوع`, to: '/instruments', icon: <CalendarClock />, tone: 'orange' },
+    { show: can('sales.view'), n: w.pendingDelivery, label: 'فواتير بانتظار التسليم', sub: `يوجد ${w.pendingDelivery} فواتير لسه متسلمتش`, to: '/deliveries', icon: <Truck />, tone: 'blue' },
   ];
   const list = rows.filter((r) => r.show && r.n > 0);
   return (
-    <section className="mc-panel mc-tasks" aria-labelledby="mc-tasks-t">
-      <div className="mc-panel-h">
-        <h2 id="mc-tasks-t"><ClipboardList className="mc-panel-ic" /> مهامي السريعة <Hint side="start" text="حاجات محتاجة منك تتصرف فيها دلوقتي: فواتير آجلة عدّى ميعادها، أصناف قربت تخلص، وفلوس على العملاء أو للموردين. الرقم = عدد الحالات، ودوس على السطر يفتحها." /></h2>
+    <section className="ds-card home-tasks" aria-labelledby="mc-tasks-t">
+      <div className="ds-card-h">
+        <h2 id="mc-tasks-t"><Bell className="ds-ic" /> مهام تحتاج متابعة <Hint side="start" text="حاجات محتاجة منك تتصرف فيها دلوقتي: فواتير آجلة عدّى ميعادها، أصناف قربت تخلص، وفلوس على العملاء أو للموردين. الرقم = عدد الحالات، ودوس على السطر يفتحها." /></h2>
+        {list.length > 0 && <span className="ds-pill brand num">{list.length} مهام</span>}
       </div>
       {list.length ? (
-        <div className="mc-task-list">
+        <div className="home-task-list">
           {list.map((r) => (
-            <button key={r.label} type="button" className="mc-task" title={r.title} onClick={() => nav(r.to)}>
-              <span className="mc-task-ic">{r.icon}</span>
-              <span className="mc-task-l">{r.label}</span>
-              <span className={`mc-count ${r.tone} num`}>{r.n}</span>
-              <ChevronLeft className="mc-chev" />
+            <button key={r.label} type="button" className={`home-task tone-${r.tone}`} title={r.title} onClick={() => nav(r.to)}>
+              <span className="home-task-n num">{r.n}</span>
+              <span className="home-task-t">
+                <span className="home-task-l">{r.label}</span>
+                <span className="home-task-s">{r.sub}</span>
+              </span>
+              <ChevronLeft className="home-task-chev" />
             </button>
           ))}
         </div>
       ) : (
-        <div className="mc-empty">مفيش مهام محتاجة متابعة دلوقتي.</div>
+        <div className="ds-empty">مفيش مهام محتاجة متابعة دلوقتي.</div>
       )}
     </section>
   );
@@ -153,15 +178,16 @@ function QuickTasks() {
 
 /** أيقونات وأسماء المفضلة (الباقي يستخدم أيقونة واسم الإجراء نفسه) */
 const FAV_ICONS: Record<string, ReactNode> = {
-  sale_invoice: <ShoppingCart />, purchase_invoice: <ShoppingBasket />, item_new: <PackagePlus />, receipt: <ArrowDownLeft />, pos: <Zap />,
+  sale_invoice: <FilePlus2 />, purchase_invoice: <ShoppingCart />, item_new: <Box />, receipt: <Coins />, pos: <Zap />,
   purchase_return: <RotateCcw />, payment: <Wallet />, attendance: <Fingerprint />,
 };
 const FAV_LABEL: Record<string, string> = {
-  sale_invoice: 'فاتورة بيع جديدة', purchase_invoice: 'فاتورة شراء جديدة', item_new: 'إضافة صنف جديد',
+  sale_invoice: 'فاتورة بيع جديدة', purchase_invoice: 'فاتورة شراء', item_new: 'إضافة صنف', receipt: 'قبض من عميل',
 };
 /** الافتراضي؛ ونكمل للستة من الباقي حسب صلاحيات المستخدم */
 const MAX_FAVS = 6;
-const FAV_DEFAULT = ['sale_invoice', 'purchase_invoice', 'item_new', 'attendance', 'receipt', 'pos', 'payment', 'expense', 'customer_new'];
+// زي التصميم: بيع، شراء، قبض، صنف (والمستخدم يقدر يزود لحد 6 من «تخصيص»)
+const FAV_DEFAULT = ['sale_invoice', 'purchase_invoice', 'receipt', 'item_new'];
 const favKey = (uid: string) => `erp.favorites.v1.${uid}`;
 function readFavs(uid: string): string[] | null {
   try {
@@ -172,7 +198,7 @@ function readFavs(uid: string): string[] | null {
   }
 }
 
-/** «اختصاراتي المفضلة»: 6 أزرار، الأول أزرق ممتلئ، و«تخصيص» يحفظ اختيار كل مستخدم على الجهاز */
+/** «إجراءات سريعة»: لحد 6 أزرار، الأول برتقالي ممتلئ والباقي بحد، و«تخصيص» يحفظ اختيار كل مستخدم على الجهاز */
 function Favorites() {
   const nav = useNavigate();
   const { session } = useSession();
@@ -200,9 +226,9 @@ function Favorites() {
     setEditing(false);
   };
   return (
-    <section className="mc-panel mc-favs" aria-labelledby="mc-favs-t">
-      <div className="mc-panel-h">
-        <h2 id="mc-favs-t"><Star className="mc-star" /> اختصاراتي المفضلة <Hint side="start" text="أسرع طريق للعمليات اللي بتعملها كتير. «تخصيص» يخليك تختار لحد 6 بالترتيب، والأول بيظهر أزرق. الاختيار بيتحفظ ليك على الجهاز ده." /></h2>
+    <section className="ds-card home-actions" aria-labelledby="mc-favs-t">
+      <div className="ds-card-h">
+        <h2 id="mc-favs-t"><Zap className="ds-ic" /> إجراءات سريعة <Hint side="start" text="أسرع طريق للعمليات اللي بتعملها كتير. «تخصيص» يخليك تختار لحد 6 بالترتيب، والأول بيظهر برتقالي. الاختيار بيتحفظ ليك على الجهاز ده." /></h2>
         {available.length > 0 && (editing ? (
           <span className="mc-fav-tools">
             <button type="button" className="mc-chip" onClick={() => setEditing(false)}>إلغاء</button>
@@ -214,7 +240,7 @@ function Favorites() {
       </div>
       {editing ? (
         <div className="mc-fav-pick">
-          <div className="mc-fav-hint">اختار لحد {MAX_FAVS} اختصارات بالترتيب ({draft.length}/{MAX_FAVS}) — الأول بيظهر أزرق.</div>
+          <div className="mc-fav-hint">اختار لحد {MAX_FAVS} اختصارات بالترتيب ({draft.length}/{MAX_FAVS}) — الأول بيظهر برتقالي.</div>
           <div className="mc-fav-opts">
             {available.map((a) => {
               const i = draft.indexOf(a.key);
@@ -229,19 +255,16 @@ function Favorites() {
           </div>
         </div>
       ) : chosen.length ? (
-        <div className="mc-fav-grid">
+        <div className="home-action-list">
           {chosen.map((a, i) => (
-            <button key={a.key} type="button" className={`mc-fav ${i === 0 ? 'primary' : ''} fav-${a.key}`} onClick={() => { recordUse(uid, a.key); nav(a.to); }}>
-              <span className="mc-fav-ic">{FAV_ICONS[a.key] ?? a.icon}</span>
-              <span className="mc-fav-t">
-                <span className="mc-fav-l">{FAV_LABEL[a.key] ?? a.label}</span>
-                <span className="mc-fav-g">{a.group}</span>
-              </span>
+            <button key={a.key} type="button" className={`ds-btn ${i === 0 ? 'primary' : 'outline'} home-action fav-${a.key}`} title={a.group} onClick={() => { recordUse(uid, a.key); nav(a.to); }}>
+              <span className="home-action-ic">{FAV_ICONS[a.key] ?? a.icon}</span>
+              <span className="home-action-l">{FAV_LABEL[a.key] ?? a.label}</span>
             </button>
           ))}
         </div>
       ) : (
-        <div className="mc-empty">مفيش اختصارات متاحة لصلاحياتك.</div>
+        <div className="ds-empty">مفيش اختصارات متاحة لصلاحياتك.</div>
       )}
     </section>
   );

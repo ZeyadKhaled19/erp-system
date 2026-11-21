@@ -8,6 +8,8 @@ import { useLicenseInfo } from '../lib/license';
 import { GEAR_HUBS, HUBS, SECTIONS, activeHubKey, activeSectionKey, type NavLink, type Section } from './nav';
 
 type Can = (p: string) => boolean;
+/** ترتيب أقسام الشريط في التصميم المعتمد (2026-11-21) */
+const NAV_ORDER = ['home', 'sales', 'purchases', 'inventory', 'parties', 'treasury', 'employees', 'reports', 'partners'];
 const allowed = (can: Can, perms: string[]) => !perms.length || perms.some((p) => can(p));
 const linksOf = (can: Can, links: NavLink[]) => links.filter((l) => !l.perm || can(l.perm));
 
@@ -75,7 +77,11 @@ export function MainNav({ can }: { can: Can }) {
   const { open, setOpen, anchors, pop } = useMenu<string>();
   const timer = useRef<number | undefined>(undefined);
   const active = activeSectionKey(loc.pathname);
-  const sections = SECTIONS.filter((s) => allowed(can, s.perms));
+  // ترتيب العرض في الشريط زي التصميم المعتمد؛ ترتيب SECTIONS نفسه ثابت علشان اختصارات Alt+رقم ما تتغيرش
+  const sections = SECTIONS.filter((s) => allowed(can, s.perms))
+    .map((s, i) => ({ s, i: NAV_ORDER.indexOf(s.key) < 0 ? 100 + i : NAV_ORDER.indexOf(s.key) }))
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.s);
   const enter = (key: string) => {
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setOpen(key), open ? 0 : 160);
@@ -186,9 +192,9 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
   );
   return (
     <>
-      {btn('gear', 'الإعدادات والحسابات والتقارير', <Settings />, syncProblems > 0 ? <span className="mc-dot" /> : null, gearActive ? 'on' : '')}
-      {btn('help', 'مساعدة', <CircleHelp />)}
+      {/* الترتيب زي التصميم: الإشعارات ثم الترس آخر الشريط؛ المساعدة بقت جوه قائمة الترس */}
       {btn('bell', totalAlerts ? `الإشعارات (${totalAlerts})` : 'الإشعارات', <Bell />, totalAlerts > 0 ? <span className="mc-dot" /> : null)}
+      {btn('gear', 'الإعدادات والحسابات والتقارير', <Settings />, syncProblems > 0 ? <span className="mc-dot" /> : null, gearActive ? 'on' : '')}
       {open === 'gear' && (
         <MenuPanel anchor={anchors.current.gear} popRef={pop}>
           <div className="mc-menu-user">
@@ -197,6 +203,7 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
           </div>
           <LinkGroups groups={gearGroups} onGo={go} />
           <div className="mc-menu-foot">
+            <button className="tn-link" onClick={() => setOpen('help')}><span className="tn-ic"><CircleHelp /></span>مساعدة واختصارات الكيبورد</button>
             <button className="tn-link" onClick={() => { setOpen(null); onAppearance(); }}><span className="tn-ic"><Palette /></span>تفضيلاتي (المظهر والخط)</button>
             <button className="tn-link" onClick={() => { setOpen(null); onToggleTheme(); }}><span className="tn-ic">{dark ? <Sun /> : <Moon />}</span>{dark ? 'الوضع الفاتح' : 'الوضع الغامق'}</button>
             <button className="tn-link danger" onClick={() => { setOpen(null); onLogout(); }}><span className="tn-ic"><LogOut /></span>تسجيل الخروج</button>
@@ -204,11 +211,11 @@ export function TopIcons({ can, dark, onToggleTheme, onAppearance, onLogout, onS
         </MenuPanel>
       )}
       {open === 'help' && (
-        <MenuPanel anchor={anchors.current.help} popRef={pop}>
+        <MenuPanel anchor={anchors.current.gear} popRef={pop}>
           <div className="mc-help">
             <b>فين ألاقي…؟</b>
             <p><Settings /> <span><b>الشركاء ورأس المال والإعدادات</b> في زرار الترس <Settings className="inl" /> فوق.</span></p>
-            <p><Users /> <span>كل قسم في الشريط الأزرق: اضغط عليه يفتح صفحته، أو وقّف الماوس عليه تظهر كل شاشاته.</span></p>
+            <p><Users /> <span>كل قسم في الشريط اللي فوق: اضغط عليه يفتح صفحته، أو وقّف الماوس عليه تظهر كل شاشاته.</span></p>
             <b>اختصارات الكيبورد</b>
             <p><kbd>Ctrl</kbd>+<kbd>K</kbd> <span>بحث عن صنف أو عميل أو فاتورة</span></p>
             <p><kbd>F1</kbd> <span>كل الاختصارات (وفي الفاتورة: اختصارات الفاتورة)</span></p>
